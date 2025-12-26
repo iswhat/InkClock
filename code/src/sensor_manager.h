@@ -6,6 +6,7 @@
 
 // 传感器类型枚举
 enum SensorType {
+  SENSOR_TYPE_AUTO_DETECT,  // 自动检测传感器类型
   SENSOR_TYPE_DHT22,
   SENSOR_TYPE_DHT11,
   SENSOR_TYPE_DHT12,

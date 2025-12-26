@@ -3,6 +3,7 @@
 
 // 外部全局对象
 extern WiFiManager wifiManager;
+extern LunarManager lunarManager;
 
 // NTP配置
 const int NTP_PACKET_SIZE = 48;
@@ -269,15 +270,13 @@ String TimeManager::getWeekdayName(int weekday) {
 }
 
 String TimeManager::getLunarDate(int year, int month, int day) {
-  // 简化的农历日期转换，实际应用中需要更完整的农历算法
-  // 这里返回一个示例值，实际项目中需要实现完整的农历转换算法
-  return "正月初一";
+  // 使用农历管理模块获取农历日期
+  return lunarManager.getLunarDateString(year, month, day);
 }
 
 String TimeManager::getSolarTerm(int year, int month, int day) {
-  // 简化的节气计算，实际应用中需要更精确的算法
-  // 这里返回一个示例值，实际项目中需要实现完整的节气计算
-  return "";
+  // 使用农历管理模块获取节气
+  return lunarManager.getSolarTerm(year, month, day);
 }
 
 bool TimeManager::isLeapYear(int year) {

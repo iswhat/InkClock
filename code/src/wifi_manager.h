@@ -30,9 +30,13 @@ private:
   // WiFi状态
   bool connected;
   unsigned long lastReconnectAttempt;
+  int connectionAttempts;
+  int maxConnectionAttempts;
+  String currentSSID;
+  String currentPassword;
   
   // 私有方法
-  void setupWiFi();
+  void setupWiFi(String ssid, String password);
   void reconnect();
   void printWiFiStatus();
 };

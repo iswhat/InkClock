@@ -3,6 +3,10 @@
 WiFiManager::WiFiManager() {
   connected = false;
   lastReconnectAttempt = 0;
+  connectionAttempts = 0;
+  maxConnectionAttempts = 20;
+  currentSSID = WIFI_SSID;
+  currentPassword = WIFI_PASSWORD;
 }
 
 WiFiManager::~WiFiManager() {
@@ -51,19 +55,33 @@ void WiFiManager::disconnect() {
 
 void WiFiManager::loop() {
   // 检查WiFi连接状态
-  if (WiFi.status() != WL_CONNECTED) {
-    if (!connected) {
-      // 首次连接失败，尝试重连
-      reconnect();
-    } else {
+  wl_status_t status = WiFi.status();
+  
+  if (status != WL_CONNECTED) {
+    if (connected) {
       // 连接断开，标记为未连接
       connected = false;
+      connectionAttempts = 0;
       DEBUG_PRINTLN("WiFi连接已断开");
+    }
+    
+    // 尝试重连，但限制最大尝试次数
+    if (connectionAttempts < maxConnectionAttempts) {
+      reconnect();
+    } else {
+      // 超过最大尝试次数，暂停一段时间后再尝试
+      static unsigned long lastPauseTime = 0;
+      if (millis() - lastPauseTime > 60000) { // 暂停60秒
+        lastPauseTime = millis();
+        connectionAttempts = 0; // 重置尝试次数
+        DEBUG_PRINTLN("暂停重连，60秒后重试");
+      }
     }
   } else {
     if (!connected) {
       // 连接成功
       connected = true;
+      connectionAttempts = 0;
       printWiFiStatus();
     }
   }
