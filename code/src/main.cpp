@@ -141,6 +141,7 @@ void setup() {
     registerSensorDriver<MQ5Driver>();
     registerSensorDriver<MQ7Driver>();
     registerSensorDriver<MQ135Driver>();
+    registerSensorDriver<TGS2600Driver>();
     
     // 火焰传感器驱动
     registerSensorDriver<IRFlameDriver>();
