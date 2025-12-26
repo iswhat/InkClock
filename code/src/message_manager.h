@@ -7,7 +7,8 @@
 // 消息类型枚举
 enum MessageType {
   MESSAGE_TEXT,
-  MESSAGE_AUDIO
+  MESSAGE_AUDIO,
+  MESSAGE_IMAGE
 };
 
 // 消息状态枚举

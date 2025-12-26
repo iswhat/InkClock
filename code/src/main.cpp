@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include "config.h"
-#include "eink_display.h"
+#include "display_manager.h"
+#include "display_driver.h"
+#include "eink_driver.h"
 #include "wifi_manager.h"
 #include "time_manager.h"
 #include "weather_manager.h"
@@ -13,9 +15,14 @@
 #include "bluetooth_manager.h"
 #include "web_server.h"
 #include "power_manager.h"
+#include "touch_manager.h"
+#include "camera_manager.h"
+#include "web_client.h"
+#include "ipv6_server.h"
+#include "firmware_manager.h"
 
 // 全局对象实例
-EinkDisplay display;
+DisplayManager displayManager;
 WiFiManager wifiManager;
 TimeManager timeManager;
 WeatherManager weatherManager;
@@ -28,6 +35,11 @@ PluginManager pluginManager;
 PowerManager powerManager;
 BluetoothManager bluetoothManager;
 WebServerManager webServerManager;
+TouchManager touchManager;
+CameraManager cameraManager;
+WebClient webClient;
+IPv6Server ipv6Server;
+FirmwareManager firmwareManager;
 
 void setup() {
   Serial.begin(115200);
@@ -35,9 +47,16 @@ void setup() {
   
   Serial.println("===== 家用网络智能墨水屏万年历 ====");
   
+  // 初始化固件管理器，进行硬件自动检测
+  firmwareManager.init();
+  
+  // 创建并设置显示驱动
+  IDisplayDriver* einkDriver = new EinkDriver();
+  displayManager.setDisplayDriver(einkDriver);
+  
   // 初始化各个模块
-  display.init();
-  display.showSplashScreen();
+  displayManager.init();
+  displayManager.showSplashScreen();
   
   // 初始化蓝牙管理模块
   bluetoothManager.init();
@@ -51,12 +70,19 @@ void setup() {
   pluginManager.init();
   powerManager.init();
   
+  // 初始化触摸管理器和摄像头管理器
+  touchManager.init();
+  cameraManager.init();
+  
+  // 初始化Web客户端
+  webClient.init();
+  
   // 检查是否已经配置了WiFi，如果没有，等待蓝牙配置
   if (!wifiManager.isConnected()) {
     Serial.println("等待蓝牙WiFi配置...");
     
     // 显示蓝牙配置提示
-    display.showMessage("等待蓝牙WiFi配置...", 10000);
+    displayManager.showMessage("等待蓝牙WiFi配置...", 10000);
     
     // 等待蓝牙配置WiFi
     while (!bluetoothManager.isWiFiConfigured()) {
@@ -81,6 +107,9 @@ void setup() {
   // 初始化Web服务器
   webServerManager.init();
   
+  // 初始化IPv6服务器
+  ipv6Server.init();
+  
   // 更新初始数据
   timeManager.update();
   weatherManager.update();
@@ -88,7 +117,7 @@ void setup() {
   stockManager.update();
   
   // 显示初始页面
-  display.updateDisplay();
+  displayManager.updateDisplay();
   
   Serial.println("初始化完成");
 }
@@ -106,20 +135,20 @@ void loop() {
   powerManager.loop();
   bluetoothManager.loop();
   webServerManager.loop();
+  touchManager.loop();
+  cameraManager.loop();
+  webClient.loop();
+  ipv6Server.loop();
+  firmwareManager.loop();
   
-  // 定期更新显示
-  static unsigned long lastDisplayUpdate = 0;
-  if (millis() - lastDisplayUpdate > DISPLAY_UPDATE_INTERVAL) {
-    lastDisplayUpdate = millis();
-    display.updateDisplay();
+  // 根据power_manager的建议更新显示
+  if (powerManager.shouldUpdateDisplay()) {
+    // 使用局部刷新更新显示
+    displayManager.updateDisplayPartial();
   }
   
-  // 定期更新时钟区域（使用部分刷新，每分钟更新一次）
-  static unsigned long lastClockUpdate = 0;
-  if (millis() - lastClockUpdate > 60000) {
-    lastClockUpdate = millis();
-    display.updateClockArea();
-  }
+  // 仅在页面切换或首次启动时使用全屏刷新
+  // displayManager.updateDisplay();
   
   // 定期更新数据
   static unsigned long lastDataUpdate = 0;

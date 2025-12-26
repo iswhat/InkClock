@@ -10,7 +10,12 @@ private:
   int batteryPercentage;
   bool isCharging;
   unsigned long lastUpdateTime;
-
+  
+  // 低功耗模式相关
+  bool isLowPowerMode;
+  unsigned long lastMotionTime;
+  unsigned long lastDisplayUpdateTime;
+  
   // 读取ADC值并转换为电压
   float readBatteryVoltage();
   
@@ -19,6 +24,15 @@ private:
   
   // 读取充电状态
   bool readChargingStatus();
+  
+  // 读取人体感应传感器状态
+  bool readPIRSensor();
+  
+  // 进入低功耗模式
+  void enterLowPowerMode();
+  
+  // 退出低功耗模式
+  void exitLowPowerMode();
   
 public:
   PowerManager();
@@ -39,6 +53,12 @@ public:
   
   // 检查是否需要充电
   bool isLowBattery() { return batteryVoltage <= LOW_BATTERY_THRESHOLD; }
+  
+  // 获取低功耗模式状态
+  bool getLowPowerMode() { return isLowPowerMode; }
+  
+  // 检查是否需要更新显示
+  bool shouldUpdateDisplay();
 };
 
 #endif // POWER_MANAGER_H

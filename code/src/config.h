@@ -47,6 +47,9 @@
 #define MAX_MESSAGES 10 // 最大消息数量
 #define MESSAGE_DISPLAY_DURATION 5000 // 消息显示时长，单位毫秒
 
+// 数据更新间隔
+#define DATA_UPDATE_INTERVAL 300000 // 数据更新间隔，单位毫秒（5分钟）
+
 // 股票配置
 #define STOCK_UPDATE_INTERVAL 600000 // 股票更新间隔，单位毫秒（10分钟）
 #define MAX_STOCKS 3 // 最大股票数量
@@ -62,6 +65,21 @@
 #define FULL_BATTERY_VOLTAGE 4.2 // 满电电压，单位伏特
 #define EMPTY_BATTERY_VOLTAGE 3.3 // 空电电压，单位伏特
 
+// 低功耗模式配置
+#define LOW_POWER_MODE_ENABLED true // 是否启用低功耗模式
+#define PIR_SENSOR_PIN 5 // 人体感应传感器引脚
+#define NO_MOTION_TIMEOUT 300000 // 无动作超时时间，单位毫秒（5分钟）
+#define LOW_POWER_REFRESH_INTERVAL 3600000 // 低功耗模式下的刷新间隔，单位毫秒（1小时）
+#define NORMAL_REFRESH_INTERVAL 60000 // 正常模式下的刷新间隔，单位毫秒（1分钟）
+
+// 内容刷新间隔配置
+#define CLOCK_REFRESH_INTERVAL 60000 // 时钟刷新间隔，单位毫秒（1分钟）
+#define WEATHER_REFRESH_INTERVAL 3600000 // 天气刷新间隔，单位毫秒（1小时）
+#define SENSOR_REFRESH_INTERVAL 300000 // 传感器数据刷新间隔，单位毫秒（5分钟）
+#define STOCK_REFRESH_INTERVAL 600000 // 股票数据刷新间隔，单位毫秒（10分钟）
+#define MESSAGE_REFRESH_INTERVAL 10000 // 消息刷新间隔，单位毫秒（10秒）
+#define CALENDAR_REFRESH_INTERVAL 3600000 // 日历刷新间隔，单位毫秒（1小时）
+
 // 电池检测引脚配置（ESP32-C3）
 #if defined(ESP32_C3)
   #define BATTERY_ADC_PIN 2 // 电池电量检测ADC引脚
@@ -74,46 +92,179 @@
   #define CHARGE_STATUS_PIN 5 // 充电状态检测引脚
 #endif
 
-// 墨水屏引脚配置（ESP32-C3）
-#if defined(ESP32_C3)
-  #if DISPLAY_TYPE == EINK_42_INCH
-    #define EINK_SCK 12
-    #define EINK_MOSI 13
-    #define EINK_MISO 14
-    #define EINK_CS 15
-    #define EINK_DC 16
-    #define EINK_RST 17
-    #define EINK_BUSY 18
-  #elif DISPLAY_TYPE == EINK_75_INCH
-    #define EINK_SCK 12
-    #define EINK_MOSI 13
-    #define EINK_MISO 14
-    #define EINK_CS 15
-    #define EINK_DC 16
-    #define EINK_RST 17
-    #define EINK_BUSY 18
-  #endif
-#endif
+// 硬件型号定义
+enum HardwareModel {
+  HARDWARE_MODEL_ESP32_C3_DEFAULT,
+  HARDWARE_MODEL_ESP32_S3_DEFAULT,
+  HARDWARE_MODEL_ESP32_C6_DEFAULT,
+  HARDWARE_MODEL_ESP32_C6_CUSTOM,
+  HARDWARE_MODEL_ESP32_S2_DEFAULT,
+  HARDWARE_MODEL_ESP32_WROOM_32,
+  HARDWARE_MODEL_ESP32_S3_PRO,
+  HARDWARE_MODEL_ESP32_C3_SUPERMINI,
+  HARDWARE_MODEL_ESP32_PRO_S3,
+  HARDWARE_MODEL_ESP32_S3_WROOM_1 // 支持触摸和摄像头的ESP32-S3型号
+};
 
-// 墨水屏引脚配置（ESP32-S3）
-#if defined(ESP32_S3)
-  #if DISPLAY_TYPE == EINK_42_INCH
-    #define EINK_SCK 12
-    #define EINK_MOSI 13
-    #define EINK_MISO 14
-    #define EINK_CS 15
-    #define EINK_DC 16
-    #define EINK_RST 17
-    #define EINK_BUSY 18
-  #elif DISPLAY_TYPE == EINK_75_INCH
-    #define EINK_SCK 12
-    #define EINK_MOSI 13
-    #define EINK_MISO 14
-    #define EINK_CS 15
-    #define EINK_DC 16
-    #define EINK_RST 17
-    #define EINK_BUSY 18
-  #endif
+// 当前硬件型号
+#define CURRENT_HARDWARE_MODEL HARDWARE_MODEL_ESP32_C6_DEFAULT
+
+// 墨水屏引脚配置
+#if CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_C3_DEFAULT
+  // ESP32-C3默认引脚配置
+  #define EINK_SCK 12
+  #define EINK_MOSI 13
+  #define EINK_MISO 14
+  #define EINK_CS 15
+  #define EINK_DC 16
+  #define EINK_RST 17
+  #define EINK_BUSY 18
+  
+  #define BATTERY_ADC_PIN 2
+  #define CHARGE_STATUS_PIN -1
+  
+#elif CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT
+  // ESP32-S3默认引脚配置
+  #define EINK_SCK 12
+  #define EINK_MOSI 13
+  #define EINK_MISO 14
+  #define EINK_CS 15
+  #define EINK_DC 16
+  #define EINK_RST 17
+  #define EINK_BUSY 18
+  
+  #define BATTERY_ADC_PIN 4
+  #define CHARGE_STATUS_PIN 5
+  
+#elif CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_C6_DEFAULT
+  // ESP32-C6默认引脚配置
+  #define EINK_SCK 12
+  #define EINK_MOSI 13
+  #define EINK_MISO 14
+  #define EINK_CS 15
+  #define EINK_DC 16
+  #define EINK_RST 17
+  #define EINK_BUSY 18
+  
+  #define BATTERY_ADC_PIN 2
+  #define CHARGE_STATUS_PIN -1
+  
+#elif CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_C6_CUSTOM
+  // ESP32-C6自定义引脚配置
+  #define EINK_SCK 5
+  #define EINK_MOSI 6
+  #define EINK_MISO 7
+  #define EINK_CS 8
+  #define EINK_DC 9
+  #define EINK_RST 10
+  #define EINK_BUSY 11
+  
+  #define BATTERY_ADC_PIN 2
+  #define CHARGE_STATUS_PIN 3
+  
+#elif CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S2_DEFAULT
+  // ESP32-S2默认引脚配置
+  #define EINK_SCK 12
+  #define EINK_MOSI 13
+  #define EINK_MISO 14
+  #define EINK_CS 15
+  #define EINK_DC 16
+  #define EINK_RST 17
+  #define EINK_BUSY 18
+  
+  #define BATTERY_ADC_PIN 4
+  #define CHARGE_STATUS_PIN 5
+  
+#elif CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_WROOM_32
+  // ESP32-WROOM-32默认引脚配置
+  #define EINK_SCK 12
+  #define EINK_MOSI 13
+  #define EINK_MISO 14
+  #define EINK_CS 15
+  #define EINK_DC 16
+  #define EINK_RST 17
+  #define EINK_BUSY 18
+  
+  #define BATTERY_ADC_PIN 2
+  #define CHARGE_STATUS_PIN -1
+  
+#elif CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_PRO
+  // ESP32-S3-Pro默认引脚配置
+  #define EINK_SCK 12
+  #define EINK_MOSI 13
+  #define EINK_MISO 14
+  #define EINK_CS 15
+  #define EINK_DC 16
+  #define EINK_RST 17
+  #define EINK_BUSY 18
+  
+  #define BATTERY_ADC_PIN 4
+  #define CHARGE_STATUS_PIN 5
+  
+#elif CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_C3_SUPERMINI
+  // ESP32-C3-Supermini默认引脚配置
+  #define EINK_SCK 12
+  #define EINK_MOSI 13
+  #define EINK_MISO 14
+  #define EINK_CS 15
+  #define EINK_DC 16
+  #define EINK_RST 17
+  #define EINK_BUSY 18
+  
+  #define BATTERY_ADC_PIN 2
+  #define CHARGE_STATUS_PIN -1
+  
+#elif CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_PRO_S3
+  // ESP32-Pro-S3默认引脚配置
+  #define EINK_SCK 12
+  #define EINK_MOSI 13
+  #define EINK_MISO 14
+  #define EINK_CS 15
+  #define EINK_DC 16
+  #define EINK_RST 17
+  #define EINK_BUSY 18
+  
+  #define BATTERY_ADC_PIN 4
+  #define CHARGE_STATUS_PIN 5
+  
+#elif CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1
+  // ESP32-S3-WROOM-1引脚配置（支持触摸和摄像头）
+  #define EINK_SCK 12
+  #define EINK_MOSI 13
+  #define EINK_MISO 14
+  #define EINK_CS 15
+  #define EINK_DC 16
+  #define EINK_RST 17
+  #define EINK_BUSY 18
+  
+  #define BATTERY_ADC_PIN 4
+  #define CHARGE_STATUS_PIN 5
+  
+  // 触摸引脚配置
+  #define TOUCH_PIN_0 0
+  #define TOUCH_PIN_1 1
+  #define TOUCH_PIN_2 2
+  #define TOUCH_PIN_3 3
+  
+  // 摄像头引脚配置
+  #define CAMERA_PIN_PWDN 32
+  #define CAMERA_PIN_RESET -1
+  #define CAMERA_PIN_XCLK 0
+  #define CAMERA_PIN_SIOD 26
+  #define CAMERA_PIN_SIOC 27
+  
+  #define CAMERA_PIN_D7 35
+  #define CAMERA_PIN_D6 34
+  #define CAMERA_PIN_D5 39
+  #define CAMERA_PIN_D4 36
+  #define CAMERA_PIN_D3 21
+  #define CAMERA_PIN_D2 19
+  #define CAMERA_PIN_D1 18
+  #define CAMERA_PIN_D0 5
+  #define CAMERA_PIN_VSYNC 25
+  #define CAMERA_PIN_HREF 23
+  #define CAMERA_PIN_PCLK 22
+  
 #endif
 
 // SD卡引脚配置（增强版）
@@ -126,11 +277,114 @@
 #define DEBUG_ENABLED true // 是否启用调试信息
 #define DEBUG_SERIAL_BAUD 115200 // 调试串口波特率
 
+// 主题类型枚举
+enum ThemeType {
+  THEME_DEFAULT,
+  THEME_LARGE,
+  THEME_COMPACT,
+  THEME_MINIMAL
+};
+
+// 当前使用的主题
+#define CURRENT_THEME THEME_DEFAULT
+
 // 定义墨水屏类型枚举
 enum EinkDisplayType {
+  // 标准墨水屏
+  EINK_154_INCH,
+  EINK_213_INCH,
+  EINK_266_INCH,
+  EINK_27_INCH,
+  EINK_29_INCH,
+  EINK_312_INCH,
   EINK_42_INCH,
-  EINK_75_INCH
+  EINK_437_INCH,
+  EINK_54_INCH,
+  EINK_583_INCH,
+  EINK_60_INCH,
+  EINK_75_INCH,
+  EINK_78_INCH,
+  EINK_103_INCH,
+  EINK_1248_INCH,
+  
+  // 电子价签
+  ESL_154_INCH_DUAL,
+  ESL_213_INCH_DUAL,
+  ESL_266_INCH_DUAL,
+  ESL_29_INCH_DUAL,
+  ESL_312_INCH_DUAL,
+  ESL_42_INCH_COLOR,
+  ESL_583_INCH_COLOR,
+  
+  // 二手阅读器屏幕
+  READER_6_INCH_MONO,
+  READER_78_INCH_MONO,
+  READER_103_INCH_MONO,
+  READER_6_INCH_COLOR,
+  READER_78_INCH_COLOR,
+  READER_103_INCH_COLOR
 };
+
+// 主题配置
+// 默认主题字体大小
+#define THEME_DEFAULT_CLOCK_SIZE_42 5
+#define THEME_DEFAULT_DATE_SIZE_42 2
+#define THEME_DEFAULT_WEATHER_SIZE_42 1
+#define THEME_DEFAULT_SENSOR_SIZE_42 1
+#define THEME_DEFAULT_BATTERY_SIZE_42 2
+#define THEME_DEFAULT_MESSAGE_SIZE_42 2
+
+#define THEME_DEFAULT_CLOCK_SIZE_75 8
+#define THEME_DEFAULT_DATE_SIZE_75 3
+#define THEME_DEFAULT_WEATHER_SIZE_75 2
+#define THEME_DEFAULT_SENSOR_SIZE_75 2
+#define THEME_DEFAULT_BATTERY_SIZE_75 3
+#define THEME_DEFAULT_MESSAGE_SIZE_75 3
+
+// 大字体主题
+#define THEME_LARGE_CLOCK_SIZE_42 6
+#define THEME_LARGE_DATE_SIZE_42 3
+#define THEME_LARGE_WEATHER_SIZE_42 2
+#define THEME_LARGE_SENSOR_SIZE_42 2
+#define THEME_LARGE_BATTERY_SIZE_42 3
+#define THEME_LARGE_MESSAGE_SIZE_42 3
+
+#define THEME_LARGE_CLOCK_SIZE_75 10
+#define THEME_LARGE_DATE_SIZE_75 4
+#define THEME_LARGE_WEATHER_SIZE_75 3
+#define THEME_LARGE_SENSOR_SIZE_75 3
+#define THEME_LARGE_BATTERY_SIZE_75 4
+#define THEME_LARGE_MESSAGE_SIZE_75 4
+
+// 紧凑主题
+#define THEME_COMPACT_CLOCK_SIZE_42 4
+#define THEME_COMPACT_DATE_SIZE_42 1
+#define THEME_COMPACT_WEATHER_SIZE_42 1
+#define THEME_COMPACT_SENSOR_SIZE_42 1
+#define THEME_COMPACT_BATTERY_SIZE_42 1
+#define THEME_COMPACT_MESSAGE_SIZE_42 1
+
+#define THEME_COMPACT_CLOCK_SIZE_75 6
+#define THEME_COMPACT_DATE_SIZE_75 2
+#define THEME_COMPACT_WEATHER_SIZE_75 1
+#define THEME_COMPACT_SENSOR_SIZE_75 1
+#define THEME_COMPACT_BATTERY_SIZE_75 2
+#define THEME_COMPACT_MESSAGE_SIZE_75 2
+
+// 极简主题
+#define THEME_MINIMAL_CLOCK_SIZE_42 7
+#define THEME_MINIMAL_DATE_SIZE_42 0
+#define THEME_MINIMAL_WEATHER_SIZE_42 0
+#define THEME_MINIMAL_SENSOR_SIZE_42 0
+#define THEME_MINIMAL_BATTERY_SIZE_42 1
+#define THEME_MINIMAL_MESSAGE_SIZE_42 1
+
+#define THEME_MINIMAL_CLOCK_SIZE_75 12
+#define THEME_MINIMAL_DATE_SIZE_75 0
+#define THEME_MINIMAL_WEATHER_SIZE_75 0
+#define THEME_MINIMAL_SENSOR_SIZE_75 0
+#define THEME_MINIMAL_BATTERY_SIZE_75 2
+#define THEME_MINIMAL_MESSAGE_SIZE_75 2
 
 // 调试宏
 #if DEBUG_ENABLED

@@ -1,8 +1,8 @@
 #include "button_manager.h"
-#include "eink_display.h"
+#include "display_manager.h"
 
 // 外部全局对象
-extern EinkDisplay display;
+extern DisplayManager displayManager;
 
 ButtonManager::ButtonManager() {
   // 初始化按键引脚数组

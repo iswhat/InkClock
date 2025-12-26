@@ -16,6 +16,9 @@ void WiFiManager::init() {
   // 设置WiFi模式为STA
   WiFi.mode(WIFI_STA);
   
+  // 启用IPv6支持
+  WiFi.enableIpV6();
+  
   // 禁用WiFi自动连接
   WiFi.setAutoConnect(false);
   WiFi.setAutoReconnect(false);
@@ -115,6 +118,9 @@ void WiFiManager::printWiFiStatus() {
   DEBUG_PRINTLN(WiFi.SSID());
   DEBUG_PRINT("IP地址: ");
   DEBUG_PRINTLN(WiFi.localIP());
+  // 显示IPv6地址
+  DEBUG_PRINT("IPv6地址: ");
+  DEBUG_PRINTLN(WiFi.localIPv6());
   DEBUG_PRINT("信号强度: ");
   DEBUG_PRINT(WiFi.RSSI());
   DEBUG_PRINTLN(" dBm");

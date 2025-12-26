@@ -5,6 +5,11 @@ PowerManager::PowerManager() {
   batteryPercentage = 0;
   isCharging = false;
   lastUpdateTime = 0;
+  
+  // 低功耗模式初始化
+  isLowPowerMode = false;
+  lastMotionTime = millis();
+  lastDisplayUpdateTime = millis();
 }
 
 PowerManager::~PowerManager() {
@@ -17,6 +22,13 @@ void PowerManager::init() {
   // 如果有充电状态引脚，初始化它
   if (CHARGE_STATUS_PIN != -1) {
     pinMode(CHARGE_STATUS_PIN, INPUT);
+    DEBUG_PRINTLN("Charge status pin initialized on pin " + String(CHARGE_STATUS_PIN));
+  }
+  
+  // 初始化人体感应传感器引脚
+  if (LOW_POWER_MODE_ENABLED) {
+    pinMode(PIR_SENSOR_PIN, INPUT);
+    DEBUG_PRINTLN("PIR sensor initialized on pin " + String(PIR_SENSOR_PIN));
   }
   
   // 初始更新
@@ -29,6 +41,22 @@ void PowerManager::loop() {
   // 定期更新电池状态
   if (millis() - lastUpdateTime > BATTERY_UPDATE_INTERVAL) {
     update();
+  }
+  
+  // 低功耗模式处理
+  if (LOW_POWER_MODE_ENABLED) {
+    bool motionDetected = readPIRSensor();
+    
+    if (motionDetected) {
+      lastMotionTime = millis();
+      if (isLowPowerMode) {
+        exitLowPowerMode();
+      }
+    } else {
+      if (!isLowPowerMode && (millis() - lastMotionTime > NO_MOTION_TIMEOUT)) {
+        enterLowPowerMode();
+      }
+    }
   }
 }
 
@@ -49,7 +77,45 @@ void PowerManager::update() {
   DEBUG_PRINT("V, ");
   DEBUG_PRINT(batteryPercentage);
   DEBUG_PRINT("%, Charging: ");
-  DEBUG_PRINTLN(isCharging ? "Yes" : "No");
+  DEBUG_PRINT(isCharging ? "Yes" : "No");
+  DEBUG_PRINT(", Low Power: ");
+  DEBUG_PRINTLN(isLowPowerMode ? "Yes" : "No");
+}
+
+bool PowerManager::readPIRSensor() {
+  #if LOW_POWER_MODE_ENABLED
+    return digitalRead(PIR_SENSOR_PIN) == HIGH;
+  #else
+    return true;
+  #endif
+}
+
+void PowerManager::enterLowPowerMode() {
+  if (!isLowPowerMode) {
+    isLowPowerMode = true;
+    DEBUG_PRINTLN("Entering low power mode...");
+    // 这里可以添加更多低功耗操作，如降低CPU频率、关闭不必要的模块等
+  }
+}
+
+void PowerManager::exitLowPowerMode() {
+  if (isLowPowerMode) {
+    isLowPowerMode = false;
+    DEBUG_PRINTLN("Exiting low power mode...");
+    // 这里可以添加恢复正常操作，如恢复CPU频率、开启必要的模块等
+  }
+}
+
+bool PowerManager::shouldUpdateDisplay() {
+  unsigned long currentTime = millis();
+  unsigned long refreshInterval = isLowPowerMode ? LOW_POWER_REFRESH_INTERVAL : NORMAL_REFRESH_INTERVAL;
+  
+  if (currentTime - lastDisplayUpdateTime >= refreshInterval) {
+    lastDisplayUpdateTime = currentTime;
+    return true;
+  }
+  
+  return false;
 }
 
 float PowerManager::readBatteryVoltage() {

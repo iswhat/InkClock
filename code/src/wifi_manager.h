@@ -23,6 +23,8 @@ public:
   String getSSID() { return WiFi.SSID(); }
   int getSignalStrength() { return WiFi.RSSI(); }
   String getIPAddress() { return WiFi.localIP().toString(); }
+  String getIPv6Address() { return WiFi.localIPv6().toString(); }
+  bool hasIPv6() { return WiFi.localIPv6() != IPAddress(0, 0, 0, 0, 0, 0, 0, 0); }
   
 private:
   // WiFi状态

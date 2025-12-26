@@ -1,12 +1,8 @@
-#ifndef EINK_DISPLAY_H
-#define EINK_DISPLAY_H
+#ifndef DISPLAY_MANAGER_H
+#define DISPLAY_MANAGER_H
 
 #include <Arduino.h>
-#include <GxGDEW042Z15/GxGDEW042Z15.h> // 4.2寸三色墨水屏库
-#include <GxGDEW075Z09/GxGDEW075Z09.h> // 7.5寸三色墨水屏库
-#include <GxIO/GxIO_SPI/GxIO_SPI.h>
-#include <GxIO/GxIO.h>
-#include <GxFonts/GxFonts.h>
+#include "display_driver.h"
 #include "config.h"
 
 // 右侧页面类型枚举
@@ -25,38 +21,51 @@ enum ClockMode {
   CLOCK_MODE_ANALOG
 };
 
-class EinkDisplay {
+// 显示管理器类，处理显示逻辑
+class DisplayManager {
 public:
-  EinkDisplay();
-  ~EinkDisplay();
+  DisplayManager();
+  ~DisplayManager();
   
-  void init();
+  // 初始化显示管理器
+  bool init();
+  
+  // 设置显示驱动
+  void setDisplayDriver(IDisplayDriver* driver);
+  
+  // 显示启动画面
   void showSplashScreen();
+  
+  // 完整更新显示
   void updateDisplay();
+  
+  // 局部更新显示
   void updateDisplayPartial();
-  void updateLeftPanel();
-  void updateRightPanel();
-  void updateClockArea();
+  
+  // 显示消息
   void showMessage(String message, uint32_t duration = 3000);
+  
+  // 切换右侧页面
   void switchRightPage(RightPageType page);
+  
+  // 切换时钟模式
   void toggleClockMode();
   
   // 获取当前右侧页面
-  RightPageType getCurrentRightPage() { return currentRightPage; }
+  RightPageType getCurrentRightPage() const;
   
   // 获取当前时钟模式
-  ClockMode getCurrentClockMode() { return currentClockMode; }
+  ClockMode getCurrentClockMode() const;
+  
+  // 获取屏幕宽度
+  int16_t getWidth() const;
+  
+  // 获取屏幕高度
+  int16_t getHeight() const;
   
 private:
-  // 墨水屏对象
-  #if DISPLAY_TYPE == EINK_42_INCH
-    GxIO_Class io;
-    GxGDEW042Z15_Class display;
-  #elif DISPLAY_TYPE == EINK_75_INCH
-    GxIO_Class io;
-    GxGDEW075Z09_Class display;
-  #endif
-  GxFonts fonts;
+  // 显示驱动
+  IDisplayDriver* displayDriver;
   
   // 当前右侧页面
   RightPageType currentRightPage;
@@ -88,8 +97,6 @@ private:
   void drawHeader(String title);
   void drawFooter();
   void clearScreen();
-  void displayFullRefresh();
-  void displayPartialRefresh(uint16_t x, uint16_t y, uint16_t w, uint16_t h);
   
   // 绘制左侧面板
   void drawLeftPanel();
@@ -138,11 +145,6 @@ private:
   
   // 绘制消息
   void drawMessageItem(int x, int y, String message, String time);
-  
-  // 图片显示功能
-  bool drawImage(String imagePath, int x, int y, int width = 0, int height = 0);
-  bool drawImageFromBuffer(uint8_t* buffer, int bufferSize, int x, int y, int width = 0, int height = 0);
-  bool drawImageFromURL(String url, int x, int y, int width = 0, int height = 0);
 };
 
-#endif // EINK_DISPLAY_H
+#endif // DISPLAY_MANAGER_H

@@ -1,14 +1,58 @@
 #include "sensor_manager.h"
 
-// 根据不同的板子类型选择不同的传感器库
-#if defined(ESP32_C3)
-  // ESP32-C3使用DHT22传感器
+// 传感器类型选择（可根据需要修改）
+// 支持的传感器类型：DHT11, DHT22, AM2302, SHT30, SHT21, HDC1080
+#define SENSOR_TYPE SENSOR_SHT30
+
+// 传感器类型定义
+enum SensorType {
+  SENSOR_DHT11,
+  SENSOR_DHT22,
+  SENSOR_AM2302,
+  SENSOR_SHT30,
+  SENSOR_SHT21,
+  SENSOR_HDC1080,
+  SENSOR_DHT12,        // DHT12温湿度传感器
+  SENSOR_SHT40,        // SHT40温湿度传感器
+  SENSOR_BME280,       // BME280温湿度气压传感器
+  SENSOR_BME680        // BME680温湿度气压气体传感器
+};
+
+// 根据传感器类型包含相应的库
+#if SENSOR_TYPE == SENSOR_DHT11 || SENSOR_TYPE == SENSOR_DHT22 || SENSOR_TYPE == SENSOR_AM2302 || SENSOR_TYPE == SENSOR_DHT12
   #include <DHT.h>
-  DHT dht(DHT_PIN, DHT22);
-#elif defined(ESP32_S3)
-  // ESP32-S3使用SHT30传感器
+  #if SENSOR_TYPE == SENSOR_DHT11
+    DHT dht(DHT_PIN, DHT11);
+  #elif SENSOR_TYPE == SENSOR_DHT12
+    DHT dht(DHT_PIN, DHT12); // DHT12使用专用驱动
+  #else
+    DHT dht(DHT_PIN, DHT22); // DHT22和AM2302使用相同的驱动
+  #endif
+  #define USE_DHT_SENSOR
+#elif SENSOR_TYPE == SENSOR_SHT30
   #include <Adafruit_SHT31.h>
   Adafruit_SHT31 sht30 = Adafruit_SHT31();
+  #define USE_SHT30_SENSOR
+#elif SENSOR_TYPE == SENSOR_SHT21
+  #include <Adafruit_SHT21.h>
+  Adafruit_SHT21 sht21 = Adafruit_SHT21();
+  #define USE_SHT21_SENSOR
+#elif SENSOR_TYPE == SENSOR_HDC1080
+  #include <Adafruit_HDC1080.h>
+  Adafruit_HDC1080 hdc1080 = Adafruit_HDC1080();
+  #define USE_HDC1080_SENSOR
+#elif SENSOR_TYPE == SENSOR_SHT40
+  #include <Adafruit_SHT4x.h>
+  Adafruit_SHT4x sht40 = Adafruit_SHT4x();
+  #define USE_SHT40_SENSOR
+#elif SENSOR_TYPE == SENSOR_BME280
+  #include <Adafruit_BME280.h>
+  Adafruit_BME280 bme280;
+  #define USE_BME280_SENSOR
+#elif SENSOR_TYPE == SENSOR_BME680
+  #include <Adafruit_BME680.h>
+  Adafruit_BME680 bme680;
+  #define USE_BME680_SENSOR
 #endif
 
 SensorManager::SensorManager() {
@@ -28,9 +72,26 @@ SensorManager::SensorManager() {
 
 SensorManager::~SensorManager() {
   // 清理资源
-  #if defined(ESP32_S3)
+  #if defined(USE_SHT30_SENSOR)
     // 关闭SHT30传感器
     sht30.end();
+    DEBUG_PRINTLN("SHT30 sensor cleaned up");
+  #elif defined(USE_SHT21_SENSOR)
+    // 关闭SHT21传感器
+    sht21.end();
+    DEBUG_PRINTLN("SHT21 sensor cleaned up");
+  #elif defined(USE_HDC1080_SENSOR)
+    // HDC1080传感器无需特殊清理
+    DEBUG_PRINTLN("HDC1080 sensor cleaned up");
+  #elif defined(USE_SHT40_SENSOR)
+    // SHT40传感器无需特殊清理
+    DEBUG_PRINTLN("SHT40 sensor cleaned up");
+  #elif defined(USE_BME280_SENSOR)
+    // BME280传感器无需特殊清理
+    DEBUG_PRINTLN("BME280 sensor cleaned up");
+  #elif defined(USE_BME680_SENSOR)
+    // BME680传感器无需特殊清理
+    DEBUG_PRINTLN("BME680 sensor cleaned up");
   #endif
 }
 
@@ -38,17 +99,61 @@ void SensorManager::init() {
   DEBUG_PRINTLN("初始化传感器管理器...");
   
   // 初始化传感器
-  #if defined(ESP32_C3)
-    // 初始化DHT22传感器
+  #if defined(USE_DHT_SENSOR)
+    // 初始化DHT系列传感器
     dht.begin();
-    DEBUG_PRINTLN("DHT22传感器初始化完成");
-  #elif defined(ESP32_S3)
+    #if SENSOR_TYPE == SENSOR_DHT11
+      DEBUG_PRINTLN("DHT11传感器初始化完成");
+    #elif SENSOR_TYPE == SENSOR_DHT22
+      DEBUG_PRINTLN("DHT22传感器初始化完成");
+    #elif SENSOR_TYPE == SENSOR_AM2302
+      DEBUG_PRINTLN("AM2302传感器初始化完成");
+    #elif SENSOR_TYPE == SENSOR_DHT12
+      DEBUG_PRINTLN("DHT12传感器初始化完成");
+    #endif
+  #elif defined(USE_SHT30_SENSOR)
     // 初始化SHT30传感器
     if (!sht30.begin(SHT30_ADDRESS)) {
       DEBUG_PRINTLN("SHT30传感器初始化失败");
       currentData.valid = false;
     } else {
       DEBUG_PRINTLN("SHT30传感器初始化完成");
+    }
+  #elif defined(USE_SHT21_SENSOR)
+    // 初始化SHT21传感器
+    if (!sht21.begin()) {
+      DEBUG_PRINTLN("SHT21传感器初始化失败");
+      currentData.valid = false;
+    } else {
+      DEBUG_PRINTLN("SHT21传感器初始化完成");
+    }
+  #elif defined(USE_HDC1080_SENSOR)
+    // 初始化HDC1080传感器
+    hdc1080.begin();
+    DEBUG_PRINTLN("HDC1080传感器初始化完成");
+  #elif defined(USE_SHT40_SENSOR)
+    // 初始化SHT40传感器
+    if (!sht40.begin()) {
+      DEBUG_PRINTLN("SHT40传感器初始化失败");
+      currentData.valid = false;
+    } else {
+      DEBUG_PRINTLN("SHT40传感器初始化完成");
+    }
+  #elif defined(USE_BME280_SENSOR)
+    // 初始化BME280传感器
+    if (!bme280.begin(0x76)) {
+      DEBUG_PRINTLN("BME280传感器初始化失败");
+      currentData.valid = false;
+    } else {
+      DEBUG_PRINTLN("BME280传感器初始化完成");
+    }
+  #elif defined(USE_BME680_SENSOR)
+    // 初始化BME680传感器
+    if (!bme680.begin(0x77)) {
+      DEBUG_PRINTLN("BME680传感器初始化失败");
+      currentData.valid = false;
+    } else {
+      DEBUG_PRINTLN("BME680传感器初始化完成");
     }
   #endif
   
@@ -58,11 +163,29 @@ void SensorManager::init() {
 void SensorManager::update() {
   bool success = false;
   
-  // 读取传感器数据
-  #if defined(ESP32_C3)
-    success = readDHT22();
-  #elif defined(ESP32_S3)
+  // 根据传感器类型选择读取方法
+  #if defined(USE_DHT_SENSOR)
+    #if SENSOR_TYPE == SENSOR_DHT11
+      success = readDHT11();
+    #elif SENSOR_TYPE == SENSOR_DHT22
+      success = readDHT22();
+    #elif SENSOR_TYPE == SENSOR_AM2302
+      success = readAM2302();
+    #elif SENSOR_TYPE == SENSOR_DHT12
+      success = readDHT12();
+    #endif
+  #elif defined(USE_SHT30_SENSOR)
     success = readSHT30();
+  #elif defined(USE_SHT21_SENSOR)
+    success = readSHT21();
+  #elif defined(USE_HDC1080_SENSOR)
+    success = readHDC1080();
+  #elif defined(USE_SHT40_SENSOR)
+    success = readSHT40();
+  #elif defined(USE_BME280_SENSOR)
+    success = readBME280();
+  #elif defined(USE_BME680_SENSOR)
+    success = readBME680();
   #endif
   
   if (success) {
@@ -147,6 +270,144 @@ bool SensorManager::readSHT30() {
   // 更新数据
   currentData.temperature = t;
   currentData.humidity = h;
+  
+  return true;
+}
+
+bool SensorManager::readDHT11() {
+  // 读取DHT11传感器数据
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+  
+  // 检查读数是否有效
+  if (isnan(h) || isnan(t)) {
+    DEBUG_PRINTLN("DHT11传感器读数无效");
+    return false;
+  }
+  
+  // 更新数据
+  currentData.temperature = t;
+  currentData.humidity = h;
+  
+  return true;
+}
+
+bool SensorManager::readSHT21() {
+  // 读取SHT21传感器数据
+  float t = sht21.readTemperature();
+  float h = sht21.readHumidity();
+  
+  // 检查读数是否有效
+  if (isnan(h) || isnan(t)) {
+    DEBUG_PRINTLN("SHT21传感器读数无效");
+    return false;
+  }
+  
+  // 更新数据
+  currentData.temperature = t;
+  currentData.humidity = h;
+  
+  return true;
+}
+
+bool SensorManager::readAM2302() {
+  // AM2302和DHT22使用相同的读取方式
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+  
+  // 检查读数是否有效
+  if (isnan(h) || isnan(t)) {
+    DEBUG_PRINTLN("AM2302传感器读数无效");
+    return false;
+  }
+  
+  // 更新数据
+  currentData.temperature = t;
+  currentData.humidity = h;
+  
+  return true;
+}
+
+bool SensorManager::readHDC1080() {
+  // 读取HDC1080传感器数据
+  float t = hdc1080.readTemperature();
+  float h = hdc1080.readHumidity();
+  
+  // 检查读数是否有效
+  if (isnan(h) || isnan(t)) {
+    DEBUG_PRINTLN("HDC1080传感器读数无效");
+    return false;
+  }
+  
+  // 更新数据
+  currentData.temperature = t;
+  currentData.humidity = h;
+  
+  return true;
+}
+
+bool SensorManager::readDHT12() {
+  // 读取DHT12传感器数据
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+  
+  // 检查读数是否有效
+  if (isnan(h) || isnan(t)) {
+    DEBUG_PRINTLN("DHT12传感器读数无效");
+    return false;
+  }
+  
+  // 更新数据
+  currentData.temperature = t;
+  currentData.humidity = h;
+  
+  return true;
+}
+
+bool SensorManager::readSHT40() {
+  // 读取SHT40传感器数据
+  sensors_event_t humidity, temp;
+  
+  if (!sht40.getEvent(&humidity, &temp)) {
+    DEBUG_PRINTLN("SHT40传感器读数无效");
+    return false;
+  }
+  
+  // 更新数据
+  currentData.temperature = temp.temperature;
+  currentData.humidity = humidity.relative_humidity;
+  
+  return true;
+}
+
+bool SensorManager::readBME280() {
+  // 读取BME280传感器数据
+  float t = bme280.readTemperature();
+  float h = bme280.readHumidity();
+  
+  // 检查读数是否有效
+  if (isnan(h) || isnan(t)) {
+    DEBUG_PRINTLN("BME280传感器读数无效");
+    return false;
+  }
+  
+  // 更新数据
+  currentData.temperature = t;
+  currentData.humidity = h;
+  
+  return true;
+}
+
+bool SensorManager::readBME680() {
+  // 读取BME680传感器数据
+  if (!bme680.performReading()) {
+    DEBUG_PRINTLN("BME680传感器读数无效");
+    return false;
+  }
+  
+  // 更新数据
+  currentData.temperature = bme680.temperature;
+  currentData.humidity = bme680.humidity;
   
   return true;
 }
