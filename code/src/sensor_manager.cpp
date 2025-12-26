@@ -3,42 +3,42 @@
 // 传感器类型定义已移至sensor_manager.h
 
 // 传感器类型选择（默认使用自动检测模式）
-#define SENSOR_TYPE SENSOR_AUTO_DETECT
+#define SENSOR_TYPE SENSOR_TYPE_AUTO_DETECT
 
 // 根据传感器类型包含相应的库
 #if defined(ARDUINO)
-  #if SENSOR_TYPE != SENSOR_AUTO_DETECT
-    #if SENSOR_TYPE == SENSOR_DHT11 || SENSOR_TYPE == SENSOR_DHT22 || SENSOR_TYPE == SENSOR_AM2302 || SENSOR_TYPE == SENSOR_DHT12
+  #if SENSOR_TYPE != SENSOR_TYPE_AUTO_DETECT
+    #if SENSOR_TYPE == SENSOR_TYPE_DHT11 || SENSOR_TYPE == SENSOR_TYPE_DHT22 || SENSOR_TYPE == SENSOR_TYPE_AM2302 || SENSOR_TYPE == SENSOR_TYPE_DHT12
       #include <DHT.h>
-      #if SENSOR_TYPE == SENSOR_DHT11
+      #if SENSOR_TYPE == SENSOR_TYPE_DHT11
         DHT dht(DHT_PIN, DHT11);
-      #elif SENSOR_TYPE == SENSOR_DHT12
+      #elif SENSOR_TYPE == SENSOR_TYPE_DHT12
         DHT dht(DHT_PIN, DHT12); // DHT12使用专用驱动
       #else
         DHT dht(DHT_PIN, DHT22); // DHT22和AM2302使用相同的驱动
       #endif
       #define USE_DHT_SENSOR
-    #elif SENSOR_TYPE == SENSOR_SHT30
+    #elif SENSOR_TYPE == SENSOR_TYPE_SHT30
       #include <Adafruit_SHT31.h>
       Adafruit_SHT31 sht30 = Adafruit_SHT31();
       #define USE_SHT30_SENSOR
-    #elif SENSOR_TYPE == SENSOR_SHT21
+    #elif SENSOR_TYPE == SENSOR_TYPE_SHT21
       #include <Adafruit_SHT21.h>
       Adafruit_SHT21 sht21 = Adafruit_SHT21();
       #define USE_SHT21_SENSOR
-    #elif SENSOR_TYPE == SENSOR_HDC1080
+    #elif SENSOR_TYPE == SENSOR_TYPE_HDC1080
       #include <Adafruit_HDC1080.h>
       Adafruit_HDC1080 hdc1080 = Adafruit_HDC1080();
       #define USE_HDC1080_SENSOR
-    #elif SENSOR_TYPE == SENSOR_SHT40
+    #elif SENSOR_TYPE == SENSOR_TYPE_SHT40
       #include <Adafruit_SHT4x.h>
       Adafruit_SHT4x sht40 = Adafruit_SHT4x();
       #define USE_SHT40_SENSOR
-    #elif SENSOR_TYPE == SENSOR_BME280
+    #elif SENSOR_TYPE == SENSOR_TYPE_BME280
       #include <Adafruit_BME280.h>
       Adafruit_BME280 bme280;
       #define USE_BME280_SENSOR
-    #elif SENSOR_TYPE == SENSOR_BME680
+    #elif SENSOR_TYPE == SENSOR_TYPE_BME680
       #include <Adafruit_BME680.h>
       Adafruit_BME680 bme680;
       #define USE_BME680_SENSOR
@@ -63,7 +63,7 @@
     Adafruit_BME680* bme680 = nullptr;
     
     // 检测到的传感器类型
-    SensorType detectedSensorType = SENSOR_DHT22; // 默认值
+    SensorType detectedSensorType = SENSOR_TYPE_DHT22; // 默认值
   #endif
 #endif
 
