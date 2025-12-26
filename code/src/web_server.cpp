@@ -8,6 +8,7 @@
 extern WiFiManager wifiManager;
 extern PluginManager pluginManager;
 extern SensorManager sensorManager;
+extern MessageManager messageManager;
 
 // 定义网页内容
 const char* WebServerManager::index_html = R"(
@@ -871,9 +872,13 @@ void WebServerManager::init() {
     server.on("/disable_plugin", HTTP_POST, std::bind(&WebServerManager::handleDisablePlugin, this));
     server.on("/style.css", std::bind(&WebServerManager::handleCSS, this));
     
-    // API路由
+    // API路由 - 设备管理API
     server.on("/api", std::bind(&WebServerManager::handleApi, this));
     server.on("/api/sensor", std::bind(&WebServerManager::handleSensorData, this));
+    
+    // API路由 - IPv6推送功能API（合并自IPv6Server）
+    server.on("/api/push", HTTP_POST, std::bind(&WebServerManager::handleMessagePush, this));
+    server.on("/api/status", HTTP_GET, std::bind(&WebServerManager::handleDeviceStatus, this));
     
     server.onNotFound(std::bind(&WebServerManager::handleNotFound, this));
     
@@ -1239,4 +1244,112 @@ String WebServerManager::generateQRCodeURL() {
     }
     
     return encodedUrl;
+}
+
+/**
+ * @brief 处理消息推送API请求
+ * @note 接收JSON格式的消息并添加到消息管理器
+ */
+void WebServerManager::handleMessagePush() {
+    // 检查Content-Type
+    String contentType = server.header("Content-Type");
+    if (contentType != "application/json") {
+        sendJsonResponse("{\"error\": \"Invalid Content-Type, application/json required\"}", 400);
+        return;
+    }
+    
+    // 读取请求体
+    String body = server.arg("plain");
+    if (body.length() == 0) {
+        sendJsonResponse("{\"error\": \"Empty request body\"}", 400);
+        return;
+    }
+    
+    // 解析JSON
+    DynamicJsonDocument doc(1024);
+    DeserializationError error = deserializeJson(doc, body);
+    if (error) {
+        String errorStr = "{\"error\": \"Invalid JSON: ";
+        errorStr += error.c_str();
+        errorStr += "\"}";
+        sendJsonResponse(errorStr, 400);
+        return;
+    }
+    
+    // 检查必填字段
+    if (!doc.containsKey("content")) {
+        sendJsonResponse("{\"error\": \"Missing required field: content\"}", 400);
+        return;
+    }
+    
+    // 提取消息内容
+    String content = doc["content"].as<String>();
+    String sender = doc.containsKey("sender") ? doc["sender"].as<String>() : "Direct Push";
+    String type = doc.containsKey("type") ? doc["type"].as<String>() : "text";
+    
+    // 转换消息类型
+    MessageType messageType = MESSAGE_TEXT;
+    if (type == "image") {
+        messageType = MESSAGE_IMAGE;
+    } else if (type == "audio") {
+        messageType = MESSAGE_AUDIO;
+    }
+    
+    // 添加消息到消息管理器
+    bool success = messageManager.addMessage(sender, content, messageType);
+    
+    if (success) {
+        sendJsonResponse("{\"success\": true, \"message\": \"Message pushed successfully\"}");
+        DEBUG_PRINTLN("收到直接推送消息: " + content);
+    } else {
+        sendJsonResponse("{\"error\": \"Failed to push message\"}", 500);
+        DEBUG_PRINTLN("消息推送失败: " + content);
+    }
+}
+
+/**
+ * @brief 处理设备状态API请求
+ * @note 返回设备当前状态信息
+ */
+void WebServerManager::handleDeviceStatus() {
+    DynamicJsonDocument doc(1024);
+    
+    doc["status"] = "online";
+    doc["ip_address"] = getIPAddress();
+    doc["ipv6_address"] = WiFi.localIPv6().toString();
+    doc["mac_address"] = WiFi.macAddress();
+    doc["time"] = getCurrentTime();
+    
+    String json;
+    serializeJson(doc, json);
+    
+    sendJsonResponse(json);
+}
+
+/**
+ * @brief 发送JSON响应
+ * @param json JSON字符串
+ * @param statusCode HTTP状态码
+ */
+void WebServerManager::sendJsonResponse(const String& json, int statusCode) {
+    server.send(statusCode, "application/json", json);
+}
+
+/**
+ * @brief 获取当前时间
+ * @return 当前时间字符串，格式：YYYY-MM-DD HH:MM:SS
+ */
+String WebServerManager::getCurrentTime() {
+    // 从NTP获取当前时间
+    time_t now;
+    struct tm timeinfo;
+    time(&now);
+    localtime_r(&now, &timeinfo);
+    
+    char timeString[20];
+    sprintf(timeString, "%04d-%02d-%02d %02d:%02d:%02d",
+            timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+            timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+    
+    return String(timeString);
 }

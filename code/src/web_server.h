@@ -32,6 +32,12 @@ private:
   // 传感器数据接口
   void handleSensorData();
   void handleApi();
+  // IPv6推送功能API（合并自IPv6Server）
+  void handleMessagePush();
+  void handleDeviceStatus();
+  // 辅助函数
+  void sendJsonResponse(const String& json, int statusCode = 200);
+  String getCurrentTime();
   
   // 辅助函数
   String getIPAddress();

@@ -36,7 +36,7 @@
  * @brief 全局对象实例
  * 
  * 所有功能模块的全局实例，用于在setup和loop函数中访问各个模块
- */
+ */// 全局对象实例
 DisplayManager displayManager;       // 显示管理模块
 WiFiManager wifiManager;             // WiFi管理模块
 TimeManager timeManager;             // 时间管理模块
@@ -49,11 +49,10 @@ StockManager stockManager;           // 股票管理模块
 PluginManager pluginManager;         // 插件管理模块
 PowerManager powerManager;           // 电源管理模块
 BluetoothManager bluetoothManager;   // 蓝牙管理模块
-WebServerManager webServerManager;   // Web服务器模块
+WebServerManager webServerManager;   // Web服务器模块（合并了IPv6Server功能）
 TouchManager touchManager;           // 触摸管理模块
 CameraManager cameraManager;         // 摄像头管理模块
 WebClient webClient;                 // Web客户端模块
-IPv6Server ipv6Server;               // IPv6服务器模块
 FirmwareManager firmwareManager;     // 固件管理模块
 
 /**
@@ -138,11 +137,8 @@ void setup() {
   timeManager.init();         // NTP时间同步
   weatherManager.init();      // 天气数据获取
   
-  // 初始化Web服务器，提供设备管理API
+  // 初始化Web服务器，提供设备管理API和IPv6推送功能
   webServerManager.init();
-  
-  // 初始化IPv6服务器，支持IPv6直接访问
-  ipv6Server.init();
   
   // 更新初始数据
   timeManager.update();       // 更新时间
@@ -178,11 +174,10 @@ void loop() {
   pluginManager.loop();         // 插件更新和显示
   powerManager.loop();          // 电源状态监测和低功耗控制
   bluetoothManager.loop();      // 蓝牙连接管理
-  webServerManager.loop();      // Web服务器请求处理
+  webServerManager.loop();      // Web服务器请求处理（包括IPv6推送功能）
   touchManager.loop();          // 触摸事件检测
   cameraManager.loop();         // 摄像头状态管理
   webClient.loop();             // 与云端服务器通信
-  ipv6Server.loop();            // IPv6服务器请求处理
   firmwareManager.loop();       // 固件更新检查
   
   // 根据power_manager的建议更新显示，减少不必要的刷新
