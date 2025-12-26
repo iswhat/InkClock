@@ -72,39 +72,39 @@ public:
     // 常见传感器的默认配置
     SensorDefaultConfig commonConfigs[] = {
       // 温湿度传感器
-      {SENSOR_TYPE_DHT11, DHT_PIN, 0x00, {0x00, 0x00, 0x00}},
-      {SENSOR_TYPE_DHT22, DHT_PIN, 0x00, {0x00, 0x00, 0x00}},
-      {SENSOR_TYPE_SHT30, -1, 0x44, {0x45, 0x46, 0x00}},
-      {SENSOR_TYPE_SHT21, -1, 0x40, {0x00, 0x00, 0x00}},
-      {SENSOR_TYPE_SHT40, -1, 0x44, {0x00, 0x00, 0x00}},
-      {SENSOR_TYPE_AM2302, DHT_PIN, 0x00, {0x00, 0x00, 0x00}},
-      {SENSOR_TYPE_HDC1080, -1, 0x40, {0x00, 0x00, 0x00}},
-      {SENSOR_TYPE_HTU21D, -1, 0x40, {0x00, 0x00, 0x00}},
-      {SENSOR_TYPE_SI7021, -1, 0x40, {0x00, 0x00, 0x00}},
-      {SENSOR_TYPE_BME280, -1, 0x76, {0x77, 0x00, 0x00}},
-      {SENSOR_TYPE_BME680, -1, 0x76, {0x77, 0x00, 0x00}},
-      {SENSOR_TYPE_BME280, -1, 0x76, {0x77, 0x00, 0x00}},
+      {SENSOR_TYPE_DHT11, DHT_PIN, 0x00, {0x00, 0x00, 0x00}},           // DHT11 温湿度传感器
+      {SENSOR_TYPE_DHT22, DHT_PIN, 0x00, {0x00, 0x00, 0x00}},           // DHT22/AM2302 温湿度传感器
+      {SENSOR_TYPE_SHT30, -1, 0x44, {0x45, 0x46, 0x00}},               // Sensirion SHT30 温湿度传感器
+      {SENSOR_TYPE_SHT21, -1, 0x40, {0x00, 0x00, 0x00}},               // Sensirion SHT21 温湿度传感器
+      {SENSOR_TYPE_SHT40, -1, 0x44, {0x00, 0x00, 0x00}},               // Sensirion SHT40 温湿度传感器
+      {SENSOR_TYPE_AM2302, DHT_PIN, 0x00, {0x00, 0x00, 0x00}},         // AOSONG AM2302 温湿度传感器
+      {SENSOR_TYPE_HDC1080, -1, 0x40, {0x00, 0x00, 0x00}},             // TI HDC1080 温湿度传感器
+      {SENSOR_TYPE_HTU21D, -1, 0x40, {0x00, 0x00, 0x00}},              // Measurement Specialties HTU21D 温湿度传感器
+      {SENSOR_TYPE_SI7021, -1, 0x40, {0x00, 0x00, 0x00}},              // Silicon Labs SI7021 温湿度传感器
+      {SENSOR_TYPE_BME280, -1, 0x76, {0x77, 0x00, 0x00}},              // Bosch BME280 温湿度气压传感器
+      {SENSOR_TYPE_BME680, -1, 0x76, {0x77, 0x00, 0x00}},              // Bosch BME680 温湿度气压气体传感器
+      {SENSOR_TYPE_BME280, -1, 0x76, {0x77, 0x00, 0x00}},              // Bosch BME280 温湿度气压传感器
       
       // 光照传感器
-      {SENSOR_TYPE_LIGHT_BH1750, -1, 0x23, {0x5C, 0x00, 0x00}},
-      {SENSOR_TYPE_BH1750, -1, 0x23, {0x5C, 0x00, 0x00}},
-      {SENSOR_TYPE_LIGHT_TSL2561, -1, 0x39, {0x29, 0x49, 0x00}},
-      {SENSOR_TYPE_LIGHT_GY30, -1, 0x23, {0x5C, 0x00, 0x00}},
-      {SENSOR_TYPE_LIGHT_SI1145, -1, 0x60, {0x00, 0x00, 0x00}},
+      {SENSOR_TYPE_LIGHT_BH1750, -1, 0x23, {0x5C, 0x00, 0x00}},       // Rohm BH1750 光照传感器
+      {SENSOR_TYPE_BH1750, -1, 0x23, {0x5C, 0x00, 0x00}},             // Rohm BH1750 光照传感器
+      {SENSOR_TYPE_LIGHT_TSL2561, -1, 0x39, {0x29, 0x49, 0x00}},      // ams TSL2561 光照传感器
+      {SENSOR_TYPE_LIGHT_GY30, -1, 0x23, {0x5C, 0x00, 0x00}},         // 杭州晶华 GY30 光照传感器
+      {SENSOR_TYPE_LIGHT_SI1145, -1, 0x60, {0x00, 0x00, 0x00}},       // Silicon Labs SI1145 光照传感器
       
       // 人体感应传感器
-      {SENSOR_TYPE_PIR, PIR_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}},
-      {SENSOR_TYPE_RE200B, PIR_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}},
+      {SENSOR_TYPE_PIR, PIR_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}},    // HC-SR501/HC-SR505 人体感应传感器
+      {SENSOR_TYPE_RE200B, PIR_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}},  // Excelitas RE200B 红外人体传感器
       
       // 气体传感器
-      {SENSOR_TYPE_GAS_MQ2, GAS_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}},
-      {SENSOR_TYPE_GAS_MQ5, GAS_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}},
-      {SENSOR_TYPE_GAS_MQ7, GAS_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}},
-      {SENSOR_TYPE_GAS_MQ135, GAS_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}},
-      {SENSOR_TYPE_GAS_TGS2600, GAS_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}},
+      {SENSOR_TYPE_GAS_MQ2, GAS_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}}, // 武汉敏芯 MQ-2 气体传感器
+      {SENSOR_TYPE_GAS_MQ5, GAS_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}}, // 深圳炜盛 MQ-5 气体传感器
+      {SENSOR_TYPE_GAS_MQ7, GAS_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}}, // 广州汉威 MQ-7 气体传感器
+      {SENSOR_TYPE_GAS_MQ135, GAS_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}}, // 郑州炜盛 MQ-135 气体传感器
+      {SENSOR_TYPE_GAS_TGS2600, GAS_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}}, // Figaro TGS2600 气体传感器
       
       // 火焰传感器
-      {SENSOR_TYPE_FLAME_IR, FLAME_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}},
+      {SENSOR_TYPE_FLAME_IR, FLAME_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}}, // 深圳捷顺 IR 火焰传感器
     };
     
     // 尝试初始化每个传感器驱动
