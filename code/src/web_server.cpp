@@ -1,10 +1,13 @@
 #include "web_server.h"
 #include "wifi_manager.h"
 #include "plugin_manager.h"
+#include "sensor_manager.h"
+#include <ArduinoJson.h>
 
 // 外部全局对象
 extern WiFiManager wifiManager;
 extern PluginManager pluginManager;
+extern SensorManager sensorManager;
 
 // 定义网页内容
 const char* WebServerManager::index_html = R"(
@@ -41,6 +44,9 @@ const char* WebServerManager::index_html = R"(
                         <li><strong>固件版本:</strong> v1.0</li>
                         <li><strong>IP地址:</strong> %IP_ADDRESS%</li>
                         <li><strong>MAC地址:</strong> %MAC_ADDRESS%</li>
+                        <li><strong>运行时间:</strong> %UPTIME% 秒</li>
+                        <li><strong>CPU温度:</strong> %CPU_TEMP% °C</li>
+                        <li><strong>剩余内存:</strong> %FREE_MEM% KB</li>
                     </ul>
                 </div>
                 
@@ -50,6 +56,30 @@ const char* WebServerManager::index_html = R"(
                         <li><strong>SSID:</strong> %WIFI_SSID%</li>
                         <li><strong>信号强度:</strong> %WIFI_RSSI% dBm</li>
                         <li><strong>连接状态:</strong> %WIFI_STATUS%</li>
+                        <li><strong>本地IP:</strong> %IP_ADDRESS%</li>
+                        <li><strong>子网掩码:</strong> %SUBNET_MASK%</li>
+                        <li><strong>网关:</strong> %GATEWAY%</li>
+                        <li><strong>DNS:</strong> %DNS_SERVER%</li>
+                    </ul>
+                </div>
+                
+                <div class="status-card">
+                    <h3>传感器数据</h3>
+                    <ul>
+                        <li><strong>温度:</strong> %TEMPERATURE% °C</li>
+                        <li><strong>湿度:</strong> %HUMIDITY% %</li>
+                        <li><strong>传感器状态:</strong> %SENSOR_STATUS%</li>
+                        <li><strong>数据更新时间:</strong> %SENSOR_UPDATE_TIME% 秒前</li>
+                    </ul>
+                </div>
+                
+                <div class="status-card">
+                    <h3>电源状态</h3>
+                    <ul>
+                        <li><strong>电池电压:</strong> %BATTERY_VOLTAGE% V</li>
+                        <li><strong>电池电量:</strong> %BATTERY_LEVEL% %</li>
+                        <li><strong>充电状态:</strong> %CHARGE_STATUS%</li>
+                        <li><strong>功耗模式:</strong> %POWER_MODE%</li>
                     </ul>
                 </div>
                 
@@ -222,7 +252,26 @@ const char* WebServerManager::plugin_html = R"(
 )";
 
 const char* WebServerManager::style_css = R"(
-/* 全局样式 */
+/* 全局样式 - 现代化设计 */
+:root {
+    --primary-color: #4a6fa5;
+    --primary-dark: #3a5d8a;
+    --secondary-color: #6c757d;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #17a2b8;
+    --light-color: #f8f9fa;
+    --dark-color: #343a40;
+    --gray-color: #6c757d;
+    --gray-light: #e9ecef;
+    --border-radius: 12px;
+    --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --box-shadow-hover: 0 6px 12px rgba(0, 0, 0, 0.15);
+    --transition: all 0.3s ease;
+    --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -230,112 +279,168 @@ const char* WebServerManager::style_css = R"(
 }
 
 body {
-    font-family: Arial, sans-serif;
-    background-color: #f4f4f4;
-    color: #333;
+    font-family: var(--font-family);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: var(--dark-color);
     line-height: 1.6;
+    min-height: 100vh;
+    padding: 20px;
 }
 
 .container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 20px;
 }
 
-/* 头部样式 */
-header {
-    background-color: #4a6fa5;
+/* 卡片基础样式 */
+.card {
+    background-color: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 24px;
+    margin-bottom: 24px;
+    transition: var(--transition);
+    border: none;
+}
+
+.card:hover {
+    box-shadow: var(--box-shadow-hover);
+    transform: translateY(-2px);
+}
+
+/* 头部样式 - 现代化设计 */
+header.card {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
     color: white;
-    padding: 20px;
-    border-radius: 8px;
     text-align: center;
-    margin-bottom: 20px;
+    padding: 32px 24px;
 }
 
 header h1 {
-    font-size: 2em;
-    margin-bottom: 10px;
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
 }
 
-/* 导航样式 */
-nav {
-    background-color: white;
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+header p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    margin: 0;
+}
+
+/* 导航样式 - 现代化设计 */
+nav.card {
+    padding: 0;
+    background: white;
 }
 
 nav ul {
     list-style: none;
     display: flex;
     justify-content: center;
-    gap: 20px;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 8px;
+    margin: 0;
 }
 
 nav ul li a {
     text-decoration: none;
-    color: #333;
-    padding: 10px 15px;
-    border-radius: 4px;
-    transition: background-color 0.3s;
+    color: var(--gray-color);
+    padding: 12px 20px;
+    border-radius: 50px;
+    font-weight: 500;
+    transition: var(--transition);
+    font-size: 0.95rem;
+    display: block;
 }
 
 nav ul li a:hover, nav ul li a.active {
-    background-color: #4a6fa5;
+    background-color: var(--primary-color);
     color: white;
+    box-shadow: var(--box-shadow);
+    transform: translateY(-1px);
 }
 
 /* 主要内容样式 */
-main {
-    background-color: white;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+main.card {
+    background: white;
 }
 
-/* 卡片样式 */
+/* 卡片样式 - 现代化设计 */
 .status-card {
-    background-color: #f9f9f9;
+    background: var(--light-color);
+    border: 1px solid var(--gray-light);
+    border-radius: var(--border-radius);
     padding: 20px;
-    border-radius: 8px;
     margin-bottom: 20px;
-    border: 1px solid #ddd;
+    transition: var(--transition);
+}
+
+.status-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: var(--box-shadow);
 }
 
 .status-card h3 {
-    color: #4a6fa5;
-    margin-bottom: 15px;
-    font-size: 1.2em;
+    color: var(--primary-color);
+    margin-bottom: 16px;
+    font-size: 1.3rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
+.status-card h3::before {
+    content: '';
+    width: 4px;
+    height: 20px;
+    background-color: var(--primary-color);
+    border-radius: 2px;
+}
+
+/* 列表样式 - 现代化设计 */
 .status-card ul {
     list-style: none;
+    margin: 0;
+    padding: 0;
 }
 
 .status-card ul li {
-    margin-bottom: 10px;
-    padding-left: 20px;
-    position: relative;
+    margin-bottom: 12px;
+    padding: 12px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid var(--gray-light);
+    transition: var(--transition);
+    font-size: 0.95rem;
 }
 
-.status-card ul li::before {
-    content: "•";
-    color: #4a6fa5;
-    font-weight: bold;
-    position: absolute;
-    left: 0;
+.status-card ul li:hover {
+    border-color: var(--primary-color);
+    box-shadow: var(--box-shadow);
 }
 
-/* 表单样式 */
+.status-card ul li strong {
+    color: var(--primary-color);
+    font-weight: 600;
+    min-width: 120px;
+    display: inline-block;
+}
+
+/* 表单样式 - 现代化设计 */
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: 24px;
 }
 
 .form-group label {
     display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: var(--dark-color);
+    font-size: 0.95rem;
 }
 
 .form-group input[type="text"],
@@ -344,142 +449,307 @@ main {
 .form-group input[type="url"],
 .form-group select {
     width: 100%;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 1em;
+    padding: 14px 16px;
+    border: 2px solid var(--gray-light);
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    font-family: var(--font-family);
+    transition: var(--transition);
+    background: white;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.1);
+    transform: translateY(-1px);
 }
 
 .form-group small {
     display: block;
-    margin-top: 5px;
-    color: #666;
-    font-size: 0.8em;
+    margin-top: 8px;
+    color: var(--gray-color);
+    font-size: 0.85rem;
+    line-height: 1.4;
 }
 
-.form-group button {
-    background-color: #4a6fa5;
+/* 按钮样式 - 现代化设计 */
+.form-group button,
+.btn {
+    background-color: var(--primary-color);
     color: white;
-    padding: 12px 20px;
     border: none;
-    border-radius: 4px;
-    font-size: 1em;
+    padding: 14px 24px;
+    border-radius: var(--border-radius);
     cursor: pointer;
-    transition: background-color 0.3s;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: var(--transition);
+    font-family: var(--font-family);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    text-align: center;
+    box-shadow: var(--box-shadow);
 }
 
-.form-group button:hover {
-    background-color: #3a5a8a;
+.form-group button:hover,
+.btn:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--box-shadow-hover);
+}
+
+.form-group button:active,
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
+.btn-success {
+    background-color: var(--success-color);
+}
+
+.btn-success:hover {
+    background-color: #218838;
+}
+
+.btn-warning {
+    background-color: var(--warning-color);
+    color: var(--dark-color);
+}
+
+.btn-warning:hover {
+    background-color: #e0a800;
+}
+
+/* 按钮组样式 */
+.btn-group {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 24px;
 }
 
 /* 刷新时间选择器 */
 .refresh-time {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     align-items: center;
+    flex-wrap: wrap;
 }
 
 .refresh-time input {
     flex: 1;
+    min-width: 150px;
 }
 
 .refresh-time select {
     width: auto;
-    min-width: 100px;
+    min-width: 120px;
 }
 
-/* 插件列表 */
+/* 插件列表 - 现代化设计 */
 .add-plugin {
-    background-color: #f9f9f9;
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    border: 1px solid #ddd;
+    background: var(--light-color);
+    padding: 24px;
+    border-radius: var(--border-radius);
+    margin-bottom: 24px;
+    border: 1px solid var(--gray-light);
+    transition: var(--transition);
+}
+
+.add-plugin:hover {
+    border-color: var(--primary-color);
+    box-shadow: var(--box-shadow);
 }
 
 .add-plugin h3 {
-    color: #4a6fa5;
-    margin-bottom: 15px;
-    font-size: 1.2em;
+    color: var(--primary-color);
+    margin-bottom: 20px;
+    font-size: 1.3rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.add-plugin h3::before {
+    content: '+';
+    width: 24px;
+    height: 24px;
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.plugin-list {
+    margin: 24px 0;
 }
 
 .plugin-item {
-    background-color: #f9f9f9;
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 15px;
-    border: 1px solid #ddd;
-    position: relative;
+    background: var(--light-color);
+    padding: 20px;
+    border-radius: var(--border-radius);
+    margin-bottom: 16px;
+    border: 1px solid var(--gray-light);
+    transition: var(--transition);
 }
 
-.plugin-item h4 {
-    color: #4a6fa5;
-    margin-bottom: 10px;
-    font-size: 1.1em;
+.plugin-item:hover {
+    border-color: var(--primary-color);
+    box-shadow: var(--box-shadow);
+    transform: translateY(-1px);
 }
 
-.plugin-item .plugin-info {
-    margin-bottom: 10px;
-    color: #666;
-    font-size: 0.9em;
-}
-
-.plugin-item .plugin-actions {
+.plugin-header {
     display: flex;
-    gap: 10px;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 12px;
 }
 
-.plugin-item .plugin-actions form {
+.plugin-header h4 {
+    color: var(--primary-color);
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.plugin-info {
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+    color: var(--gray-color);
+    line-height: 1.5;
+    background: white;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--gray-light);
+}
+
+.plugin-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.plugin-actions form {
     display: inline;
 }
 
-.plugin-item .plugin-actions button {
-    background-color: #e74c3c;
-    color: white;
-    padding: 8px 15px;
-    border: none;
-    border-radius: 4px;
-    font-size: 0.9em;
-    cursor: pointer;
-    transition: background-color 0.3s;
+.plugin-actions .btn {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    white-space: nowrap;
 }
 
-.plugin-item .plugin-actions button:hover {
-    background-color: #c0392b;
-}
-
-.plugin-item .plugin-actions .edit-btn {
-    background-color: #f39c12;
-}
-
-.plugin-item .plugin-actions .edit-btn:hover {
-    background-color: #e67e22;
-}
-
-/* 二维码样式 */
+/* 二维码样式 - 现代化设计 */
 .qrcode {
     text-align: center;
+    margin: 24px 0;
+    padding: 20px;
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
 }
 
 .qrcode img {
     max-width: 200px;
-    height: auto;
-    margin-bottom: 10px;
+    border: 2px solid var(--gray-light);
+    border-radius: var(--border-radius);
+    padding: 16px;
+    background-color: white;
+    transition: var(--transition);
+    box-shadow: var(--box-shadow);
 }
 
-/* 页脚样式 */
+.qrcode img:hover {
+    transform: scale(1.05);
+    box-shadow: var(--box-shadow-hover);
+}
+
+.qrcode p {
+    margin-top: 12px;
+    color: var(--gray-color);
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+/* 页脚样式 - 现代化设计 */
 footer {
     text-align: center;
-    margin-top: 20px;
-    color: #666;
-    font-size: 0.9em;
+    margin-top: 32px;
+    color: white;
+    font-size: 0.9rem;
+    opacity: 0.9;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: var(--border-radius);
 }
 
-/* 响应式设计 */
+/* 响应式设计 - 移动端优化 */
 @media (max-width: 768px) {
+    body {
+        padding: 12px;
+    }
+    
+    .container {
+        max-width: 100%;
+    }
+    
+    header h1 {
+        font-size: 2rem;
+    }
+    
     nav ul {
         flex-direction: column;
-        align-items: center;
+        align-items: stretch;
+    }
+    
+    nav ul li a {
+        text-align: center;
+    }
+    
+    .plugin-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .plugin-actions {
+        justify-content: center;
+    }
+    
+    .btn-group {
+        justify-content: center;
+    }
+    
+    .status-card ul li {
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+    
+    .status-card ul li strong {
+        min-width: 100px;
+        display: block;
+        margin-bottom: 4px;
     }
     
     .refresh-time {
@@ -487,9 +757,96 @@ footer {
         align-items: stretch;
     }
     
+    .refresh-time input,
     .refresh-time select {
         width: 100%;
+        min-width: auto;
     }
+}
+
+/* 加载状态样式 */
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--gray-light);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 通知样式 */
+.alert {
+    padding: 16px;
+    border-radius: var(--border-radius);
+    margin-bottom: 20px;
+    font-weight: 500;
+    border-left: 4px solid transparent;
+}
+
+.alert-success {
+    background-color: rgba(40, 167, 69, 0.1);
+    color: var(--success-color);
+    border-left-color: var(--success-color);
+}
+
+.alert-error {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: var(--danger-color);
+    border-left-color: var(--danger-color);
+}
+
+.alert-warning {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: var(--warning-color);
+    border-left-color: var(--warning-color);
+}
+
+.alert-info {
+    background-color: rgba(23, 162, 184, 0.1);
+    color: var(--info-color);
+    border-left-color: var(--info-color);
+}
+
+/* 数据显示优化 */
+.data-value {
+    font-weight: 700;
+    color: var(--primary-color);
+    font-size: 1.1rem;
+}
+
+/* 状态指示器 */
+.status-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+.status-indicator.online {
+    background-color: var(--success-color);
+    animation: pulse 2s infinite;
+}
+
+.status-indicator.offline {
+    background-color: var(--danger-color);
+}
+
+.status-indicator.warning {
+    background-color: var(--warning-color);
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
 }
 )";
 
@@ -510,7 +867,14 @@ void WebServerManager::init() {
     server.on("/add_plugin", HTTP_POST, std::bind(&WebServerManager::handleAddPlugin, this));
     server.on("/update_plugin", HTTP_POST, std::bind(&WebServerManager::handleUpdatePlugin, this));
     server.on("/delete_plugin", HTTP_POST, std::bind(&WebServerManager::handleDeletePlugin, this));
+    server.on("/enable_plugin", HTTP_POST, std::bind(&WebServerManager::handleEnablePlugin, this));
+    server.on("/disable_plugin", HTTP_POST, std::bind(&WebServerManager::handleDisablePlugin, this));
     server.on("/style.css", std::bind(&WebServerManager::handleCSS, this));
+    
+    // API路由
+    server.on("/api", std::bind(&WebServerManager::handleApi, this));
+    server.on("/api/sensor", std::bind(&WebServerManager::handleSensorData, this));
+    
     server.onNotFound(std::bind(&WebServerManager::handleNotFound, this));
     
     // 启动Web服务器
@@ -573,8 +937,94 @@ void WebServerManager::handlePlugins() {
     
     // 生成插件列表
     String pluginList = "";
-    // TODO: 从PluginManager获取插件列表并生成HTML
-    pluginList = "<p>暂无插件，请添加新插件。</p>";
+    int pluginCount = pluginManager.getPluginCount();
+    
+    if (pluginCount == 0) {
+        pluginList = "<p>暂无插件，请添加新插件。</p>";
+    } else {
+        for (int i = 0; i < pluginCount; i++) {
+            PluginData plugin = pluginManager.getPlugin(i);
+            
+            // 生成插件类型文本
+            String pluginTypeText = "";
+            switch (plugin.type) {
+                case PLUGIN_TYPE_NATIVE: pluginTypeText = "原生插件";
+                    break;
+                case PLUGIN_TYPE_URL_XML: pluginTypeText = "URL XML插件";
+                    break;
+                case PLUGIN_TYPE_URL_JSON: pluginTypeText = "URL JSON插件";
+                    break;
+                case PLUGIN_TYPE_URL_JS: pluginTypeText = "URL JS插件";
+                    break;
+                default: pluginTypeText = "未知类型";
+                    break;
+            }
+            
+            // 生成状态文本和类名
+            String statusText = "";
+            String statusClass = "";
+            switch (plugin.status) {
+                case PLUGIN_DISABLED: 
+                    statusText = "已禁用";
+                    statusClass = "offline";
+                    break;
+                case PLUGIN_ENABLED: 
+                case PLUGIN_RUNNING: 
+                    statusText = "运行中";
+                    statusClass = "online";
+                    break;
+                case PLUGIN_ERROR: 
+                    statusText = "错误";
+                    statusClass = "warning";
+                    break;
+                default: 
+                    statusText = "未知状态";
+                    statusClass = "offline";
+                    break;
+            }
+            
+            // 生成插件项HTML
+            pluginList += "<div class=\"plugin-item\">";
+            pluginList += "  <div class=\"plugin-header\">";
+            pluginList += "    <div>";
+            pluginList += "      <h4>" + plugin.name + "</h4>";
+            pluginList += "      <div class=\"plugin-info\">";
+            pluginList += "        <p><strong>版本:</strong> " + plugin.version + "</p>";
+            pluginList += "        <p><strong>类型:</strong> " + pluginTypeText + "</p>";
+            pluginList += "        <p><strong>状态:</strong> <span class=\"status-indicator \" + statusClass + \"></span>" + statusText + "</p>";
+            pluginList += "        <p><strong>描述:</strong> " + plugin.description + "</p>";
+            pluginList += "        <p><strong>更新间隔:</strong> " + String(plugin.urlData.updateInterval / 1000) + "秒</p>";
+            pluginList += "        <p><strong>最后更新:</strong> " + String((millis() - plugin.urlData.lastUpdateTime) / 1000) + "秒前</p>";
+            if (!plugin.urlData.lastData.isEmpty()) {
+                pluginList += "        <p><strong>最新数据:</strong> <span class=\"data-value\">" + plugin.urlData.lastData.substring(0, min(plugin.urlData.lastData.length(), 50)) + (plugin.urlData.lastData.length() > 50 ? "..." : "") + "</span></p>";
+            }
+            pluginList += "      </div>";
+            pluginList += "    </div>";
+            pluginList += "    <div class=\"plugin-actions\">";
+            pluginList += "      <form action=\"/update_plugin\" method=\"POST\" style=\"display:inline;\">";
+            pluginList += "        <input type=\"hidden\" name=\"plugin_name\" value=\"" + plugin.name + "\">";
+            pluginList += "        <button type=\"submit\" class=\"btn btn-success\">更新</button>";
+            pluginList += "      </form>";
+            if (plugin.status == PLUGIN_DISABLED) {
+                pluginList += "      <form action=\"/enable_plugin\" method=\"POST\" style=\"display:inline;\">";
+                pluginList += "        <input type=\"hidden\" name=\"plugin_name\" value=\"" + plugin.name + "\">";
+                pluginList += "        <button type=\"submit\" class=\"btn btn-success\">启用</button>";
+                pluginList += "      </form>";
+            } else {
+                pluginList += "      <form action=\"/disable_plugin\" method=\"POST\" style=\"display:inline;\">";
+                pluginList += "        <input type=\"hidden\" name=\"plugin_name\" value=\"" + plugin.name + "\">";
+                pluginList += "        <button type=\"submit\" class=\"btn btn-warning\">禁用</button>";
+                pluginList += "      </form>";
+            }
+            pluginList += "      <form action=\"/delete_plugin\" method=\"POST\" style=\"display:inline;\">";
+            pluginList += "        <input type=\"hidden\" name=\"plugin_name\" value=\"" + plugin.name + "\">";
+            pluginList += "        <button type=\"submit\" class=\"btn btn-danger\">删除</button>";
+            pluginList += "      </form>";
+            pluginList += "    </div>";
+            pluginList += "  </div>";
+            pluginList += "</div>";
+        }
+    }
     
     html.replace("%PLUGIN_LIST%", pluginList);
     
@@ -620,7 +1070,16 @@ void WebServerManager::handleAddPlugin() {
     DEBUG_PRINT(refreshTime);
     DEBUG_PRINTLN("ms");
     
-    // TODO: 调用PluginManager添加插件
+    // 自动检测插件类型
+    PluginType pluginType = PLUGIN_TYPE_URL_JSON; // 默认JSON类型
+    if (pluginUrl.endsWith(".xml") || pluginUrl.indexOf(".xml?") != -1) {
+        pluginType = PLUGIN_TYPE_URL_XML;
+    } else if (pluginUrl.endsWith(".js") || pluginUrl.indexOf(".js?") != -1) {
+        pluginType = PLUGIN_TYPE_URL_JS;
+    }
+    
+    // 调用PluginManager添加插件
+    pluginManager.registerURLPlugin(pluginName, "1.0", "自动添加的URL插件", pluginType, pluginUrl, refreshTime, "", "%s");
     
     // 重定向回插件管理页面
     server.sendHeader("Location", "/plugins");
@@ -630,7 +1089,11 @@ void WebServerManager::handleAddPlugin() {
 void WebServerManager::handleUpdatePlugin() {
     DEBUG_PRINTLN("处理更新插件请求");
     
-    // TODO: 处理更新插件
+    // 获取表单数据
+    String pluginName = server.arg("plugin_name");
+    
+    // 调用PluginManager更新插件
+    pluginManager.updateURLPlugin(pluginName);
     
     // 重定向回插件管理页面
     server.sendHeader("Location", "/plugins");
@@ -640,7 +1103,39 @@ void WebServerManager::handleUpdatePlugin() {
 void WebServerManager::handleDeletePlugin() {
     DEBUG_PRINTLN("处理删除插件请求");
     
-    // TODO: 处理删除插件
+    // 获取表单数据
+    String pluginName = server.arg("plugin_name");
+    
+    // 调用PluginManager删除插件
+    pluginManager.unregisterPlugin(pluginName);
+    
+    // 重定向回插件管理页面
+    server.sendHeader("Location", "/plugins");
+    server.send(302, "text/plain", "");
+}
+
+void WebServerManager::handleEnablePlugin() {
+    DEBUG_PRINTLN("处理启用插件请求");
+    
+    // 获取表单数据
+    String pluginName = server.arg("plugin_name");
+    
+    // 调用PluginManager启用插件
+    pluginManager.enablePlugin(pluginName);
+    
+    // 重定向回插件管理页面
+    server.sendHeader("Location", "/plugins");
+    server.send(302, "text/plain", "");
+}
+
+void WebServerManager::handleDisablePlugin() {
+    DEBUG_PRINTLN("处理禁用插件请求");
+    
+    // 获取表单数据
+    String pluginName = server.arg("plugin_name");
+    
+    // 调用PluginManager禁用插件
+    pluginManager.disablePlugin(pluginName);
     
     // 重定向回插件管理页面
     server.sendHeader("Location", "/plugins");
@@ -656,6 +1151,73 @@ void WebServerManager::handleNotFound() {
     DEBUG_PRINT("处理404请求: ");
     DEBUG_PRINTLN(server.uri());
     server.send(404, "text/plain", "404 Not Found");
+}
+
+/**
+ * @brief 处理传感器数据API请求
+ * @note 返回JSON格式的传感器数据
+ */
+void WebServerManager::handleSensorData() {
+    DEBUG_PRINTLN("处理传感器数据API请求");
+    
+    // 获取传感器数据
+    SensorData data = sensorManager.getSensorData();
+    
+    // 创建JSON响应
+    DynamicJsonDocument doc(256);
+    doc["status"] = "success";
+    doc["timestamp"] = data.timestamp;
+    doc["data"]["temperature"] = data.temperature;
+    doc["data"]["humidity"] = data.humidity;
+    doc["data"]["valid"] = data.valid;
+    
+    // 设置响应头
+    server.sendHeader("Content-Type", "application/json");
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    
+    // 发送响应
+    String jsonResponse;
+    serializeJson(doc, jsonResponse);
+    server.send(200, "application/json", jsonResponse);
+}
+
+/**
+ * @brief 处理API根请求
+ * @note 返回API基本信息和支持的端点
+ */
+void WebServerManager::handleApi() {
+    DEBUG_PRINTLN("处理API根请求");
+    
+    // 创建JSON响应
+    DynamicJsonDocument doc(512);
+    doc["status"] = "success";
+    doc["name"] = "InkClock API";
+    doc["version"] = "1.0";
+    doc["description"] = "家用网络智能墨水屏万年历API";
+    
+    // 添加支持的API端点
+    JsonArray endpoints = doc.createNestedArray("endpoints");
+    
+    JsonObject endpoint1 = endpoints.createNestedObject();
+    endpoint1["url"] = "/api/sensor";
+    endpoint1["method"] = "GET";
+    endpoint1["description"] = "获取传感器数据";
+    endpoint1["response"] = "{\"status\": \"success\", \"data\": {\"temperature\": 23.5, \"humidity\": 45.2}}";
+    
+    JsonObject endpoint2 = endpoints.createNestedObject();
+    endpoint2["url"] = "/api/plugin/{name}/data";
+    endpoint2["method"] = "GET";
+    endpoint2["description"] = "获取插件数据";
+    endpoint2["response"] = "{\"status\": \"success\", \"data\": \"插件数据\"}";
+    
+    // 设置响应头
+    server.sendHeader("Content-Type", "application/json");
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    
+    // 发送响应
+    String jsonResponse;
+    serializeJson(doc, jsonResponse);
+    server.send(200, "application/json", jsonResponse);
 }
 
 String WebServerManager::getIPAddress() {

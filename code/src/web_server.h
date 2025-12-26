@@ -25,8 +25,13 @@ private:
   void handleAddPlugin();
   void handleUpdatePlugin();
   void handleDeletePlugin();
+  void handleEnablePlugin();
+  void handleDisablePlugin();
   void handleNotFound();
   void handleCSS();
+  // 传感器数据接口
+  void handleSensorData();
+  void handleApi();
   
   // 辅助函数
   String getIPAddress();
