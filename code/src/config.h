@@ -41,6 +41,11 @@
 #define SENSOR_UPDATE_INTERVAL 60000 // 传感器更新间隔，单位毫秒
 #define DHT_PIN 4 // DHT22传感器引脚
 #define SHT30_ADDRESS 0x44 // SHT30传感器I2C地址
+#define GAS_SENSOR_PIN 34 // 气体传感器模拟输入引脚
+#define FLAME_SENSOR_PIN 35 // 火焰传感器数字输入引脚
+#define LIGHT_SENSOR_PIN 36 // 光照传感器模拟输入引脚
+#define GAS_ALARM_THRESHOLD 800 // 气体浓度报警阈值
+#define FLAME_ALARM_THRESHOLD 1 // 火焰检测报警阈值
 
 // 音频配置
 #define AUDIO_SAMPLE_RATE 44100 // 音频采样率

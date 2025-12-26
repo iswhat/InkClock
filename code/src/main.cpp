@@ -96,6 +96,9 @@ void setup() {
     // 初始化固件管理器，进行硬件自动检测和驱动适配
     firmwareManager.init();
     
+    // 初始化电源管理，影响系统运行模式
+    powerManager.init();        // 电源管理和低功耗控制
+    
     // 创建并设置显示驱动，使用墨水屏驱动
     IDisplayDriver* einkDriver = new EinkDriver();
     displayManager.setDisplayDriver(einkDriver);
@@ -104,31 +107,24 @@ void setup() {
     displayManager.init();
     displayManager.showSplashScreen();
     
+    // 初始化输入设备，用于用户交互
+    buttonManager.init();       // 按键事件处理
+    touchManager.init();        // 触摸事件处理（仅支持ESP32-S3系列）
+    
     // 初始化蓝牙管理模块，用于首次WiFi配置
     bluetoothManager.init();
     
-    // 初始化传感器和其他不需要WiFi的模块
+    // 初始化本地传感器和不需要网络的模块
     sensorManager.init();       // 温湿度传感器管理
     audioManager.init();        // 音频录制和播放管理
-    buttonManager.init();       // 按键事件处理
     messageManager.init();      // 消息接收和存储
-    stockManager.init();        // 股票数据获取和显示
-    lunarManager.init();        // 农历管理模块
     pluginManager.init();       // 插件加载和管理
-    powerManager.init();        // 电源管理和低功耗控制
+    cameraManager.init();       // 摄像头管理（仅支持ESP32-S3系列，资源消耗大）
     
-    // 初始化触摸管理器和摄像头管理器（仅支持ESP32-S3系列）
-    touchManager.init();
-    cameraManager.init();
-    
-    // 初始化Web客户端，用于与云端服务器通信
-    webClient.init();
-    
-    // 初始化API管理器，用于统一处理所有外部API请求
-    apiManager.init();
-    
-    // 初始化地理位置管理器，用于自动检测和管理地理位置
-    geoManager.init();
+    // 初始化网络通信相关模块
+    webClient.init();           // Web客户端，用于与云端服务器通信
+    apiManager.init();          // API管理器，用于统一处理所有外部API请求
+    geoManager.init();          // 地理位置管理器，用于自动检测和管理地理位置
     
     // 检查是否已经配置了WiFi，如果没有，等待蓝牙配置
     if (!wifiManager.isConnected()) {
@@ -156,6 +152,8 @@ void setup() {
     // 初始化需要WiFi的模块
     timeManager.init();         // NTP时间同步
     weatherManager.init();      // 天气数据获取
+    stockManager.init();        // 股票数据获取和显示（依赖网络）
+    lunarManager.init();        // 农历管理模块（依赖网络）
     
     // 初始化Web服务器，提供设备管理API和IPv6推送功能
     webServerManager.init();
@@ -165,6 +163,7 @@ void setup() {
     weatherManager.update();    // 更新天气
     sensorManager.update();     // 更新传感器数据
     stockManager.update();      // 更新股票数据
+    lunarManager.update();      // 更新农历数据
     
     // 显示初始页面
     displayManager.updateDisplay();
@@ -211,8 +210,9 @@ void loop() {
     lastWatchdogReset = millis();
     
     // 处理各个模块的循环任务，每个模块都用try-catch包裹，确保单个模块崩溃不会影响整个系统
+    // 核心功能模块 - 优先执行
     try {
-      wifiManager.loop();           // WiFi状态监测和重连
+      wifiManager.loop();           // WiFi状态监测和重连（核心网络功能）
     } catch (const std::exception& e) {
       Serial.print("WiFi模块异常: ");
       Serial.println(e.what());
@@ -220,63 +220,37 @@ void loop() {
     }
     
     try {
-      timeManager.loop();           // 时间更新和同步
+      powerManager.loop();          // 电源状态监测和低功耗控制（影响系统运行模式）
     } catch (const std::exception& e) {
-      Serial.print("时间模块异常: ");
-      Serial.println(e.what());
-      Serial.flush();
-    }
-    
-    try {
-      lunarManager.loop();          // 农历管理模块循环
-      lunarManager.update();        // 农历管理模块更新
-    } catch (const std::exception& e) {
-      Serial.print("农历模块异常: ");
+      Serial.print("电源模块异常: ");
       Serial.println(e.what());
     }
     
+    // 实时交互模块 - 需要快速响应
     try {
-      sensorManager.loop();         // 传感器数据采集
-    } catch (const std::exception& e) {
-      Serial.print("传感器模块异常: ");
-      Serial.println(e.what());
-    }
-    
-    try {
-      audioManager.loop();          // 音频播放控制
-    } catch (const std::exception& e) {
-      Serial.print("音频模块异常: ");
-      Serial.println(e.what());
-    }
-    
-    try {
-      buttonManager.loop();         // 按键事件检测
+      buttonManager.loop();         // 按键事件检测（实时交互）
     } catch (const std::exception& e) {
       Serial.print("按键模块异常: ");
       Serial.println(e.what());
     }
     
     try {
-      messageManager.loop();        // 消息接收和处理
+      touchManager.loop();          // 触摸事件检测（实时交互）
     } catch (const std::exception& e) {
-      Serial.print("消息模块异常: ");
+      Serial.print("触摸模块异常: ");
       Serial.println(e.what());
     }
     
+    // 时间基准模块 - 影响其他模块的时间戳
     try {
-      stockManager.loop();          // 股票数据更新
+      timeManager.loop();           // 时间更新和同步（系统时间基准）
     } catch (const std::exception& e) {
-      Serial.print("股票模块异常: ");
+      Serial.print("时间模块异常: ");
       Serial.println(e.what());
+      Serial.flush();
     }
     
-    try {
-      pluginManager.loop();         // 插件更新和显示
-    } catch (const std::exception& e) {
-      Serial.print("插件模块异常: ");
-      Serial.println(e.what());
-    }
-    
+    // 地理位置模块 - 影响天气、股票等数据
     try {
       geoManager.loop();            // 地理位置更新和管理
     } catch (const std::exception& e) {
@@ -284,10 +258,40 @@ void loop() {
       Serial.println(e.what());
     }
     
+    // 数据获取模块 - 顺序执行，避免并发网络请求
     try {
-      powerManager.loop();          // 电源状态监测和低功耗控制
+      sensorManager.loop();         // 传感器数据采集（本地传感器，响应快）
     } catch (const std::exception& e) {
-      Serial.print("电源模块异常: ");
+      Serial.print("传感器模块异常: ");
+      Serial.println(e.what());
+    }
+    
+    try {
+      lunarManager.loop();          // 农历管理模块循环
+    } catch (const std::exception& e) {
+      Serial.print("农历模块异常: ");
+      Serial.println(e.what());
+    }
+    
+    try {
+      weatherManager.loop();        // 天气数据管理
+    } catch (const std::exception& e) {
+      Serial.print("天气模块异常: ");
+      Serial.println(e.what());
+    }
+    
+    try {
+      stockManager.loop();          // 股票数据管理
+    } catch (const std::exception& e) {
+      Serial.print("股票模块异常: ");
+      Serial.println(e.what());
+    }
+    
+    // 扩展功能模块 - 资源消耗较大，放在后面
+    try {
+      audioManager.loop();          // 音频播放控制
+    } catch (const std::exception& e) {
+      Serial.print("音频模块异常: ");
       Serial.println(e.what());
     }
     
@@ -299,23 +303,17 @@ void loop() {
     }
     
     try {
+      cameraManager.loop();         // 摄像头状态管理（资源消耗大）
+    } catch (const std::exception& e) {
+      Serial.print("摄像头模块异常: ");
+      Serial.println(e.what());
+    }
+    
+    // 网络服务模块
+    try {
       webServerManager.loop();      // Web服务器请求处理（包括IPv6推送功能）
     } catch (const std::exception& e) {
       Serial.print("Web服务器模块异常: ");
-      Serial.println(e.what());
-    }
-    
-    try {
-      touchManager.loop();          // 触摸事件检测
-    } catch (const std::exception& e) {
-      Serial.print("触摸模块异常: ");
-      Serial.println(e.what());
-    }
-    
-    try {
-      cameraManager.loop();         // 摄像头状态管理
-    } catch (const std::exception& e) {
-      Serial.print("摄像头模块异常: ");
       Serial.println(e.what());
     }
     
@@ -326,8 +324,23 @@ void loop() {
       Serial.println(e.what());
     }
     
+    // 后台功能模块
     try {
-      firmwareManager.loop();       // 固件更新检查
+      messageManager.loop();        // 消息接收和处理
+    } catch (const std::exception& e) {
+      Serial.print("消息模块异常: ");
+      Serial.println(e.what());
+    }
+    
+    try {
+      pluginManager.loop();         // 插件更新和显示
+    } catch (const std::exception& e) {
+      Serial.print("插件模块异常: ");
+      Serial.println(e.what());
+    }
+    
+    try {
+      firmwareManager.loop();       // 固件更新检查（后台功能）
     } catch (const std::exception& e) {
       Serial.print("固件管理模块异常: ");
       Serial.println(e.what());
@@ -344,38 +357,68 @@ void loop() {
       Serial.println(e.what());
     }
     
-    // 定期更新数据（每DATA_UPDATE_INTERVAL毫秒，默认为5分钟）
-    static unsigned long lastDataUpdate = 0;
-    if (millis() - lastDataUpdate > DATA_UPDATE_INTERVAL) {
-      lastDataUpdate = millis();
-      
-      try {
+    // 定期更新数据 - 为每个模块使用独立的更新间隔，避免不必要的数据刷新
+    static unsigned long lastTimeUpdate = 0;
+    static unsigned long lastWeatherUpdate = 0;
+    static unsigned long lastSensorUpdate = 0;
+    static unsigned long lastStockUpdate = 0;
+    static unsigned long lastLunarUpdate = 0;
+    
+    unsigned long now = millis();
+    
+    // 更新时间（根据time_manager的配置）
+    try {
+      if (now - lastTimeUpdate > CLOCK_REFRESH_INTERVAL) {
+        lastTimeUpdate = now;
         timeManager.update();       // 更新时间
-      } catch (const std::exception& e) {
-        Serial.print("时间更新异常: ");
-        Serial.println(e.what());
       }
-      
-      try {
+    } catch (const std::exception& e) {
+      Serial.print("时间更新异常: ");
+      Serial.println(e.what());
+    }
+    
+    // 更新天气（根据weather_manager的配置）
+    try {
+      if (now - lastWeatherUpdate > WEATHER_REFRESH_INTERVAL) {
+        lastWeatherUpdate = now;
         weatherManager.update();    // 更新天气
-      } catch (const std::exception& e) {
-        Serial.print("天气更新异常: ");
-        Serial.println(e.what());
       }
-      
-      try {
+    } catch (const std::exception& e) {
+      Serial.print("天气更新异常: ");
+      Serial.println(e.what());
+    }
+    
+    // 更新传感器数据（根据sensor_manager的配置）
+    try {
+      if (now - lastSensorUpdate > SENSOR_REFRESH_INTERVAL) {
+        lastSensorUpdate = now;
         sensorManager.update();     // 更新传感器数据
-      } catch (const std::exception& e) {
-        Serial.print("传感器更新异常: ");
-        Serial.println(e.what());
       }
-      
-      try {
+    } catch (const std::exception& e) {
+      Serial.print("传感器更新异常: ");
+      Serial.println(e.what());
+    }
+    
+    // 更新股票数据（根据stock_manager的配置）
+    try {
+      if (now - lastStockUpdate > STOCK_REFRESH_INTERVAL) {
+        lastStockUpdate = now;
         stockManager.update();      // 更新股票数据
-      } catch (const std::exception& e) {
-        Serial.print("股票更新异常: ");
-        Serial.println(e.what());
       }
+    } catch (const std::exception& e) {
+      Serial.print("股票更新异常: ");
+      Serial.println(e.what());
+    }
+    
+    // 更新农历数据（根据lunar_manager的配置，每天更新一次）
+    try {
+      if (now - lastLunarUpdate > 86400000) { // 24小时
+        lastLunarUpdate = now;
+        lunarManager.update();      // 更新农历数据
+      }
+    } catch (const std::exception& e) {
+      Serial.print("农历更新异常: ");
+      Serial.println(e.what());
     }
   } catch (const std::exception& e) {
     // 捕获所有未处理的异常，确保系统不会完全崩溃
@@ -398,18 +441,12 @@ void loop() {
   }
   
   // 软件看门狗检查
-  static unsigned long lastWatchdogReset = 0;
-  static const unsigned long WATCHDOG_TIMEOUT = 60000; // 看门狗超时时间，60秒
-  
   if (millis() - lastWatchdogReset > WATCHDOG_TIMEOUT) {
     Serial.println("软件看门狗超时，系统将重启");
     Serial.flush();
     delay(1000);
     ESP.restart(); // 重启系统
   }
-  
-  // 重置看门狗
-  lastWatchdogReset = millis();
   
   // 短暂延迟，降低CPU占用
   delay(10);

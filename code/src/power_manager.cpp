@@ -94,7 +94,21 @@ void PowerManager::enterLowPowerMode() {
   if (!isLowPowerMode) {
     isLowPowerMode = true;
     DEBUG_PRINTLN("Entering low power mode...");
-    // 这里可以添加更多低功耗操作，如降低CPU频率、关闭不必要的模块等
+    
+    // 实际的低功耗操作
+    // 1. 降低CPU频率（如果支持）
+    #if defined(ESP32)
+      setCpuFrequencyMhz(80); // 降低CPU频率到80MHz
+    #endif
+    
+    // 2. 关闭不必要的模块电源
+    // 可以在这里添加代码关闭摄像头、音频等模块
+    
+    // 3. 延长传感器采样间隔
+    // 可以通过修改相关模块的采样间隔来降低功耗
+    
+    // 4. 降低显示刷新频率
+    // 已经通过shouldUpdateDisplay()方法实现
   }
 }
 
@@ -102,7 +116,16 @@ void PowerManager::exitLowPowerMode() {
   if (isLowPowerMode) {
     isLowPowerMode = false;
     DEBUG_PRINTLN("Exiting low power mode...");
-    // 这里可以添加恢复正常操作，如恢复CPU频率、开启必要的模块等
+    
+    // 恢复正常操作
+    // 1. 恢复CPU频率
+    #if defined(ESP32)
+      setCpuFrequencyMhz(240); // 恢复CPU频率到240MHz
+    #endif
+    
+    // 2. 恢复正常的传感器采样间隔
+    
+    // 3. 恢复正常的显示刷新频率
   }
 }
 

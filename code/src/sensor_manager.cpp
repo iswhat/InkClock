@@ -69,17 +69,41 @@
 
 SensorManager::SensorManager() {
   // 初始化传感器数据
-  currentData.temperature = 0.0;
-  currentData.humidity = 0.0;
   currentData.valid = false;
   currentData.timestamp = 0;
+  currentData.temperature = 0.0;
+  currentData.humidity = 0.0;
+  currentData.motionDetected = false;
+  currentData.gasLevel = 0;
+  currentData.flameDetected = false;
+  currentData.lightLevel = 0;
   
   // 初始化校准偏移量
   tempOffset = 0.0;
   humOffset = 0.0;
   
+  // 初始化报警相关变量
+  gasAlarmThreshold = GAS_ALARM_THRESHOLD;
+  flameAlarmThreshold = FLAME_ALARM_THRESHOLD;
+  tempMinAlarmThreshold = -10.0; // 默认温度下限报警阈值
+  tempMaxAlarmThreshold = 40.0; // 默认温度上限报警阈值
+  humidityMinAlarmThreshold = 20.0; // 默认湿度下限报警阈值
+  humidityMaxAlarmThreshold = 80.0; // 默认湿度上限报警阈值
+  lightAlarmThreshold = 500; // 默认光照强度报警阈值
+  gasAlarmTriggered = false;
+  flameAlarmTriggered = false;
+  tempAlarmTriggered = false;
+  humidityAlarmTriggered = false;
+  lightAlarmTriggered = false;
+  
   lastUpdate = 0;
   dataUpdated = false;
+  
+  // 初始化传感器配置标志
+  pirSensorEnabled = true;
+  gasSensorEnabled = true;
+  flameSensorEnabled = true;
+  lightSensorEnabled = true;
 }
 
 SensorManager::~SensorManager() {
@@ -180,7 +204,17 @@ void SensorManager::init() {
   DEBUG_PRINTLN("初始化传感器管理器...");
   
   try {
-    // 初始化传感器
+    // 初始化人体感应传感器引脚
+    pinMode(PIR_SENSOR_PIN, INPUT);
+    
+    // 初始化气体、火焰和光照传感器的引脚
+    pinMode(GAS_SENSOR_PIN, INPUT);
+    pinMode(FLAME_SENSOR_PIN, INPUT);
+    pinMode(LIGHT_SENSOR_PIN, INPUT);
+    
+    DEBUG_PRINTLN("人体感应、气体、火焰和光照传感器引脚初始化完成");
+    
+    // 初始化温湿度传感器
     #if SENSOR_TYPE != SENSOR_TYPE_AUTO_DETECT
       // 固定传感器类型模式
       #if defined(USE_DHT_SENSOR)
@@ -269,6 +303,9 @@ void SensorManager::init() {
         case SENSOR_TYPE_BME680: DEBUG_PRINTLN("BME680"); break;
         case SENSOR_TYPE_HTU21D: DEBUG_PRINTLN("HTU21D"); break;
         case SENSOR_TYPE_SI7021: DEBUG_PRINTLN("SI7021"); break;
+        case SENSOR_TYPE_GAS: DEBUG_PRINTLN("气体传感器"); break;
+        case SENSOR_TYPE_FLAME: DEBUG_PRINTLN("火焰传感器"); break;
+        case SENSOR_TYPE_LIGHT: DEBUG_PRINTLN("光照传感器"); break;
         default: DEBUG_PRINTLN("未知类型"); break;
       }
       
@@ -347,6 +384,12 @@ void SensorManager::init() {
                 initSuccess = true;
               }
               break;
+            case SENSOR_TYPE_GAS:
+            case SENSOR_TYPE_FLAME:
+            case SENSOR_TYPE_LIGHT:
+              // 这些传感器不需要额外的初始化
+              initSuccess = true;
+              break;
           }
           
           if (initSuccess) {
@@ -382,7 +425,13 @@ void SensorManager::update() {
   const int MAX_CONSECUTIVE_FAILURES = 5;
   
   try {
-    // 根据传感器类型选择读取方法
+    // 读取气体、火焰、光照和人体感应传感器数据
+    readGasSensor();
+    readFlameSensor();
+    readLightSensor();
+    readPIRSensor();
+    
+    // 读取温湿度传感器数据
     #if SENSOR_TYPE != SENSOR_TYPE_AUTO_DETECT
       // 固定传感器类型模式
       int retryCount = 0;
@@ -416,7 +465,7 @@ void SensorManager::update() {
         #endif
         
         if (!success) {
-          DEBUG_PRINT("传感器读取失败，重试 (" + String(retryCount) + "/" + String(MAX_RETRIES) + ")...");
+          DEBUG_PRINT("温湿度传感器读取失败，重试 (" + String(retryCount) + "/" + String(MAX_RETRIES) + ")...");
           delay(200); // 延迟后重试
         }
       }
@@ -515,14 +564,20 @@ void SensorManager::update() {
                 }
               }
               break;
+            case SENSOR_TYPE_GAS:
+            case SENSOR_TYPE_FLAME:
+            case SENSOR_TYPE_LIGHT:
+              // 这些传感器已经在前面读取过
+              success = true;
+              break;
           }
         } catch (const std::exception& e) {
-          DEBUG_PRINT("传感器读取异常，重试 (" + String(retryCount) + "/" + String(MAX_RETRIES) + "): ");
+          DEBUG_PRINT("温湿度传感器读取异常，重试 (" + String(retryCount) + "/" + String(MAX_RETRIES) + "): ");
           DEBUG_PRINTLN(e.what());
         }
         
         if (!success) {
-          DEBUG_PRINT("传感器数据读取失败，重试 (" + String(retryCount) + "/" + String(MAX_RETRIES) + ")...");
+          DEBUG_PRINT("温湿度传感器数据读取失败，重试 (" + String(retryCount) + "/" + String(MAX_RETRIES) + ")...");
           delay(200); // 延迟后重试
         }
       }
@@ -532,7 +587,7 @@ void SensorManager::update() {
         consecutiveFailures++;
         
         if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
-          DEBUG_PRINTLN("传感器连续多次读取失败，尝试重新检测传感器类型...");
+          DEBUG_PRINTLN("温湿度传感器连续多次读取失败，尝试重新检测传感器类型...");
           consecutiveFailures = 0;
           
           // 重新检测传感器类型
@@ -551,6 +606,9 @@ void SensorManager::update() {
             case SENSOR_TYPE_BME680: DEBUG_PRINTLN("BME680"); break;
             case SENSOR_TYPE_HTU21D: DEBUG_PRINTLN("HTU21D"); break;
             case SENSOR_TYPE_SI7021: DEBUG_PRINTLN("SI7021"); break;
+            case SENSOR_TYPE_GAS: DEBUG_PRINTLN("气体传感器"); break;
+            case SENSOR_TYPE_FLAME: DEBUG_PRINTLN("火焰传感器"); break;
+            case SENSOR_TYPE_LIGHT: DEBUG_PRINTLN("光照传感器"); break;
             default: DEBUG_PRINTLN("未知类型"); break;
           }
         }
@@ -559,42 +617,40 @@ void SensorManager::update() {
       }
     #endif
     
-    if (success) {
-      // 应用校准偏移量
-      currentData.temperature += tempOffset;
-      currentData.humidity += humOffset;
-      
-      // 数据有效性检查
-      if (currentData.temperature < -40 || currentData.temperature > 80) {
-        // 温度超出合理范围
-        currentData.valid = false;
-      } else if (currentData.humidity < 0 || currentData.humidity > 100) {
-        // 湿度超出合理范围
-        currentData.valid = false;
-      } else {
-        // 数据有效
-        currentData.valid = true;
-        currentData.timestamp = millis();
-        dataUpdated = true;
-        
-        // 应用滤波
-        filterData();
-        
-        DEBUG_PRINT("传感器数据更新成功: 温度 = ");
-        DEBUG_PRINT(currentData.temperature);
-        DEBUG_PRINT("°C, 湿度 = ");
-        DEBUG_PRINT(currentData.humidity);
-        DEBUG_PRINTLN("%");
-      }
-    } else {
+    // 应用校准偏移量
+    currentData.temperature += tempOffset;
+    currentData.humidity += humOffset;
+    
+    // 数据有效性检查
+    if (currentData.temperature < -40 || currentData.temperature > 80) {
+      // 温度超出合理范围
       currentData.valid = false;
-      DEBUG_PRINTLN("传感器数据读取失败");
-      
-      // 使用模拟数据，确保系统不会崩溃
-      currentData.temperature = 25.0 + random(-5, 5);
-      currentData.humidity = 50.0 + random(-10, 10);
+    } else if (currentData.humidity < 0 || currentData.humidity > 100) {
+      // 湿度超出合理范围
+      currentData.valid = false;
+    } else {
+      // 数据有效
+      currentData.valid = true;
       currentData.timestamp = millis();
-      DEBUG_PRINTLN("使用模拟传感器数据");
+      dataUpdated = true;
+      
+      // 应用滤波
+      filterData();
+      
+      DEBUG_PRINT("传感器数据更新成功: 温度 = ");
+      DEBUG_PRINT(currentData.temperature);
+      DEBUG_PRINT("°C, 湿度 = ");
+      DEBUG_PRINT(currentData.humidity);
+      DEBUG_PRINT("%, 气体浓度 = ");
+      DEBUG_PRINT(currentData.gasLevel);
+      DEBUG_PRINT(", 火焰检测 = ");
+      DEBUG_PRINT(currentData.flameDetected ? "有" : "无");
+      DEBUG_PRINT(", 光照强度 = ");
+      DEBUG_PRINT(currentData.lightLevel);
+      DEBUG_PRINTLN();
+      
+      // 检查报警条件
+      checkAlarmConditions();
     }
   } catch (const std::exception& e) {
     currentData.valid = false;
@@ -604,6 +660,9 @@ void SensorManager::update() {
     // 使用模拟数据，确保系统不会崩溃
     currentData.temperature = 25.0 + random(-5, 5);
     currentData.humidity = 50.0 + random(-10, 10);
+    currentData.gasLevel = random(0, 1024);
+    currentData.flameDetected = false;
+    currentData.lightLevel = random(0, 1024);
     currentData.timestamp = millis();
     DEBUG_PRINTLN("使用模拟传感器数据");
   }
@@ -803,29 +862,151 @@ bool SensorManager::readBME680() {
   return true;
 }
 
+// 读取气体传感器数据
+bool SensorManager::readGasSensor() {
+  // 读取气体传感器的模拟值
+  int gasValue = analogRead(GAS_SENSOR_PIN);
+  
+  // 更新数据
+  currentData.gasLevel = gasValue;
+  
+  return true;
+}
+
+// 读取火焰传感器数据
+bool SensorManager::readFlameSensor() {
+  // 读取火焰传感器的数字值
+  bool flameDetected = digitalRead(FLAME_SENSOR_PIN);
+  
+  // 更新数据
+  currentData.flameDetected = flameDetected;
+  
+  return true;
+}
+
+// 读取光照传感器数据
+bool SensorManager::readLightSensor() {
+  // 读取光照传感器的模拟值
+  int lightValue = analogRead(LIGHT_SENSOR_PIN);
+  
+  // 更新数据
+  currentData.lightLevel = lightValue;
+  
+  return true;
+}
+
+// 读取人体感应传感器数据
+bool SensorManager::readPIRSensor() {
+  // 读取人体感应传感器的数字值
+  bool motionDetected = digitalRead(PIR_SENSOR_PIN);
+  
+  // 更新数据
+  currentData.motionDetected = motionDetected;
+  
+  return true;
+}
+
+// 检查报警条件
+void SensorManager::checkAlarmConditions() {
+  bool newGasAlarm = false;
+  bool newFlameAlarm = false;
+  bool newTempAlarm = false;
+  bool newHumidityAlarm = false;
+  bool newLightAlarm = false;
+  
+  // 检查气体浓度是否超过阈值
+  if (gasSensorEnabled && currentData.gasLevel > gasAlarmThreshold) {
+    newGasAlarm = true;
+    if (!gasAlarmTriggered) {
+      triggerAlarm("燃气/一氧化碳浓度过高");
+    }
+  }
+  
+  // 检查是否检测到火焰
+  if (flameSensorEnabled && currentData.flameDetected == flameAlarmThreshold) {
+    newFlameAlarm = true;
+    if (!flameAlarmTriggered) {
+      triggerAlarm("检测到火焰");
+    }
+  }
+  
+  // 检查温度是否超出阈值范围
+  if (currentData.temperature < tempMinAlarmThreshold || currentData.temperature > tempMaxAlarmThreshold) {
+    newTempAlarm = true;
+    if (!tempAlarmTriggered) {
+      triggerAlarm("温度异常");
+    }
+  }
+  
+  // 检查湿度是否超出阈值范围
+  if (currentData.humidity < humidityMinAlarmThreshold || currentData.humidity > humidityMaxAlarmThreshold) {
+    newHumidityAlarm = true;
+    if (!humidityAlarmTriggered) {
+      triggerAlarm("湿度异常");
+    }
+  }
+  
+  // 检查光照强度是否超过阈值
+  if (lightSensorEnabled && currentData.lightLevel > lightAlarmThreshold) {
+    newLightAlarm = true;
+    if (!lightAlarmTriggered) {
+      triggerAlarm("光照强度异常");
+    }
+  }
+  
+  // 更新报警状态
+  gasAlarmTriggered = newGasAlarm;
+  flameAlarmTriggered = newFlameAlarm;
+  tempAlarmTriggered = newTempAlarm;
+  humidityAlarmTriggered = newHumidityAlarm;
+  lightAlarmTriggered = newLightAlarm;
+}
+
+// 触发报警
+void SensorManager::triggerAlarm(String alarmType) {
+  DEBUG_PRINT("触发报警: ");
+  DEBUG_PRINTLN(alarmType);
+  
+  // 这里可以添加更多报警处理逻辑，如：
+  // 1. 发送通知到手机
+  // 2. 触发音频报警
+  // 3. 显示报警信息到屏幕
+  // 4. 发送短信或邮件报警
+}
+
 void SensorManager::filterData() {
   // 简单的移动平均滤波
   // 这里可以根据需要实现更复杂的滤波算法
   static float tempHistory[10] = {0};
   static float humHistory[10] = {0};
+  static int gasHistory[10] = {0};
+  static int lightHistory[10] = {0};
   static int historyIndex = 0;
   
   // 添加新数据到历史记录
   tempHistory[historyIndex] = currentData.temperature;
   humHistory[historyIndex] = currentData.humidity;
+  gasHistory[historyIndex] = currentData.gasLevel;
+  lightHistory[historyIndex] = currentData.lightLevel;
   
   // 计算移动平均值
   float tempSum = 0;
   float humSum = 0;
+  int gasSum = 0;
+  int lightSum = 0;
   
   for (int i = 0; i < 10; i++) {
     tempSum += tempHistory[i];
     humSum += humHistory[i];
+    gasSum += gasHistory[i];
+    lightSum += lightHistory[i];
   }
   
   // 更新滤波后的数据
   currentData.temperature = tempSum / 10;
   currentData.humidity = humSum / 10;
+  currentData.gasLevel = gasSum / 10;
+  currentData.lightLevel = lightSum / 10;
   
   // 更新历史记录索引
   historyIndex = (historyIndex + 1) % 10;
