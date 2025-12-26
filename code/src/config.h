@@ -13,14 +13,29 @@
 
 // 时间配置
 #define NTP_SERVER "ntp.aliyun.com" // NTP服务器
+#define NTP_SERVER_BACKUP "ntp.tencent.com" // 备用NTP服务器
 #define TIME_ZONE_OFFSET 8 // 时区偏移，单位小时（中国为+8）
 #define DAYLIGHT_SAVING_TIME 0 // 夏令时，0表示不使用
 
+// 地理位置配置
+#define AUTO_DETECT_LOCATION true // 是否自动检测地理位置
+#define GEO_CITY_ID "your_city_id" // 城市ID
+#define GEO_CITY_NAME "your_city_name" // 城市名称
+#define GEO_LATITUDE 0.0 // 纬度
+#define GEO_LONGITUDE 0.0 // 经度
+
 // 天气配置
 #define WEATHER_UPDATE_INTERVAL 3600000 // 天气更新间隔，单位毫秒（1小时）
-#define WEATHER_API_KEY "your_weather_api_key" // 天气API密钥
-#define WEATHER_CITY_ID "your_city_id" // 城市ID
-#define WEATHER_API_URL "https://api.openweathermap.org/data/2.5/forecast" // 天气API URL
+// 主天气API：使用公共免密钥的wttr.in API
+#define WEATHER_API_URL "https://wttr.in/" // 主天气API URL（公共免密钥）
+// 备用天气API：使用公共免密钥的open-meteo.com API
+#define WEATHER_API_URL_BACKUP "https://api.open-meteo.com/v1/forecast" // 备用天气API URL（公共免密钥）
+// 次备用天气API：使用需要申请的OpenWeatherMap API
+#define WEATHER_API_URL_SECONDARY_BACKUP "https://api.openweathermap.org/data/2.5/forecast" // 次备用天气API URL
+#define WEATHER_API_KEY "your_weather_api_key" // 天气API密钥（仅用于次备用API）
+// 次备用天气API：使用需要申请的WeatherAPI API
+#define WEATHER_API_URL_TERTIARY_BACKUP "https://api.weatherapi.com/v1/forecast.json" // 次备用天气API URL
+#define WEATHER_API_KEY_BACKUP "your_weatherapi_key" // 备用天气API密钥（仅用于次备用API）
 
 // 传感器配置
 #define SENSOR_UPDATE_INTERVAL 60000 // 传感器更新间隔，单位毫秒
@@ -273,6 +288,11 @@ enum HardwareModel {
 #define SD_MOSI 26
 #define SD_MISO 27
 
+// API管理器配置
+#define API_DEFAULT_TIMEOUT 10000 // API默认超时时间，单位毫秒
+#define API_DEFAULT_CACHE_TIME 3600000 // API默认缓存时间，单位毫秒（1小时）
+#define API_CACHE_CLEANUP_INTERVAL 3600000 // API缓存清理间隔，单位毫秒（1小时）
+
 // 调试配置
 #define DEBUG_ENABLED true // 是否启用调试信息
 #define DEBUG_SERIAL_BAUD 115200 // 调试串口波特率
@@ -385,6 +405,12 @@ enum EinkDisplayType {
 #define THEME_MINIMAL_SENSOR_SIZE_75 0
 #define THEME_MINIMAL_BATTERY_SIZE_75 2
 #define THEME_MINIMAL_MESSAGE_SIZE_75 2
+
+// Web客户端配置
+#define WEB_SERVER_URL "https://your-webserver-url.com/api.php" // 主Web服务器URL
+#define WEB_SERVER_URL_BACKUP "https://backup-webserver-url.com/api.php" // 备用Web服务器URL
+#define WEB_SERVER_URL_SECONDARY_BACKUP "https://secondary-backup-webserver-url.com/api.php" // 次备用Web服务器URL
+#define API_KEY "your_secret_key_here" // Web服务器API密钥
 
 // 调试宏
 #if DEBUG_ENABLED

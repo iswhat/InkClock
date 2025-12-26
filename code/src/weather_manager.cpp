@@ -1,9 +1,11 @@
 #include "weather_manager.h"
 #include "wifi_manager.h"
+#include "geo_manager.h"
 
 // 外部全局对象
 extern WiFiManager wifiManager;
 extern APIManager apiManager;
+extern GeoManager geoManager;
 
 WeatherManager::WeatherManager() {
   // 初始化天气数据
@@ -42,9 +44,7 @@ WeatherManager::~WeatherManager() {
 void WeatherManager::init() {
   DEBUG_PRINTLN("初始化天气管理器...");
   
-  // 初始化HTTPS客户端
-  client.setInsecure(); // 禁用证书验证，简化开发
-  
+  // 初始化完成，现在使用API管理器处理HTTP请求
   DEBUG_PRINTLN("天气管理器初始化完成");
 }
 
@@ -84,108 +84,180 @@ ForecastData WeatherManager::getForecastData(int index) {
 bool WeatherManager::fetchWeatherData() {
   DEBUG_PRINTLN("获取天气数据...");
   
-  // 构建API请求URL
-  String url = String(WEATHER_API_URL) + 
-               "?id=" + String(WEATHER_CITY_ID) + 
-               "&appid=" + String(WEATHER_API_KEY) + 
-               "&units=metric" + // 使用摄氏度
-               "&lang=zh_cn";   // 使用中文
+  // 获取城市信息
+  String cityName = geoManager.getCityName();
+  String cityId = geoManager.getCityId();
+  float latitude = geoManager.getLatitude();
+  float longitude = geoManager.getLongitude();
+  
+  // 构建主API请求URL (wttr.in - 公共免密钥)
+  String url = String(WEATHER_API_URL) + cityName + "?format=j1"; // 使用JSON格式
   
   // 使用API管理器发送HTTP请求
   ApiResponse apiResponse = apiManager.get(url, API_TYPE_WEATHER, 1800000); // 缓存30分钟
   
   // 检查请求结果
-  if (apiResponse.status != API_STATUS_SUCCESS && apiResponse.status != API_STATUS_CACHED) {
-    DEBUG_PRINTLN("获取天气数据失败: " + apiResponse.error);
-    return false;
+  if (apiResponse.status == API_STATUS_SUCCESS || apiResponse.status == API_STATUS_CACHED) {
+    String response = apiResponse.response;
+    if (!response.isEmpty()) {
+      // 解析响应
+      int jsonIndex = response.indexOf('{');
+      if (jsonIndex != -1) {
+        String json = response.substring(jsonIndex);
+        if (parseWeatherData(json)) {
+          dataUpdated = true;
+          lastUpdate = millis();
+          DEBUG_PRINTLN("使用主API获取天气数据成功");
+          return true;
+        }
+      }
+    }
+    DEBUG_PRINTLN("主API获取天气数据失败，尝试使用备用API");
+  } else {
+    DEBUG_PRINTLN("主API获取天气数据失败: " + apiResponse.error + "，尝试使用备用API");
   }
   
-  String response = apiResponse.response;
-  if (response.isEmpty()) {
-    DEBUG_PRINTLN("获取天气数据失败，响应为空");
-    return false;
+  // 尝试使用备用API (open-meteo.com - 公共免密钥)
+  DEBUG_PRINTLN("尝试使用备用天气API");
+  String backupUrl = String(WEATHER_API_URL_BACKUP) + 
+                     "?latitude=" + String(latitude) + 
+                     "&longitude=" + String(longitude) + 
+                     "&current_weather=true" + 
+                     "&daily=temperature_2m_max,temperature_2m_min,relative_humidity_2m_max,wind_speed_10m_max" + 
+                     "&timezone=Asia/Shanghai" + 
+                     "&forecast_days=5";
+  
+  ApiResponse backupApiResponse = apiManager.get(backupUrl, API_TYPE_WEATHER, 1800000);
+  
+  if (backupApiResponse.status == API_STATUS_SUCCESS || backupApiResponse.status == API_STATUS_CACHED) {
+    String backupResponse = backupApiResponse.response;
+    if (!backupResponse.isEmpty()) {
+      if (parseWeatherDataBackup(backupResponse)) {
+        dataUpdated = true;
+        lastUpdate = millis();
+        DEBUG_PRINTLN("使用备用API获取天气数据成功");
+        return true;
+      }
+    }
+    DEBUG_PRINTLN("备用API获取天气数据失败，尝试使用次备用API");
+  } else {
+    DEBUG_PRINTLN("备用API获取天气数据失败: " + backupApiResponse.error + "，尝试使用次备用API");
   }
   
-  // 解析响应
-  int jsonIndex = response.indexOf('{');
-  if (jsonIndex == -1) {
-    DEBUG_PRINTLN("无法找到JSON数据");
-    return false;
+  // 尝试使用次备用API (OpenWeatherMap - 需要密钥)
+  DEBUG_PRINTLN("尝试使用次备用天气API (OpenWeatherMap)");
+  String secondaryBackupUrl = String(WEATHER_API_URL_SECONDARY_BACKUP) + 
+                             "?id=" + cityId + 
+                             "&appid=" + String(WEATHER_API_KEY) + 
+                             "&units=metric" + // 使用摄氏度
+                             "&lang=zh_cn";   // 使用中文
+  
+  ApiResponse secondaryBackupApiResponse = apiManager.get(secondaryBackupUrl, API_TYPE_WEATHER, 1800000);
+  
+  if (secondaryBackupApiResponse.status == API_STATUS_SUCCESS || secondaryBackupApiResponse.status == API_STATUS_CACHED) {
+    String secondaryBackupResponse = secondaryBackupApiResponse.response;
+    if (!secondaryBackupResponse.isEmpty()) {
+      int jsonIndex = secondaryBackupResponse.indexOf('{');
+      if (jsonIndex != -1) {
+        String json = secondaryBackupResponse.substring(jsonIndex);
+        if (parseWeatherDataSecondaryBackup(json)) {
+          dataUpdated = true;
+          lastUpdate = millis();
+          DEBUG_PRINTLN("使用次备用API获取天气数据成功");
+          return true;
+        }
+      }
+    }
+    DEBUG_PRINTLN("次备用API获取天气数据失败，尝试使用第四次备用API");
+  } else {
+    DEBUG_PRINTLN("次备用API获取天气数据失败: " + secondaryBackupApiResponse.error + "，尝试使用第四次备用API");
   }
   
-  String json = response.substring(jsonIndex);
-  parseWeatherData(json);
+  // 尝试使用第四次备用API (WeatherAPI - 需要密钥)
+  DEBUG_PRINTLN("尝试使用第四次备用天气API (WeatherAPI)");
+  String tertiaryBackupUrl = String(WEATHER_API_URL_TERTIARY_BACKUP) + 
+                             "?q=" + cityId + 
+                             "&key=" + String(WEATHER_API_KEY_BACKUP) + 
+                             "&days=5" + // 获取5天天气预报
+                             "&aqi=no" + // 不包含空气质量
+                             "&alerts=no" + // 不包含预警信息
+                             "&lang=zh"; // 使用中文
   
-  dataUpdated = true;
-  lastUpdate = millis();
+  ApiResponse tertiaryBackupApiResponse = apiManager.get(tertiaryBackupUrl, API_TYPE_WEATHER, 1800000);
   
-  DEBUG_PRINTLN("天气数据获取成功");
-  return true;
+  if (tertiaryBackupApiResponse.status == API_STATUS_SUCCESS || tertiaryBackupApiResponse.status == API_STATUS_CACHED) {
+    String tertiaryBackupResponse = tertiaryBackupApiResponse.response;
+    if (!tertiaryBackupResponse.isEmpty()) {
+      int jsonIndex = tertiaryBackupResponse.indexOf('{');
+      if (jsonIndex != -1) {
+        String json = tertiaryBackupResponse.substring(jsonIndex);
+        if (parseWeatherDataTertiaryBackup(json)) {
+          dataUpdated = true;
+          lastUpdate = millis();
+          DEBUG_PRINTLN("使用第四次备用API获取天气数据成功");
+          return true;
+        }
+      }
+    }
+  } else {
+    DEBUG_PRINTLN("第四次备用API获取天气数据失败: " + tertiaryBackupApiResponse.error);
+  }
+  
+  DEBUG_PRINTLN("所有API获取天气数据失败");
+  return false;
 }
 
-void WeatherManager::parseWeatherData(String json) {
-  // 解析JSON数据
+bool WeatherManager::parseWeatherData(String json) {
+  // 解析JSON数据 (wttr.in格式)
   DynamicJsonDocument doc(16384); // 足够大的缓冲区
   DeserializationError error = deserializeJson(doc, json);
   
   if (error) {
     DEBUG_PRINT("JSON解析错误: ");
     DEBUG_PRINTLN(error.c_str());
-    return;
+    return false;
   }
   
   // 解析当前天气数据
-  JsonObject current = doc["list"][0];
-  JsonObject main = current["main"];
-  JsonObject wind = current["wind"];
-  JsonArray weatherArray = current["weather"];
-  JsonObject weather = weatherArray[0];
+  JsonArray currentCondition = doc["current_condition"];
+  if (currentCondition.size() == 0) {
+    DEBUG_PRINTLN("未找到当前天气数据");
+    return false;
+  }
   
-  currentWeather.city = doc["city"]["name"].as<String>();
-  currentWeather.temp = main["temp"].as<float>();
-  currentWeather.humidity = main["humidity"].as<int>();
-  currentWeather.condition = weather["description"].as<String>();
-  currentWeather.tempMin = main["temp_min"].as<float>();
-  currentWeather.tempMax = main["temp_max"].as<float>();
-  currentWeather.pressure = main["pressure"].as<int>();
-  currentWeather.visibility = current["visibility"].as<int>();
-  currentWeather.sunrise = doc["city"]["sunrise"].as<long>();
-  currentWeather.sunset = doc["city"]["sunset"].as<long>();
+  JsonObject current = currentCondition[0];
+  currentWeather.city = doc["nearest_area"][0]["areaName"][0]["value"].as<String>();
+  currentWeather.temp = current["temp_C"].as<float>();
+  currentWeather.humidity = current["humidity"].as<int>();
+  currentWeather.condition = current["weatherDesc"][0]["value"].as<String>();
+  currentWeather.tempMin = current["temp_C"].as<float>(); // wttr.in当前没有直接提供最低/最高温度
+  currentWeather.tempMax = current["temp_C"].as<float>();
+  currentWeather.pressure = current["pressure"].as<int>();
+  currentWeather.visibility = current["visibility"].as<int>() * 1000; // 转换为米
   
   // 转换风力风向
-  float windSpeed = wind["speed"].as<float>();
-  float windDeg = wind["deg"].as<float>();
+  float windSpeed = current["windspeedKmph"].as<float>() / 3.6; // 转换为m/s
+  float windDeg = current["winddirDegree"].as<float>();
   currentWeather.wind = convertWindSpeed(windSpeed) + " " + convertWindDirection(windDeg);
   
-  currentWeather.valid = true;
-  
-  // 解析未来5天天气预报
-  for (int i = 0; i < 5; i++) {
-    // 每8小时一个数据点，取每天的第0个数据点（当天）和每8小时的数据点
-    int index = i * 8;
-    if (index < doc["list"].size()) {
-      JsonObject forecast = doc["list"][index];
-      JsonObject forecastMain = forecast["main"];
-      JsonObject forecastWind = forecast["wind"];
-      JsonArray forecastWeatherArray = forecast["weather"];
-      JsonObject forecastWeather = forecastWeatherArray[0];
-      
-      // 解析日期
-      String dt_txt = forecast["dt_txt"].as<String>();
-      forecastData[i].date = dt_txt.substring(0, 10); // YYYY-MM-DD
-      
-      forecastData[i].tempDay = forecastMain["temp"].as<float>();
-      forecastData[i].tempNight = forecastMain["temp"].as<float>(); // 简化处理，实际应取夜间温度
-      forecastData[i].condition = forecastWeather["description"].as<String>();
-      
-      // 转换风力风向
-      float forecastWindSpeed = forecastWind["speed"].as<float>();
-      float forecastWindDeg = forecastWind["deg"].as<float>();
-      forecastData[i].wind = convertWindSpeed(forecastWindSpeed) + " " + convertWindDirection(forecastWindDeg);
-      
-      forecastData[i].humidity = forecastMain["humidity"].as<int>();
-    }
+  // 解析5天天气预报
+  JsonArray weatherArray = doc["weather"];
+  for (int i = 0; i < weatherArray.size() && i < 5; i++) {
+    JsonObject day = weatherArray[i];
+    forecastData[i].date = day["date"].as<String>();
+    forecastData[i].tempDay = day["maxtempC"].as<float>();
+    forecastData[i].tempNight = day["mintempC"].as<float>();
+    forecastData[i].condition = day["hourly"][0]["weatherDesc"][0]["value"].as<String>();
+    
+    // 转换风力风向
+    float forecastWindSpeed = day["hourly"][0]["windspeedKmph"].as<float>() / 3.6;
+    float forecastWindDeg = day["hourly"][0]["winddirDegree"].as<float>();
+    forecastData[i].wind = convertWindSpeed(forecastWindSpeed) + " " + convertWindDirection(forecastWindDeg);
+    forecastData[i].humidity = day["hourly"][0]["humidity"].as<int>();
   }
+  
+  currentWeather.valid = true;
+  return true;
 }
 
 String WeatherManager::getWeatherIcon(String condition) {
@@ -258,4 +330,184 @@ String WeatherManager::convertWindDirection(float deg) {
   } else {
     return "未知";
   }
+}
+
+bool WeatherManager::parseWeatherDataBackup(String json) {
+  // 解析备用天气API的数据 (open-meteo.com格式)
+  DynamicJsonDocument doc(16384); // 足够大的缓冲区
+  DeserializationError error = deserializeJson(doc, json);
+  
+  if (error) {
+    DEBUG_PRINT("备用天气API JSON解析错误: ");
+    DEBUG_PRINTLN(error.c_str());
+    return false;
+  }
+  
+  // 解析当前天气数据
+  JsonObject current = doc["current_weather"];
+  if (!current) {
+    DEBUG_PRINTLN("未找到当前天气数据");
+    return false;
+  }
+  
+  currentWeather.city = geoManager.getCityName(); // 使用已知的城市名称
+  currentWeather.temp = current["temperature"].as<float>();
+  currentWeather.humidity = 0; // open-meteo当前天气不提供湿度
+  currentWeather.condition = "未知";
+  currentWeather.tempMin = 0.0; // 初始值
+  currentWeather.tempMax = 0.0;
+  currentWeather.pressure = 0;
+  currentWeather.visibility = 0;
+  
+  // 转换风力风向
+  float windSpeed = current["windspeed"].as<float>();
+  float windDeg = current["winddirection"].as<float>();
+  currentWeather.wind = convertWindSpeed(windSpeed) + " " + convertWindDirection(windDeg);
+  
+  // 解析5天天气预报
+  JsonObject daily = doc["daily"];
+  JsonArray time = daily["time"];
+  JsonArray tempMax = daily["temperature_2m_max"];
+  JsonArray tempMin = daily["temperature_2m_min"];
+  JsonArray humidityMax = daily["relative_humidity_2m_max"];
+  JsonArray windSpeedMax = daily["wind_speed_10m_max"];
+  
+  for (int i = 0; i < time.size() && i < 5; i++) {
+    forecastData[i].date = time[i].as<String>();
+    forecastData[i].tempDay = tempMax[i].as<float>();
+    forecastData[i].tempNight = tempMin[i].as<float>();
+    forecastData[i].condition = "未知";
+    forecastData[i].wind = convertWindSpeed(windSpeedMax[i].as<float>()) + " 未知风向";
+    forecastData[i].humidity = humidityMax[i].as<int>();
+    
+    // 保存最高和最低温度到当前天气
+    if (i == 0) {
+      currentWeather.tempMin = tempMin[i].as<float>();
+      currentWeather.tempMax = tempMax[i].as<float>();
+    }
+  }
+  
+  currentWeather.valid = true;
+  return true;
+}
+
+bool WeatherManager::parseWeatherDataSecondaryBackup(String json) {
+  // 解析次备用天气API的数据 (OpenWeatherMap格式)
+  DynamicJsonDocument doc(16384); // 足够大的缓冲区
+  DeserializationError error = deserializeJson(doc, json);
+  
+  if (error) {
+    DEBUG_PRINT("次备用天气API JSON解析错误: ");
+    DEBUG_PRINTLN(error.c_str());
+    return false;
+  }
+  
+  // 解析当前天气数据
+  JsonObject current = doc["list"][0];
+  JsonObject main = current["main"];
+  JsonObject wind = current["wind"];
+  JsonArray weatherArray = current["weather"];
+  if (weatherArray.size() == 0) {
+    DEBUG_PRINTLN("未找到天气状况数据");
+    return false;
+  }
+  JsonObject weather = weatherArray[0];
+  
+  currentWeather.city = doc["city"]["name"].as<String>();
+  currentWeather.temp = main["temp"].as<float>();
+  currentWeather.humidity = main["humidity"].as<int>();
+  currentWeather.condition = weather["description"].as<String>();
+  currentWeather.tempMin = main["temp_min"].as<float>();
+  currentWeather.tempMax = main["temp_max"].as<float>();
+  currentWeather.pressure = main["pressure"].as<int>();
+  currentWeather.visibility = current["visibility"].as<int>();
+  currentWeather.sunrise = doc["city"]["sunrise"].as<long>();
+  currentWeather.sunset = doc["city"]["sunset"].as<long>();
+  
+  // 转换风力风向
+  float windSpeed = wind["speed"].as<float>();
+  float windDeg = wind["deg"].as<float>();
+  currentWeather.wind = convertWindSpeed(windSpeed) + " " + convertWindDirection(windDeg);
+  
+  // 解析未来5天天气预报
+  for (int i = 0; i < 5; i++) {
+    // 每8小时一个数据点，取每天的第0个数据点（当天）和每8小时的数据点
+    int index = i * 8;
+    if (index < doc["list"].size()) {
+      JsonObject forecast = doc["list"][index];
+      JsonObject forecastMain = forecast["main"];
+      JsonObject forecastWind = forecast["wind"];
+      JsonArray forecastWeatherArray = forecast["weather"];
+      if (forecastWeatherArray.size() == 0) continue;
+      JsonObject forecastWeather = forecastWeatherArray[0];
+      
+      // 解析日期
+      String dt_txt = forecast["dt_txt"].as<String>();
+      forecastData[i].date = dt_txt.substring(0, 10); // YYYY-MM-DD
+      
+      forecastData[i].tempDay = forecastMain["temp"].as<float>();
+      forecastData[i].tempNight = forecastMain["temp"].as<float>(); // 简化处理，实际应取夜间温度
+      forecastData[i].condition = forecastWeather["description"].as<String>();
+      
+      // 转换风力风向
+      float forecastWindSpeed = forecastWind["speed"].as<float>();
+      float forecastWindDeg = forecastWind["deg"].as<float>();
+      forecastData[i].wind = convertWindSpeed(forecastWindSpeed) + " " + convertWindDirection(forecastWindDeg);
+      
+      forecastData[i].humidity = forecastMain["humidity"].as<int>();
+    }
+  }
+  
+  currentWeather.valid = true;
+  return true;
+}
+
+bool WeatherManager::parseWeatherDataTertiaryBackup(String json) {
+  // 解析第四次备用天气API的数据 (WeatherAPI格式)
+  DynamicJsonDocument doc(16384); // 足够大的缓冲区
+  DeserializationError error = deserializeJson(doc, json);
+  
+  if (error) {
+    DEBUG_PRINT("第四次备用天气API JSON解析错误: ");
+    DEBUG_PRINTLN(error.c_str());
+    return false;
+  }
+  
+  // 解析当前天气数据
+  JsonObject location = doc["location"];
+  JsonObject current = doc["current"];
+  JsonObject condition = current["condition"];
+  
+  currentWeather.city = location["name"].as<String>();
+  currentWeather.temp = current["temp_c"].as<float>();
+  currentWeather.humidity = current["humidity"].as<int>();
+  currentWeather.condition = condition["text"].as<String>();
+  
+  // 解析风向
+  float windDeg = 0.0;
+  if (current.containsKey("wind_degree")) {
+    windDeg = current["wind_degree"].as<float>();
+  }
+  currentWeather.wind = convertWindSpeed(current["wind_kph"].as<float>()) + " " + convertWindDirection(windDeg);
+  
+  // 解析5天天气预报
+  JsonArray forecastDays = doc["forecast"]["forecastday"];
+  for (int i = 0; i < forecastDays.size() && i < 5; i++) {
+    JsonObject forecastDay = forecastDays[i];
+    JsonObject day = forecastDay["day"];
+    JsonObject dayCondition = day["condition"];
+    
+    forecastData[i].date = forecastDay["date"].as<String>();
+    forecastData[i].tempDay = day["maxtemp_c"].as<float>();
+    forecastData[i].tempNight = day["mintemp_c"].as<float>();
+    forecastData[i].condition = dayCondition["text"].as<String>();
+    
+    // 解析风向
+    float forecastWindDeg = 0.0;
+    forecastData[i].wind = convertWindSpeed(day["maxwind_kph"].as<float>()) + " " + convertWindDirection(forecastWindDeg);
+    forecastData[i].humidity = day["avghumidity"].as<int>();
+  }
+  
+  currentWeather.valid = true;
+  return true;
 }

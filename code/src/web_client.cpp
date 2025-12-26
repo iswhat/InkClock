@@ -8,18 +8,21 @@
 // 外部全局对象
 extern WiFiManager wifiManager;
 extern MessageManager messageManager;
+extern APIManager apiManager;
 
 // WebServer配置
-#define WEB_SERVER_URL "https://your-webserver-url.com/api.php"
-#define API_KEY "your_secret_key_here"
 #define DEVICE_ID_FILE "/device_id.txt"
 
 WebClient::WebClient() {
   deviceId = "";
   lastRegisterAttempt = 0;
   lastMessageFetch = 0;
-  webServerUrl = WEB_SERVER_URL;
+  // 从配置文件中获取Web服务器URL
+  webServerUrls[0] = String(WEB_SERVER_URL); // 主URL
+  webServerUrls[1] = String(WEB_SERVER_URL_BACKUP); // 备用URL
+  webServerUrls[2] = String(WEB_SERVER_URL_SECONDARY_BACKUP); // 次备用URL
   apiKey = API_KEY;
+  currentWebServerIndex = 0;
 }
 
 WebClient::~WebClient() {
@@ -75,110 +78,80 @@ bool WebClient::registerDevice() {
   // 构建设备信息
   String deviceInfo = getDeviceInfo();
   
-  // 构建HTTP请求
-  String url = webServerUrl;
-  url += "?path=device";
-  
-  if (client.connect("your-webserver-url.com", 443)) {
-    // 发送HTTP请求
-    client.println("POST " + url + " HTTP/1.1");
-    client.println("Host: your-webserver-url.com");
-    client.println("Content-Type: application/json");
-    client.println("Content-Length: " + String(deviceInfo.length()));
-    client.println("api-key: " + apiKey);
-    client.println();
-    client.println(deviceInfo);
+  // 尝试所有可用的Web服务器URL
+  for (int i = 0; i < 3; i++) {
+    // 构建HTTP请求URL
+    String url = webServerUrls[i];
+    url += "?path=device";
     
-    // 等待响应
-    unsigned long timeout = millis();
-    while (client.available() == 0) {
-      if (millis() - timeout > 5000) {
-        DEBUG_PRINTLN("注册超时");
-        client.stop();
-        return false;
+    DEBUG_PRINT("尝试使用Web服务器: ");
+    DEBUG_PRINTLN(url);
+    
+    // 使用API管理器发送POST请求
+    ApiResponse apiResponse = apiManager.post(url, deviceInfo, API_TYPE_CUSTOM, 0); // 不缓存
+    
+    // 检查请求结果
+    if (apiResponse.status == API_STATUS_SUCCESS) {
+      // 解析响应
+      DynamicJsonDocument doc(1024);
+      if (parseJsonResponse(apiResponse.response, doc)) {
+        if (doc["success"] == true) {
+          deviceId = doc["device_id"].as<String>();
+          saveDeviceId(deviceId);
+          DEBUG_PRINT("设备注册成功，ID: ");
+          DEBUG_PRINTLN(deviceId);
+          // 更新当前使用的Web服务器索引
+          currentWebServerIndex = i;
+          return true;
+        }
       }
+      
+      DEBUG_PRINTLN("设备注册失败: " + apiResponse.error);
     }
-    
-    // 读取响应
-    String response = "";
-    while (client.available()) {
-      response += client.readStringUntil('\r');
-      client.read(); // 读取换行符
-    }
-    
-    client.stop();
-    
-    // 解析响应
-    DynamicJsonDocument doc(1024);
-    if (parseJsonResponse(response, doc)) {
-      if (doc["success"] == true) {
-        deviceId = doc["device_id"].as<String>();
-        saveDeviceId(deviceId);
-        DEBUG_PRINT("设备注册成功，ID: ");
-        DEBUG_PRINTLN(deviceId);
-        return true;
-      }
-    }
-    
-    DEBUG_PRINTLN("设备注册失败");
-    return false;
-  } else {
-    DEBUG_PRINTLN("无法连接到WebServer");
-    return false;
   }
+  
+  DEBUG_PRINTLN("所有Web服务器设备注册均失败");
+  return false;
 }
 
 bool WebClient::fetchMessages() {
   DEBUG_PRINTLN("获取消息...");
   
-  // 构建HTTP请求
-  String url = webServerUrl;
-  url += "?path=message/" + deviceId + "/unread";
-  
-  if (client.connect("your-webserver-url.com", 443)) {
-    // 发送HTTP请求
-    client.println("GET " + url + " HTTP/1.1");
-    client.println("Host: your-webserver-url.com");
-    client.println("api-key: " + apiKey);
-    client.println();
+  // 尝试所有可用的Web服务器URL
+  for (int i = 0; i < 3; i++) {
+    // 构建HTTP请求URL
+    String url = webServerUrls[i];
+    url += "?path=message/" + deviceId + "/unread";
     
-    // 等待响应
-    unsigned long timeout = millis();
-    while (client.available() == 0) {
-      if (millis() - timeout > 5000) {
-        DEBUG_PRINTLN("获取消息超时");
-        client.stop();
-        return false;
-      }
-    }
+    DEBUG_PRINT("尝试使用Web服务器: ");
+    DEBUG_PRINTLN(url);
     
-    // 读取响应
-    String response = "";
-    while (client.available()) {
-      response += client.readStringUntil('\r');
-      client.read(); // 读取换行符
-    }
+    // 使用API管理器发送GET请求
+    ApiResponse apiResponse = apiManager.get(url, API_TYPE_CUSTOM, 60000); // 缓存1分钟
     
-    client.stop();
-    
-    // 解析响应
-    DynamicJsonDocument doc(2048);
-    if (parseJsonResponse(response, doc)) {
-      if (doc.containsKey("messages")) {
-        JsonArray messages = doc["messages"];
-        if (messages.size() > 0) {
-          processMessages(messages);
+    // 检查请求结果
+    if (apiResponse.status == API_STATUS_SUCCESS || apiResponse.status == API_STATUS_CACHED) {
+      // 解析响应
+      DynamicJsonDocument doc(2048);
+      if (parseJsonResponse(apiResponse.response, doc)) {
+        if (doc.containsKey("messages")) {
+          JsonArray messages = doc["messages"];
+          if (messages.size() > 0) {
+            processMessages(messages);
+          }
+          // 更新当前使用的Web服务器索引
+          currentWebServerIndex = i;
+          DEBUG_PRINTLN("获取消息成功");
           return true;
         }
       }
     }
     
-    DEBUG_PRINTLN("没有新消息或获取失败");
-    return true;
-  } else {
-    DEBUG_PRINTLN("无法连接到WebServer");
-    return false;
+    DEBUG_PRINTLN("获取消息失败: " + apiResponse.error);
   }
+  
+  DEBUG_PRINTLN("所有Web服务器获取消息均失败");
+  return false;
 }
 
 bool WebClient::sendMessage(String content, String type) {
@@ -191,54 +164,37 @@ bool WebClient::sendMessage(String content, String type) {
   String messageJson;
   serializeJson(doc, messageJson);
   
-  // 构建HTTP请求
-  String url = webServerUrl;
-  url += "?path=message";
-  
-  if (client.connect("your-webserver-url.com", 443)) {
-    // 发送HTTP请求
-    client.println("POST " + url + " HTTP/1.1");
-    client.println("Host: your-webserver-url.com");
-    client.println("Content-Type: application/json");
-    client.println("Content-Length: " + String(messageJson.length()));
-    client.println("api-key: " + apiKey);
-    client.println();
-    client.println(messageJson);
+  // 尝试所有可用的Web服务器URL
+  for (int i = 0; i < 3; i++) {
+    // 构建HTTP请求URL
+    String url = webServerUrls[i];
+    url += "?path=message";
     
-    // 等待响应
-    unsigned long timeout = millis();
-    while (client.available() == 0) {
-      if (millis() - timeout > 5000) {
-        DEBUG_PRINTLN("发送消息超时");
-        client.stop();
-        return false;
+    DEBUG_PRINT("尝试使用Web服务器: ");
+    DEBUG_PRINTLN(url);
+    
+    // 使用API管理器发送POST请求
+    ApiResponse apiResponse = apiManager.post(url, messageJson, API_TYPE_CUSTOM, 0); // 不缓存
+    
+    // 检查请求结果
+    if (apiResponse.status == API_STATUS_SUCCESS) {
+      // 解析响应
+      DynamicJsonDocument respDoc(512);
+      if (parseJsonResponse(apiResponse.response, respDoc)) {
+        if (respDoc["success"] == true) {
+          DEBUG_PRINTLN("消息发送成功");
+          // 更新当前使用的Web服务器索引
+          currentWebServerIndex = i;
+          return true;
+        }
       }
+      
+      DEBUG_PRINTLN("消息发送失败: " + apiResponse.error);
     }
-    
-    // 读取响应
-    String response = "";
-    while (client.available()) {
-      response += client.readStringUntil('\r');
-      client.read(); // 读取换行符
-    }
-    
-    client.stop();
-    
-    // 解析响应
-    DynamicJsonDocument respDoc(512);
-    if (parseJsonResponse(response, respDoc)) {
-      if (respDoc["success"] == true) {
-        DEBUG_PRINTLN("消息发送成功");
-        return true;
-      }
-    }
-    
-    DEBUG_PRINTLN("消息发送失败");
-    return false;
-  } else {
-    DEBUG_PRINTLN("无法连接到WebServer");
-    return false;
   }
+  
+  DEBUG_PRINTLN("所有Web服务器消息发送均失败");
+  return false;
 }
 
 String WebClient::getDeviceInfo() {

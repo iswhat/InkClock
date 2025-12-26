@@ -3,8 +3,9 @@
 
 #include <Arduino.h>
 #include <WiFiUdp.h>
+#include <time.h>
 #include "config.h"
-
+#include "api_manager.h"
 // 时间数据结构
 typedef struct {
   int year;
@@ -51,7 +52,8 @@ private:
   
   // 私有方法
   void updateNTPTime();
-  void parseNTPTime(uint32_t ntpTime);
+  bool sendNTPRequest(const char* serverName);
+  void parseNTPTime(uint32_t unixTime);
   String getWeekdayName(int weekday);
   String getLunarDate(int year, int month, int day);
   String getSolarTerm(int year, int month, int day);

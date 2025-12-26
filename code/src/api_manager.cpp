@@ -1,7 +1,7 @@
 /**
  * @file api_manager.cpp
  * @brief API管理模块实现
- * @author DIY爱好者团队
+ * @author iswhat
  * @date 2025-12-26
  * @version 1.0
  */
@@ -13,10 +13,8 @@
 // 外部全局对象
 extern WiFiManager wifiManager;
 
-// 默认配置
-#define DEFAULT_TIMEOUT 10000          // 默认超时时间：10秒
-#define DEFAULT_CACHE_TIME 3600000     // 默认缓存时间：1小时
-#define CACHE_CLEANUP_INTERVAL 3600000 // 缓存清理间隔：1小时
+// 使用config.h中定义的配置参数
+#include "config.h"
 
 APIManager::APIManager() {
     // 初始化成员变量
@@ -26,6 +24,7 @@ APIManager::APIManager() {
     verifyCertificate = false; // 默认禁用证书验证，简化开发
     useProxy = false;
     proxyPort = 0;
+    maxCacheSize = 100; // 默认最大缓存大小为100项
     
     // 初始化统计信息
     totalRequests = 0;
@@ -99,7 +98,7 @@ ApiResponse APIManager::sendRequest(const ApiRequest& request) {
     
     // 清理过期缓存
     unsigned long now = millis();
-    if (now - lastCacheCleanup > CACHE_CLEANUP_INTERVAL) {
+    if (now - lastCacheCleanup > API_CACHE_CLEANUP_INTERVAL) {
         cleanupExpiredCache();
         lastCacheCleanup = now;
     }
@@ -110,7 +109,7 @@ ApiResponse APIManager::sendRequest(const ApiRequest& request) {
     DEBUG_PRINTLN("发送API请求：" + fullUrl);
     
     // 设置请求超时
-    unsigned long requestTimeout = request.timeout > 0 ? request.timeout : DEFAULT_TIMEOUT;
+    unsigned long requestTimeout = request.timeout > 0 ? request.timeout : API_DEFAULT_TIMEOUT;
     
     // 开始HTTP请求
     httpClient->setTimeout(requestTimeout);
@@ -186,7 +185,7 @@ ApiResponse APIManager::get(const String& url, ApiType type, unsigned long cache
     ApiRequest request;
     request.url = url;
     request.method = "GET";
-    request.timeout = DEFAULT_TIMEOUT;
+    request.timeout = API_DEFAULT_TIMEOUT;
     request.type = type;
     request.cacheTime = cacheTime;
     
@@ -200,7 +199,7 @@ ApiResponse APIManager::post(const String& url, const String& body, ApiType type
     request.url = url;
     request.method = "POST";
     request.body = body;
-    request.timeout = DEFAULT_TIMEOUT;
+    request.timeout = API_DEFAULT_TIMEOUT;
     request.type = type;
     request.cacheTime = cacheTime;
     

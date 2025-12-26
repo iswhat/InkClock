@@ -15,12 +15,14 @@ private:
   static const char* index_html;
   static const char* settings_html;
   static const char* plugin_html;
+  static const char* plugin_list_html;
   static const char* style_css;
   
   // 处理函数
   void handleRoot();
   void handleSettings();
   void handlePlugins();
+  void handlePluginList();
   void handleUpdateSettings();
   void handleAddPlugin();
   void handleUpdatePlugin();

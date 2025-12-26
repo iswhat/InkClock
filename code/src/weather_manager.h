@@ -61,6 +61,7 @@ private:
   // 私有方法
   bool fetchWeatherData();
   void parseWeatherData(String json);
+  void parseWeatherDataBackup(String json);
   String getWeatherIcon(String condition);
   String convertWindSpeed(float speed);
   String convertWindDirection(float deg);

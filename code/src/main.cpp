@@ -1,7 +1,7 @@
 /**
  * @file main.cpp
  * @brief 家用网络智能墨水屏万年历主程序
- * @author DIY爱好者团队
+ * @author iswhat
  * @date 2025-12-26
  * @version 1.1
  * 
@@ -39,6 +39,7 @@
 #include "firmware_manager.h"
 #include "lunar_manager.h"
 #include "api_manager.h"
+#include "geo_manager.h"
 
 /**
  * @brief 全局对象实例
@@ -64,6 +65,7 @@ CameraManager cameraManager;         // 摄像头管理模块
 WebClient webClient;                 // Web客户端模块
 FirmwareManager firmwareManager;     // 固件管理模块
 APIManager apiManager;               // API管理模块
+GeoManager geoManager;               // 地理位置管理模块
 
 /**
  * @brief 初始化函数
@@ -124,6 +126,9 @@ void setup() {
     
     // 初始化API管理器，用于统一处理所有外部API请求
     apiManager.init();
+    
+    // 初始化地理位置管理器，用于自动检测和管理地理位置
+    geoManager.init();
     
     // 检查是否已经配置了WiFi，如果没有，等待蓝牙配置
     if (!wifiManager.isConnected()) {
@@ -188,14 +193,30 @@ void setup() {
  * 2. 根据电源管理建议更新显示
  * 3. 定期更新数据
  */
+/**
+ * @brief 主循环函数
+ * 
+ * 设备启动后持续执行的主循环，负责调度各模块的循环任务
+ * 执行顺序：
+ * 1. 各模块的循环任务处理
+ * 2. 根据电源管理建议更新显示
+ * 3. 定期更新数据
+ */
 void loop() {
+  static unsigned long lastWatchdogReset = 0;
+  static const unsigned long WATCHDOG_TIMEOUT = 60000; // 看门狗超时时间，60秒
+  
   try {
+    // 重置软件看门狗
+    lastWatchdogReset = millis();
+    
     // 处理各个模块的循环任务，每个模块都用try-catch包裹，确保单个模块崩溃不会影响整个系统
     try {
       wifiManager.loop();           // WiFi状态监测和重连
     } catch (const std::exception& e) {
       Serial.print("WiFi模块异常: ");
       Serial.println(e.what());
+      Serial.flush();
     }
     
     try {
@@ -203,6 +224,7 @@ void loop() {
     } catch (const std::exception& e) {
       Serial.print("时间模块异常: ");
       Serial.println(e.what());
+      Serial.flush();
     }
     
     try {
@@ -252,6 +274,13 @@ void loop() {
       pluginManager.loop();         // 插件更新和显示
     } catch (const std::exception& e) {
       Serial.print("插件模块异常: ");
+      Serial.println(e.what());
+    }
+    
+    try {
+      geoManager.loop();            // 地理位置更新和管理
+    } catch (const std::exception& e) {
+      Serial.print("地理位置模块异常: ");
       Serial.println(e.what());
     }
     
@@ -352,6 +381,7 @@ void loop() {
     // 捕获所有未处理的异常，确保系统不会完全崩溃
     Serial.print("主循环异常: ");
     Serial.println(e.what());
+    Serial.flush();
     
     // 尝试恢复基本功能
     try {
@@ -361,7 +391,25 @@ void loop() {
     } catch (...) {
       // 忽略恢复过程中的异常
     }
+  } catch (...) {
+    // 捕获所有其他类型的异常
+    Serial.println("捕获到未知异常");
+    Serial.flush();
   }
+  
+  // 软件看门狗检查
+  static unsigned long lastWatchdogReset = 0;
+  static const unsigned long WATCHDOG_TIMEOUT = 60000; // 看门狗超时时间，60秒
+  
+  if (millis() - lastWatchdogReset > WATCHDOG_TIMEOUT) {
+    Serial.println("软件看门狗超时，系统将重启");
+    Serial.flush();
+    delay(1000);
+    ESP.restart(); // 重启系统
+  }
+  
+  // 重置看门狗
+  lastWatchdogReset = millis();
   
   // 短暂延迟，降低CPU占用
   delay(10);

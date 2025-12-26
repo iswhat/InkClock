@@ -3,11 +3,19 @@
 
 #include <Arduino.h>
 #include "config.h"
+#include "api_manager.h"
+
+// 大盘曲线数据点结构
+typedef struct {
+  float price;    // 价格
+  String time;    // 时间
+} StockChartPoint;
 
 // 股票数据结构
 typedef struct {
   String code;            // 股票代码
   String name;            // 股票名称
+  String market;          // 股票市场（如：sh, sz, hk, us等）
   float price;            // 当前价格
   float change;           // 涨跌额
   float changePercent;    // 涨跌幅（%）
@@ -19,6 +27,8 @@ typedef struct {
   long amount;            // 成交额
   String time;            // 更新时间
   bool valid;             // 数据是否有效
+  StockChartPoint chartData[50]; // 大盘曲线数据，最多50个点
+  int chartDataCount;     // 大盘曲线数据点数量
 } StockData;
 
 class StockManager {
@@ -31,9 +41,9 @@ public:
   void loop();
   
   // 股票管理功能
-  bool addStock(String code);
+  bool addStock(String code, String market = "sh");
   bool removeStock(int index);
-  bool setStockList(String codes[]);
+  bool setStockList(String codes[], String markets[]);
   
   // 获取股票数据
   StockData getStockData(int index);
@@ -59,8 +69,9 @@ private:
   
   // 私有方法
   bool fetchStockData(String code, StockData &data);
-  bool parseStockData(String json, StockData &data);
-  String getStockApiUrl(String code);
+  bool fetchStockChartData(String code, String market, StockData &data);
+  bool parseStockData(String json, StockData &data, int apiType = 1);
+  String getStockApiUrl(String code, int apiType = 1);
 };
 
 #endif // STOCK_MANAGER_H

@@ -1,7 +1,7 @@
 /**
  * @file api_manager.h
  * @brief API管理模块
- * @author DIY爱好者团队
+ * @author iswhat
  * @date 2025-12-26
  * @version 1.0
  * 
@@ -60,7 +60,6 @@ typedef struct {
 
 // 缓存项结构体
 typedef struct {
-    String key;              // 缓存键
     String value;            // 缓存值
     unsigned long expireTime;// 过期时间
     ApiType type;            // API类型
@@ -190,8 +189,9 @@ private:
     HTTPClient *httpClient;
     
     // 缓存相关
-    std::vector<CacheItem> cache;
+    std::unordered_map<String, CacheItem> cache; // 使用unordered_map提高查找效率
     unsigned long lastCacheCleanup;
+    unsigned long maxCacheSize; // 最大缓存大小
     
     // 配置参数
     bool verifyCertificate;

@@ -9,6 +9,7 @@ extern WiFiManager wifiManager;
 extern PluginManager pluginManager;
 extern SensorManager sensorManager;
 extern MessageManager messageManager;
+extern GeoManager geoManager;
 
 // 定义网页内容
 const char* WebServerManager::index_html = R"(
@@ -32,6 +33,7 @@ const char* WebServerManager::index_html = R"(
                 <li><a href="/" class="active">设备状态</a></li>
                 <li><a href="/settings">设置</a></li>
                 <li><a href="/plugins">插件管理</a></li>
+                <li><a href="/plugin_list">推荐插件</a></li>
             </ul>
         </nav>
         
@@ -110,6 +112,144 @@ const char* WebServerManager::settings_html = R"(
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>InkClock - 设置</title>
     <link rel="stylesheet" href="/style.css">
+    <style>
+        /* 设置页面扩展样式 */
+        .settings-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin: 24px 0;
+        }
+        
+        .settings-card {
+            background: var(--light-color);
+            border: 1px solid var(--gray-light);
+            border-radius: var(--border-radius);
+            padding: 24px;
+            transition: var(--transition);
+        }
+        
+        .settings-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--box-shadow);
+        }
+        
+        .settings-card h3 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .settings-card h3::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background-color: var(--primary-color);
+            border-radius: 2px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* 开关样式 */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .toggle-slider {
+            background-color: var(--primary-color);
+        }
+        
+        input:focus + .toggle-slider {
+            box-shadow: 0 0 1px var(--primary-color);
+        }
+        
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+        
+        /* 分组样式 */
+        .form-group.checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .form-group.checkbox-group label {
+            margin-bottom: 0;
+        }
+        
+        /* 状态提示 */
+        .status-message {
+            background: rgba(40, 167, 69, 0.1);
+            color: var(--success-color);
+            padding: 12px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid var(--success-color);
+        }
+        
+        .status-message.error {
+            background: rgba(220, 53, 69, 0.1);
+            color: var(--danger-color);
+            border-left-color: var(--danger-color);
+        }
+        
+        /* 按钮容器 */
+        .button-container {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 32px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -123,55 +263,203 @@ const char* WebServerManager::settings_html = R"(
                 <li><a href="/">设备状态</a></li>
                 <li><a href="/settings" class="active">设置</a></li>
                 <li><a href="/plugins">插件管理</a></li>
+                <li><a href="/plugin_list">推荐插件</a></li>
             </ul>
         </nav>
         
         <main>
-            <section class="settings-section">
-                <h2>基本设置</h2>
-                <form action="/update_settings" method="POST">
-                    <div class="form-group">
-                        <label for="wifi_ssid">WiFi SSID:</label>
-                        <input type="text" id="wifi_ssid" name="wifi_ssid" value="%WIFI_SSID%" required>
+            %STATUS_MESSAGE%
+            
+            <form action="/update_settings" method="POST">
+                <div class="settings-container">
+                    <!-- WiFi设置 -->
+                    <div class="settings-card">
+                        <h3>WiFi设置</h3>
+                        <div class="form-group">
+                            <label for="wifi_ssid">WiFi SSID:</label>
+                            <input type="text" id="wifi_ssid" name="wifi_ssid" value="%WIFI_SSID%" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="wifi_password">WiFi 密码:</label>
+                            <input type="password" id="wifi_password" name="wifi_password" value="%WIFI_PASSWORD%" required>
+                            <small>密码长度至少8个字符</small>
+                        </div>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="wifi_password">WiFi 密码:</label>
-                        <input type="password" id="wifi_password" name="wifi_password" value="%WIFI_PASSWORD%" required>
+                    <!-- 时间设置 -->
+                    <div class="settings-card">
+                        <h3>时间设置</h3>
+                        <div class="form-group">
+                            <label for="time_zone">时区:</label>
+                            <input type="number" id="time_zone" name="time_zone" value="%TIME_ZONE%" step="0.5" min="-12" max="14" required>
+                            <small>例如: 中国为+8</small>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="ntp_server">NTP服务器:</label>
+                                <input type="text" id="ntp_server" name="ntp_server" value="%NTP_SERVER%" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="ntp_server_backup">备用NTP服务器:</label>
+                                <input type="text" id="ntp_server_backup" name="ntp_server_backup" value="%NTP_SERVER_BACKUP%" required>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="time_zone">时区:</label>
-                        <input type="number" id="time_zone" name="time_zone" value="%TIME_ZONE%" step="1" min="-12" max="12" required>
-                        <small>例如: 中国为+8</small>
+                    <!-- 显示设置 -->
+                    <div class="settings-card">
+                        <h3>显示设置</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="display_update_interval">显示更新间隔 (分钟):</label>
+                                <input type="number" id="display_update_interval" name="display_update_interval" value="%DISPLAY_UPDATE_INTERVAL%" step="1" min="1" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="display_rotation">显示旋转角度:</label>
+                                <select id="display_rotation" name="display_rotation">
+                                    <option value="0" %DISPLAY_ROTATION_0%>0度</option>
+                                    <option value="90" %DISPLAY_ROTATION_90%>90度</option>
+                                    <option value="180" %DISPLAY_ROTATION_180%>180度</option>
+                                    <option value="270" %DISPLAY_ROTATION_270%>270度</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group checkbox-group">
+                            <label for="display_inverse">显示反色:</label>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="display_inverse" name="display_inverse" %DISPLAY_INVERSE%>
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="display_update_interval">显示更新间隔 (分钟):</label>
-                        <input type="number" id="display_update_interval" name="display_update_interval" value="%DISPLAY_UPDATE_INTERVAL%" step="1" min="1" required>
+                    <!-- 天气设置 -->
+                    <div class="settings-card">
+                        <h3>天气设置</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="weather_update_interval">天气更新间隔 (小时):</label>
+                                <input type="number" id="weather_update_interval" name="weather_update_interval" value="%WEATHER_UPDATE_INTERVAL%" step="1" min="1" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="weather_api_key">天气API密钥:</label>
+                                <input type="text" id="weather_api_key" name="weather_api_key" value="%WEATHER_API_KEY%" placeholder="输入API密钥">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="weather_api_key_backup">备用天气API密钥:</label>
+                            <input type="text" id="weather_api_key_backup" name="weather_api_key_backup" value="%WEATHER_API_KEY_BACKUP%" placeholder="输入备用API密钥">
+                        </div>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="weather_update_interval">天气更新间隔 (小时):</label>
-                        <input type="number" id="weather_update_interval" name="weather_update_interval" value="%WEATHER_UPDATE_INTERVAL%" step="1" min="1" required>
+                    <!-- 地理位置设置 -->
+                    <div class="settings-card">
+                        <h3>地理位置设置</h3>
+                        
+                        <div class="form-group checkbox-group">
+                            <label for="auto_detect_location">自动检测地理位置:</label>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="auto_detect_location" name="auto_detect_location" %AUTO_DETECT_LOCATION%>
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="city_id">城市ID:</label>
+                            <input type="text" id="city_id" name="city_id" value="%CITY_ID%" placeholder="例如: 101010100">
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="city_name">城市名称:</label>
+                                <input type="text" id="city_name" name="city_name" value="%CITY_NAME%" placeholder="例如: 北京">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="latitude">纬度:</label>
+                                <input type="number" id="latitude" name="latitude" value="%LATITUDE%" step="0.01" placeholder="例如: 39.9042">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="longitude">经度:</label>
+                                <input type="number" id="longitude" name="longitude" value="%LONGITUDE%" step="0.01" placeholder="例如: 116.4074">
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="stock_update_interval">股票更新间隔 (分钟):</label>
-                        <input type="number" id="stock_update_interval" name="stock_update_interval" value="%STOCK_UPDATE_INTERVAL%" step="1" min="1" required>
+                    <!-- 插件设置 -->
+                    <div class="settings-card">
+                        <h3>插件设置</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="stock_update_interval">股票更新间隔 (分钟):</label>
+                                <input type="number" id="stock_update_interval" name="stock_update_interval" value="%STOCK_UPDATE_INTERVAL%" step="1" min="1" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group checkbox-group">
+                            <label for="auto_update_plugins">自动更新插件:</label>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="auto_update_plugins" name="auto_update_plugins" %AUTO_UPDATE_PLUGINS%>
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </div>
                     </div>
-                    
-                    <div class="form-group">
-                        <button type="submit">保存设置</button>
-                    </div>
-                </form>
-            </section>
+                </div>
+                
+                <!-- 保存按钮 -->
+                <div class="button-container">
+                    <button type="submit" class="btn btn-primary">保存设置</button>
+                    <button type="button" class="btn btn-secondary" onclick="resetForm()">重置表单</button>
+                </div>
+            </form>
         </main>
         
         <footer>
             <p>&copy; 2025 InkClock. All rights reserved.</p>
         </footer>
     </div>
+    
+    <script>
+        // 表单重置功能
+        function resetForm() {
+            const form = document.querySelector('form');
+            form.reset();
+        }
+        
+        // 自动检测地理位置开关
+        const autoDetectCheckbox = document.getElementById('auto_detect_location');
+        const geoFields = document.querySelectorAll('#city_id, #city_name, #latitude, #longitude');
+        
+        // 初始状态设置
+        function updateGeoFields() {
+            const isAutoDetect = autoDetectCheckbox.checked;
+            geoFields.forEach(field => {
+                field.disabled = isAutoDetect;
+                field.style.opacity = isAutoDetect ? '0.5' : '1';
+            });
+        }
+        
+        // 监听开关变化
+        autoDetectCheckbox.addEventListener('change', updateGeoFields);
+        
+        // 初始化
+        updateGeoFields();
+        
+        // 表单验证
+        document.querySelector('form').addEventListener('submit', function(e) {
+            // 可以在这里添加自定义验证逻辑
+        });
+    </script>
 </body>
 </html>
 )";
@@ -197,6 +485,7 @@ const char* WebServerManager::plugin_html = R"(
                 <li><a href="/">设备状态</a></li>
                 <li><a href="/settings">设置</a></li>
                 <li><a href="/plugins" class="active">插件管理</a></li>
+                <li><a href="/plugin_list">推荐插件</a></li>
             </ul>
         </nav>
         
@@ -248,6 +537,169 @@ const char* WebServerManager::plugin_html = R"(
             <p>&copy; 2025 InkClock. All rights reserved.</p>
         </footer>
     </div>
+</body>
+</html>
+)";
+
+const char* WebServerManager::plugin_list_html = R"(
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InkClock - 推荐插件</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>InkClock - 推荐插件</h1>
+            <p>智能墨水屏万年历推荐插件列表</p>
+        </header>
+        
+        <nav>
+            <ul>
+                <li><a href="/">设备状态</a></li>
+                <li><a href="/settings">设置</a></li>
+                <li><a href="/plugins">插件管理</a></li>
+                <li><a href="/plugin_list" class="active">推荐插件</a></li>
+            </ul>
+        </nav>
+        
+        <main>
+            <section class="plugins-section">
+                <h2>推荐插件列表</h2>
+                <p>以下是推荐的网络插件，您可以将其添加到您的设备设置中。点击"添加到设备"按钮即可快速添加。</p>
+                
+                <div class="recommended-plugins">
+                    <!-- 每日古诗插件 -->
+                    <div class="plugin-item">
+                        <h3>每日古诗</h3>
+                        <div class="plugin-info">
+                            <p><strong>类型:</strong> URL JSON插件</p>
+                            <p><strong>描述:</strong> 每天获取一首经典古诗，展示在您的万年历上</p>
+                            <p><strong>更新频率:</strong> 每天</p>
+                            <p><strong>作者:</strong> iswhat</p>
+                            <p><strong>插件URL:</strong> <span class="plugin-url">http://<device_ip>:8080/plugin/daily_poem/index.php</span></p>
+                        </div>
+                        <div class="plugin-actions">
+                            <button class="btn btn-primary" onclick="copyUrl('http://<device_ip>:8080/plugin/daily_poem/index.php')">复制URL</button>
+                            <button class="btn btn-success" onclick="addPlugin('每日古诗', 'http://<device_ip>:8080/plugin/daily_poem/index.php', '86400', 'second')">添加到设备</button>
+                            <button class="btn btn-secondary" onclick="window.open('http://<device_ip>:8080/plugin/daily_poem/index.php', '_blank')">预览效果</button>
+                        </div>
+                    </div>
+                    
+                    <!-- 每日英语单词插件 -->
+                    <div class="plugin-item">
+                        <h3>每日英语单词</h3>
+                        <div class="plugin-info">
+                            <p><strong>类型:</strong> URL JSON插件</p>
+                            <p><strong>描述:</strong> 每天获取一个英语单词，包含发音、释义和例句</p>
+                            <p><strong>更新频率:</strong> 每天</p>
+                            <p><strong>作者:</strong> iswhat</p>
+                            <p><strong>插件URL:</strong> <span class="plugin-url">http://<device_ip>:8080/plugin/daily_word/index.php</span></p>
+                        </div>
+                        <div class="plugin-actions">
+                            <button class="btn btn-primary" onclick="copyUrl('http://<device_ip>:8080/plugin/daily_word/index.php')">复制URL</button>
+                            <button class="btn btn-success" onclick="addPlugin('每日英语单词', 'http://<device_ip>:8080/plugin/daily_word/index.php', '86400', 'second')">添加到设备</button>
+                            <button class="btn btn-secondary" onclick="window.open('http://<device_ip>:8080/plugin/daily_word/index.php', '_blank')">预览效果</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <footer>
+            <p>&copy; 2025 InkClock. All rights reserved.</p>
+        </footer>
+    </div>
+    
+    <script>
+        // 获取设备IP地址
+        const deviceIp = location.hostname;
+        
+        // 替换所有设备IP占位符
+        document.querySelectorAll('.plugin-url').forEach(el => {
+            el.textContent = el.textContent.replace('<device_ip>', deviceIp);
+        });
+        
+        // 复制URL到剪贴板
+        function copyUrl(url) {
+            // 替换IP地址
+            const fullUrl = url.replace('<device_ip>', deviceIp);
+            
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(fullUrl).then(() => {
+                    alert('URL已复制到剪贴板！');
+                }).catch(err => {
+                    fallbackCopyTextToClipboard(fullUrl);
+                });
+            } else {
+                fallbackCopyTextToClipboard(fullUrl);
+            }
+        }
+        
+        // 备用复制方法
+        function fallbackCopyTextToClipboard(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    alert('URL已复制到剪贴板！');
+                } else {
+                    alert('复制失败，请手动复制');
+                }
+            } catch (err) {
+                alert('复制失败，请手动复制');
+            }
+            
+            document.body.removeChild(textArea);
+        }
+        
+        // 添加插件到设备
+        function addPlugin(name, url, interval, unit) {
+            // 替换IP地址
+            const fullUrl = url.replace('<device_ip>', deviceIp);
+            
+            // 构建表单数据
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/add_plugin';
+            
+            // 添加表单字段
+            const nameInput = document.createElement('input');
+            nameInput.type = 'hidden';
+            nameInput.name = 'plugin_name';
+            nameInput.value = name;
+            form.appendChild(nameInput);
+            
+            const urlInput = document.createElement('input');
+            urlInput.type = 'hidden';
+            urlInput.name = 'plugin_url';
+            urlInput.value = fullUrl;
+            form.appendChild(urlInput);
+            
+            const intervalInput = document.createElement('input');
+            intervalInput.type = 'hidden';
+            intervalInput.name = 'plugin_refresh_interval';
+            intervalInput.value = interval;
+            form.appendChild(intervalInput);
+            
+            const unitInput = document.createElement('input');
+            unitInput.type = 'hidden';
+            unitInput.name = 'plugin_refresh_unit';
+            unitInput.value = unit;
+            form.appendChild(unitInput);
+            
+            // 提交表单
+            document.body.appendChild(form);
+            form.submit();
+        }
+    </script>
 </body>
 </html>
 )";
@@ -864,6 +1316,7 @@ void WebServerManager::init() {
     server.on("/", std::bind(&WebServerManager::handleRoot, this));
     server.on("/settings", std::bind(&WebServerManager::handleSettings, this));
     server.on("/plugins", std::bind(&WebServerManager::handlePlugins, this));
+    server.on("/plugin_list", std::bind(&WebServerManager::handlePluginList, this));
     server.on("/update_settings", HTTP_POST, std::bind(&WebServerManager::handleUpdateSettings, this));
     server.on("/add_plugin", HTTP_POST, std::bind(&WebServerManager::handleAddPlugin, this));
     server.on("/update_plugin", HTTP_POST, std::bind(&WebServerManager::handleUpdatePlugin, this));
@@ -931,6 +1384,14 @@ void WebServerManager::handleSettings() {
     html.replace("%DISPLAY_UPDATE_INTERVAL%", String(DISPLAY_UPDATE_INTERVAL / 60000));
     html.replace("%WEATHER_UPDATE_INTERVAL%", String(WEATHER_UPDATE_INTERVAL / 3600000));
     html.replace("%STOCK_UPDATE_INTERVAL%", String(STOCK_UPDATE_INTERVAL / 60000));
+    
+    // 替换地理位置相关模板变量
+    String autoDetectChecked = geoManager.isAutoDetect() ? "checked" : "";
+    html.replace("%AUTO_DETECT_LOCATION%", autoDetectChecked);
+    html.replace("%CITY_ID%", geoManager.getCityId());
+    html.replace("%CITY_NAME%", geoManager.getCityName());
+    html.replace("%LATITUDE%", String(geoManager.getLatitude()));
+    html.replace("%LONGITUDE%", String(geoManager.getLongitude()));
     
     server.send(200, "text/html", html);
 }
@@ -1039,7 +1500,29 @@ void WebServerManager::handlePlugins() {
 void WebServerManager::handleUpdateSettings() {
     DEBUG_PRINTLN("处理设置更新请求");
     
-    // TODO: 处理设置更新
+    // 处理地理位置设置
+    bool autoDetectLocation = server.hasArg("auto_detect_location");
+    String cityId = server.arg("city_id");
+    String cityName = server.arg("city_name");
+    float latitude = server.arg("latitude").toFloat();
+    float longitude = server.arg("longitude").toFloat();
+    
+    // 设置自动检测
+    geoManager.setAutoDetect(autoDetectLocation);
+    
+    // 如果关闭了自动检测或者提供了具体的地理位置信息，则更新地理位置
+    if (!autoDetectLocation || (!cityId.isEmpty() || !cityName.isEmpty() || (latitude != 0.0 && longitude != 0.0))) {
+        GeoLocation geoInfo;
+        geoInfo.cityId = cityId;
+        geoInfo.cityName = cityName;
+        geoInfo.latitude = latitude;
+        geoInfo.longitude = longitude;
+        geoInfo.country = "中国"; // 默认值
+        geoInfo.region = ""; // 默认值
+        geoInfo.autoDetected = false;
+        
+        geoManager.setLocation(geoInfo);
+    }
     
     // 重定向回设置页面
     server.sendHeader("Location", "/settings");
@@ -1147,6 +1630,15 @@ void WebServerManager::handleDisablePlugin() {
     server.send(302, "text/plain", "");
 }
 
+void WebServerManager::handlePluginList() {
+    DEBUG_PRINTLN("处理推荐插件列表请求");
+    
+    String html = String(plugin_list_html);
+    
+    // 发送响应
+    server.send(200, "text/html", html);
+}
+
 void WebServerManager::handleCSS() {
     DEBUG_PRINTLN("处理CSS请求");
     server.send(200, "text/css", style_css);
@@ -1231,7 +1723,16 @@ String WebServerManager::getIPAddress() {
 
 String WebServerManager::generateQRCodeURL() {
     String url = "http://" + getIPAddress() + ":8080";
-    String encodedUrl = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=";
+    
+    // 公共免密钥二维码生成API列表
+    String qrApiUrls[] = {
+        "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=", // 主API（公共免密钥）
+        "https://api.qrcode-monkey.com/qr/custom?size=200&data=", // 备用API（公共免密钥）
+        "https://qrcode.tec-it.com/API/QRCode?size=200&data=" // 次备用API（公共免密钥）
+    };
+    
+    // 选择主API
+    String encodedUrl = qrApiUrls[0];
     
     // URL编码
     for (int i = 0; i < url.length(); i++) {

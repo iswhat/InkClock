@@ -78,11 +78,15 @@ private:
   static const unsigned long CACHE_DURATION = 86400000; // 1天
   
   // API配置
-  static const String LUNAR_API_URL;
+  static const String LUNAR_API_URL; // 主农历API URL
+  static const String LUNAR_API_URL_BACKUP; // 备用农历API URL
+  static const String LUNAR_API_URL_SECONDARY_BACKUP; // 次备用农历API URL
   
   // 私有方法
   bool fetchLunarData(int year, int month, int day);
   LunarInfo parseLunarData(const String& jsonData);
+  LunarInfo parseLunarDataBackup(const String& jsonData); // 解析备用API的数据
+  LunarInfo parseLunarDataSecondaryBackup(const String& jsonData); // 解析次备用API的数据
   String getGanZhi(int year, int month, int day);
   String getAnimal(int year);
 };

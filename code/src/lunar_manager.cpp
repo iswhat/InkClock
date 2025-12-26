@@ -6,7 +6,9 @@ extern WiFiManager wifiManager;
 extern APIManager apiManager;
 
 // API配置 - 使用RollToolsApi的万年历接口
-const String LunarManager::LUNAR_API_URL = "https://api.rolltools.cn/api/lunar?date=";
+const String LunarManager::LUNAR_API_URL = "https://api.rolltools.cn/api/lunar?date="; // 主农历API（公共免密钥）
+const String LunarManager::LUNAR_API_URL_BACKUP = "https://api.vvhan.com/api/lunar?date="; // 备用农历API（公共免密钥）
+const String LunarManager::LUNAR_API_URL_SECONDARY_BACKUP = "https://api.66mz8.com/api/lunar.php?date="; // 次备用农历API（公共免密钥）
 
 LunarManager::LunarManager() {
   // 初始化缓存
@@ -95,36 +97,67 @@ bool LunarManager::fetchLunarData(int year, int month, int day) {
   // 构建请求URL
   char dateStr[11];
   snprintf(dateStr, sizeof(dateStr), "%04d-%02d-%02d", year, month, day);
-  String url = LUNAR_API_URL + String(dateStr);
   
+  // 尝试使用主API
+  String url = LUNAR_API_URL + String(dateStr);
   DEBUG_PRINT("获取农历数据: ");
   DEBUG_PRINTLN(url);
   
-  // 使用API管理器发送HTTP请求
   ApiResponse apiResponse = apiManager.get(url, API_TYPE_LUNAR, 86400000); // 缓存24小时
   
-  // 检查请求结果
-  if (apiResponse.status != API_STATUS_SUCCESS && apiResponse.status != API_STATUS_CACHED) {
-    DEBUG_PRINTLN("获取农历数据失败: " + apiResponse.error);
-    return false;
+  if (apiResponse.status == API_STATUS_SUCCESS || apiResponse.status == API_STATUS_CACHED) {
+    String response = apiResponse.response;
+    if (!response.isEmpty()) {
+      LunarInfo lunarInfo = parseLunarData(response);
+      if (!lunarInfo.lunarDate.isEmpty()) {
+        cachedLunarInfo = lunarInfo;
+        return true;
+      }
+    }
   }
   
-  String response = apiResponse.response;
-  if (response.isEmpty()) {
-    DEBUG_PRINTLN("获取农历数据失败，响应为空");
-    return false;
+  DEBUG_PRINTLN("主API获取农历数据失败: " + apiResponse.error);
+  
+  // 尝试使用备用API
+  String backupUrl = LUNAR_API_URL_BACKUP + String(dateStr);
+  DEBUG_PRINT("尝试使用备用API获取农历数据: ");
+  DEBUG_PRINTLN(backupUrl);
+  
+  ApiResponse backupApiResponse = apiManager.get(backupUrl, API_TYPE_LUNAR, 86400000);
+  
+  if (backupApiResponse.status == API_STATUS_SUCCESS || backupApiResponse.status == API_STATUS_CACHED) {
+    String backupResponse = backupApiResponse.response;
+    if (!backupResponse.isEmpty()) {
+      LunarInfo lunarInfo = parseLunarDataBackup(backupResponse);
+      if (!lunarInfo.lunarDate.isEmpty()) {
+        cachedLunarInfo = lunarInfo;
+        return true;
+      }
+    }
   }
   
-  // 解析JSON响应
-  LunarInfo lunarInfo = parseLunarData(response);
-  if (lunarInfo.lunarDate.isEmpty()) {
-    DEBUG_PRINTLN("解析农历数据失败");
-    return false;
+  DEBUG_PRINTLN("备用API获取农历数据失败: " + backupApiResponse.error);
+  
+  // 尝试使用次备用API
+  String secondaryBackupUrl = LUNAR_API_URL_SECONDARY_BACKUP + String(dateStr);
+  DEBUG_PRINT("尝试使用次备用API获取农历数据: ");
+  DEBUG_PRINTLN(secondaryBackupUrl);
+  
+  ApiResponse secondaryBackupApiResponse = apiManager.get(secondaryBackupUrl, API_TYPE_LUNAR, 86400000);
+  
+  if (secondaryBackupApiResponse.status == API_STATUS_SUCCESS || secondaryBackupApiResponse.status == API_STATUS_CACHED) {
+    String secondaryBackupResponse = secondaryBackupApiResponse.response;
+    if (!secondaryBackupResponse.isEmpty()) {
+      LunarInfo lunarInfo = parseLunarDataSecondaryBackup(secondaryBackupResponse);
+      if (!lunarInfo.lunarDate.isEmpty()) {
+        cachedLunarInfo = lunarInfo;
+        return true;
+      }
+    }
   }
   
-  // 保存到缓存
-  cachedLunarInfo = lunarInfo;
-  return true;
+  DEBUG_PRINTLN("次备用API获取农历数据失败: " + secondaryBackupApiResponse.error);
+  return false;
 }
 
 LunarInfo LunarManager::parseLunarData(const String& jsonData) {
@@ -228,4 +261,119 @@ String LunarManager::getAnimal(int year) {
   const char* animals[] = {"鼠", "牛", "虎", "兔", "龙", "蛇", "马", "羊", "猴", "鸡", "狗", "猪"};
   int index = (year - 1900) % 12;
   return String(animals[index]);
+}
+
+LunarInfo LunarManager::parseLunarDataBackup(const String& jsonData) {
+  LunarInfo lunarInfo;
+  
+  // 解析JSON响应（备用API格式）
+  DynamicJsonDocument doc(2048);
+  DeserializationError error = deserializeJson(doc, jsonData);
+  
+  if (error) {
+    DEBUG_PRINT("备用API JSON解析失败: ");
+    DEBUG_PRINTLN(error.c_str());
+    return lunarInfo;
+  }
+  
+  // 检查响应状态
+  if (doc.containsKey("success") && !doc["success"].as<bool>()) {
+    DEBUG_PRINT("备用API请求失败: ");
+    DEBUG_PRINTLN(doc["message"].as<String>());
+    return lunarInfo;
+  }
+  
+  // 解析农历日期信息
+  if (doc.containsKey("lunar")) {
+    JsonObject lunar = doc["lunar"];
+    
+    // 构建农历日期字符串
+    lunarInfo.lunarMonth = lunar["lMonthCn"].as<String>();
+    lunarInfo.lunarDay = lunar["dayCn"].as<String>();
+    lunarInfo.lunarDate = lunarInfo.lunarMonth + lunarInfo.lunarDay;
+    
+    // 解析节气
+    if (lunar.containsKey("term")) {
+      lunarInfo.solarTerm = lunar["term"].as<String>();
+    }
+    
+    // 解析节日信息
+    if (lunar.containsKey("festival")) {
+      String festivalName = lunar["festival"].as<String>();
+      if (festivalName.length() > 0) {
+        lunarInfo.festival.name = festivalName;
+        lunarInfo.festival.type = "other";
+      }
+    }
+    
+    // 解析黄历信息
+    if (lunar.containsKey("lYear")) {
+      lunarInfo.lunarCalendar.yearGanZhi = lunar["lYear"].as<String>();
+    }
+    if (lunar.containsKey("lMonth")) {
+      lunarInfo.lunarCalendar.monthGanZhi = lunar["lMonth"].as<String>();
+    }
+    if (lunar.containsKey("lDay")) {
+      lunarInfo.lunarCalendar.dayGanZhi = lunar["lDay"].as<String>();
+    }
+    if (lunar.containsKey("Animal")) {
+      lunarInfo.lunarCalendar.animal = lunar["Animal"].as<String>();
+    }
+    if (lunar.containsKey("yi")) {
+      lunarInfo.lunarCalendar.yi = lunar["yi"].as<String>();
+    }
+    if (lunar.containsKey("ji")) {
+      lunarInfo.lunarCalendar.ji = lunar["ji"].as<String>();
+    }
+    if (lunar.containsKey("chong")) {
+      lunarInfo.lunarCalendar.xiangChong = lunar["chong"].as<String>();
+    }
+  }
+  
+  return lunarInfo;
+}
+
+LunarInfo LunarManager::parseLunarDataSecondaryBackup(const String& jsonData) {
+  LunarInfo lunarInfo;
+  
+  // 解析JSON响应（次备用API格式，api.66mz8.com）
+  DynamicJsonDocument doc(2048);
+  DeserializationError error = deserializeJson(doc, jsonData);
+  
+  if (error) {
+    DEBUG_PRINT("次备用API JSON解析失败: ");
+    DEBUG_PRINTLN(error.c_str());
+    return lunarInfo;
+  }
+  
+  // 检查响应状态
+  if (doc["code"].as<int>() != 1) {
+    DEBUG_PRINT("次备用API请求失败: ");
+    DEBUG_PRINTLN(doc["msg"].as<String>());
+    return lunarInfo;
+  }
+  
+  // 解析农历日期信息
+  JsonObject data = doc["data"];
+  
+  // 构建农历日期字符串
+  lunarInfo.lunarMonth = data["lunar_month"].as<String>();
+  lunarInfo.lunarDay = data["lunar_day"].as<String>();
+  lunarInfo.lunarDate = lunarInfo.lunarMonth + lunarInfo.lunarDay;
+  
+  // 解析节气
+  if (data.containsKey("jieqi")) {
+    lunarInfo.solarTerm = data["jieqi"].as<String>();
+  }
+  
+  // 解析节日信息
+  if (data.containsKey("festival")) {
+    String festivalName = data["festival"].as<String>();
+    if (festivalName.length() > 0) {
+      lunarInfo.festival.name = festivalName;
+      lunarInfo.festival.type = "other";
+    }
+  }
+  
+  return lunarInfo;
 }

@@ -4,6 +4,7 @@
 // 外部全局对象
 extern WiFiManager wifiManager;
 extern LunarManager lunarManager;
+extern APIManager apiManager;
 
 // NTP配置
 const int NTP_PACKET_SIZE = 48;
@@ -154,12 +155,16 @@ void TimeManager::setDate(int year, int month, int day) {
   lastUpdate = millis();
 }
 
-void TimeManager::updateNTPTime() {
-  DEBUG_PRINTLN("更新NTP时间...");
+bool TimeManager::sendNTPRequest(const char* serverName) {
+  DEBUG_PRINT("尝试连接NTP服务器: ");
+  DEBUG_PRINTLN(serverName);
   
   // 发送NTP请求
   IPAddress ntpServerIP;
-  WiFi.hostByName(NTP_SERVER, ntpServerIP);
+  if (!WiFi.hostByName(serverName, ntpServerIP)) {
+    DEBUG_PRINTLN("无法解析NTP服务器域名");
+    return false;
+  }
   
   memset(packetBuffer, 0, NTP_PACKET_SIZE);
   packetBuffer[0] = 0b11100011;   // LI, Version, Mode
@@ -176,7 +181,7 @@ void TimeManager::updateNTPTime() {
   ntpUDP.write(packetBuffer, NTP_PACKET_SIZE);
   ntpUDP.endPacket();
   
-  // 等待NTP响应
+  // 等待响应
   delay(1000);
   
   if (ntpUDP.parsePacket()) {
@@ -198,14 +203,36 @@ void TimeManager::updateNTPTime() {
     // 解析时间
     parseNTPTime(unixTime);
     
+    return true;
+  } else {
+    return false;
+  }
+}
+
+void TimeManager::updateNTPTime() {
+  DEBUG_PRINTLN("更新NTP时间...");
+  
+  // 先尝试主NTP服务器
+  if (sendNTPRequest(NTP_SERVER)) {
     timeUpdated = true;
     lastUpdate = millis();
-    
     DEBUG_PRINT("NTP时间更新成功: ");
     DEBUG_PRINTLN(getDateTimeString());
-  } else {
-    DEBUG_PRINTLN("NTP时间更新失败");
+    return;
   }
+  
+  // 主NTP服务器失败，尝试备用NTP服务器
+  DEBUG_PRINTLN("主NTP服务器失败，尝试备用NTP服务器");
+  if (sendNTPRequest(NTP_SERVER_BACKUP)) {
+    timeUpdated = true;
+    lastUpdate = millis();
+    DEBUG_PRINT("备用NTP服务器更新成功: ");
+    DEBUG_PRINTLN(getDateTimeString());
+    return;
+  }
+  
+  // 所有NTP服务器都失败
+  DEBUG_PRINTLN("所有NTP服务器都失败");
 }
 
 void TimeManager::parseNTPTime(uint32_t unixTime) {

@@ -5,6 +5,7 @@
 #include <WiFiClientSecure.h>
 #include "config.h"
 #include "message_manager.h"
+#include "api_manager.h"
 
 class WebClient {
 public:
@@ -37,7 +38,8 @@ private:
   String deviceId;
   unsigned long lastRegisterAttempt;
   unsigned long lastMessageFetch;
-  String webServerUrl;
+  String webServerUrls[3]; // 主、备用、次备用Web服务器URL
+  int currentWebServerIndex; // 当前使用的Web服务器索引
   String apiKey;
   
   // 设备信息
