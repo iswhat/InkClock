@@ -343,22 +343,144 @@
    // 当前硬件型号
    #define CURRENT_HARDWARE_MODEL HARDWARE_MODEL_ESP32_C3_DEFAULT
    ```
+   可选的硬件型号包括：
+   - HARDWARE_MODEL_ESP32_C3_DEFAULT
+   - HARDWARE_MODEL_ESP32_S3_DEFAULT
+   - HARDWARE_MODEL_ESP32_C6_DEFAULT
+   - HARDWARE_MODEL_ESP32_C6_CUSTOM
+   - HARDWARE_MODEL_ESP32_S2_DEFAULT
+   - HARDWARE_MODEL_ESP32_WROOM_32
+   - HARDWARE_MODEL_ESP32_S3_PRO
+   - HARDWARE_MODEL_ESP32_C3_SUPERMINI
+   - HARDWARE_MODEL_ESP32_PRO_S3
+   - HARDWARE_MODEL_ESP32_S3_WROOM_1
 3. 保存修改
 
 ### 7.3 修改显示类型
 
 1. 打开「config.h」文件
-2. 根据你使用的墨水屏尺寸，修改显示类型：
+2. 根据你使用的墨水屏尺寸和类型，修改显示类型：
    ```cpp
    // 显示配置
-   #define DISPLAY_TYPE EINK_42_INCH // 或 EINK_75_INCH
+   #define DISPLAY_TYPE EINK_42_INCH // 根据实际使用的屏幕型号修改
+   ```
+   可选的显示类型包括：
+   - 标准墨水屏：EINK_154_INCH, EINK_213_INCH, EINK_266_INCH, EINK_27_INCH, EINK_29_INCH, EINK_312_INCH, EINK_42_INCH, EINK_437_INCH, EINK_54_INCH, EINK_583_INCH, EINK_60_INCH, EINK_75_INCH, EINK_78_INCH, EINK_103_INCH, EINK_1248_INCH
+   - 电子价签：ESL_154_INCH_DUAL, ESL_213_INCH_DUAL, ESL_266_INCH_DUAL, ESL_29_INCH_DUAL, ESL_312_INCH_DUAL, ESL_42_INCH_COLOR, ESL_583_INCH_COLOR
+   - 二手阅读器屏幕：READER_6_INCH_MONO, READER_78_INCH_MONO, READER_103_INCH_MONO, READER_6_INCH_COLOR, READER_78_INCH_COLOR, READER_103_INCH_COLOR
+3. 保存修改
+
+### 7.4 配置传感器类型
+
+1. 打开「config.h」文件
+2. 根据你使用的温湿度传感器类型，修改传感器配置：
+   ```cpp
+   // 传感器配置
+   #define SENSOR_TYPE SENSOR_DHT22 // 根据实际使用的传感器修改
+   #define SENSOR_UPDATE_INTERVAL 60000 // 传感器更新间隔，单位毫秒
+   ```
+   可选的传感器类型包括：SENSOR_DHT11, SENSOR_DHT22, SENSOR_SHT30, SENSOR_SHT31, SENSOR_SHT40, SENSOR_BME280, SENSOR_BME680, SENSOR_HDC1080等
+3. 保存修改
+
+### 7.5 配置功能开关
+
+1. 打开「config.h」文件
+2. 根据你的需求，开启或关闭相应的功能：
+   ```cpp
+   // 功能开关
+   #define ENABLE_WEATHER true // 是否开启天气功能
+   #define ENABLE_STOCK true // 是否开启股票功能
+   #define ENABLE_MESSAGE true // 是否开启消息功能
+   #define ENABLE_PLUGIN true // 是否开启插件功能
+   #define ENABLE_LOW_POWER_MODE true // 是否开启低功耗模式
    ```
 3. 保存修改
 
-### 7.4 重新编译上传
+### 7.6 修改主题样式
+
+1. 打开「config.h」文件
+2. 根据你的喜好，选择不同的主题：
+   ```cpp
+   // 当前使用的主题
+   #define CURRENT_THEME THEME_DEFAULT
+   ```
+   可选的主题包括：THEME_DEFAULT, THEME_LARGE, THEME_COMPACT, THEME_MINIMAL
+3. 保存修改
+
+### 7.7 适配新的硬件设备
+
+如果你的硬件设备不在默认支持列表中，需要进行以下修改：
+
+1. **添加硬件型号枚举**：在「config.h」文件中添加新的硬件型号枚举
+2. **添加引脚配置**：在「config.h」文件中为新硬件添加引脚定义
+3. **修改驱动文件**：如果需要，修改相应的驱动文件（如eink_driver.h/cpp）
+4. **测试验证**：编译上传代码，测试新硬件是否正常工作
+
+### 7.8 修改代码适配示例
+
+#### 示例1：添加新的墨水屏支持
+
+1. 在「config.h」文件中添加新的墨水屏类型枚举：
+   ```cpp
+   enum EinkDisplayType {
+     // 现有类型...
+     EINK_NEW_MODEL_INCH, // 添加新的墨水屏型号
+   };
+   ```
+
+2. 在「eink_driver.h」文件中添加新的墨水屏库引用：
+   ```cpp
+   #elif DISPLAY_TYPE == EINK_NEW_MODEL_INCH
+     #include <GxNewModel/GxNewModel.h> // 新墨水屏库
+   ```
+
+3. 在「eink_driver.h」文件中添加新的显示对象定义：
+   ```cpp
+   #elif DISPLAY_TYPE == EINK_NEW_MODEL_INCH
+     GxNewModel_Class display;
+     static const int16_t SCREEN_WIDTH = GxNewModel_WIDTH;
+     static const int16_t SCREEN_HEIGHT = GxNewModel_HEIGHT;
+   ```
+
+4. 在「config.h」文件中选择新的显示类型：
+   ```cpp
+   #define DISPLAY_TYPE EINK_NEW_MODEL_INCH
+   ```
+
+#### 示例2：修改引脚配置
+
+1. 在「config.h」文件中找到对应的硬件型号配置：
+   ```cpp
+   #elif CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_C3_DEFAULT
+     // ESP32-C3默认引脚配置
+     #define EINK_SCK 12
+     #define EINK_MOSI 13
+     #define EINK_MISO 14
+     #define EINK_CS 15
+     #define EINK_DC 16
+     #define EINK_RST 17
+     #define EINK_BUSY 18
+   ```
+
+2. 根据你的实际硬件连接，修改相应的引脚号：
+   ```cpp
+   #elif CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_C3_DEFAULT
+     // ESP32-C3自定义引脚配置
+     #define EINK_SCK 5
+     #define EINK_MOSI 6
+     #define EINK_MISO 7
+     #define EINK_CS 8
+     #define EINK_DC 9
+     #define EINK_RST 10
+     #define EINK_BUSY 11
+   ```
+
+### 7.9 重新编译上传
 
 1. 点击Arduino IDE的「验证」按钮，确保代码编译成功
 2. 点击「上传」按钮，将修改后的代码上传到开发板
+3. 观察串口监视器，检查设备是否正常启动
+4. 检查墨水屏是否显示正常内容
 
 ## 8. 设备连接与调试
 
