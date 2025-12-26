@@ -4,6 +4,55 @@
 #include <Arduino.h>
 #include "config.h"
 
+// 传感器类型枚举
+enum SensorType {
+  SENSOR_TYPE_AUTO_DETECT,  // 自动检测传感器类型
+  
+  // 温湿度传感器
+  SENSOR_TYPE_DHT22,
+  SENSOR_TYPE_DHT11,
+  SENSOR_TYPE_DHT12,
+  SENSOR_TYPE_SHT30,
+  SENSOR_TYPE_SHT21,
+  SENSOR_TYPE_SHT40,
+  SENSOR_TYPE_AM2302,
+  SENSOR_TYPE_HDC1080,
+  SENSOR_TYPE_BME280,
+  SENSOR_TYPE_BME680,
+  SENSOR_TYPE_HTU21D,
+  SENSOR_TYPE_SI7021,
+  
+  // 人体感应传感器
+  SENSOR_TYPE_PIR,
+  SENSOR_TYPE_HC_SR501,
+  SENSOR_TYPE_HC_SR505,
+  SENSOR_TYPE_RE200B,
+  SENSOR_TYPE_LD2410,
+  SENSOR_TYPE_BH1750,
+  
+  // 气体传感器
+  SENSOR_TYPE_GAS_MQ2,
+  SENSOR_TYPE_GAS_MQ5,
+  SENSOR_TYPE_GAS_MQ7,
+  SENSOR_TYPE_GAS_MQ8,
+  SENSOR_TYPE_GAS_MQ135,
+  SENSOR_TYPE_GAS_TGS2600,
+  
+  // 火焰传感器
+  SENSOR_TYPE_FLAME_IR,
+  SENSOR_TYPE_FLAME_UV,
+  SENSOR_TYPE_FLAME_YG1006,
+  SENSOR_TYPE_FLAME_MQ2,
+  SENSOR_TYPE_FLAME_TGS2600,
+  
+  // 光照传感器
+  SENSOR_TYPE_LIGHT_BH1750,
+  SENSOR_TYPE_LIGHT_VEML6075,
+  SENSOR_TYPE_LIGHT_TSL2561,
+  SENSOR_TYPE_LIGHT_GY30,
+  SENSOR_TYPE_LIGHT_SI1145
+};
+
 // 传感器数据结构
 typedef struct {
   // 基本状态
@@ -62,6 +111,9 @@ public:
   
   // 获取传感器类型名称
   virtual String getTypeName() const = 0;
+  
+  // 获取传感器类型
+  virtual SensorType getType() const = 0;
   
   // 设置传感器配置
   virtual void setConfig(const SensorConfig& config) = 0;

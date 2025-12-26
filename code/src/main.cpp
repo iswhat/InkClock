@@ -40,6 +40,7 @@
 #include "lunar_manager.h"
 #include "api_manager.h"
 #include "geo_manager.h"
+#include "driver_registry.h"
 
 /**
  * @brief 全局对象实例
@@ -99,9 +100,76 @@ void setup() {
     // 初始化电源管理，影响系统运行模式
     powerManager.init();        // 电源管理和低功耗控制
     
-    // 创建并设置显示驱动，使用墨水屏驱动
-    IDisplayDriver* einkDriver = new EinkDriver();
-    displayManager.setDisplayDriver(einkDriver);
+    // 注册所有可用的驱动到驱动注册表
+    Serial.println("注册硬件驱动...");
+    
+    // 注册墨水屏驱动
+    registerDisplayDriver<EinkDriver>();
+    
+    // 注册所有传感器驱动到驱动注册表
+    Serial.println("注册传感器驱动...");
+    
+    // 温湿度传感器驱动
+    registerSensorDriver<DHT22Driver>();
+    registerSensorDriver<SHT30Driver>();
+    registerSensorDriver<AM2302Driver>();
+    registerSensorDriver<SHT20Driver>();
+    registerSensorDriver<SHT21Driver>();
+    registerSensorDriver<SHT40Driver>();
+    registerSensorDriver<HDC1080Driver>();
+    registerSensorDriver<HTU21DDriver>();
+    registerSensorDriver<SI7021Driver>();
+    registerSensorDriver<BME280Driver>();
+    registerSensorDriver<BME680Driver>();
+    registerSensorDriver<LPS25HBDriver>();
+    registerSensorDriver<BMP388Driver>();
+    
+    // 人体感应传感器驱动
+    registerSensorDriver<HC_SR501Driver>();
+    registerSensorDriver<HC_SR505Driver>();
+    registerSensorDriver<RE200BDriver>();
+    registerSensorDriver<LD2410Driver>();
+    
+    // 光照传感器驱动
+    registerSensorDriver<BH1750Driver>();
+    registerSensorDriver<TSL2561Driver>();
+    registerSensorDriver<GY30Driver>();
+    registerSensorDriver<SI1145Driver>();
+    
+    // 气体传感器驱动
+    registerSensorDriver<MQ2Driver>();
+    registerSensorDriver<MQ5Driver>();
+    registerSensorDriver<MQ7Driver>();
+    
+    // 火焰传感器驱动
+    registerSensorDriver<IRFlameDriver>();
+    
+    Serial.println("传感器驱动注册完成");
+    
+    // 使用驱动注册表自动检测并获取显示驱动
+    DriverRegistry* registry = DriverRegistry::getInstance();
+    IDisplayDriver* displayDriver = nullptr;
+    
+    // 如果配置了固定的显示类型，则直接获取对应驱动
+    #if DISPLAY_TYPE != EINK_75_INCH
+      displayDriver = registry->getDisplayDriver(DISPLAY_TYPE);
+      Serial.print("使用配置的显示驱动: ");
+    #else
+      // 否则自动检测显示驱动
+      displayDriver = registry->autoDetectDisplayDriver();
+      Serial.print("自动检测显示驱动: ");
+    #endif
+    
+    if (displayDriver == nullptr) {
+      // 如果无法获取显示驱动，使用默认的墨水屏驱动
+      Serial.println("未找到匹配的显示驱动，使用默认墨水屏驱动");
+      displayDriver = new EinkDriver();
+    } else {
+      Serial.println("成功获取显示驱动");
+    }
+    
+    // 设置显示驱动
+    displayManager.setDisplayDriver(displayDriver);
     
     // 初始化显示管理器，显示启动画面
     displayManager.init();

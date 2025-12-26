@@ -92,6 +92,9 @@ public:
   // 唤醒
   void wakeup() override;
   
+  // 获取显示类型
+  EinkDisplayType getType() const override;
+  
 private:
   // 墨水屏IO和显示对象
   GxIO_Class io;

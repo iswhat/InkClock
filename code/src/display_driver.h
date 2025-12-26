@@ -46,6 +46,9 @@ public:
   
   // 唤醒
   virtual void wakeup() = 0;
+  
+  // 获取显示类型
+  virtual EinkDisplayType getType() const = 0;
 };
 
 // 显示驱动工厂类
