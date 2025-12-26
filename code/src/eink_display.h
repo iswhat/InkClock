@@ -84,6 +84,19 @@ private:
   unsigned long lastMessageUpdateTime;
   unsigned long lastCalendarUpdateTime;
   
+  // GIF播放相关
+  bool gifPlaying;              // GIF是否正在播放
+  bool gifStopped;              // GIF是否已停止
+  int gifLoopCount;             // GIF循环次数（-1表示无限循环）
+  int gifCurrentLoop;           // 当前循环次数
+  unsigned long gifLastFrameTime; // 上一帧播放时间
+  int gifFrameInterval;         // 帧间隔时间（毫秒）
+  int gifCurrentFrame;          // 当前播放帧数
+  int gifTotalFrames;           // GIF总帧数
+  String currentGifPath;        // 当前播放的GIF路径
+  uint8_t* gifBuffer;           // GIF缓冲区
+  size_t gifBufferSize;         // GIF缓冲区大小
+  
   // 私有方法
   void drawHeader(String title);
   void drawFooter();
@@ -143,6 +156,14 @@ private:
   bool drawImage(String imagePath, int x, int y, int width = 0, int height = 0);
   bool drawImageFromBuffer(uint8_t* buffer, int bufferSize, int x, int y, int width = 0, int height = 0);
   bool drawImageFromURL(String url, int x, int y, int width = 0, int height = 0);
+  
+  // GIF显示功能
+  bool drawGIF(String gifPath, int x, int y, int width = 0, int height = 0);
+  bool drawGIFFromBuffer(uint8_t* buffer, int bufferSize, int x, int y, int width = 0, int height = 0);
+  bool drawGIFFromURL(String url, int x, int y, int width = 0, int height = 0);
+  bool drawAnimatedGIF(String gifPath, int x, int y, int width = 0, int height = 0, int loopCount = -1);
+  void stopGIF();
+  bool isGIFPlaying();
 };
 
 #endif // EINK_DISPLAY_H

@@ -1,6 +1,8 @@
 #include "plugin_manager.h"
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
+#include "web_client.h"
+#include "wifi_manager.h"
 
 PluginManager::PluginManager() {
   // 初始化插件数组
@@ -8,11 +10,18 @@ PluginManager::PluginManager() {
     plugins[i].name = "";
     plugins[i].version = "";
     plugins[i].description = "";
+    plugins[i].type = PLUGIN_TYPE_NATIVE;
     plugins[i].status = PLUGIN_DISABLED;
     plugins[i].init = NULL;
     plugins[i].update = NULL;
     plugins[i].loop = NULL;
     plugins[i].deinit = NULL;
+    plugins[i].urlData.url = "";
+    plugins[i].urlData.updateInterval = PLUGIN_UPDATE_INTERVAL;
+    plugins[i].urlData.dataXPath = "";
+    plugins[i].urlData.displayFormat = "%s";
+    plugins[i].urlData.lastData = "";
+    plugins[i].urlData.lastUpdateTime = 0;
     plugins[i].valid = false;
   }
   
@@ -63,8 +72,21 @@ void PluginManager::init() {
 void PluginManager::update() {
   // 更新所有启用的插件
   for (int i = 0; i < pluginCount; i++) {
-    if (plugins[i].status == PLUGIN_RUNNING && plugins[i].update != NULL) {
-      plugins[i].update();
+    PluginData &plugin = plugins[i];
+    
+    if (plugin.status == PLUGIN_RUNNING) {
+      // 处理原生插件
+      if (plugin.type == PLUGIN_TYPE_NATIVE && plugin.update != NULL) {
+        plugin.update();
+      }
+      // 处理URL插件
+      else if (plugin.type >= PLUGIN_TYPE_URL_XML && plugin.type <= PLUGIN_TYPE_URL_JS) {
+        // 检查是否需要更新
+        unsigned long currentTime = millis();
+        if (currentTime - plugin.urlData.lastUpdateTime >= plugin.urlData.updateInterval) {
+          updateURLPlugin(plugin.name);
+        }
+      }
     }
   }
   
@@ -94,7 +116,7 @@ void PluginManager::loop() {
 bool PluginManager::registerPlugin(String name, String version, String description,
                                  PluginInitFunc init, PluginUpdateFunc update,
                                  PluginLoopFunc loop, PluginDeinitFunc deinit) {
-  DEBUG_PRINT("注册插件: ");
+  DEBUG_PRINT("注册原生插件: ");
   DEBUG_PRINTLN(name);
   
   // 检查插件数组是否已满
@@ -114,11 +136,18 @@ bool PluginManager::registerPlugin(String name, String version, String descripti
   plugin.name = name;
   plugin.version = version;
   plugin.description = description;
+  plugin.type = PLUGIN_TYPE_NATIVE;
   plugin.status = PLUGIN_DISABLED;
   plugin.init = init;
   plugin.update = update;
   plugin.loop = loop;
   plugin.deinit = deinit;
+  plugin.urlData.url = "";
+  plugin.urlData.updateInterval = PLUGIN_UPDATE_INTERVAL;
+  plugin.urlData.dataXPath = "";
+  plugin.urlData.displayFormat = "%s";
+  plugin.urlData.lastData = "";
+  plugin.urlData.lastUpdateTime = 0;
   plugin.valid = true;
   
   // 更新插件计数
@@ -127,7 +156,66 @@ bool PluginManager::registerPlugin(String name, String version, String descripti
   // 设置数据更新标志
   dataUpdated = true;
   
-  DEBUG_PRINTLN("插件注册成功");
+  DEBUG_PRINTLN("原生插件注册成功");
+  return true;
+}
+
+/**
+ * @brief 注册URL插件
+ * @param name 插件名称
+ * @param version 插件版本
+ * @param description 插件描述
+ * @param type 插件类型（XML/JSON/JS）
+ * @param url 插件URL地址
+ * @param updateInterval 更新间隔（毫秒）
+ * @param dataPath 数据提取路径（XPath或JSON路径）
+ * @param displayFormat 显示格式模板
+ * @return bool 注册是否成功
+ */
+bool PluginManager::registerURLPlugin(String name, String version, String description,
+                                    PluginType type, String url, unsigned long updateInterval,
+                                    String dataPath, String displayFormat) {
+  DEBUG_PRINT("注册URL插件: ");
+  DEBUG_PRINTLN(name);
+  
+  // 检查插件数组是否已满
+  if (pluginCount >= MAX_PLUGINS) {
+    DEBUG_PRINTLN("插件数组已满");
+    return false;
+  }
+  
+  // 检查插件是否已存在
+  if (findPluginIndex(name) != -1) {
+    DEBUG_PRINTLN("插件已存在");
+    return false;
+  }
+  
+  // 注册URL插件
+  PluginData &plugin = plugins[pluginCount];
+  plugin.name = name;
+  plugin.version = version;
+  plugin.description = description;
+  plugin.type = type;
+  plugin.status = PLUGIN_ENABLED; // URL插件默认启用
+  plugin.init = NULL;
+  plugin.update = NULL;
+  plugin.loop = NULL;
+  plugin.deinit = NULL;
+  plugin.urlData.url = url;
+  plugin.urlData.updateInterval = updateInterval;
+  plugin.urlData.dataXPath = dataPath;
+  plugin.urlData.displayFormat = displayFormat;
+  plugin.urlData.lastData = "";
+  plugin.urlData.lastUpdateTime = 0;
+  plugin.valid = true;
+  
+  // 更新插件计数
+  pluginCount++;
+  
+  // 设置数据更新标志
+  dataUpdated = true;
+  
+  DEBUG_PRINTLN("URL插件注册成功");
   return true;
 }
 

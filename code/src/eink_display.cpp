@@ -1648,3 +1648,142 @@ bool EinkDisplay::drawImageFromURL(String url, int x, int y, int width, int heig
   DEBUG_PRINTLN("URL图片绘制功能待实现");
   return false;
 }
+
+/**
+ * @brief 从文件系统绘制GIF图片
+ * @param gifPath GIF文件路径
+ * @param x 绘制起始X坐标
+ * @param y 绘制起始Y坐标
+ * @param width 绘制宽度，0表示使用原图宽度
+ * @param height 绘制高度，0表示使用原图高度
+ * @return bool 绘制是否成功
+ * @note 需要引入GIF解码库，如GIFDecoder或TFT_eSPI的GIF功能
+ */
+bool EinkDisplay::drawGIF(String gifPath, int x, int y, int width, int height) {
+  DEBUG_PRINT("绘制GIF图片: ");
+  DEBUG_PRINTLN(gifPath);
+  
+  // 实现从SPIFFS绘制GIF
+  // 注意：需要引入GIF解码库，如GIFDecoder或TFT_eSPI的GIF功能
+  
+  DEBUG_PRINTLN("GIF绘制功能待实现");
+  return false;
+}
+
+/**
+ * @brief 从缓冲区绘制GIF图片
+ * @param buffer GIF数据缓冲区
+ * @param bufferSize 缓冲区大小
+ * @param x 绘制起始X坐标
+ * @param y 绘制起始Y坐标
+ * @param width 绘制宽度，0表示使用原图宽度
+ * @param height 绘制高度，0表示使用原图高度
+ * @return bool 绘制是否成功
+ * @note 需要引入GIF解码库，如GIFDecoder或TFT_eSPI的GIF功能
+ */
+bool EinkDisplay::drawGIFFromBuffer(uint8_t* buffer, int bufferSize, int x, int y, int width, int height) {
+  DEBUG_PRINTLN("从缓冲区绘制GIF图片");
+  
+  // 实现从缓冲区绘制GIF
+  // 注意：需要引入GIF解码库，如GIFDecoder或TFT_eSPI的GIF功能
+  
+  DEBUG_PRINTLN("缓冲区GIF绘制功能待实现");
+  return false;
+}
+
+/**
+ * @brief 从URL绘制GIF图片
+ * @param url GIF文件URL
+ * @param x 绘制起始X坐标
+ * @param y 绘制起始Y坐标
+ * @param width 绘制宽度，0表示使用原图宽度
+ * @param height 绘制高度，0表示使用原图高度
+ * @return bool 绘制是否成功
+ * @note 需要引入GIF解码库，如GIFDecoder或TFT_eSPI的GIF功能
+ */
+bool EinkDisplay::drawGIFFromURL(String url, int x, int y, int width, int height) {
+  DEBUG_PRINT("从URL绘制GIF图片: ");
+  DEBUG_PRINTLN(url);
+  
+  // 实现从URL绘制GIF
+  // 注意：需要先下载GIF到缓冲区，然后调用drawGIFFromBuffer
+  
+  DEBUG_PRINTLN("URL GIF绘制功能待实现");
+  return false;
+}
+
+/**
+ * @brief 绘制动画GIF（支持循环播放）
+ * @param gifPath GIF文件路径
+ * @param x 绘制起始X坐标
+ * @param y 绘制起始Y坐标
+ * @param width 绘制宽度，0表示使用原图宽度
+ * @param height 绘制高度，0表示使用原图高度
+ * @param loopCount 循环次数，-1表示无限循环
+ * @return bool 绘制是否成功
+ * @note 使用局部刷新实现GIF动画效果，需要GIF解码库支持
+ */
+bool EinkDisplay::drawAnimatedGIF(String gifPath, int x, int y, int width, int height, int loopCount) {
+  DEBUG_PRINT("绘制动画GIF: ");
+  DEBUG_PRINTLN(gifPath);
+  
+  // 初始化GIF播放参数
+  gifPlaying = true;
+  gifStopped = false;
+  this->gifLoopCount = loopCount;
+  gifCurrentLoop = 0;
+  gifCurrentFrame = 0;
+  gifLastFrameTime = millis();
+  currentGifPath = gifPath;
+  
+  // 实现动画GIF绘制
+  // 1. 使用GIF解码库解析GIF文件
+  // 2. 获取GIF总帧数和每帧间隔
+  // 3. 循环绘制每一帧，使用局部刷新提高效率
+  // 4. 根据loopCount控制循环次数
+  
+  DEBUG_PRINTLN("动画GIF绘制功能待实现");
+  
+  // 模拟GIF播放
+  while (gifPlaying && !gifStopped) {
+    // 检查是否需要停止播放
+    if (gifLoopCount > 0 && gifCurrentLoop >= gifLoopCount) {
+      break;
+    }
+    
+    // 模拟绘制一帧
+    DEBUG_PRINTF("绘制GIF帧 %d/%d，循环 %d\n", gifCurrentFrame, gifTotalFrames, gifCurrentLoop);
+    
+    // 使用局部刷新更新当前帧
+    displayPartialRefresh(x, y, width, height);
+    
+    // 等待下一帧
+    delay(100); // 模拟帧间隔
+    
+    gifCurrentFrame++;
+    if (gifCurrentFrame >= gifTotalFrames) {
+      gifCurrentFrame = 0;
+      gifCurrentLoop++;
+    }
+  }
+  
+  gifPlaying = false;
+  return true;
+}
+
+/**
+ * @brief 停止GIF播放
+ */
+void EinkDisplay::stopGIF() {
+  DEBUG_PRINTLN("停止GIF播放");
+  gifStopped = true;
+  gifPlaying = false;
+}
+
+/**
+ * @brief 检查GIF是否正在播放
+ * @return bool 是否正在播放
+ */
+bool EinkDisplay::isGIFPlaying() {
+  return gifPlaying;
+}
