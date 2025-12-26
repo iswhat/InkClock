@@ -10,6 +10,10 @@ PowerManager::PowerManager() {
   isLowPowerMode = false;
   lastMotionTime = millis();
   lastDisplayUpdateTime = millis();
+  
+  // 充电相关初始化
+  chargingInterface = USB_TYPE_C; // 仅支持USB-Type-C
+  hasChargingProtection = CHARGING_PROTECTION_ENABLED;
 }
 
 PowerManager::~PowerManager() {
@@ -31,10 +35,15 @@ void PowerManager::init() {
     DEBUG_PRINTLN("PIR sensor initialized on pin " + String(PIR_SENSOR_PIN));
   }
   
+  // 检查充电接口类型
+  checkChargingInterface();
+  
   // 初始更新
   update();
   
-  DEBUG_PRINTLN("PowerManager initialized");
+  DEBUG_PRINTLN("PowerManager initialized with USB-Type-C charging interface");
+  DEBUG_PRINTLN("Charging protection: " + String(hasChargingProtection ? "Enabled" : "Disabled"));
+  DEBUG_PRINTLN("DC power support: " + String(isDCPowerSupported() ? "Enabled" : "Disabled"));
 }
 
 void PowerManager::loop() {
@@ -88,6 +97,15 @@ bool PowerManager::readPIRSensor() {
   #else
     return true;
   #endif
+}
+
+void PowerManager::checkChargingInterface() {
+  // 由于硬件设计只支持USB-Type-C，这里直接设置为USB_TYPE_C
+  chargingInterface = USB_TYPE_C;
+  hasChargingProtection = CHARGING_PROTECTION_ENABLED;
+  
+  DEBUG_PRINTLN("Charging interface confirmed as USB-Type-C");
+  DEBUG_PRINTLN("Charging power range: " + String(CHARGING_POWER_MIN) + "W - " + String(CHARGING_POWER_MAX) + "W");
 }
 
 void PowerManager::enterLowPowerMode() {

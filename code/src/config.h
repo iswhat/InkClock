@@ -82,8 +82,18 @@
 // 电源配置
 #define LOW_BATTERY_THRESHOLD 3.5 // 低电量阈值，单位伏特
 #define BATTERY_UPDATE_INTERVAL 300000 // 电池电量更新间隔，单位毫秒（5分钟）
-#define FULL_BATTERY_VOLTAGE 4.2 // 满电电压，单位伏特
-#define EMPTY_BATTERY_VOLTAGE 3.3 // 空电电压，单位伏特
+#define FULL_BATTERY_VOLTAGE 4.2 // 满电电压，单位伏特（软包聚合物电池）
+#define EMPTY_BATTERY_VOLTAGE 3.3 // 空电电压，单位伏特（软包聚合物电池）
+
+// 充电配置
+#define CHARGING_INTERFACE_TYPE USB_TYPE_C // 仅支持USB-Type-C接口
+#define CHARGING_POWER_MIN 10 // 最小充电功率，单位W
+#define CHARGING_POWER_MAX 20 // 最大充电功率，单位W
+#define CHARGING_PROTECTION_ENABLED true // 启用充电保护
+
+// 供电模式配置
+#define DC_POWER_SUPPORTED false // 不支持DC直插供电
+#define ONLY_USB_POWER_SUPPORTED true // 仅支持USB供电
 
 // 低功耗模式配置
 #define LOW_POWER_MODE_ENABLED true // 是否启用低功耗模式
@@ -312,6 +322,11 @@ enum ThemeType {
 
 // 当前使用的主题
 #define CURRENT_THEME THEME_DEFAULT
+
+// 充电接口类型枚举
+enum ChargingInterfaceType {
+  USB_TYPE_C // 仅支持USB-Type-C接口
+};
 
 // 定义墨水屏类型枚举
 enum EinkDisplayType {

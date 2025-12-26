@@ -16,6 +16,10 @@ private:
   unsigned long lastMotionTime;
   unsigned long lastDisplayUpdateTime;
   
+  // 充电相关
+  ChargingInterfaceType chargingInterface;
+  bool hasChargingProtection;
+  
   // 读取ADC值并转换为电压
   float readBatteryVoltage();
   
@@ -24,6 +28,9 @@ private:
   
   // 读取充电状态
   bool readChargingStatus();
+  
+  // 检查充电接口类型
+  void checkChargingInterface();
   
   // 读取人体感应传感器状态
   bool readPIRSensor();
@@ -59,6 +66,18 @@ public:
   
   // 检查是否需要更新显示
   bool shouldUpdateDisplay();
+  
+  // 获取充电接口类型
+  ChargingInterfaceType getChargingInterface() { return chargingInterface; }
+  
+  // 检查是否有充电保护
+  bool hasChargingProtectionEnabled() { return hasChargingProtection; }
+  
+  // 检查是否支持DC供电（始终返回false）
+  bool isDCPowerSupported() { return DC_POWER_SUPPORTED; }
+  
+  // 检查是否仅支持USB供电
+  bool isOnlyUSBPowerSupported() { return ONLY_USB_POWER_SUPPORTED; }
 };
 
 #endif // POWER_MANAGER_H
