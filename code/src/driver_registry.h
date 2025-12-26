@@ -98,6 +98,9 @@ public:
       
       // 气体传感器
       {SENSOR_TYPE_GAS_MQ2, GAS_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}},
+      {SENSOR_TYPE_GAS_MQ5, GAS_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}},
+      {SENSOR_TYPE_GAS_MQ7, GAS_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}},
+      {SENSOR_TYPE_GAS_MQ135, GAS_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}},
       
       // 火焰传感器
       {SENSOR_TYPE_FLAME_IR, FLAME_SENSOR_PIN, 0x00, {0x00, 0x00, 0x00}},
