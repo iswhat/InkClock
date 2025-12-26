@@ -3,6 +3,7 @@
 
 // 外部全局对象
 extern WiFiManager wifiManager;
+extern APIManager apiManager;
 
 WeatherManager::WeatherManager() {
   // 初始化天气数据
@@ -90,29 +91,20 @@ bool WeatherManager::fetchWeatherData() {
                "&units=metric" + // 使用摄氏度
                "&lang=zh_cn";   // 使用中文
   
-  // 连接到API服务器
-  if (!client.connect("api.openweathermap.org", 443)) {
-    DEBUG_PRINTLN("无法连接到天气API服务器");
+  // 使用API管理器发送HTTP请求
+  ApiResponse apiResponse = apiManager.get(url, API_TYPE_WEATHER, 1800000); // 缓存30分钟
+  
+  // 检查请求结果
+  if (apiResponse.status != API_STATUS_SUCCESS && apiResponse.status != API_STATUS_CACHED) {
+    DEBUG_PRINTLN("获取天气数据失败: " + apiResponse.error);
     return false;
   }
   
-  // 发送HTTP请求
-  client.print(String("GET ") + url + " HTTP/1.1\r\n" +
-               "Host: api.openweathermap.org\r\n" +
-               "Connection: close\r\n\r\n");
-  
-  // 等待响应
-  delay(2000);
-  
-  // 读取响应
-  String response = "";
-  while (client.available()) {
-    String line = client.readStringUntil('\r');
-    response += line;
+  String response = apiResponse.response;
+  if (response.isEmpty()) {
+    DEBUG_PRINTLN("获取天气数据失败，响应为空");
+    return false;
   }
-  
-  // 关闭连接
-  client.stop();
   
   // 解析响应
   int jsonIndex = response.indexOf('{');

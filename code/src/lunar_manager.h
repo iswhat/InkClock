@@ -2,8 +2,9 @@
 #define LUNAR_MANAGER_H
 
 #include <Arduino.h>
-#include "config.h"
+#include <time.h>
 #include "web_client.h"
+#include "api_manager.h"
 
 // 节日信息结构
 typedef struct {

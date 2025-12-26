@@ -38,6 +38,7 @@
 #include "ipv6_server.h"
 #include "firmware_manager.h"
 #include "lunar_manager.h"
+#include "api_manager.h"
 
 /**
  * @brief 全局对象实例
@@ -62,6 +63,7 @@ TouchManager touchManager;           // 触摸管理模块
 CameraManager cameraManager;         // 摄像头管理模块
 WebClient webClient;                 // Web客户端模块
 FirmwareManager firmwareManager;     // 固件管理模块
+APIManager apiManager;               // API管理模块
 
 /**
  * @brief 初始化函数
@@ -119,6 +121,9 @@ void setup() {
     
     // 初始化Web客户端，用于与云端服务器通信
     webClient.init();
+    
+    // 初始化API管理器，用于统一处理所有外部API请求
+    apiManager.init();
     
     // 检查是否已经配置了WiFi，如果没有，等待蓝牙配置
     if (!wifiManager.isConnected()) {

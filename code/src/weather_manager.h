@@ -5,6 +5,7 @@
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include "config.h"
+#include "api_manager.h"
 
 // 天气数据结构
 typedef struct {

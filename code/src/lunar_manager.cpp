@@ -3,6 +3,7 @@
 
 // 外部全局对象
 extern WiFiManager wifiManager;
+extern APIManager apiManager;
 
 // API配置 - 使用RollToolsApi的万年历接口
 const String LunarManager::LUNAR_API_URL = "https://api.rolltools.cn/api/lunar?date=";
@@ -99,8 +100,16 @@ bool LunarManager::fetchLunarData(int year, int month, int day) {
   DEBUG_PRINT("获取农历数据: ");
   DEBUG_PRINTLN(url);
   
-  // 发送HTTP请求
-  String response = webClient.get(url);
+  // 使用API管理器发送HTTP请求
+  ApiResponse apiResponse = apiManager.get(url, API_TYPE_LUNAR, 86400000); // 缓存24小时
+  
+  // 检查请求结果
+  if (apiResponse.status != API_STATUS_SUCCESS && apiResponse.status != API_STATUS_CACHED) {
+    DEBUG_PRINTLN("获取农历数据失败: " + apiResponse.error);
+    return false;
+  }
+  
+  String response = apiResponse.response;
   if (response.isEmpty()) {
     DEBUG_PRINTLN("获取农历数据失败，响应为空");
     return false;
