@@ -215,99 +215,99 @@ void SensorManager::init() {
     DEBUG_PRINTLN("人体感应、气体、火焰和光照传感器引脚初始化完成");
     
     // 初始化温湿度传感器
-    #if SENSOR_TYPE != SENSOR_TYPE_AUTO_DETECT
-      // 固定传感器类型模式
-      #if defined(USE_DHT_SENSOR)
-        // 初始化DHT系列传感器
-        dht.begin();
-        #if SENSOR_TYPE == SENSOR_TYPE_DHT11
-          DEBUG_PRINTLN("DHT11传感器初始化完成");
-        #elif SENSOR_TYPE == SENSOR_TYPE_DHT22
-          DEBUG_PRINTLN("DHT22传感器初始化完成");
-        #elif SENSOR_TYPE == SENSOR_TYPE_AM2302
-          DEBUG_PRINTLN("AM2302传感器初始化完成");
-        #elif SENSOR_TYPE == SENSOR_TYPE_DHT12
-          DEBUG_PRINTLN("DHT12传感器初始化完成");
-        #endif
-      #elif defined(USE_SHT30_SENSOR)
-        // 初始化SHT30传感器
-        if (!sht30.begin(SHT30_ADDRESS)) {
-          DEBUG_PRINTLN("SHT30传感器初始化失败");
-          currentData.valid = false;
-        } else {
-          DEBUG_PRINTLN("SHT30传感器初始化完成");
-        }
-      #elif defined(USE_SHT21_SENSOR)
-        // 初始化SHT21传感器
-        if (!sht21.begin()) {
-          DEBUG_PRINTLN("SHT21传感器初始化失败");
-          currentData.valid = false;
-        } else {
-          DEBUG_PRINTLN("SHT21传感器初始化完成");
-        }
-      #elif defined(USE_HDC1080_SENSOR)
-        // 初始化HDC1080传感器
-        hdc1080.begin();
-        DEBUG_PRINTLN("HDC1080传感器初始化完成");
-      #elif defined(USE_SHT40_SENSOR)
-        // 初始化SHT40传感器
-        if (!sht40.begin()) {
-          DEBUG_PRINTLN("SHT40传感器初始化失败");
-          currentData.valid = false;
-        } else {
-          DEBUG_PRINTLN("SHT40传感器初始化完成");
-        }
-      #elif defined(USE_BME280_SENSOR)
-        // 初始化BME280传感器
-        if (!bme280.begin(0x76)) {
-          // 尝试另一个地址
-          if (!bme280.begin(0x77)) {
-            DEBUG_PRINTLN("BME280传感器初始化失败");
+      #if SENSOR_TYPE != SENSOR_TYPE_AUTO_DETECT
+        // 固定传感器类型模式
+        #if defined(USE_DHT_SENSOR)
+          // 初始化DHT系列传感器
+          dht.begin();
+          #if SENSOR_TYPE == SENSOR_TYPE_DHT11
+            DEBUG_PRINTLN("DHT11传感器初始化完成");
+          #elif SENSOR_TYPE == SENSOR_TYPE_DHT22
+            DEBUG_PRINTLN("DHT22传感器初始化完成");
+          #elif SENSOR_TYPE == SENSOR_TYPE_AM2302
+            DEBUG_PRINTLN("AM2302传感器初始化完成");
+          #elif SENSOR_TYPE == SENSOR_TYPE_DHT12
+            DEBUG_PRINTLN("DHT12传感器初始化完成");
+          #endif
+        #elif defined(USE_SHT30_SENSOR)
+          // 初始化SHT30传感器
+          if (!sht30.begin(SHT30_ADDRESS)) {
+            DEBUG_PRINTLN("SHT30传感器初始化失败");
             currentData.valid = false;
+          } else {
+            DEBUG_PRINTLN("SHT30传感器初始化完成");
+          }
+        #elif defined(USE_SHT21_SENSOR)
+          // 初始化SHT21传感器
+          if (!sht21.begin()) {
+            DEBUG_PRINTLN("SHT21传感器初始化失败");
+            currentData.valid = false;
+          } else {
+            DEBUG_PRINTLN("SHT21传感器初始化完成");
+          }
+        #elif defined(USE_HDC1080_SENSOR)
+          // 初始化HDC1080传感器
+          hdc1080.begin();
+          DEBUG_PRINTLN("HDC1080传感器初始化完成");
+        #elif defined(USE_SHT40_SENSOR)
+          // 初始化SHT40传感器
+          if (!sht40.begin()) {
+            DEBUG_PRINTLN("SHT40传感器初始化失败");
+            currentData.valid = false;
+          } else {
+            DEBUG_PRINTLN("SHT40传感器初始化完成");
+          }
+        #elif defined(USE_BME280_SENSOR)
+          // 初始化BME280传感器
+          if (!bme280.begin(0x76)) {
+            // 尝试另一个地址
+            if (!bme280.begin(0x77)) {
+              DEBUG_PRINTLN("BME280传感器初始化失败");
+              currentData.valid = false;
+            } else {
+              DEBUG_PRINTLN("BME280传感器初始化完成");
+            }
           } else {
             DEBUG_PRINTLN("BME280传感器初始化完成");
           }
-        } else {
-          DEBUG_PRINTLN("BME280传感器初始化完成");
-        }
-      #elif defined(USE_BME680_SENSOR)
-        // 初始化BME680传感器
-        if (!bme680.begin(0x76)) {
-          // 尝试另一个地址
-          if (!bme680.begin(0x77)) {
-            DEBUG_PRINTLN("BME680传感器初始化失败");
-            currentData.valid = false;
+        #elif defined(USE_BME680_SENSOR)
+          // 初始化BME680传感器
+          if (!bme680.begin(0x76)) {
+            // 尝试另一个地址
+            if (!bme680.begin(0x77)) {
+              DEBUG_PRINTLN("BME680传感器初始化失败");
+              currentData.valid = false;
+            } else {
+              DEBUG_PRINTLN("BME680传感器初始化完成");
+            }
           } else {
             DEBUG_PRINTLN("BME680传感器初始化完成");
           }
-        } else {
-          DEBUG_PRINTLN("BME680传感器初始化完成");
+        #endif
+      #else
+        // 自动检测模式
+        Wire.begin();
+        detectedSensorType = detectSensorType();
+        
+        DEBUG_PRINT("检测到传感器类型: ");
+        switch (detectedSensorType) {
+          case SENSOR_TYPE_DHT11: DEBUG_PRINTLN("DHT11"); break;
+          case SENSOR_TYPE_DHT22: DEBUG_PRINTLN("DHT22"); break;
+          case SENSOR_TYPE_AM2302: DEBUG_PRINTLN("AM2302"); break;
+          case SENSOR_TYPE_DHT12: DEBUG_PRINTLN("DHT12"); break;
+          case SENSOR_TYPE_SHT30: DEBUG_PRINTLN("SHT30"); break;
+          case SENSOR_TYPE_SHT21: DEBUG_PRINTLN("SHT21"); break;
+          case SENSOR_TYPE_SHT40: DEBUG_PRINTLN("SHT40"); break;
+          case SENSOR_TYPE_HDC1080: DEBUG_PRINTLN("HDC1080"); break;
+          case SENSOR_TYPE_BME280: DEBUG_PRINTLN("BME280"); break;
+          case SENSOR_TYPE_BME680: DEBUG_PRINTLN("BME680"); break;
+          case SENSOR_TYPE_HTU21D: DEBUG_PRINTLN("HTU21D"); break;
+          case SENSOR_TYPE_SI7021: DEBUG_PRINTLN("SI7021"); break;
+          case SENSOR_TYPE_GAS_MQ2: DEBUG_PRINTLN("气体传感器"); break;
+          case SENSOR_TYPE_FLAME_IR: DEBUG_PRINTLN("火焰传感器"); break;
+          case SENSOR_TYPE_LIGHT_BH1750: DEBUG_PRINTLN("光照传感器"); break;
+          default: DEBUG_PRINTLN("未知类型"); break;
         }
-      #endif
-    #else
-      // 自动检测模式
-      Wire.begin();
-      detectedSensorType = detectSensorType();
-      
-      DEBUG_PRINT("检测到传感器类型: ");
-      switch (detectedSensorType) {
-        case SENSOR_TYPE_DHT11: DEBUG_PRINTLN("DHT11"); break;
-        case SENSOR_TYPE_DHT22: DEBUG_PRINTLN("DHT22"); break;
-        case SENSOR_TYPE_AM2302: DEBUG_PRINTLN("AM2302"); break;
-        case SENSOR_TYPE_DHT12: DEBUG_PRINTLN("DHT12"); break;
-        case SENSOR_TYPE_SHT30: DEBUG_PRINTLN("SHT30"); break;
-        case SENSOR_TYPE_SHT21: DEBUG_PRINTLN("SHT21"); break;
-        case SENSOR_TYPE_SHT40: DEBUG_PRINTLN("SHT40"); break;
-        case SENSOR_TYPE_HDC1080: DEBUG_PRINTLN("HDC1080"); break;
-        case SENSOR_TYPE_BME280: DEBUG_PRINTLN("BME280"); break;
-        case SENSOR_TYPE_BME680: DEBUG_PRINTLN("BME680"); break;
-        case SENSOR_TYPE_HTU21D: DEBUG_PRINTLN("HTU21D"); break;
-        case SENSOR_TYPE_SI7021: DEBUG_PRINTLN("SI7021"); break;
-        case SENSOR_TYPE_GAS: DEBUG_PRINTLN("气体传感器"); break;
-        case SENSOR_TYPE_FLAME: DEBUG_PRINTLN("火焰传感器"); break;
-        case SENSOR_TYPE_LIGHT: DEBUG_PRINTLN("光照传感器"); break;
-        default: DEBUG_PRINTLN("未知类型"); break;
-      }
       
       // 根据检测到的传感器类型初始化对应传感器
       bool initSuccess = false;

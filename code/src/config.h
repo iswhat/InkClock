@@ -381,12 +381,15 @@ enum ChargingInterfaceType {
 // 定义墨水屏类型枚举
 enum EinkDisplayType {
   // 标准墨水屏
+  EINK_102_INCH,
+  EINK_144_INCH,
   EINK_154_INCH,
   EINK_213_INCH,
   EINK_266_INCH,
   EINK_27_INCH,
   EINK_29_INCH,
   EINK_312_INCH,
+  EINK_37_INCH,
   EINK_42_INCH,
   EINK_437_INCH,
   EINK_54_INCH,
@@ -394,6 +397,7 @@ enum EinkDisplayType {
   EINK_60_INCH,
   EINK_75_INCH,
   EINK_78_INCH,
+  EINK_97_INCH,
   EINK_103_INCH,
   EINK_1248_INCH,
   
