@@ -129,3 +129,27 @@ EinkDisplayType EinkDriver::getType() const {
   // 返回当前配置的显示类型
   return DISPLAY_TYPE;
 }
+
+int16_t EinkDriver::measureTextWidth(const String& text, uint8_t size) const {
+  if (!initialized) {
+    return 0;
+  }
+  
+  // 测量文本宽度
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.getTextBounds(text.c_str(), 0, 0, &x1, &y1, &w, &h);
+  return w * size;
+}
+
+int16_t EinkDriver::measureTextHeight(const String& text, uint8_t size) const {
+  if (!initialized) {
+    return 0;
+  }
+  
+  // 测量文本高度
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.getTextBounds(text.c_str(), 0, 0, &x1, &y1, &w, &h);
+  return h * size;
+}

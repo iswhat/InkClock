@@ -57,6 +57,39 @@ void PluginManager::init() {
     savePlugins();
   }
   
+  // 订阅事件总线
+  EVENT_SUBSCRIBE(EVENT_PLUGIN_LOADED, [this](EventType type, std::shared_ptr<EventData> data) {
+    auto pluginData = std::dynamic_pointer_cast<PluginEventData>(data);
+    if (pluginData) {
+      DEBUG_PRINT("插件加载事件: ");
+      DEBUG_PRINTLN(pluginData->pluginName);
+    }
+  }, "PluginManager");
+  
+  EVENT_SUBSCRIBE(EVENT_PLUGIN_UNLOADED, [this](EventType type, std::shared_ptr<EventData> data) {
+    auto pluginData = std::dynamic_pointer_cast<PluginEventData>(data);
+    if (pluginData) {
+      DEBUG_PRINT("插件卸载事件: ");
+      DEBUG_PRINTLN(pluginData->pluginName);
+    }
+  }, "PluginManager");
+  
+  EVENT_SUBSCRIBE(EVENT_PLUGIN_ENABLED, [this](EventType type, std::shared_ptr<EventData> data) {
+    auto pluginData = std::dynamic_pointer_cast<PluginEventData>(data);
+    if (pluginData) {
+      DEBUG_PRINT("插件启用事件: ");
+      DEBUG_PRINTLN(pluginData->pluginName);
+    }
+  }, "PluginManager");
+  
+  EVENT_SUBSCRIBE(EVENT_PLUGIN_DISABLED, [this](EventType type, std::shared_ptr<EventData> data) {
+    auto pluginData = std::dynamic_pointer_cast<PluginEventData>(data);
+    if (pluginData) {
+      DEBUG_PRINT("插件禁用事件: ");
+      DEBUG_PRINTLN(pluginData->pluginName);
+    }
+  }, "PluginManager");
+  
   DEBUG_PRINTLN("插件管理器初始化完成");
   DEBUG_PRINT("当前插件数: ");
   DEBUG_PRINTLN(pluginCount);
@@ -67,6 +100,10 @@ void PluginManager::init() {
       initPlugin(i);
     }
   }
+  
+  // 发布插件管理器初始化完成事件
+  auto pluginManagerData = std::make_shared<PluginEventData>("PluginManager", "1.0.0", "initialized");
+  EVENT_PUBLISH(EVENT_PLUGIN_LOADED, pluginManagerData);
 }
 
 void PluginManager::update() {
@@ -156,6 +193,10 @@ bool PluginManager::registerPlugin(String name, String version, String descripti
   // 设置数据更新标志
   dataUpdated = true;
   
+  // 发布插件加载事件
+  auto pluginData = std::make_shared<PluginEventData>(name, version, "registered");
+  EVENT_PUBLISH(EVENT_PLUGIN_LOADED, pluginData);
+  
   DEBUG_PRINTLN("原生插件注册成功");
   return true;
 }
@@ -230,6 +271,9 @@ bool PluginManager::unregisterPlugin(String name) {
     return false;
   }
   
+  // 保存插件信息用于事件发布
+  String version = plugins[index].version;
+  
   // 反初始化插件
   deinitPlugin(index);
   
@@ -256,6 +300,10 @@ bool PluginManager::unregisterPlugin(String name) {
   // 设置数据更新标志
   dataUpdated = true;
   
+  // 发布插件卸载事件
+  auto pluginData = std::make_shared<PluginEventData>(name, version, "unregistered");
+  EVENT_PUBLISH(EVENT_PLUGIN_UNLOADED, pluginData);
+  
   DEBUG_PRINTLN("插件注销成功");
   return true;
 }
@@ -275,6 +323,11 @@ bool PluginManager::enablePlugin(String name) {
   if (initPlugin(index)) {
     // 设置数据更新标志
     dataUpdated = true;
+    
+    // 发布插件启用事件
+    auto pluginData = std::make_shared<PluginEventData>(name, plugins[index].version, "enabled");
+    EVENT_PUBLISH(EVENT_PLUGIN_ENABLED, pluginData);
+    
     DEBUG_PRINTLN("插件启用成功");
     return true;
   }
@@ -298,6 +351,11 @@ bool PluginManager::disablePlugin(String name) {
   if (deinitPlugin(index)) {
     // 设置数据更新标志
     dataUpdated = true;
+    
+    // 发布插件禁用事件
+    auto pluginData = std::make_shared<PluginEventData>(name, plugins[index].version, "disabled");
+    EVENT_PUBLISH(EVENT_PLUGIN_DISABLED, pluginData);
+    
     DEBUG_PRINTLN("插件禁用成功");
     return true;
   }

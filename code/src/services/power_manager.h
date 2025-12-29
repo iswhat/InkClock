@@ -4,6 +4,8 @@
 #include <Arduino.h>
 #include "../core/config.h"
 
+class CoreSystem;
+
 class PowerManager {
 private:
   float batteryVoltage;
@@ -19,6 +21,9 @@ private:
   // 充电相关
   ChargingInterfaceType chargingInterface;
   bool hasChargingProtection;
+  
+  // CoreSystem指针
+  CoreSystem* coreSystem;
   
   // 读取ADC值并转换为电压
   float readBatteryVoltage();

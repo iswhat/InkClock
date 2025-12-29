@@ -41,6 +41,12 @@ public:
   // 获取屏幕高度
   virtual int16_t getHeight() const = 0;
   
+  // 测量文本宽度
+  virtual int16_t measureTextWidth(const String& text, uint8_t size) const = 0;
+  
+  // 测量文本高度
+  virtual int16_t measureTextHeight(const String& text, uint8_t size) const = 0;
+  
   // 休眠
   virtual void sleep() = 0;
   

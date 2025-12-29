@@ -77,6 +77,13 @@ void AudioManager::init() {
   // 设置初始音量
   setVolume(volume);
   
+  // 订阅报警事件
+  EVENT_SUBSCRIBE(EVENT_ALARM_TRIGGERED, [this](EventType type, std::shared_ptr<EventData> data) {
+    if (type == EVENT_ALARM_TRIGGERED) {
+      this->playAlarmSound();
+    }
+  }, "AudioManager");
+  
   DEBUG_PRINTLN("音频管理器初始化完成");
 }
 
@@ -131,7 +138,7 @@ bool AudioManager::startRecording(String filename) {
   String filepath = "/" + filename;
   
   // 开始录音
-  if (!audio.connectToRecord(filepath.c_str(), SPIFFS, AUDIO_SAMPLE_RATE)) {
+  if (!audio.connectToRecord(filepath.c_str(), getSPIFFS(), AUDIO_SAMPLE_RATE)) {
     DEBUG_PRINTLN("开始录音失败");
     return false;
   }
@@ -181,7 +188,7 @@ bool AudioManager::startPlaying(String filename) {
   
   // 使用ESP32-audioI2S库播放音频文件
   String filepath = "/" + filename;
-  if (!audio.connecttoFS(SPIFFS, filepath.c_str())) {
+  if (!audio.connecttoFS(getSPIFFS(), filepath.c_str())) {
     DEBUG_PRINTLN("无法播放音频文件");
     return false;
   }
@@ -260,6 +267,62 @@ void AudioManager::setVolume(uint8_t volume) {
   
   DEBUG_PRINT("音量设置为: ");
   DEBUG_PRINTLN(volume);
+}
+
+bool AudioManager::playAlarmSound() {
+  DEBUG_PRINTLN("播放报警声音...");
+  
+  // 检查当前状态
+  if (state != AUDIO_IDLE) {
+    DEBUG_PRINTLN("当前状态不允许播放报警声音");
+    return false;
+  }
+  
+  // 停止当前播放
+  audio.stopSong();
+  
+  // 保存当前状态
+  state = AUDIO_PLAYING;
+  
+  // 使用ESP32-audioI2S库播放一个简单的报警音调
+  // 这里我们生成一个简单的WAV格式的报警声音
+  
+  // 生成一个1000Hz的方波报警声音
+  // 注意：ESP32-audioI2S库支持播放WAV文件，我们可以生成一个简单的WAV格式的报警声音
+  
+  // 这里使用一个简单的实现：播放一个已知存在的报警WAV文件
+  // 如果文件不存在，会自动失败
+  String alarmFilePath = "/alarm.wav";
+  
+  if (audio.connecttoFS(getSPIFFS(), alarmFilePath.c_str())) {
+    DEBUG_PRINTLN("报警声音播放开始");
+    // 等待播放完成
+    delay(1000); // 假设报警声音时长为1秒
+    audio.stopSong();
+  } else {
+    // 如果无法播放WAV文件，使用蜂鸣器引脚生成简单的蜂鸣音
+    DEBUG_PRINTLN("无法播放报警WAV文件，使用蜂鸣音");
+    
+    // 使用I2S_DOUT引脚作为蜂鸣器引脚
+    pinMode(I2S_DOUT, OUTPUT);
+    
+    // 生成1000Hz的方波，持续500ms
+    for (int i = 0; i < 500; i++) {
+      digitalWrite(I2S_DOUT, HIGH);
+      delayMicroseconds(500); // 1000Hz的半周期
+      digitalWrite(I2S_DOUT, LOW);
+      delayMicroseconds(500);
+    }
+    
+    // 恢复引脚状态
+    pinMode(I2S_DOUT, INPUT);
+  }
+  
+  // 恢复状态
+  state = AUDIO_IDLE;
+  
+  DEBUG_PRINTLN("报警声音播放完成");
+  return true;
 }
 
 // 以下方法暂未实现

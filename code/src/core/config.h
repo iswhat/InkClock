@@ -369,6 +369,18 @@ enum HardwareModel {
 #define FONT_DIR "/fonts" // 字体文件存储目录
 #define MAX_FONTS 10 // 最大支持字体数量
 
+// 事件总线配置
+#define ENABLE_EVENT_BUS true // 是否启用事件总线
+#define MAX_EVENT_SUBSCRIPTIONS 50 // 最大事件订阅数量
+#define EVENT_BUS_DEBUG false // 是否启用事件总线调试
+
+// 报警功能配置
+#define ENABLE_ALARM_DISPLAY true // 是否启用报警显示功能
+#define ALARM_BLINK_INTERVAL 500 // 报警闪烁间隔，单位毫秒
+#define ALARM_TEXT_SIZE 3 // 报警文字大小
+#define ALARM_FULL_REFRESH true // 报警时是否使用全屏刷新
+#define ALARM_TIMEOUT 10000 // 报警自动恢复时间，单位毫秒（10秒）
+
 // 主题类型枚举
 enum ThemeType {
   THEME_DEFAULT,

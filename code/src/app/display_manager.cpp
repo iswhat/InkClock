@@ -38,6 +38,82 @@ DisplayManager::DisplayManager() {
   lastMessageUpdateTime = 0;
   lastCalendarUpdateTime = 0;
   lastFullRefreshTime = 0;
+  
+  // 初始化报警显示相关变量
+  alarmShowing = false;
+  currentAlarmType = "";
+  currentAlarmMessage = "";
+  lastAlarmUpdateTime = 0;
+  alarmBlinkState = false;
+  lastBlinkTime = 0;
+  alarmStartTime = 0;
+  
+  // 初始化本地缓存数据
+  cachedTimeData = {0, 0, 0, 0, 0, 0, 0, false, "", ""};
+  cachedWeatherData = {"未知", 0, "未知", 0, 0, false};
+  cachedSensorData = {0.0, 0.0, false, 0, false, 0};
+  cachedBatteryPercentage = 100;
+  cachedBatteryVoltage = 0.0;
+  cachedIsCharging = false;
+  cachedUnreadMessageCount = 0;
+  
+  // 订阅事件
+  EVENT_SUBSCRIBE(EVENT_ALARM_TRIGGERED, [this](EventType type, std::shared_ptr<EventData> data) {
+    auto alarmData = std::dynamic_pointer_cast<AlarmEventData>(data);
+    if (alarmData) {
+      this->showAlarm(alarmData->alarmType, alarmData->message);
+    }
+  }, "DisplayManager");
+  
+  EVENT_SUBSCRIBE(EVENT_TIME_UPDATED, [this](EventType type, std::shared_ptr<EventData> data) {
+    auto timeData = std::dynamic_pointer_cast<TimeDataEventData>(data);
+    if (timeData) {
+      cachedTimeData = timeData->timeData;
+      this->updateDisplay();
+    }
+  }, "DisplayManager");
+  
+  EVENT_SUBSCRIBE(EVENT_WEATHER_UPDATED, [this](EventType type, std::shared_ptr<EventData> data) {
+    auto weatherData = std::dynamic_pointer_cast<WeatherDataEventData>(data);
+    if (weatherData) {
+      cachedWeatherData = weatherData->weatherData;
+      this->updateDisplay();
+    }
+  }, "DisplayManager");
+  
+  EVENT_SUBSCRIBE(EVENT_SENSOR_DATA_UPDATED, [this](EventType type, std::shared_ptr<EventData> data) {
+    auto sensorData = std::dynamic_pointer_cast<SensorDataEventData>(data);
+    if (sensorData) {
+      cachedSensorData = sensorData->sensorData;
+      this->updateDisplay();
+    }
+  }, "DisplayManager");
+  
+  EVENT_SUBSCRIBE(EVENT_POWER_STATE_CHANGED, [this](EventType type, std::shared_ptr<EventData> data) {
+    auto powerData = std::dynamic_pointer_cast<PowerEventData>(data);
+    if (powerData) {
+      cachedBatteryPercentage = powerData->batteryPercentage;
+      cachedBatteryVoltage = powerData->batteryVoltage;
+      cachedIsCharging = powerData->isCharging;
+      this->updateDisplay();
+    }
+  }, "DisplayManager");
+  
+  EVENT_SUBSCRIBE(EVENT_MESSAGE_RECEIVED, [this](EventType type, std::shared_ptr<EventData> data) {
+    auto messageData = std::dynamic_pointer_cast<MessageEventData>(data);
+    if (messageData) {
+      cachedUnreadMessageCount++;
+      this->updateDisplay();
+    }
+  }, "DisplayManager");
+  
+  EVENT_SUBSCRIBE(EVENT_MESSAGE_READ, [this](EventType type, std::shared_ptr<EventData> data) {
+    auto messageData = std::dynamic_pointer_cast<MessageEventData>(data);
+    if (messageData && cachedUnreadMessageCount > 0) {
+      cachedUnreadMessageCount--;
+      this->updateDisplay();
+    }
+  }, "DisplayManager");
 }
 
 DisplayManager::~DisplayManager() {
@@ -73,6 +149,16 @@ bool DisplayManager::init() {
     leftPanelWidth = width / 3;
   }
   rightPanelWidth = width - leftPanelWidth;
+  
+  // 订阅报警事件
+  EVENT_SUBSCRIBE(EVENT_ALARM_TRIGGERED, [this](EventType type, std::shared_ptr<EventData> data) {
+    if (type == EVENT_ALARM_TRIGGERED) {
+      auto alarmData = std::dynamic_pointer_cast<AlarmEventData>(data);
+      if (alarmData) {
+        this->showAlarm(alarmData->alarmType, alarmData->message);
+      }
+    }
+  }, "DisplayManager");
   
   DEBUG_PRINTLN("显示管理器初始化完成");
   return true;
@@ -123,6 +209,12 @@ void DisplayManager::updateDisplay() {
     return;
   }
   
+  // 如果处于报警状态，只更新报警显示
+  if (alarmShowing) {
+    updateAlarmDisplay();
+    return;
+  }
+  
   unsigned long currentTime = millis();
   bool isLowPowerMode = powerManager.getLowPowerMode();
   
@@ -146,8 +238,7 @@ void DisplayManager::updateDisplay() {
   bool needCalendarRefresh = false;
   
   // 获取当前时间的秒数，用于判断是否需要刷新时钟
-  TimeData currentTimeData = timeManager.getTimeData();
-  int currentSecond = currentTimeData.second;
+  int currentSecond = cachedTimeData.second;
   
   // 1. 检查时钟区域 - 更精确的控制
   if (showSeconds) {
@@ -174,30 +265,27 @@ void DisplayManager::updateDisplay() {
   }
   
   // 3. 检查传感器数据 - 温度或湿度变化超过±2时刷新
-  SensorData sensorData = sensorManager.getSensorData();
-  if (abs(sensorData.temperature - lastTemperature) >= 2.0 || 
-      abs(sensorData.humidity - lastHumidity) >= 2.0) {
+  if (abs(cachedSensorData.temperature - lastTemperature) >= 2.0 || 
+      abs(cachedSensorData.humidity - lastHumidity) >= 2.0) {
     needSensorRefresh = true;
     needLeftPanelRefresh = true;
-    lastTemperature = sensorData.temperature;
-    lastHumidity = sensorData.humidity;
+    lastTemperature = cachedSensorData.temperature;
+    lastHumidity = cachedSensorData.humidity;
     lastSensorUpdateTime = currentTime;
   }
   
   // 4. 检查电池信息
-  int batteryPercentage = powerManager.getBatteryPercentage();
-  if (abs(batteryPercentage - lastBatteryPercentage) > 5) {
+  if (abs(cachedBatteryPercentage - lastBatteryPercentage) > 5) {
     needBatteryRefresh = true;
     needLeftPanelRefresh = true;
-    lastBatteryPercentage = batteryPercentage;
+    lastBatteryPercentage = cachedBatteryPercentage;
   }
   
   // 5. 检查消息通知
-  int messageCount = messageManager.getUnreadMessageCount();
-  if (messageCount != lastMessageCount) {
+  if (cachedUnreadMessageCount != lastMessageCount) {
     needMessageRefresh = true;
     needLeftPanelRefresh = true;
-    lastMessageCount = messageCount;
+    lastMessageCount = cachedUnreadMessageCount;
     lastMessageUpdateTime = currentTime;
   }
   
@@ -281,6 +369,84 @@ void DisplayManager::updateDisplay() {
 void DisplayManager::updateDisplayPartial() {
   // 局部刷新已合并到updateDisplay方法中，保持兼容性
   updateDisplay();
+}
+
+void DisplayManager::showAlarm(String alarmType, String message) {
+  #if ENABLE_ALARM_DISPLAY
+  DEBUG_PRINTLN("显示报警信息...");
+  
+  alarmShowing = true;
+  currentAlarmType = alarmType;
+  currentAlarmMessage = message;
+  lastAlarmUpdateTime = millis();
+  lastBlinkTime = millis();
+  alarmBlinkState = true;
+  alarmStartTime = millis(); // 记录报警开始时间
+  
+  // 立即更新显示
+  updateAlarmDisplay();
+  #endif
+}
+
+void DisplayManager::hideAlarm() {
+  #if ENABLE_ALARM_DISPLAY
+  DEBUG_PRINTLN("隐藏报警信息...");
+  
+  alarmShowing = false;
+  currentAlarmType = "";
+  currentAlarmMessage = "";
+  
+  // 立即更新显示，恢复正常界面
+  updateDisplay();
+  #endif
+}
+
+void DisplayManager::updateAlarmDisplay() {
+  #if ENABLE_ALARM_DISPLAY
+  if (!alarmShowing || displayDriver == nullptr) {
+    return;
+  }
+  
+  unsigned long currentTime = millis();
+  
+  // 检查是否需要自动恢复（超过报警超时时间）
+  if (currentTime - alarmStartTime >= ALARM_TIMEOUT) {
+    hideAlarm();
+    return;
+  }
+  
+  // 检查是否需要刷新闪烁效果
+  if (currentTime - lastBlinkTime >= ALARM_BLINK_INTERVAL) {
+    alarmBlinkState = !alarmBlinkState;
+    lastBlinkTime = currentTime;
+  }
+  
+  // 清除屏幕
+  displayDriver->clear();
+  
+  // 设置报警文字大小
+  // 注意：IDisplayDriver接口中没有setFontSize方法，我们直接在drawString中指定大小
+  
+  // 居中显示报警信息
+  String fullMessage = currentAlarmType + "\n" + currentAlarmMessage;
+  
+  // 计算文字位置
+  int16_t x = (width - displayDriver->measureTextWidth(fullMessage, ALARM_TEXT_SIZE)) / 2;
+  int16_t y = (height - displayDriver->measureTextHeight(fullMessage, ALARM_TEXT_SIZE)) / 2;
+  
+  // 绘制报警信息
+  displayDriver->drawString(x, y, fullMessage, alarmBlinkState ? BLACK : WHITE, alarmBlinkState ? WHITE : BLACK, ALARM_TEXT_SIZE);
+  
+  // 根据配置选择刷新方式
+  #if ALARM_FULL_REFRESH
+    displayDriver->update();
+  #else
+    // 局部刷新
+    displayDriver->update(0, 0, width, height);
+  #endif
+  
+  lastAlarmUpdateTime = currentTime;
+  #endif
 }
 
 void DisplayManager::showMessage(String message, uint32_t duration) {
@@ -418,61 +584,28 @@ void DisplayManager::drawLeftPanel() {
     // 绘制分割线
     displayDriver->fillRect(leftPanelWidth - 1, 0, 1, height, GxEPD_BLACK);
     
-    // 获取各种数据，每个数据获取都用try-catch包裹，确保单个模块数据异常不会影响整个绘制
-    String timeStr = "--:--:--";
-    String dateStr = "YYYY-MM-DD";
-    TimeData currentTime = {0, 0, 0, 0, 0, 0, 0, false, "", ""};
-    WeatherData weather = {"未知", 0, "未知", 0, 0, false};
-    SensorData sensor = {0, 0, false, 0};
-    float batteryVoltage = 0.0;
-    int batteryPercentage = 0;
-    bool isCharging = false;
-    int messageCount = 0;
-    
-    try {
-      currentTime = timeManager.getTimeData();
-    } catch (const std::exception& e) {
-      DEBUG_PRINT("获取完整时间数据异常: ");
-      DEBUG_PRINTLN(e.what());
-    }
-    
-    try {
-      timeStr = timeManager.getTimeString();
-      dateStr = timeManager.getDateString();
-    } catch (const std::exception& e) {
-      DEBUG_PRINT("获取时间数据异常: ");
-      DEBUG_PRINTLN(e.what());
-    }
-    
-    try {
-      weather = weatherManager.getWeatherData();
-    } catch (const std::exception& e) {
-      DEBUG_PRINT("获取天气数据异常: ");
-      DEBUG_PRINTLN(e.what());
-    }
-    
-    try {
-      sensor = sensorManager.getSensorData();
-    } catch (const std::exception& e) {
-      DEBUG_PRINT("获取传感器数据异常: ");
-      DEBUG_PRINTLN(e.what());
-    }
-    
-    try {
-      batteryVoltage = powerManager.getBatteryVoltage();
-      batteryPercentage = powerManager.getBatteryPercentage();
-      isCharging = powerManager.getChargingStatus();
-    } catch (const std::exception& e) {
-      DEBUG_PRINT("获取电源数据异常: ");
-      DEBUG_PRINTLN(e.what());
-    }
-    
-    try {
-      messageCount = messageManager.getUnreadMessageCount();
-    } catch (const std::exception& e) {
-      DEBUG_PRINT("获取消息数据异常: ");
-      DEBUG_PRINTLN(e.what());
-    }
+    // 获取各种数据，使用本地缓存的数据
+  String timeStr = "--:--:--";
+  String dateStr = "YYYY-MM-DD";
+  
+  // 从缓存中获取数据
+  TimeData currentTime = cachedTimeData;
+  WeatherData weather = cachedWeatherData;
+  SensorData sensor = cachedSensorData;
+  float batteryVoltage = cachedBatteryVoltage;
+  int batteryPercentage = cachedBatteryPercentage;
+  bool isCharging = cachedIsCharging;
+  int messageCount = cachedUnreadMessageCount;
+  
+  // 构建时间字符串
+  timeStr = String(currentTime.hour < 10 ? "0" : "") + String(currentTime.hour) + ":" + 
+            String(currentTime.minute < 10 ? "0" : "") + String(currentTime.minute) + ":" + 
+            String(currentTime.second < 10 ? "0" : "") + String(currentTime.second);
+  
+  // 构建日期字符串
+  dateStr = String(currentTime.year) + "-" + 
+            String(currentTime.month < 10 ? "0" : "") + String(currentTime.month) + "-" + 
+            String(currentTime.day < 10 ? "0" : "") + String(currentTime.day);
     
     // 绘制时钟（根据当前时钟模式）
     try {
@@ -582,7 +715,7 @@ void DisplayManager::drawRightPanel() {
     displayDriver->fillRect(leftPanelWidth, 0, rightPanelWidth, height, GxEPD_WHITE);
     
     // 检查是否有新消息，如果有且当前页面是日历，则显示消息通知
-    int messageCount = messageManager.getUnreadMessageCount();
+    int messageCount = cachedUnreadMessageCount;
     bool showMessageNotification = (messageCount > 0 && currentRightPage == RIGHT_PAGE_CALENDAR);
     
     // 根据当前右侧页面绘制不同内容
@@ -662,8 +795,8 @@ void DisplayManager::drawMessageNotificationContent(int x, int y) {
   int titleSize = height < 400 ? 3 : 4;
   displayDriver->drawString(x, y, "新消息通知", GxEPD_RED, GxEPD_WHITE, titleSize);
   
-  // 获取最新的消息
-  int messageCount = messageManager.getUnreadMessageCount();
+  // 获取最新的消息（使用缓存）
+  int messageCount = cachedUnreadMessageCount;
   displayDriver->drawString(x, y + (height < 400 ? 30 : 50), String(messageCount) + "条未读消息", GxEPD_BLACK, GxEPD_WHITE, height < 400 ? 2 : 3);
   
   // 绘制消息列表

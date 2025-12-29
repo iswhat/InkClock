@@ -109,16 +109,14 @@ void ButtonManager::processButtonEvents() {
         state.clickCount++;
         state.lastClickTime = millis();
         
-        // 延迟一段时间检查是否有第二次点击
-        if (state.clickCount == 1) {
-          // 第一次点击，等待第二次点击
-        } else if (state.clickCount == 2) {
-          // 双击事件
+        // 双击事件
+        if (state.clickCount == 2) {
           if (callback != NULL) {
             callback(i, BUTTON_DOUBLE_CLICK);
           }
           state.clickCount = 0;
         }
+        // 单击事件会在后续检查中处理
       } else {
         // 长按事件
         if (callback != NULL) {

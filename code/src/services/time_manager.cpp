@@ -1,10 +1,9 @@
 #include "time_manager.h"
 #include "wifi_manager.h"
+#include "../core/event_bus.h"
 
 // 外部全局对象
 extern WiFiManager wifiManager;
-extern LunarManager lunarManager;
-extern APIManager apiManager;
 
 // NTP配置
 const int NTP_PACKET_SIZE = 48;
@@ -27,6 +26,19 @@ TimeManager::TimeManager() {
   
   timeUpdated = false;
   lastUpdate = 0;
+  
+  // 订阅农历数据更新事件
+  EVENT_SUBSCRIBE(EVENT_LUNAR_DATA_UPDATED, [this](EventType type, std::shared_ptr<EventData> data) {
+    auto lunarData = std::dynamic_pointer_cast<LunarDataEventData>(data);
+    if (lunarData) {
+      if (lunarData->year == currentTime.year && 
+          lunarData->month == currentTime.month && 
+          lunarData->day == currentTime.day) {
+        currentTime.lunarDate = lunarData->lunarDate;
+        currentTime.solarTerm = lunarData->solarTerm;
+      }
+    }
+  }, "TimeManager");
 }
 
 TimeManager::~TimeManager() {
@@ -59,6 +71,7 @@ void TimeManager::update() {
       
       // 更新秒数
       currentTime.second++;
+      bool dayChanged = false;
       
       // 处理时间进位
       if (currentTime.second >= 60) {
@@ -72,6 +85,7 @@ void TimeManager::update() {
           if (currentTime.hour >= 24) {
             currentTime.hour = 0;
             currentTime.day++;
+            dayChanged = true;
             
             // 更新星期
             currentTime.weekday = (currentTime.weekday + 1) % 7;
@@ -88,12 +102,17 @@ void TimeManager::update() {
                 currentTime.isLeapYear = isLeapYear(currentTime.year);
               }
             }
-            
-            // 更新农历日期和节气
-            currentTime.lunarDate = getLunarDate(currentTime.year, currentTime.month, currentTime.day);
-            currentTime.solarTerm = getSolarTerm(currentTime.year, currentTime.month, currentTime.day);
           }
         }
+      }
+      
+      // 发布时间更新事件
+      auto timeData = std::make_shared<TimeDataEventData>(currentTime);
+      EVENT_PUBLISH(EVENT_TIME_UPDATED, timeData);
+      
+      // 如果日期改变，发布日期更新事件
+      if (dayChanged) {
+        EVENT_PUBLISH(EVENT_DATE_CHANGED, timeData);
       }
     }
   }
@@ -282,9 +301,14 @@ void TimeManager::parseNTPTime(uint32_t unixTime) {
   currentTime.weekday = weekday;
   currentTime.isLeapYear = isLeapYear(years);
   
-  // 更新农历日期和节气
-  currentTime.lunarDate = getLunarDate(years, month, days + 1);
-  currentTime.solarTerm = getSolarTerm(years, month, days + 1);
+  // 请求农历数据
+  auto requestData = std::make_shared<LunarRequestEventData>(years, month, days + 1);
+  EVENT_PUBLISH(EVENT_LUNAR_DATA_REQUESTED, requestData);
+  
+  // 发布时间更新事件
+  auto timeData = std::make_shared<TimeDataEventData>(currentTime);
+  EVENT_PUBLISH(EVENT_TIME_UPDATED, timeData);
+  EVENT_PUBLISH(EVENT_DATE_CHANGED, timeData);
 }
 
 String TimeManager::getWeekdayName(int weekday) {
@@ -296,15 +320,7 @@ String TimeManager::getWeekdayName(int weekday) {
   return "未知";
 }
 
-String TimeManager::getLunarDate(int year, int month, int day) {
-  // 使用农历管理模块获取农历日期
-  return lunarManager.getLunarDateString(year, month, day);
-}
 
-String TimeManager::getSolarTerm(int year, int month, int day) {
-  // 使用农历管理模块获取节气
-  return lunarManager.getSolarTerm(year, month, day);
-}
 
 bool TimeManager::isLeapYear(int year) {
   // 判断是否是闰年

@@ -1,4 +1,6 @@
 #include "power_manager.h"
+#include "../core/core_system.h"
+#include "../core/event_bus.h"
 
 PowerManager::PowerManager() {
   batteryVoltage = 0.0;
@@ -14,6 +16,9 @@ PowerManager::PowerManager() {
   // 充电相关初始化
   chargingInterface = USB_TYPE_C; // 仅支持USB-Type-C
   hasChargingProtection = CHARGING_PROTECTION_ENABLED;
+  
+  // 获取CoreSystem实例
+  coreSystem = CoreSystem::getInstance();
 }
 
 PowerManager::~PowerManager() {
@@ -38,6 +43,35 @@ void PowerManager::init() {
   // 检查充电接口类型
   checkChargingInterface();
   
+  // 订阅电源相关事件
+  EVENT_SUBSCRIBE(EVENT_POWER_STATE_CHANGED, [this](EventType type, std::shared_ptr<EventData> data) {
+    auto powerData = std::dynamic_pointer_cast<PowerStateEventData>(data);
+    if (powerData) {
+      this->batteryPercentage = powerData->batteryPercentage;
+      this->isCharging = powerData->isCharging;
+      this->isLowPowerMode = powerData->isLowPower;
+      this->lastUpdateTime = millis();
+    }
+  }, "PowerManager");
+  
+  EVENT_SUBSCRIBE(EVENT_BATTERY_LOW, [this](EventType type, std::shared_ptr<EventData> data) {
+    DEBUG_PRINTLN("低电量警告");
+  }, "PowerManager");
+  
+  EVENT_SUBSCRIBE(EVENT_BATTERY_OK, [this](EventType type, std::shared_ptr<EventData> data) {
+    DEBUG_PRINTLN("电量恢复正常");
+  }, "PowerManager");
+  
+  EVENT_SUBSCRIBE(EVENT_CHARGING_STARTED, [this](EventType type, std::shared_ptr<EventData> data) {
+    this->isCharging = true;
+    this->lastUpdateTime = millis();
+  }, "PowerManager");
+  
+  EVENT_SUBSCRIBE(EVENT_CHARGING_STOPPED, [this](EventType type, std::shared_ptr<EventData> data) {
+    this->isCharging = false;
+    this->lastUpdateTime = millis();
+  }, "PowerManager");
+  
   // 初始更新
   update();
   
@@ -59,14 +93,19 @@ void PowerManager::loop() {
     if (motionDetected) {
       lastMotionTime = millis();
       if (isLowPowerMode) {
-        exitLowPowerMode();
+        // 通过CoreSystem退出低功耗模式
+        coreSystem->exitLowPowerMode();
       }
     } else {
       if (!isLowPowerMode && (millis() - lastMotionTime > NO_MOTION_TIMEOUT)) {
-        enterLowPowerMode();
+        // 通过CoreSystem进入低功耗模式
+        coreSystem->enterLowPowerMode();
       }
     }
   }
+  
+  // 同步CoreSystem的电源状态
+  isLowPowerMode = coreSystem->isInLowPowerMode();
 }
 
 void PowerManager::update() {
@@ -80,6 +119,10 @@ void PowerManager::update() {
   isCharging = readChargingStatus();
   
   lastUpdateTime = millis();
+  
+  // 发布电源状态更新事件
+  auto powerData = std::make_shared<PowerStateEventData>(batteryPercentage, isCharging, isLowPowerMode);
+  EVENT_PUBLISH(EVENT_POWER_STATE_CHANGED, powerData);
   
   DEBUG_PRINT("Battery: ");
   DEBUG_PRINT(batteryVoltage);
@@ -110,8 +153,14 @@ void PowerManager::checkChargingInterface() {
 
 void PowerManager::enterLowPowerMode() {
   if (!isLowPowerMode) {
-    isLowPowerMode = true;
     DEBUG_PRINTLN("Entering low power mode...");
+    
+    // 通过CoreSystem进入低功耗模式
+    coreSystem->enterLowPowerMode();
+    isLowPowerMode = coreSystem->isInLowPowerMode();
+    
+    // 发布低功耗进入事件
+    EVENT_PUBLISH(EVENT_LOW_POWER_ENTER, nullptr);
     
     // 实际的低功耗操作
     // 1. 降低CPU频率（如果支持）
@@ -152,8 +201,14 @@ void PowerManager::enterLowPowerMode() {
 
 void PowerManager::exitLowPowerMode() {
   if (isLowPowerMode) {
-    isLowPowerMode = false;
     DEBUG_PRINTLN("Exiting low power mode...");
+    
+    // 通过CoreSystem退出低功耗模式
+    coreSystem->exitLowPowerMode();
+    isLowPowerMode = coreSystem->isInLowPowerMode();
+    
+    // 发布低功耗退出事件
+    EVENT_PUBLISH(EVENT_LOW_POWER_EXIT, nullptr);
     
     // 恢复正常操作
     // 1. 恢复CPU频率

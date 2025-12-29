@@ -17,6 +17,7 @@
 
 #include <Arduino.h>
 #include "core/config.h"
+#include "core/core_system.h"
 #include "app/display_manager.h"
 #include "drivers/displays/display_driver.h"
 #include "drivers/displays/eink_driver.h"
@@ -30,7 +31,6 @@
 #include "modules/lunar_manager.h"
 #include "services/api_manager.h"
 #include "services/geo_manager.h"
-#include "drivers/core/driver_registry.h"
 #include "core/spiffs_manager.h"
 
 // 条件包含可选模块 - 可通过修改这些宏来启用或禁用相应功能
@@ -73,6 +73,8 @@
 // TF卡管理功能 - 用于管理TF卡内容
 #define ENABLE_TF_CARD_MANAGEMENT false 
 
+// 报警显示功能 - 用于显示报警信息和闪烁效果
+#define ENABLE_ALARM_DISPLAY true
 
 #if ENABLE_AUDIO
   #include "audio_manager.h"
@@ -193,7 +195,8 @@ GeoManager geoManager;               // 地理位置管理模块
  * 10. 初始数据更新
  * 11. 初始页面显示
  */
-void setup() {
+// 初始化基础系统组件
+void initSystem() {
   // 初始化串口通信，用于调试输出
   Serial.begin(115200);
   delay(1000);
@@ -201,14 +204,28 @@ void setup() {
   // 打印启动信息
   Serial.println("===== 家用网络智能墨水屏万年历 ====");
   
+  // 初始化SPIFFS，确保在其他模块之前初始化
   try {
-    // 初始化SPIFFS，确保在其他模块之前初始化
     initSPIFFS();
-    
-    // 初始化电源管理，影响系统运行模式
+    Serial.println("SPIFFS初始化完成");
+  } catch (const std::exception& e) {
+    Serial.print("SPIFFS初始化异常: ");
+    Serial.println(e.what());
+  }
+  
+  // 初始化电源管理，影响系统运行模式
+  try {
     powerManager.init();        // 电源管理和低功耗控制
-    
-    // 注册所有可用的驱动到驱动注册表
+    Serial.println("电源管理初始化完成");
+  } catch (const std::exception& e) {
+    Serial.print("电源管理初始化异常: ");
+    Serial.println(e.what());
+  }
+}
+
+// 注册硬件驱动
+void registerHardwareDrivers() {
+  try {
     Serial.println("注册硬件驱动...");
     
     // 注册墨水屏驱动
@@ -256,8 +273,16 @@ void setup() {
     registerSensorDriver<IRFlameDriver>();
     
     Serial.println("传感器驱动注册完成");
-    
-    // 使用驱动注册表自动检测并获取显示驱动
+  } catch (const std::exception& e) {
+    Serial.print("驱动注册异常: ");
+    Serial.println(e.what());
+  }
+}
+
+// 初始化显示系统
+void initDisplaySystem() {
+  // 使用驱动注册表自动检测并获取显示驱动
+  try {
     DriverRegistry* registry = DriverRegistry::getInstance();
     IDisplayDriver* displayDriver = nullptr;
     
@@ -285,108 +310,292 @@ void setup() {
     // 初始化显示管理器，显示启动画面
     displayManager.init();
     displayManager.showSplashScreen();
-    
-    // 初始化输入设备，用于用户交互
-    buttonManager.init();       // 按键事件处理
-    
-    #if ENABLE_TOUCH
-      touchManager.init();        // 触摸事件处理
-    #endif
-    
-    // 初始化蓝牙管理模块，用于首次WiFi配置
-    #if ENABLE_BLUETOOTH
-      bluetoothManager.init();
-    #endif
-    
-    // 初始化本地传感器和不需要网络的模块
-    sensorManager.init();       // 温湿度传感器管理
-    
-    #if ENABLE_AUDIO
-      audioManager.init();        // 音频录制和播放管理
-    #endif
-    
-    #if ENABLE_MESSAGE
-      messageManager.init();      // 消息接收和存储
-    #endif
-    
-    #if ENABLE_PLUGIN
-      pluginManager.init();       // 插件加载和管理
-    #endif
-    
-    #if ENABLE_TF_CARD
-      #include "core/tf_card_manager.h"
-      initTFCard(SD_CS);          // TF卡初始化
-    #endif
-    
-    #if ENABLE_FONT
-      fontManager.init();         // 字体管理初始化
-    #endif
-    
-    #if ENABLE_CAMERA
-      cameraManager.init();       // 摄像头管理
-    #endif
-    
-    // 初始化网络通信相关模块
-    #if ENABLE_WEBCLIENT
-      webClient.init();           // Web客户端，用于与云端服务器通信
-    #endif
-    
-    apiManager.init();          // API管理器，用于统一处理所有外部API请求
-    geoManager.init();          // 地理位置管理器，用于自动检测和管理地理位置
-    
-    // 初始化WiFi模块
-    wifiManager.init();
-    
-    // 初始化需要WiFi的模块
-    timeManager.init();         // NTP时间同步
-    weatherManager.init();      // 天气数据获取
-    
-    #if ENABLE_STOCK
-      stockManager.init();        // 股票数据获取和显示
-    #endif
-    
-    lunarManager.init();        // 农历管理模块
-    
-    // 初始化Web服务器
-    webServerManager.init();
-    
-    // 更新初始数据
-    timeManager.update();       // 更新时间
-    weatherManager.update();    // 更新天气
-    sensorManager.update();     // 更新传感器数据
-    
-    #if ENABLE_STOCK
-      stockManager.update();      // 更新股票数据
-    #endif
-    
-    lunarManager.update();      // 更新农历数据
-    
-    // 显示初始页面
-    displayManager.updateDisplay();
-    
-    // 打印初始化完成信息
-    Serial.println("初始化完成");
+    Serial.println("显示管理器初始化完成");
   } catch (const std::exception& e) {
-    Serial.print("初始化异常: ");
+    Serial.print("显示驱动初始化异常: ");
     Serial.println(e.what());
-    
-    // 显示错误信息
-    displayManager.showMessage("初始化失败，进入安全模式", 5000);
-    
-    // 仅保留基本功能
-    webServerManager.init();
   }
 }
 
-/**
- * @brief 主循环函数
- * 
- * 设备启动后持续执行的主循环，负责调度各模块的循环任务
- * 执行顺序：
- * 1. 各模块的循环任务处理
- * 2. 根据电源管理建议更新显示
- * 3. 定期更新数据
- */
+// 初始化输入设备
+void initInputDevices() {
+  // 初始化输入设备，用于用户交互
+  try {
+    buttonManager.init();       // 按键事件处理
+    
+    // 设置按键回调函数，用于处理按键事件，包括报警状态下切换回主界面
+    buttonManager.setCallback([](int buttonIndex, ButtonEvent event) {
+      if (displayManager.isAlarmShowing()) {
+        // 如果处于报警状态，任何按键都切换回主界面
+        displayManager.hideAlarm();
+      }
+      // 其他按键处理逻辑可以在这里添加
+    });
+    Serial.println("按键管理器初始化完成");
+  } catch (const std::exception& e) {
+    Serial.print("按键管理器初始化异常: ");
+    Serial.println(e.what());
+  }
+  
+  #if ENABLE_TOUCH
+    try {
+      touchManager.init();        // 触摸事件处理
+      Serial.println("触摸管理器初始化完成");
+    } catch (const std::exception& e) {
+      Serial.print("触摸管理器初始化异常: ");
+      Serial.println(e.what());
+    }
+  #endif
+}
+
+// 初始化本地模块（不需要网络）
+void initLocalModules() {
+  // 初始化蓝牙管理模块，用于首次WiFi配置
+  #if ENABLE_BLUETOOTH
+    try {
+      bluetoothManager.init();
+      Serial.println("蓝牙管理初始化完成");
+    } catch (const std::exception& e) {
+      Serial.print("蓝牙管理初始化异常: ");
+      Serial.println(e.what());
+    }
+  #endif
+  
+  // 初始化本地传感器和不需要网络的模块
+  try {
+    sensorManager.init();       // 温湿度传感器管理
+    Serial.println("传感器管理器初始化完成");
+  } catch (const std::exception& e) {
+    Serial.print("传感器管理器初始化异常: ");
+    Serial.println(e.what());
+  }
+  
+  #if ENABLE_AUDIO
+    try {
+      audioManager.init();        // 音频录制和播放管理
+      Serial.println("音频管理器初始化完成");
+    } catch (const std::exception& e) {
+      Serial.print("音频管理器初始化异常: ");
+      Serial.println(e.what());
+    }
+  #endif
+  
+  #if ENABLE_MESSAGE
+    try {
+      messageManager.init();      // 消息接收和存储
+      Serial.println("消息管理器初始化完成");
+    } catch (const std::exception& e) {
+      Serial.print("消息管理器初始化异常: ");
+      Serial.println(e.what());
+    }
+  #endif
+  
+  #if ENABLE_PLUGIN
+    try {
+      pluginManager.init();       // 插件加载和管理
+      Serial.println("插件管理器初始化完成");
+    } catch (const std::exception& e) {
+      Serial.print("插件管理器初始化异常: ");
+      Serial.println(e.what());
+    }
+  #endif
+  
+  #if ENABLE_TF_CARD
+    try {
+      #include "core/tf_card_manager.h"
+      initTFCard(SD_CS);          // TF卡初始化
+      Serial.println("TF卡初始化完成");
+    } catch (const std::exception& e) {
+      Serial.print("TF卡初始化异常: ");
+      Serial.println(e.what());
+    }
+  #endif
+  
+  #if ENABLE_FONT
+    try {
+      fontManager.init();         // 字体管理初始化
+      Serial.println("字体管理器初始化完成");
+    } catch (const std::exception& e) {
+      Serial.print("字体管理器初始化异常: ");
+      Serial.println(e.what());
+    }
+  #endif
+  
+  #if ENABLE_CAMERA
+    try {
+      cameraManager.init();       // 摄像头管理
+      Serial.println("摄像头管理器初始化完成");
+    } catch (const std::exception& e) {
+      Serial.print("摄像头管理器初始化异常: ");
+      Serial.println(e.what());
+    }
+  #endif
+}
+
+// 初始化网络相关模块
+void initNetworkModules() {
+  // 初始化网络通信相关模块
+  #if ENABLE_WEBCLIENT
+    try {
+      webClient.init();           // Web客户端，用于与云端服务器通信
+      Serial.println("Web客户端初始化完成");
+    } catch (const std::exception& e) {
+      Serial.print("Web客户端初始化异常: ");
+      Serial.println(e.what());
+    }
+  #endif
+  
+  try {
+    apiManager.init();          // API管理器，用于统一处理所有外部API请求
+    Serial.println("API管理器初始化完成");
+  } catch (const std::exception& e) {
+    Serial.print("API管理器初始化异常: ");
+    Serial.println(e.what());
+  }
+  
+  try {
+    geoManager.init();          // 地理位置管理器，用于自动检测和管理地理位置
+    Serial.println("地理位置管理器初始化完成");
+  } catch (const std::exception& e) {
+    Serial.print("地理位置管理器初始化异常: ");
+    Serial.println(e.what());
+  }
+  
+  // 初始化WiFi模块
+  try {
+    wifiManager.init();
+    Serial.println("WiFi管理器初始化完成");
+  } catch (const std::exception& e) {
+    Serial.print("WiFi管理器初始化异常: ");
+    Serial.println(e.what());
+  }
+}
+
+// 初始化需要网络的模块
+void initNetworkDependentModules() {
+  // 初始化需要WiFi的模块
+  try {
+    timeManager.init();         // NTP时间同步
+    Serial.println("时间管理器初始化完成");
+  } catch (const std::exception& e) {
+    Serial.print("时间管理器初始化异常: ");
+    Serial.println(e.what());
+  }
+  
+  try {
+    weatherManager.init();      // 天气数据获取
+    Serial.println("天气管理器初始化完成");
+  } catch (const std::exception& e) {
+    Serial.print("天气管理器初始化异常: ");
+    Serial.println(e.what());
+  }
+  
+  #if ENABLE_STOCK
+    try {
+      stockManager.init();        // 股票数据获取和显示
+      Serial.println("股票管理器初始化完成");
+    } catch (const std::exception& e) {
+      Serial.print("股票管理器初始化异常: ");
+      Serial.println(e.what());
+    }
+  #endif
+  
+  try {
+    lunarManager.init();        // 农历管理模块
+    Serial.println("农历管理器初始化完成");
+  } catch (const std::exception& e) {
+    Serial.print("农历管理器初始化异常: ");
+    Serial.println(e.what());
+  }
+  
+  // 初始化Web服务器
+  try {
+    webServerManager.init();
+    Serial.println("Web服务器初始化完成");
+  } catch (const std::exception& e) {
+    Serial.print("Web服务器初始化异常: ");
+    Serial.println(e.what());
+  }
+}
+
+// 更新初始数据
+void updateInitialData() {
+  // 更新初始数据
+  try {
+    timeManager.update();       // 更新时间
+    Serial.println("时间数据更新完成");
+  } catch (const std::exception& e) {
+    Serial.print("时间数据更新异常: ");
+    Serial.println(e.what());
+  }
+  
+  try {
+    weatherManager.update();    // 更新天气
+    Serial.println("天气数据更新完成");
+  } catch (const std::exception& e) {
+    Serial.print("天气数据更新异常: ");
+    Serial.println(e.what());
+  }
+  
+  try {
+    sensorManager.update();     // 更新传感器数据
+    Serial.println("传感器数据更新完成");
+  } catch (const std::exception& e) {
+    Serial.print("传感器数据更新异常: ");
+    Serial.println(e.what());
+  }
+  
+  #if ENABLE_STOCK
+    try {
+      stockManager.update();      // 更新股票数据
+      Serial.println("股票数据更新完成");
+    } catch (const std::exception& e) {
+      Serial.print("股票数据更新异常: ");
+      Serial.println(e.what());
+    }
+  #endif
+  
+  try {
+    lunarManager.update();      // 更新农历数据
+    Serial.println("农历数据更新完成");
+  } catch (const std::exception& e) {
+    Serial.print("农历数据更新异常: ");
+    Serial.println(e.what());
+  }
+  
+  // 显示初始页面
+  try {
+    displayManager.updateDisplay();
+    Serial.println("初始页面显示完成");
+  } catch (const std::exception& e) {
+    Serial.print("初始页面显示异常: ");
+    Serial.println(e.what());
+  }
+}
+
+void setup() {
+  // 初始化核心系统（底层操作系统）
+  CoreSystem* coreSystem = CoreSystem::getInstance();
+  if (!coreSystem->init()) {
+    Serial.println("核心系统初始化失败，进入安全模式");
+    // 安全模式下只初始化必要功能
+    initSystem();
+    registerHardwareDrivers();
+    initDisplaySystem();
+    return;
+  }
+  
+  // 初始化应用层模块
+  initInputDevices();
+  initLocalModules();
+  initNetworkModules();
+  initNetworkDependentModules();
+  updateInitialData();
+  
+  // 打印初始化完成信息
+  Serial.println("===== 初始化完成 =====");
+}
+
 /**
  * @brief 主循环函数
  * 
@@ -400,41 +609,42 @@ void loop() {
   static unsigned long lastWatchdogReset = 0;
   static const unsigned long WATCHDOG_TIMEOUT = 60000; // 看门狗超时时间，60秒
   
+  // 获取核心系统实例
+  CoreSystem* coreSystem = CoreSystem::getInstance();
+  
   try {
     // 重置软件看门狗
     lastWatchdogReset = millis();
+    
+    // 运行核心系统（底层操作系统）
+    coreSystem->run();
     
     // 处理各个模块的循环任务，每个模块都用try-catch包裹，确保单个模块崩溃不会影响整个系统
   // 核心功能模块 - 优先执行
   try {
     wifiManager.loop();           // WiFi状态监测和重连（核心网络功能）
   } catch (const std::exception& e) {
-    Serial.print("WiFi模块异常: ");
-    Serial.println(e.what());
-    Serial.flush();
+    coreSystem->sendError("WiFi模块异常", 1001, "WiFiManager");
   }
   
   try {
     powerManager.loop();          // 电源状态监测和低功耗控制（影响系统运行模式）
   } catch (const std::exception& e) {
-    Serial.print("电源模块异常: ");
-    Serial.println(e.what());
+    coreSystem->sendError("电源模块异常", 1002, "PowerManager");
   }
   
   // 实时交互模块 - 需要快速响应
   try {
     buttonManager.loop();         // 按键事件检测（实时交互）
   } catch (const std::exception& e) {
-    Serial.print("按键模块异常: ");
-    Serial.println(e.what());
+    coreSystem->sendError("按键模块异常", 1003, "ButtonManager");
   }
   
   #if ENABLE_TOUCH
     try {
       touchManager.loop();          // 触摸事件检测（实时交互）
     } catch (const std::exception& e) {
-      Serial.print("触摸模块异常: ");
-      Serial.println(e.what());
+      coreSystem->sendError("触摸模块异常", 1004, "TouchManager");
     }
   #endif
   
@@ -442,47 +652,40 @@ void loop() {
   try {
     timeManager.loop();           // 时间更新和同步（系统时间基准）
   } catch (const std::exception& e) {
-    Serial.print("时间模块异常: ");
-    Serial.println(e.what());
-    Serial.flush();
+    coreSystem->sendError("时间模块异常", 1005, "TimeManager");
   }
   
   // 地理位置模块 - 影响天气等数据
   try {
     geoManager.loop();            // 地理位置更新和管理
   } catch (const std::exception& e) {
-    Serial.print("地理位置模块异常: ");
-    Serial.println(e.what());
+    coreSystem->sendError("地理位置模块异常", 1006, "GeoManager");
   }
   
   // 数据获取模块 - 顺序执行，避免并发网络请求
   try {
     sensorManager.loop();         // 传感器数据采集（本地传感器，响应快）
   } catch (const std::exception& e) {
-    Serial.print("传感器模块异常: ");
-    Serial.println(e.what());
+    coreSystem->sendError("传感器模块异常", 1007, "SensorManager");
   }
   
   try {
     lunarManager.loop();          // 农历管理模块循环
   } catch (const std::exception& e) {
-    Serial.print("农历模块异常: ");
-    Serial.println(e.what());
+    coreSystem->sendError("农历模块异常", 1008, "LunarManager");
   }
   
   try {
     weatherManager.loop();        // 天气数据管理
   } catch (const std::exception& e) {
-    Serial.print("天气模块异常: ");
-    Serial.println(e.what());
+    coreSystem->sendError("天气模块异常", 1009, "WeatherManager");
   }
   
   #if ENABLE_STOCK
     try {
       stockManager.loop();          // 股票数据管理
     } catch (const std::exception& e) {
-      Serial.print("股票模块异常: ");
-      Serial.println(e.what());
+      coreSystem->sendError("股票模块异常", 1010, "StockManager");
     }
   #endif
   
@@ -491,8 +694,7 @@ void loop() {
     try {
       audioManager.loop();          // 音频播放控制
     } catch (const std::exception& e) {
-      Serial.print("音频模块异常: ");
-      Serial.println(e.what());
+      coreSystem->sendError("音频模块异常", 1011, "AudioManager");
     }
   #endif
   
@@ -500,8 +702,7 @@ void loop() {
     try {
       bluetoothManager.loop();      // 蓝牙连接管理
     } catch (const std::exception& e) {
-      Serial.print("蓝牙模块异常: ");
-      Serial.println(e.what());
+      coreSystem->sendError("蓝牙模块异常", 1012, "BluetoothManager");
     }
   #endif
   
@@ -509,8 +710,7 @@ void loop() {
     try {
       cameraManager.loop();         // 摄像头状态管理
     } catch (const std::exception& e) {
-      Serial.print("摄像头模块异常: ");
-      Serial.println(e.what());
+      coreSystem->sendError("摄像头模块异常", 1013, "CameraManager");
     }
   #endif
   
@@ -518,16 +718,14 @@ void loop() {
   try {
     webServerManager.loop();      // Web服务器请求处理
   } catch (const std::exception& e) {
-    Serial.print("Web服务器模块异常: ");
-    Serial.println(e.what());
+    coreSystem->sendError("Web服务器模块异常", 1014, "WebServerManager");
   }
   
   #if ENABLE_WEBCLIENT
     try {
       webClient.loop();             // 与云端服务器通信
     } catch (const std::exception& e) {
-      Serial.print("Web客户端模块异常: ");
-      Serial.println(e.what());
+      coreSystem->sendError("Web客户端模块异常", 1015, "WebClient");
     }
   #endif
   
@@ -536,8 +734,7 @@ void loop() {
     try {
       messageManager.loop();        // 消息接收和处理
     } catch (const std::exception& e) {
-      Serial.print("消息模块异常: ");
-      Serial.println(e.what());
+      coreSystem->sendError("消息模块异常", 1016, "MessageManager");
     }
   #endif
   
@@ -545,8 +742,7 @@ void loop() {
     try {
       pluginManager.loop();         // 插件更新和显示
     } catch (const std::exception& e) {
-      Serial.print("插件模块异常: ");
-      Serial.println(e.what());
+      coreSystem->sendError("插件模块异常", 1017, "PluginManager");
     }
   #endif
   
@@ -554,8 +750,7 @@ void loop() {
     try {
       firmwareManager.loop();       // 固件更新检查
     } catch (const std::exception& e) {
-      Serial.print("固件管理模块异常: ");
-      Serial.println(e.what());
+      coreSystem->sendError("固件管理模块异常", 1018, "FirmwareManager");
     }
   #endif
   
@@ -566,8 +761,7 @@ void loop() {
       displayManager.updateDisplayPartial();
     }
   } catch (const std::exception& e) {
-    Serial.print("显示更新异常: ");
-    Serial.println(e.what());
+    coreSystem->sendError("显示更新异常", 1019, "DisplayManager");
   }
   
   // 定期更新数据 - 为每个模块使用独立的更新间隔，避免不必要的数据刷新
@@ -585,8 +779,7 @@ void loop() {
       timeManager.update();       // 更新时间
     }
   } catch (const std::exception& e) {
-    Serial.print("时间更新异常: ");
-    Serial.println(e.what());
+    coreSystem->sendError("时间更新异常", 1020, "TimeManager");
   }
   
   // 更新天气（根据weather_manager的配置）
@@ -596,8 +789,7 @@ void loop() {
       weatherManager.update();    // 更新天气
     }
   } catch (const std::exception& e) {
-    Serial.print("天气更新异常: ");
-    Serial.println(e.what());
+    coreSystem->sendError("天气更新异常", 1021, "WeatherManager");
   }
   
   // 更新传感器数据（根据sensor_manager的配置）
@@ -607,8 +799,7 @@ void loop() {
       sensorManager.update();     // 更新传感器数据
     }
   } catch (const std::exception& e) {
-    Serial.print("传感器更新异常: ");
-    Serial.println(e.what());
+    coreSystem->sendError("传感器更新异常", 1022, "SensorManager");
   }
   
   #if ENABLE_STOCK
@@ -620,8 +811,7 @@ void loop() {
         stockManager.update();      // 更新股票数据
       }
     } catch (const std::exception& e) {
-      Serial.print("股票更新异常: ");
-      Serial.println(e.what());
+      coreSystem->sendError("股票更新异常", 1023, "StockManager");
     }
   #endif
   
@@ -632,14 +822,11 @@ void loop() {
       lunarManager.update();      // 更新农历数据
     }
   } catch (const std::exception& e) {
-    Serial.print("农历更新异常: ");
-    Serial.println(e.what());
+    coreSystem->sendError("农历更新异常", 1024, "LunarManager");
   }
 } catch (const std::exception& e) {
   // 捕获所有未处理的异常，确保系统不会完全崩溃
-  Serial.print("主循环异常: ");
-  Serial.println(e.what());
-  Serial.flush();
+  coreSystem->sendError("主循环异常", 1025, "MainLoop");
   
   // 尝试恢复基本功能
   try {
@@ -653,8 +840,7 @@ void loop() {
   }
 } catch (...) {
   // 捕获所有其他类型的异常
-  Serial.println("捕获到未知异常");
-  Serial.flush();
+  coreSystem->sendError("未知异常", 1026, "MainLoop");
 }
   
   // 软件看门狗检查

@@ -1,5 +1,6 @@
 #include "sensor_manager.h"
-#include "../drivers/core/driver_registry.h"
+#include "../core/driver_registry.h"
+#include "../core/event_bus.h"
 
 SensorManager::SensorManager() : sensorDriver(nullptr) {
   // 初始化传感器数据
@@ -38,6 +39,55 @@ SensorManager::SensorManager() : sensorDriver(nullptr) {
   gasSensorEnabled = true;
   flameSensorEnabled = true;
   lightSensorEnabled = true;
+  
+  // 订阅事件
+  EVENT_SUBSCRIBE(EVENT_SENSOR_CONFIG_CHANGED, [this](EventType type, std::shared_ptr<EventData> data) {
+    auto sensorData = std::dynamic_pointer_cast<SensorConfigEventData>(data);
+    if (sensorData) {
+      setSensorConfig(sensorData->config);
+    }
+  }, "SensorManager");
+  
+  EVENT_SUBSCRIBE(EVENT_DRIVER_REGISTERED, [this](EventType type, std::shared_ptr<EventData> data) {
+    auto driverData = std::dynamic_pointer_cast<DriverEventData>(data);
+    if (driverData && driverData->driverType == DRIVER_TYPE_SENSOR) {
+      // 传感器驱动注册，尝试重新检测传感器
+      DriverRegistry* registry = DriverRegistry::getInstance();
+      ISensorDriver* newDriver = registry->autoDetectSensorDriver();
+      if (newDriver != nullptr) {
+        if (sensorDriver != nullptr) {
+          delete sensorDriver;
+        }
+        sensorDriver = newDriver;
+        currentConfig = sensorDriver->getConfig();
+        currentData.valid = true;
+      }
+    }
+  }, "SensorManager");
+  
+  EVENT_SUBSCRIBE(EVENT_DRIVER_UNREGISTERED, [this](EventType type, std::shared_ptr<EventData> data) {
+    auto driverData = std::dynamic_pointer_cast<DriverEventData>(data);
+    if (driverData && driverData->driverType == DRIVER_TYPE_SENSOR) {
+      // 传感器驱动注销，重置传感器驱动
+      if (sensorDriver != nullptr) {
+        delete sensorDriver;
+        sensorDriver = nullptr;
+        currentData.valid = false;
+      }
+    }
+  }, "SensorManager");
+  
+  EVENT_SUBSCRIBE(EVENT_POWER_STATE_CHANGED, [this](EventType type, std::shared_ptr<EventData> data) {
+    auto powerData = std::dynamic_pointer_cast<PowerEventData>(data);
+    if (powerData) {
+      // 根据电源状态调整传感器采样频率
+      if (powerData->state == POWER_STATE_LOW) {
+        setUpdateInterval(60000); // 低功耗模式下每分钟更新一次
+      } else {
+        setUpdateInterval(SENSOR_UPDATE_INTERVAL); // 正常模式下使用默认间隔
+      }
+    }
+  }, "SensorManager");
 }
 
 SensorManager::~SensorManager() {
@@ -255,6 +305,10 @@ void SensorManager::update() {
       DEBUG_PRINT(", 光照强度 = ");
       DEBUG_PRINT(currentData.lightLevel);
       DEBUG_PRINTLN();
+      
+      // 发布传感器数据更新事件
+      auto sensorData = std::make_shared<SensorDataEventData>(currentData);
+      EVENT_PUBLISH(EVENT_SENSOR_DATA_UPDATED, sensorData);
       
       // 检查报警条件
       checkAlarmConditions();
@@ -516,7 +570,7 @@ void SensorManager::checkAlarmConditions() {
   if (gasSensorEnabled && currentData.gasLevel > gasAlarmThreshold) {
     newGasAlarm = true;
     if (!gasAlarmTriggered) {
-      triggerAlarm("燃气/一氧化碳浓度过高");
+      triggerAlarm("gas");
     }
   }
   
@@ -524,7 +578,7 @@ void SensorManager::checkAlarmConditions() {
   if (flameSensorEnabled && currentData.flameDetected == flameAlarmThreshold) {
     newFlameAlarm = true;
     if (!flameAlarmTriggered) {
-      triggerAlarm("检测到火焰");
+      triggerAlarm("flame");
     }
   }
   
@@ -532,7 +586,7 @@ void SensorManager::checkAlarmConditions() {
   if (currentData.temperature < tempMinAlarmThreshold || currentData.temperature > tempMaxAlarmThreshold) {
     newTempAlarm = true;
     if (!tempAlarmTriggered) {
-      triggerAlarm("温度异常");
+      triggerAlarm("temperature");
     }
   }
   
@@ -540,7 +594,7 @@ void SensorManager::checkAlarmConditions() {
   if (currentData.humidity < humidityMinAlarmThreshold || currentData.humidity > humidityMaxAlarmThreshold) {
     newHumidityAlarm = true;
     if (!humidityAlarmTriggered) {
-      triggerAlarm("湿度异常");
+      triggerAlarm("humidity");
     }
   }
   
@@ -548,7 +602,7 @@ void SensorManager::checkAlarmConditions() {
   if (lightSensorEnabled && currentData.lightLevel > lightAlarmThreshold) {
     newLightAlarm = true;
     if (!lightAlarmTriggered) {
-      triggerAlarm("光照强度异常");
+      triggerAlarm("light");
     }
   }
   
@@ -565,10 +619,36 @@ void SensorManager::triggerAlarm(String alarmType) {
   DEBUG_PRINT("触发报警: ");
   DEBUG_PRINTLN(alarmType);
   
+  String alarmTitle = "";
+  String alarmMessage = "";
+  
+  // 根据报警类型设置报警标题和信息
+  if (alarmType == "gas") {
+    alarmTitle = "燃气报警";
+    alarmMessage = "检测到危险气体！";
+  } else if (alarmType == "flame") {
+    alarmTitle = "火焰报警";
+    alarmMessage = "检测到火焰！";
+  } else if (alarmType == "temperature") {
+    alarmTitle = "温度报警";
+    alarmMessage = "温度异常！";
+  } else if (alarmType == "humidity") {
+    alarmTitle = "湿度报警";
+    alarmMessage = "湿度异常！";
+  } else if (alarmType == "light") {
+    alarmTitle = "光照报警";
+    alarmMessage = "光照异常！";
+  } else {
+    alarmTitle = "系统报警";
+    alarmMessage = "检测到异常！";
+  }
+  
+  // 发布报警事件，让其他模块处理
+  auto alarmData = std::make_shared<AlarmEventData>(alarmTitle, alarmMessage);
+  EVENT_PUBLISH(EVENT_ALARM_TRIGGERED, alarmData);
+  
   // 这里可以添加更多报警处理逻辑，如：
-  // 1. 发送通知到手机
-  // 2. 触发音频报警
-  // 3. 显示报警信息到屏幕
+  // 3. 发送通知到手机
   // 4. 发送短信或邮件报警
 }
 
@@ -625,4 +705,52 @@ void SensorManager::filterData() {
   
   // 更新历史记录索引
   historyIndex = (historyIndex + 1) % 10;
+}
+
+void SensorManager::setSensorConfig(SensorConfig config) {
+  currentConfig = config;
+  
+  // 尝试获取新的传感器驱动
+  DriverRegistry* registry = DriverRegistry::getInstance();
+  ISensorDriver* newDriver = registry->getSensorDriver(config.type);
+  if (newDriver != nullptr) {
+    if (sensorDriver != nullptr) {
+      delete sensorDriver;
+    }
+    sensorDriver = newDriver;
+    
+    // 初始化传感器驱动
+    if (sensorDriver->init(config)) {
+      currentConfig = sensorDriver->getConfig();
+      currentData.valid = true;
+      
+      // 发布传感器配置更新事件
+      auto sensorConfigData = std::make_shared<SensorConfigEventData>(currentConfig);
+      EVENT_PUBLISH(EVENT_SENSOR_CONFIG_UPDATED, sensorConfigData);
+    } else {
+      delete sensorDriver;
+      sensorDriver = nullptr;
+      currentData.valid = false;
+    }
+  }
+}
+
+void SensorManager::setSensorType(SensorType type) {
+  currentConfig.type = type;
+  setSensorConfig(currentConfig);
+}
+
+void SensorManager::setI2CAddress(uint8_t address) {
+  currentConfig.address = address;
+  setSensorConfig(currentConfig);
+}
+
+void SensorManager::setPin(int pin) {
+  currentConfig.pin = pin;
+  setSensorConfig(currentConfig);
+}
+
+void SensorManager::setUpdateInterval(unsigned long interval) {
+  currentConfig.updateInterval = interval;
+  setSensorConfig(currentConfig);
 }

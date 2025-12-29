@@ -95,6 +95,12 @@ public:
   // 获取显示类型
   EinkDisplayType getType() const override;
   
+  // 测量文本宽度
+  int16_t measureTextWidth(const String& text, uint8_t size) const override;
+  
+  // 测量文本高度
+  int16_t measureTextHeight(const String& text, uint8_t size) const override;
+  
 private:
   // 墨水屏IO和显示对象
   GxIO_Class io;

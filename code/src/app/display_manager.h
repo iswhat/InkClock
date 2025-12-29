@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include "../drivers/displays/display_driver.h"
 #include "../core/config.h"
+#include "../core/event_bus.h"
 
 // 右侧页面类型枚举
 enum RightPageType {
@@ -67,6 +68,12 @@ public:
   bool getShowSeconds() const { return showSeconds; }
   void setShowSeconds(bool show) { showSeconds = show; }
   
+  // 报警显示相关方法
+  void showAlarm(String alarmType, String message);
+  void hideAlarm();
+  bool isAlarmShowing() const { return alarmShowing; }
+  void updateAlarmDisplay();
+  
 private:
   // 显示驱动
   IDisplayDriver* displayDriver;
@@ -101,6 +108,24 @@ private:
   unsigned long lastMessageUpdateTime;
   unsigned long lastCalendarUpdateTime;
   unsigned long lastFullRefreshTime;
+  
+  // 报警显示相关变量
+  bool alarmShowing;
+  String currentAlarmType;
+  String currentAlarmMessage;
+  unsigned long lastAlarmUpdateTime;
+  bool alarmBlinkState;
+  unsigned long lastBlinkTime;
+  unsigned long alarmStartTime;
+  
+  // 本地缓存数据
+  TimeData cachedTimeData;
+  WeatherData cachedWeatherData;
+  SensorData cachedSensorData;
+  int cachedBatteryPercentage;
+  float cachedBatteryVoltage;
+  bool cachedIsCharging;
+  int cachedUnreadMessageCount;
   
   // 私有方法
   void drawHeader(String title);

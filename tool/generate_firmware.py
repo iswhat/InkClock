@@ -241,6 +241,7 @@ SUPPORTED_HARDWARE = {
             'TOUCH': '触摸功能',
             'FONT': '字体管理功能',
             'TF_CARD_MANAGEMENT': 'TF卡管理功能',
+            'ALARM_DISPLAY': '报警显示功能',
         }
     }
 }
@@ -417,9 +418,13 @@ def update_main_cpp(config):
     has_tf_card = 'TF_CARD' in config['hardware']
     content = re.sub(r'#define ENABLE_TF_CARD.*', f'#define ENABLE_TF_CARD {'true' if has_tf_card else 'false'}', content)
     
-    # TF卡管理功能宏定义
+    # 更新TF卡管理功能宏定义
     has_tf_card_management = 'TF_CARD_MANAGEMENT' in config['features']
     content = re.sub(r'#define ENABLE_TF_CARD_MANAGEMENT.*', f'#define ENABLE_TF_CARD_MANAGEMENT {'true' if has_tf_card_management else 'false'}', content)
+    
+    # 更新报警显示功能宏定义
+    has_alarm_display = 'ALARM_DISPLAY' in config['features']
+    content = re.sub(r'#define ENABLE_ALARM_DISPLAY.*', f'#define ENABLE_ALARM_DISPLAY {'true' if has_alarm_display else 'false'}', content)
     
     # 写入更新后的内容
     with open(main_cpp_path, 'w', encoding='utf-8') as f:

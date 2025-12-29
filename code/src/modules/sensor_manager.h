@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include "../core/config.h"
 #include "../drivers/sensors/sensor_driver.h"
+#include "../core/event_bus.h"
 
 
 

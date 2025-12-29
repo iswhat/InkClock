@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include "core/config.h"
 #include <ESP32-audioI2S.h>
+#include "core/event_bus.h"
 
 // 音频状态枚举
 enum AudioState {
@@ -50,6 +51,9 @@ public:
   
   // 获取总播放时长
   unsigned long getTotalDuration() { return totalDuration; }
+  
+  // 播放报警声音
+  bool playAlarmSound();
   
 private:
   // 音频状态

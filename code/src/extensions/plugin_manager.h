@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include "../core/config.h"
+#include "../core/event_bus.h"
 
 // 插件状态枚举
 enum PluginStatus {
