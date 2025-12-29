@@ -24,23 +24,99 @@
 #include "services/time_manager.h"
 #include "modules/weather_manager.h"
 #include "modules/sensor_manager.h"
-#include "audio_manager.h"
 #include "button_manager.h"
-#include "modules/message_manager.h"
-#include "modules/stock_manager.h"
-#include "extensions/plugin_manager.h"
-#include "bluetooth_manager.h"
 #include "app/web_server.h"
 #include "services/power_manager.h"
-#include "touch_manager.h"
-#include "camera_manager.h"
-#include "app/web_client.h"
-#include "ipv6_server.h"
-#include "firmware_manager.h"
 #include "modules/lunar_manager.h"
 #include "services/api_manager.h"
 #include "services/geo_manager.h"
 #include "drivers/core/driver_registry.h"
+#include "core/spiffs_manager.h"
+
+// 条件包含可选模块 - 可通过修改这些宏来启用或禁用相应功能
+// 音频功能 - 用于音频录制和播放
+#define ENABLE_AUDIO true      
+
+// 蓝牙功能 - 用于首次WiFi配置和蓝牙通信
+#define ENABLE_BLUETOOTH true   
+
+// 摄像头功能 - 用于图像识别和监控
+#define ENABLE_CAMERA false     
+
+// 股票功能 - 用于获取和显示股票数据
+#define ENABLE_STOCK true       
+
+// 消息功能 - 用于接收和显示消息
+#define ENABLE_MESSAGE true     
+
+// 字体功能 - 用于字体管理和选择
+#define ENABLE_FONT true        
+
+// 插件功能 - 用于扩展功能
+#define ENABLE_PLUGIN true      
+
+// Web客户端功能 - 用于与Web服务器通信
+#define ENABLE_WEBCLIENT true   
+
+// IPv6功能 - 用于IPv6网络支持
+#define ENABLE_IPV6 false       
+
+// 固件更新功能 - 用于OTA更新
+#define ENABLE_FIRMWARE true    
+
+// 触摸功能 - 用于触摸屏幕支持
+#define ENABLE_TOUCH false      
+
+// TF卡功能 - 用于存储音频、图片、视频
+#define ENABLE_TF_CARD false     
+
+// TF卡管理功能 - 用于管理TF卡内容
+#define ENABLE_TF_CARD_MANAGEMENT false 
+
+
+#if ENABLE_AUDIO
+  #include "audio_manager.h"
+#endif
+
+#if ENABLE_BLUETOOTH
+  #include "bluetooth_manager.h"
+#endif
+
+#if ENABLE_CAMERA
+  #include "camera_manager.h"
+#endif
+
+#if ENABLE_STOCK
+  #include "modules/stock_manager.h"
+#endif
+
+#if ENABLE_MESSAGE
+  #include "modules/message_manager.h"
+#endif
+
+#if ENABLE_PLUGIN
+  #include "extensions/plugin_manager.h"
+#endif
+
+#if ENABLE_WEBCLIENT
+  #include "app/web_client.h"
+#endif
+
+#if ENABLE_FONT
+  #include "core/font_manager.h"
+#endif
+
+#if ENABLE_IPV6
+  #include "ipv6_server.h"
+#endif
+
+#if ENABLE_FIRMWARE
+  #include "firmware_manager.h"
+#endif
+
+#if ENABLE_TOUCH
+  #include "touch_manager.h"
+#endif
 
 /**
  * @brief 全局对象实例
@@ -53,20 +129,52 @@ TimeManager timeManager;             // 时间管理模块
 LunarManager lunarManager;           // 农历管理模块
 WeatherManager weatherManager;       // 天气管理模块
 SensorManager sensorManager;         // 传感器管理模块
-AudioManager audioManager;           // 音频管理模块
 ButtonManager buttonManager;         // 按键管理模块
-MessageManager messageManager;       // 消息管理模块
-StockManager stockManager;           // 股票管理模块
-PluginManager pluginManager;         // 插件管理模块
 PowerManager powerManager;           // 电源管理模块
-BluetoothManager bluetoothManager;   // 蓝牙管理模块
-WebServerManager webServerManager;   // Web服务器模块（合并了IPv6Server功能）
-TouchManager touchManager;           // 触摸管理模块
-CameraManager cameraManager;         // 摄像头管理模块
-WebClient webClient;                 // Web客户端模块
-FirmwareManager firmwareManager;     // 固件管理模块
+WebServerManager webServerManager;   // Web服务器模块
 APIManager apiManager;               // API管理模块
 GeoManager geoManager;               // 地理位置管理模块
+
+// 条件创建可选模块实例
+#if ENABLE_AUDIO
+  AudioManager audioManager;           // 音频管理模块
+#endif
+
+#if ENABLE_BLUETOOTH
+  BluetoothManager bluetoothManager;   // 蓝牙管理模块
+#endif
+
+#if ENABLE_CAMERA
+  CameraManager cameraManager;         // 摄像头管理模块
+#endif
+
+#if ENABLE_STOCK
+  StockManager stockManager;           // 股票管理模块
+#endif
+
+#if ENABLE_MESSAGE
+  MessageManager messageManager;       // 消息管理模块
+#endif
+
+#if ENABLE_PLUGIN
+  PluginManager pluginManager;         // 插件管理模块
+#endif
+
+#if ENABLE_WEBCLIENT
+  WebClient webClient;                 // Web客户端模块
+#endif
+
+#if ENABLE_FONT
+  FontManager fontManager;             // 字体管理模块
+#endif
+
+#if ENABLE_FIRMWARE
+  FirmwareManager firmwareManager;     // 固件管理模块
+#endif
+
+#if ENABLE_TOUCH
+  TouchManager touchManager;           // 触摸管理模块
+#endif
 
 /**
  * @brief 初始化函数
@@ -94,8 +202,8 @@ void setup() {
   Serial.println("===== 家用网络智能墨水屏万年历 ====");
   
   try {
-    // 初始化固件管理器，进行硬件自动检测和驱动适配
-    firmwareManager.init();
+    // 初始化SPIFFS，确保在其他模块之前初始化
+    initSPIFFS();
     
     // 初始化电源管理，影响系统运行模式
     powerManager.init();        // 电源管理和低功耗控制
@@ -180,60 +288,77 @@ void setup() {
     
     // 初始化输入设备，用于用户交互
     buttonManager.init();       // 按键事件处理
-    touchManager.init();        // 触摸事件处理（仅支持ESP32-S3系列）
+    
+    #if ENABLE_TOUCH
+      touchManager.init();        // 触摸事件处理
+    #endif
     
     // 初始化蓝牙管理模块，用于首次WiFi配置
-    bluetoothManager.init();
+    #if ENABLE_BLUETOOTH
+      bluetoothManager.init();
+    #endif
     
     // 初始化本地传感器和不需要网络的模块
     sensorManager.init();       // 温湿度传感器管理
-    audioManager.init();        // 音频录制和播放管理
-    messageManager.init();      // 消息接收和存储
-    pluginManager.init();       // 插件加载和管理
-    cameraManager.init();       // 摄像头管理（仅支持ESP32-S3系列，资源消耗大）
+    
+    #if ENABLE_AUDIO
+      audioManager.init();        // 音频录制和播放管理
+    #endif
+    
+    #if ENABLE_MESSAGE
+      messageManager.init();      // 消息接收和存储
+    #endif
+    
+    #if ENABLE_PLUGIN
+      pluginManager.init();       // 插件加载和管理
+    #endif
+    
+    #if ENABLE_TF_CARD
+      #include "core/tf_card_manager.h"
+      initTFCard(SD_CS);          // TF卡初始化
+    #endif
+    
+    #if ENABLE_FONT
+      fontManager.init();         // 字体管理初始化
+    #endif
+    
+    #if ENABLE_CAMERA
+      cameraManager.init();       // 摄像头管理
+    #endif
     
     // 初始化网络通信相关模块
-    webClient.init();           // Web客户端，用于与云端服务器通信
+    #if ENABLE_WEBCLIENT
+      webClient.init();           // Web客户端，用于与云端服务器通信
+    #endif
+    
     apiManager.init();          // API管理器，用于统一处理所有外部API请求
     geoManager.init();          // 地理位置管理器，用于自动检测和管理地理位置
     
-    // 检查是否已经配置了WiFi，如果没有，等待蓝牙配置
-    if (!wifiManager.isConnected()) {
-      Serial.println("等待蓝牙WiFi配置...");
-      
-      // 在墨水屏上显示蓝牙配置提示
-      displayManager.showMessage("等待蓝牙WiFi配置...", 10000);
-      
-      // 等待蓝牙配置WiFi信息
-      while (!bluetoothManager.isWiFiConfigured()) {
-        bluetoothManager.loop();
-        delay(1000);
-      }
-      
-      // 使用蓝牙配置的WiFi信息连接网络
-      String ssid = bluetoothManager.getWiFiSSID();
-      String password = bluetoothManager.getWiFiPassword();
-      wifiManager.init();
-      wifiManager.connect(ssid, password);
-    } else {
-      // 已经连接了WiFi，直接初始化WiFi模块
-      wifiManager.init();
-    }
+    // 初始化WiFi模块
+    wifiManager.init();
     
     // 初始化需要WiFi的模块
     timeManager.init();         // NTP时间同步
     weatherManager.init();      // 天气数据获取
-    stockManager.init();        // 股票数据获取和显示（依赖网络）
-    lunarManager.init();        // 农历管理模块（依赖网络）
     
-    // 初始化Web服务器，提供设备管理API和IPv6推送功能
+    #if ENABLE_STOCK
+      stockManager.init();        // 股票数据获取和显示
+    #endif
+    
+    lunarManager.init();        // 农历管理模块
+    
+    // 初始化Web服务器
     webServerManager.init();
     
     // 更新初始数据
     timeManager.update();       // 更新时间
     weatherManager.update();    // 更新天气
     sensorManager.update();     // 更新传感器数据
-    stockManager.update();      // 更新股票数据
+    
+    #if ENABLE_STOCK
+      stockManager.update();      // 更新股票数据
+    #endif
+    
     lunarManager.update();      // 更新农历数据
     
     // 显示初始页面
@@ -248,8 +373,7 @@ void setup() {
     // 显示错误信息
     displayManager.showMessage("初始化失败，进入安全模式", 5000);
     
-    // 仅保留基本功能，确保可以进行刷机或更新
-    firmwareManager.init();
+    // 仅保留基本功能
     webServerManager.init();
   }
 }
@@ -281,195 +405,214 @@ void loop() {
     lastWatchdogReset = millis();
     
     // 处理各个模块的循环任务，每个模块都用try-catch包裹，确保单个模块崩溃不会影响整个系统
-    // 核心功能模块 - 优先执行
-    try {
-      wifiManager.loop();           // WiFi状态监测和重连（核心网络功能）
-    } catch (const std::exception& e) {
-      Serial.print("WiFi模块异常: ");
-      Serial.println(e.what());
-      Serial.flush();
-    }
-    
-    try {
-      powerManager.loop();          // 电源状态监测和低功耗控制（影响系统运行模式）
-    } catch (const std::exception& e) {
-      Serial.print("电源模块异常: ");
-      Serial.println(e.what());
-    }
-    
-    // 实时交互模块 - 需要快速响应
-    try {
-      buttonManager.loop();         // 按键事件检测（实时交互）
-    } catch (const std::exception& e) {
-      Serial.print("按键模块异常: ");
-      Serial.println(e.what());
-    }
-    
+  // 核心功能模块 - 优先执行
+  try {
+    wifiManager.loop();           // WiFi状态监测和重连（核心网络功能）
+  } catch (const std::exception& e) {
+    Serial.print("WiFi模块异常: ");
+    Serial.println(e.what());
+    Serial.flush();
+  }
+  
+  try {
+    powerManager.loop();          // 电源状态监测和低功耗控制（影响系统运行模式）
+  } catch (const std::exception& e) {
+    Serial.print("电源模块异常: ");
+    Serial.println(e.what());
+  }
+  
+  // 实时交互模块 - 需要快速响应
+  try {
+    buttonManager.loop();         // 按键事件检测（实时交互）
+  } catch (const std::exception& e) {
+    Serial.print("按键模块异常: ");
+    Serial.println(e.what());
+  }
+  
+  #if ENABLE_TOUCH
     try {
       touchManager.loop();          // 触摸事件检测（实时交互）
     } catch (const std::exception& e) {
       Serial.print("触摸模块异常: ");
       Serial.println(e.what());
     }
-    
-    // 时间基准模块 - 影响其他模块的时间戳
-    try {
-      timeManager.loop();           // 时间更新和同步（系统时间基准）
-    } catch (const std::exception& e) {
-      Serial.print("时间模块异常: ");
-      Serial.println(e.what());
-      Serial.flush();
-    }
-    
-    // 地理位置模块 - 影响天气、股票等数据
-    try {
-      geoManager.loop();            // 地理位置更新和管理
-    } catch (const std::exception& e) {
-      Serial.print("地理位置模块异常: ");
-      Serial.println(e.what());
-    }
-    
-    // 数据获取模块 - 顺序执行，避免并发网络请求
-    try {
-      sensorManager.loop();         // 传感器数据采集（本地传感器，响应快）
-    } catch (const std::exception& e) {
-      Serial.print("传感器模块异常: ");
-      Serial.println(e.what());
-    }
-    
-    try {
-      lunarManager.loop();          // 农历管理模块循环
-    } catch (const std::exception& e) {
-      Serial.print("农历模块异常: ");
-      Serial.println(e.what());
-    }
-    
-    try {
-      weatherManager.loop();        // 天气数据管理
-    } catch (const std::exception& e) {
-      Serial.print("天气模块异常: ");
-      Serial.println(e.what());
-    }
-    
+  #endif
+  
+  // 时间基准模块 - 影响其他模块的时间戳
+  try {
+    timeManager.loop();           // 时间更新和同步（系统时间基准）
+  } catch (const std::exception& e) {
+    Serial.print("时间模块异常: ");
+    Serial.println(e.what());
+    Serial.flush();
+  }
+  
+  // 地理位置模块 - 影响天气等数据
+  try {
+    geoManager.loop();            // 地理位置更新和管理
+  } catch (const std::exception& e) {
+    Serial.print("地理位置模块异常: ");
+    Serial.println(e.what());
+  }
+  
+  // 数据获取模块 - 顺序执行，避免并发网络请求
+  try {
+    sensorManager.loop();         // 传感器数据采集（本地传感器，响应快）
+  } catch (const std::exception& e) {
+    Serial.print("传感器模块异常: ");
+    Serial.println(e.what());
+  }
+  
+  try {
+    lunarManager.loop();          // 农历管理模块循环
+  } catch (const std::exception& e) {
+    Serial.print("农历模块异常: ");
+    Serial.println(e.what());
+  }
+  
+  try {
+    weatherManager.loop();        // 天气数据管理
+  } catch (const std::exception& e) {
+    Serial.print("天气模块异常: ");
+    Serial.println(e.what());
+  }
+  
+  #if ENABLE_STOCK
     try {
       stockManager.loop();          // 股票数据管理
     } catch (const std::exception& e) {
       Serial.print("股票模块异常: ");
       Serial.println(e.what());
     }
-    
-    // 扩展功能模块 - 资源消耗较大，放在后面
+  #endif
+  
+  // 扩展功能模块 - 资源消耗较大，放在后面
+  #if ENABLE_AUDIO
     try {
       audioManager.loop();          // 音频播放控制
     } catch (const std::exception& e) {
       Serial.print("音频模块异常: ");
       Serial.println(e.what());
     }
-    
+  #endif
+  
+  #if ENABLE_BLUETOOTH
     try {
       bluetoothManager.loop();      // 蓝牙连接管理
     } catch (const std::exception& e) {
       Serial.print("蓝牙模块异常: ");
       Serial.println(e.what());
     }
-    
+  #endif
+  
+  #if ENABLE_CAMERA
     try {
-      cameraManager.loop();         // 摄像头状态管理（资源消耗大）
+      cameraManager.loop();         // 摄像头状态管理
     } catch (const std::exception& e) {
       Serial.print("摄像头模块异常: ");
       Serial.println(e.what());
     }
-    
-    // 网络服务模块
-    try {
-      webServerManager.loop();      // Web服务器请求处理（包括IPv6推送功能）
-    } catch (const std::exception& e) {
-      Serial.print("Web服务器模块异常: ");
-      Serial.println(e.what());
-    }
-    
+  #endif
+  
+  // 网络服务模块
+  try {
+    webServerManager.loop();      // Web服务器请求处理
+  } catch (const std::exception& e) {
+    Serial.print("Web服务器模块异常: ");
+    Serial.println(e.what());
+  }
+  
+  #if ENABLE_WEBCLIENT
     try {
       webClient.loop();             // 与云端服务器通信
     } catch (const std::exception& e) {
       Serial.print("Web客户端模块异常: ");
       Serial.println(e.what());
     }
-    
-    // 后台功能模块
+  #endif
+  
+  // 后台功能模块
+  #if ENABLE_MESSAGE
     try {
       messageManager.loop();        // 消息接收和处理
     } catch (const std::exception& e) {
       Serial.print("消息模块异常: ");
       Serial.println(e.what());
     }
-    
+  #endif
+  
+  #if ENABLE_PLUGIN
     try {
       pluginManager.loop();         // 插件更新和显示
     } catch (const std::exception& e) {
       Serial.print("插件模块异常: ");
       Serial.println(e.what());
     }
-    
+  #endif
+  
+  #if ENABLE_FIRMWARE
     try {
-      firmwareManager.loop();       // 固件更新检查（后台功能）
+      firmwareManager.loop();       // 固件更新检查
     } catch (const std::exception& e) {
       Serial.print("固件管理模块异常: ");
       Serial.println(e.what());
     }
-    
-    // 根据power_manager的建议更新显示，减少不必要的刷新
-    try {
-      if (powerManager.shouldUpdateDisplay()) {
-        // 使用局部刷新更新显示，降低功耗
-        displayManager.updateDisplayPartial();
-      }
-    } catch (const std::exception& e) {
-      Serial.print("显示更新异常: ");
-      Serial.println(e.what());
+  #endif
+  
+  // 根据power_manager的建议更新显示，减少不必要的刷新
+  try {
+    if (powerManager.shouldUpdateDisplay()) {
+      // 使用局部刷新更新显示，降低功耗
+      displayManager.updateDisplayPartial();
     }
-    
-    // 定期更新数据 - 为每个模块使用独立的更新间隔，避免不必要的数据刷新
-    static unsigned long lastTimeUpdate = 0;
-    static unsigned long lastWeatherUpdate = 0;
-    static unsigned long lastSensorUpdate = 0;
+  } catch (const std::exception& e) {
+    Serial.print("显示更新异常: ");
+    Serial.println(e.what());
+  }
+  
+  // 定期更新数据 - 为每个模块使用独立的更新间隔，避免不必要的数据刷新
+  static unsigned long lastTimeUpdate = 0;
+  static unsigned long lastWeatherUpdate = 0;
+  static unsigned long lastSensorUpdate = 0;
+  static unsigned long lastLunarUpdate = 0;
+  
+  unsigned long now = millis();
+  
+  // 更新时间（根据time_manager的配置）
+  try {
+    if (now - lastTimeUpdate > CLOCK_REFRESH_INTERVAL) {
+      lastTimeUpdate = now;
+      timeManager.update();       // 更新时间
+    }
+  } catch (const std::exception& e) {
+    Serial.print("时间更新异常: ");
+    Serial.println(e.what());
+  }
+  
+  // 更新天气（根据weather_manager的配置）
+  try {
+    if (now - lastWeatherUpdate > WEATHER_REFRESH_INTERVAL) {
+      lastWeatherUpdate = now;
+      weatherManager.update();    // 更新天气
+    }
+  } catch (const std::exception& e) {
+    Serial.print("天气更新异常: ");
+    Serial.println(e.what());
+  }
+  
+  // 更新传感器数据（根据sensor_manager的配置）
+  try {
+    if (now - lastSensorUpdate > SENSOR_REFRESH_INTERVAL) {
+      lastSensorUpdate = now;
+      sensorManager.update();     // 更新传感器数据
+    }
+  } catch (const std::exception& e) {
+    Serial.print("传感器更新异常: ");
+    Serial.println(e.what());
+  }
+  
+  #if ENABLE_STOCK
     static unsigned long lastStockUpdate = 0;
-    static unsigned long lastLunarUpdate = 0;
-    
-    unsigned long now = millis();
-    
-    // 更新时间（根据time_manager的配置）
-    try {
-      if (now - lastTimeUpdate > CLOCK_REFRESH_INTERVAL) {
-        lastTimeUpdate = now;
-        timeManager.update();       // 更新时间
-      }
-    } catch (const std::exception& e) {
-      Serial.print("时间更新异常: ");
-      Serial.println(e.what());
-    }
-    
-    // 更新天气（根据weather_manager的配置）
-    try {
-      if (now - lastWeatherUpdate > WEATHER_REFRESH_INTERVAL) {
-        lastWeatherUpdate = now;
-        weatherManager.update();    // 更新天气
-      }
-    } catch (const std::exception& e) {
-      Serial.print("天气更新异常: ");
-      Serial.println(e.what());
-    }
-    
-    // 更新传感器数据（根据sensor_manager的配置）
-    try {
-      if (now - lastSensorUpdate > SENSOR_REFRESH_INTERVAL) {
-        lastSensorUpdate = now;
-        sensorManager.update();     // 更新传感器数据
-      }
-    } catch (const std::exception& e) {
-      Serial.print("传感器更新异常: ");
-      Serial.println(e.what());
-    }
-    
     // 更新股票数据（根据stock_manager的配置）
     try {
       if (now - lastStockUpdate > STOCK_REFRESH_INTERVAL) {
@@ -480,36 +623,39 @@ void loop() {
       Serial.print("股票更新异常: ");
       Serial.println(e.what());
     }
-    
-    // 更新农历数据（根据lunar_manager的配置，每天更新一次）
-    try {
-      if (now - lastLunarUpdate > 86400000) { // 24小时
-        lastLunarUpdate = now;
-        lunarManager.update();      // 更新农历数据
-      }
-    } catch (const std::exception& e) {
-      Serial.print("农历更新异常: ");
-      Serial.println(e.what());
+  #endif
+  
+  // 更新农历数据（根据lunar_manager的配置，每天更新一次）
+  try {
+    if (now - lastLunarUpdate > 86400000) { // 24小时
+      lastLunarUpdate = now;
+      lunarManager.update();      // 更新农历数据
     }
   } catch (const std::exception& e) {
-    // 捕获所有未处理的异常，确保系统不会完全崩溃
-    Serial.print("主循环异常: ");
+    Serial.print("农历更新异常: ");
     Serial.println(e.what());
-    Serial.flush();
-    
-    // 尝试恢复基本功能
-    try {
-      // 仅保留核心功能运行
-      webServerManager.loop();
-      firmwareManager.loop();
-    } catch (...) {
-      // 忽略恢复过程中的异常
-    }
-  } catch (...) {
-    // 捕获所有其他类型的异常
-    Serial.println("捕获到未知异常");
-    Serial.flush();
   }
+} catch (const std::exception& e) {
+  // 捕获所有未处理的异常，确保系统不会完全崩溃
+  Serial.print("主循环异常: ");
+  Serial.println(e.what());
+  Serial.flush();
+  
+  // 尝试恢复基本功能
+  try {
+    // 仅保留核心功能运行
+    webServerManager.loop();
+    #if ENABLE_FIRMWARE
+      firmwareManager.loop();
+    #endif
+  } catch (...) {
+    // 忽略恢复过程中的异常
+  }
+} catch (...) {
+  // 捕获所有其他类型的异常
+  Serial.println("捕获到未知异常");
+  Serial.flush();
+}
   
   // 软件看门狗检查
   if (millis() - lastWatchdogReset > WATCHDOG_TIMEOUT) {

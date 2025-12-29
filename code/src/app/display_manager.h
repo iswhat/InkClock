@@ -63,6 +63,10 @@ public:
   // 获取屏幕高度
   int16_t getHeight() const;
   
+  // 秒针显示设置
+  bool getShowSeconds() const { return showSeconds; }
+  void setShowSeconds(bool show) { showSeconds = show; }
+  
 private:
   // 显示驱动
   IDisplayDriver* displayDriver;
@@ -84,6 +88,10 @@ private:
   // 局部刷新优化参数
   int lastMessageCount;
   int lastBatteryPercentage;
+  float lastTemperature;
+  float lastHumidity;
+  int lastClockSecond;
+  bool showSeconds; // 是否显示秒针
   
   // 内容类型最后更新时间
   unsigned long lastClockUpdateTime;
@@ -92,6 +100,7 @@ private:
   unsigned long lastStockUpdateTime;
   unsigned long lastMessageUpdateTime;
   unsigned long lastCalendarUpdateTime;
+  unsigned long lastFullRefreshTime;
   
   // 私有方法
   void drawHeader(String title);
@@ -145,6 +154,9 @@ private:
   
   // 绘制消息
   void drawMessageItem(int x, int y, String message, String time);
+  
+  // 绘制消息通知内容
+  void drawMessageNotificationContent(int x, int y);
 };
 
 #endif // DISPLAY_MANAGER_H

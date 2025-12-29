@@ -109,6 +109,7 @@
 #define STOCK_REFRESH_INTERVAL 600000 // 股票数据刷新间隔，单位毫秒（10分钟）
 #define MESSAGE_REFRESH_INTERVAL 10000 // 消息刷新间隔，单位毫秒（10秒）
 #define CALENDAR_REFRESH_INTERVAL 3600000 // 日历刷新间隔，单位毫秒（1小时）
+#define FULL_REFRESH_INTERVAL 86400000 // 全屏刷新间隔，单位毫秒（24小时）
 
 // 电池检测引脚配置（ESP32-C3）
 #if defined(ESP32_C3)
@@ -361,6 +362,12 @@ enum HardwareModel {
 // 调试配置
 #define DEBUG_ENABLED true // 是否启用调试信息
 #define DEBUG_SERIAL_BAUD 115200 // 调试串口波特率
+
+// 字体功能配置
+#define ENABLE_FONT_MANAGER true // 是否启用字体管理器
+#define DEFAULT_FONT "Roboto-Regular" // 默认字体名称
+#define FONT_DIR "/fonts" // 字体文件存储目录
+#define MAX_FONTS 10 // 最大支持字体数量
 
 // 主题类型枚举
 enum ThemeType {

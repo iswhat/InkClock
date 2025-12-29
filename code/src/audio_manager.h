@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include "core/config.h"
+#include <ESP32-audioI2S.h>
 
 // 音频状态枚举
 enum AudioState {
@@ -44,6 +45,12 @@ public:
   // 获取当前播放的文件名
   String getCurrentFilename() { return currentFilename; }
   
+  // 获取当前播放进度
+  unsigned long getPlayPosition() { return playPosition; }
+  
+  // 获取总播放时长
+  unsigned long getTotalDuration() { return totalDuration; }
+  
 private:
   // 音频状态
   AudioState state;
@@ -61,6 +68,9 @@ private:
   unsigned long playPosition;
   unsigned long totalDuration;
   
+  // ESP32-audioI2S对象
+  Audio audio;
+  
   // 私有方法
   void initI2S();
   void deinitI2S();
@@ -68,6 +78,11 @@ private:
   bool loadAudioFile(String filename);
   void updatePlayback();
   void updateRecording();
+  
+  // 音频回调函数
+  static void audioInfoCallback(const char *info);
+  static void audioErrorCallback(const char *info);
+  static void audioStatusCallback(void* arg, int code, const char* status);
 };
 
 #endif // AUDIO_MANAGER_H

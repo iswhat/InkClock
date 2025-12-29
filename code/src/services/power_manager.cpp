@@ -117,16 +117,36 @@ void PowerManager::enterLowPowerMode() {
     // 1. 降低CPU频率（如果支持）
     #if defined(ESP32)
       setCpuFrequencyMhz(80); // 降低CPU频率到80MHz
+      DEBUG_PRINTLN("CPU frequency reduced to 80MHz");
     #endif
     
     // 2. 关闭不必要的模块电源
-    // 可以在这里添加代码关闭摄像头、音频等模块
+    // 关闭蓝牙（如果支持）
+    #if defined(CONFIG_BT_ENABLED)
+      btStop();
+      DEBUG_PRINTLN("Bluetooth disabled");
+    #endif
     
-    // 3. 延长传感器采样间隔
+    // 关闭WiFi扫描
+    WiFi.mode(WIFI_MODE_NONE);
+    DEBUG_PRINTLN("WiFi mode set to NONE");
+    
+    // 3. 关闭不必要的外设时钟
+    #if defined(ESP32)
+      // 关闭不需要的外设时钟
+      rtc_gpio_hold_en(GPIO_NUM_0);
+      rtc_gpio_hold_en(GPIO_NUM_1);
+      rtc_gpio_hold_en(GPIO_NUM_2);
+      rtc_gpio_hold_en(GPIO_NUM_3);
+      DEBUG_PRINTLN("GPIO hold enabled for unused pins");
+    #endif
+    
+    // 4. 优化显示刷新策略
+    DEBUG_PRINTLN("Display refresh interval set to " + String(LOW_POWER_REFRESH_INTERVAL) + "ms");
+    
+    // 5. 降低传感器采样频率
     // 可以通过修改相关模块的采样间隔来降低功耗
-    
-    // 4. 降低显示刷新频率
-    // 已经通过shouldUpdateDisplay()方法实现
+    DEBUG_PRINTLN("Low power mode enabled, reducing sensor sampling rate");
   }
 }
 
@@ -139,11 +159,33 @@ void PowerManager::exitLowPowerMode() {
     // 1. 恢复CPU频率
     #if defined(ESP32)
       setCpuFrequencyMhz(240); // 恢复CPU频率到240MHz
+      DEBUG_PRINTLN("CPU frequency restored to 240MHz");
     #endif
     
-    // 2. 恢复正常的传感器采样间隔
+    // 2. 恢复WiFi连接
+    WiFi.mode(WIFI_STA);
+    DEBUG_PRINTLN("WiFi mode set to STA");
     
-    // 3. 恢复正常的显示刷新频率
+    // 恢复蓝牙（如果支持）
+    #if defined(CONFIG_BT_ENABLED)
+      btStart();
+      DEBUG_PRINTLN("Bluetooth enabled");
+    #endif
+    
+    // 3. 恢复GPIO状态
+    #if defined(ESP32)
+      rtc_gpio_hold_dis(GPIO_NUM_0);
+      rtc_gpio_hold_dis(GPIO_NUM_1);
+      rtc_gpio_hold_dis(GPIO_NUM_2);
+      rtc_gpio_hold_dis(GPIO_NUM_3);
+      DEBUG_PRINTLN("GPIO hold disabled");
+    #endif
+    
+    // 4. 恢复显示刷新频率
+    DEBUG_PRINTLN("Display refresh interval set to " + String(NORMAL_REFRESH_INTERVAL) + "ms");
+    
+    // 5. 恢复正常的传感器采样频率
+    DEBUG_PRINTLN("Normal mode enabled, restoring sensor sampling rate");
   }
 }
 

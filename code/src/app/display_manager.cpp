@@ -19,12 +19,16 @@ DisplayManager::DisplayManager() {
   displayDriver = nullptr;
   currentRightPage = RIGHT_PAGE_CALENDAR;
   currentClockMode = CLOCK_MODE_DIGITAL;
+  showSeconds = false; // 默认不显示秒针
   width = 0;
   height = 0;
   leftPanelWidth = 0;
   rightPanelWidth = 0;
   lastMessageCount = 0;
   lastBatteryPercentage = 100;
+  lastTemperature = 0.0;
+  lastHumidity = 0.0;
+  lastClockSecond = -1;
   
   // 初始化内容类型最后更新时间
   lastClockUpdateTime = 0;
@@ -33,6 +37,7 @@ DisplayManager::DisplayManager() {
   lastStockUpdateTime = 0;
   lastMessageUpdateTime = 0;
   lastCalendarUpdateTime = 0;
+  lastFullRefreshTime = 0;
 }
 
 DisplayManager::~DisplayManager() {
@@ -118,68 +123,164 @@ void DisplayManager::updateDisplay() {
     return;
   }
   
-  // 绘制左侧面板
-  drawLeftPanel();
-  
-  // 绘制右侧面板
-  drawRightPanel();
-  
-  // 刷新整个屏幕
-  displayDriver->update();
-}
-
-void DisplayManager::updateDisplayPartial() {
-  if (displayDriver == nullptr) {
-    return;
-  }
-  
   unsigned long currentTime = millis();
   bool isLowPowerMode = powerManager.getLowPowerMode();
   
   // 根据低功耗模式调整刷新间隔倍率
   int refreshMultiplier = isLowPowerMode ? 6 : 1; // 低功耗模式下刷新间隔延长6倍
   
-  // 1. 更新时钟区域
-  if (currentTime - lastClockUpdateTime >= CLOCK_REFRESH_INTERVAL * refreshMultiplier) {
-    // 更新时钟区域
-    lastClockUpdateTime = currentTime;
+  // 检查是否需要刷新
+  if (!powerManager.shouldUpdateDisplay()) {
+    return;
   }
   
-  // 2. 更新天气信息
-  if (currentTime - lastWeatherUpdateTime >= WEATHER_REFRESH_INTERVAL * refreshMultiplier) {
-    // 更新天气信息
+  // 标记需要刷新的区域
+  bool needFullRefresh = false;
+  bool needLeftPanelRefresh = false;
+  bool needRightPanelRefresh = false;
+  bool needClockRefresh = false;
+  bool needWeatherRefresh = false;
+  bool needSensorRefresh = false;
+  bool needBatteryRefresh = false;
+  bool needMessageRefresh = false;
+  bool needCalendarRefresh = false;
+  
+  // 获取当前时间的秒数，用于判断是否需要刷新时钟
+  TimeData currentTimeData = timeManager.getTimeData();
+  int currentSecond = currentTimeData.second;
+  
+  // 1. 检查时钟区域 - 更精确的控制
+  if (showSeconds) {
+    // 显示秒针时，每秒刷新一次时钟区域
+    if (currentSecond != lastClockSecond) {
+      needClockRefresh = true;
+      needLeftPanelRefresh = true;
+      lastClockSecond = currentSecond;
+    }
+  } else {
+    // 不显示秒针时，每分钟刷新一次时钟区域
+    if (currentTime - lastClockUpdateTime >= 60000) {
+      needClockRefresh = true;
+      needLeftPanelRefresh = true;
+      lastClockUpdateTime = currentTime;
+    }
+  }
+  
+  // 2. 检查天气信息 - 每2小时更新一次
+  if (currentTime - lastWeatherUpdateTime >= 7200000) {
+    needWeatherRefresh = true;
+    needLeftPanelRefresh = true;
     lastWeatherUpdateTime = currentTime;
   }
   
-  // 3. 更新传感器数据
-  if (currentTime - lastSensorUpdateTime >= SENSOR_REFRESH_INTERVAL * refreshMultiplier) {
-    // 更新传感器数据
+  // 3. 检查传感器数据 - 温度或湿度变化超过±2时刷新
+  SensorData sensorData = sensorManager.getSensorData();
+  if (abs(sensorData.temperature - lastTemperature) >= 2.0 || 
+      abs(sensorData.humidity - lastHumidity) >= 2.0) {
+    needSensorRefresh = true;
+    needLeftPanelRefresh = true;
+    lastTemperature = sensorData.temperature;
+    lastHumidity = sensorData.humidity;
     lastSensorUpdateTime = currentTime;
   }
   
-  // 4. 更新电池信息
+  // 4. 检查电池信息
   int batteryPercentage = powerManager.getBatteryPercentage();
   if (abs(batteryPercentage - lastBatteryPercentage) > 5) {
-    // 更新电池信息
+    needBatteryRefresh = true;
+    needLeftPanelRefresh = true;
     lastBatteryPercentage = batteryPercentage;
   }
   
-  // 5. 更新消息通知
+  // 5. 检查消息通知
   int messageCount = messageManager.getUnreadMessageCount();
-  if (messageCount != lastMessageCount || currentTime - lastMessageUpdateTime >= MESSAGE_REFRESH_INTERVAL * refreshMultiplier) {
-    // 更新消息通知
+  if (messageCount != lastMessageCount) {
+    needMessageRefresh = true;
+    needLeftPanelRefresh = true;
     lastMessageCount = messageCount;
     lastMessageUpdateTime = currentTime;
   }
   
-  // 6. 更新右侧面板内容
+  // 6. 检查右侧面板内容
   if (currentRightPage == RIGHT_PAGE_STOCK && currentTime - lastStockUpdateTime >= STOCK_REFRESH_INTERVAL * refreshMultiplier) {
-    // 更新右侧面板
+    needRightPanelRefresh = true;
     lastStockUpdateTime = currentTime;
   } else if (currentRightPage == RIGHT_PAGE_CALENDAR && currentTime - lastCalendarUpdateTime >= CALENDAR_REFRESH_INTERVAL * refreshMultiplier) {
-    // 更新右侧面板
+    needCalendarRefresh = true;
+    needRightPanelRefresh = true;
     lastCalendarUpdateTime = currentTime;
   }
+  
+  // 7. 检查是否需要全屏刷新（每天至少一次或内容变化较大时）
+  if (currentTime - lastFullRefreshTime >= FULL_REFRESH_INTERVAL || 
+      (needLeftPanelRefresh && needRightPanelRefresh)) {
+    needFullRefresh = true;
+    lastFullRefreshTime = currentTime;
+  }
+  
+  // 8. 检查是否有新消息通知，需要替换日历显示
+  if (messageCount > 0 && currentRightPage == RIGHT_PAGE_CALENDAR) {
+    needRightPanelRefresh = true;
+    needCalendarRefresh = true;
+  }
+  
+  // 执行刷新
+  if (needFullRefresh) {
+    // 全屏刷新
+    DEBUG_PRINTLN("Performing full display refresh");
+    drawLeftPanel();
+    drawRightPanel();
+    displayDriver->update();
+  } else {
+    // 更精细的局部刷新
+    if (needLeftPanelRefresh) {
+      // 只刷新需要更新的区域
+      if (needClockRefresh) {
+        // 只刷新时钟区域
+        drawDigitalClock(20, 60, timeManager.getTimeString(), timeManager.getDateString());
+        displayDriver->update(0, 0, leftPanelWidth, height < 400 ? 120 : 200);
+      }
+      
+      if (needWeatherRefresh) {
+        // 只刷新天气区域
+        WeatherData weather = weatherManager.getWeatherData();
+        drawWeather(20, height < 400 ? 140 : 220, weather.city, 
+                    (weather.temp != 0 ? String(weather.temp) : "--") + "°C", 
+                    weather.condition, "", "");
+        displayDriver->update(0, height < 400 ? 140 : 220, leftPanelWidth, height < 400 ? 100 : 150);
+      }
+      
+      if (needSensorRefresh) {
+        // 只刷新传感器数据区域
+        SensorData sensor = sensorManager.getSensorData();
+        drawSensorData(20, height < 400 ? 220 : 340, sensor.temperature, sensor.humidity);
+        displayDriver->update(0, height < 400 ? 220 : 340, leftPanelWidth, height < 400 ? 80 : 120);
+      }
+      
+      if (needBatteryRefresh || needMessageRefresh) {
+        // 只刷新底部区域
+        float batteryVoltage = powerManager.getBatteryVoltage();
+        int batteryPercentage = powerManager.getBatteryPercentage();
+        bool isCharging = powerManager.getChargingStatus();
+        int messageCount = messageManager.getUnreadMessageCount();
+        
+        drawBatteryInfo(20, height < 400 ? 340 : 560, batteryVoltage, batteryPercentage, isCharging);
+        drawMessageNotification(20, height < 400 ? 380 : 600, messageCount);
+        displayDriver->update(0, height < 400 ? 340 : 560, leftPanelWidth, height < 400 ? 60 : 80);
+      }
+    }
+    
+    if (needRightPanelRefresh) {
+      // 只刷新右侧面板
+      drawRightPanel();
+      displayDriver->update(leftPanelWidth, 0, rightPanelWidth, height);
+    }
+  }
+}
+
+void DisplayManager::updateDisplayPartial() {
+  // 局部刷新已合并到updateDisplay方法中，保持兼容性
+  updateDisplay();
 }
 
 void DisplayManager::showMessage(String message, uint32_t duration) {
@@ -401,9 +502,29 @@ void DisplayManager::drawLeftPanel() {
       DEBUG_PRINTLN(e.what());
     }
     
-    // 绘制天气信息
+    // 绘制公历和农历年月日信息
     try {
-      drawWeather(20, height < 400 ? 140 : 220, weather.city, 
+      // 获取当前日期的农历信息
+      LunarInfo lunarInfo = lunarManager.getLunarInfo(currentTime.year, currentTime.month, currentTime.day);
+      
+      // 构建公历和农历日期字符串
+      String gregorianStr = "公历：" + String(currentTime.year) + "年" + 
+                           (currentTime.month < 10 ? "0" : "") + String(currentTime.month) + "月" + 
+                           (currentTime.day < 10 ? "0" : "") + String(currentTime.day) + "日";
+      
+      String lunarStr = "农历：" + lunarInfo.lunarDate;
+      
+      // 绘制在时钟下方，天气上方
+      int dateY = height < 400 ? 120 : 200;
+      displayDriver->drawString(20, dateY, gregorianStr + " " + lunarStr, GxEPD_BLACK, GxEPD_WHITE, height < 400 ? 1 : 2);
+    } catch (const std::exception& e) {
+      DEBUG_PRINT("绘制日期信息异常: ");
+      DEBUG_PRINTLN(e.what());
+    }
+    
+    // 绘制天气信息，调整位置到日期信息下方
+    try {
+      drawWeather(20, height < 400 ? 160 : 240, weather.city, 
                   (weather.temp != 0 ? String(weather.temp) : "--") + "°C", 
                   weather.condition, "", "");
     } catch (const std::exception& e) {
@@ -411,65 +532,25 @@ void DisplayManager::drawLeftPanel() {
       DEBUG_PRINTLN(e.what());
     }
     
-    // 绘制室内温湿度
+    // 绘制室内温湿度，调整位置到天气信息下方
   try {
-    drawSensorData(20, height < 400 ? 220 : 340, sensor.temperature, sensor.humidity);
+    drawSensorData(20, height < 400 ? 260 : 360, sensor.temperature, sensor.humidity);
   } catch (const std::exception& e) {
     DEBUG_PRINT("绘制传感器数据异常: ");
     DEBUG_PRINTLN(e.what());
   }
   
-  // 绘制农历信息
+  // 绘制电池信息，调整位置到传感器数据下方
   try {
-    // 获取当前日期的农历信息
-    LunarInfo lunarInfo = lunarManager.getLunarInfo(currentTime.year, currentTime.month, currentTime.day);
-    
-    // 绘制农历日期
-    String lunarStr = lunarInfo.lunarDate;
-    if (!lunarInfo.solarTerm.isEmpty()) {
-      lunarStr += " | " + lunarInfo.solarTerm;
-    }
-    
-    if (height < 400) {
-      displayDriver->drawString(20, 280, lunarStr, GxEPD_BLACK, GxEPD_WHITE, 1);
-      
-      // 绘制节日信息
-      if (!lunarInfo.festival.name.isEmpty()) {
-        displayDriver->drawString(20, 300, "节日: " + lunarInfo.festival.name, GxEPD_RED, GxEPD_WHITE, 1);
-      }
-    } else {
-      displayDriver->drawString(20, 440, lunarStr, GxEPD_BLACK, GxEPD_WHITE, 2);
-      
-      // 绘制节日信息
-      if (!lunarInfo.festival.name.isEmpty()) {
-        displayDriver->drawString(20, 480, "节日: " + lunarInfo.festival.name, GxEPD_RED, GxEPD_WHITE, 2);
-      }
-      
-      // 绘制黄历信息摘要
-      if (!lunarInfo.lunarCalendar.yi.isEmpty()) {
-        displayDriver->drawString(20, 520, "宜: " + lunarInfo.lunarCalendar.yi.substring(0, 10) + "...", GxEPD_BLACK, GxEPD_WHITE, 1);
-      }
-      
-      if (!lunarInfo.lunarCalendar.ji.isEmpty()) {
-        displayDriver->drawString(20, 540, "忌: " + lunarInfo.lunarCalendar.ji.substring(0, 10) + "...", GxEPD_BLACK, GxEPD_WHITE, 1);
-      }
-    }
-  } catch (const std::exception& e) {
-    DEBUG_PRINT("绘制农历信息异常: ");
-    DEBUG_PRINTLN(e.what());
-  }
-  
-  // 绘制电池信息
-  try {
-    drawBatteryInfo(20, height < 400 ? 340 : 560, batteryVoltage, batteryPercentage, isCharging);
+    drawBatteryInfo(20, height < 400 ? 320 : 460, batteryVoltage, batteryPercentage, isCharging);
   } catch (const std::exception& e) {
     DEBUG_PRINT("绘制电池信息异常: ");
     DEBUG_PRINTLN(e.what());
   }
   
-  // 绘制消息通知
+  // 绘制消息通知，调整位置到电池信息下方
   try {
-    drawMessageNotification(20, height < 400 ? 380 : 600, messageCount);
+    drawMessageNotification(20, height < 400 ? 360 : 520, messageCount);
   } catch (const std::exception& e) {
     DEBUG_PRINT("绘制消息通知异常: ");
     DEBUG_PRINTLN(e.what());
@@ -500,54 +581,66 @@ void DisplayManager::drawRightPanel() {
     // 绘制右侧面板背景
     displayDriver->fillRect(leftPanelWidth, 0, rightPanelWidth, height, GxEPD_WHITE);
     
+    // 检查是否有新消息，如果有且当前页面是日历，则显示消息通知
+    int messageCount = messageManager.getUnreadMessageCount();
+    bool showMessageNotification = (messageCount > 0 && currentRightPage == RIGHT_PAGE_CALENDAR);
+    
     // 根据当前右侧页面绘制不同内容
-    switch (currentRightPage) {
-      case RIGHT_PAGE_CALENDAR:
-        drawCalendarPage(leftPanelWidth + 20, 20);
-        
-        // 在月历下方绘制当前日的节日和黄历信息
-        try {
-          // 获取当前日期
-          TimeData currentTime = timeManager.getTimeData();
-          LunarInfo lunarInfo = lunarManager.getLunarInfo(currentTime.year, currentTime.month, currentTime.day);
+    if (showMessageNotification) {
+      // 当有消息通知时，替换日历显示为消息内容
+      drawMessageNotificationContent(leftPanelWidth + 20, 20);
+    } else {
+      // 正常显示当前页面内容
+      switch (currentRightPage) {
+        case RIGHT_PAGE_CALENDAR:
+          drawCalendarPage(leftPanelWidth + 20, 20);
           
-          // 绘制节日信息
-          if (!lunarInfo.festival.name.isEmpty()) {
-            String festivalText = "今日节日: " + lunarInfo.festival.name;
-            displayDriver->drawString(leftPanelWidth + 20, height - 60, festivalText, GxEPD_RED, GxEPD_WHITE, height < 400 ? 1 : 2);
+          // 在月历下方绘制当前日的节日和黄历信息，确保完整显示
+          try {
+            // 获取当前日期
+            TimeData currentTime = timeManager.getTimeData();
+            LunarInfo lunarInfo = lunarManager.getLunarInfo(currentTime.year, currentTime.month, currentTime.day);
+            
+            // 绘制节日信息，确保完整显示
+            if (!lunarInfo.festival.name.isEmpty()) {
+              String festivalText = "今日节日: " + lunarInfo.festival.name;
+              displayDriver->drawString(leftPanelWidth + 20, height - 80, festivalText, GxEPD_RED, GxEPD_WHITE, height < 400 ? 1 : 2);
+            }
+            
+            // 绘制黄历信息摘要，确保完整显示
+            if (!lunarInfo.lunarCalendar.yi.isEmpty() && !lunarInfo.lunarCalendar.ji.isEmpty()) {
+              String lunarCalText = "宜: " + lunarInfo.lunarCalendar.yi;
+              displayDriver->drawString(leftPanelWidth + 20, height - 50, lunarCalText, GxEPD_BLACK, GxEPD_WHITE, height < 400 ? 1 : 1);
+              
+              lunarCalText = "忌: " + lunarInfo.lunarCalendar.ji;
+              displayDriver->drawString(leftPanelWidth + 20, height - 25, lunarCalText, GxEPD_BLACK, GxEPD_WHITE, height < 400 ? 1 : 1);
+            }
+          } catch (const std::exception& e) {
+            DEBUG_PRINT("绘制日历附加信息异常: ");
+            DEBUG_PRINTLN(e.what());
           }
-          
-          // 绘制黄历信息摘要
-          String lunarCalText = "";
-          if (!lunarInfo.lunarCalendar.yi.isEmpty() && !lunarInfo.lunarCalendar.ji.isEmpty()) {
-            lunarCalText = "宜: " + lunarInfo.lunarCalendar.yi.substring(0, 8) + " | 忌: " + lunarInfo.lunarCalendar.ji.substring(0, 8);
-            displayDriver->drawString(leftPanelWidth + 20, height - 30, lunarCalText, GxEPD_BLACK, GxEPD_WHITE, height < 400 ? 1 : 1);
-          }
-        } catch (const std::exception& e) {
-          DEBUG_PRINT("绘制日历附加信息异常: ");
-          DEBUG_PRINTLN(e.what());
-        }
-        break;
-      case RIGHT_PAGE_STOCK:
-        drawStockPage(leftPanelWidth + 20, 20);
-        break;
-      case RIGHT_PAGE_MESSAGE:
-        drawMessagePage(leftPanelWidth + 20, 20);
-        break;
-      case RIGHT_PAGE_PLUGIN:
-        drawPluginPage(leftPanelWidth + 20, 20);
-        break;
-      case RIGHT_PAGE_PLUGIN_MANAGE:
-        drawPluginManagePage(leftPanelWidth + 20, 20);
-        break;
-      case RIGHT_PAGE_SETTING:
-        drawSettingPage(leftPanelWidth + 20, 20);
-        break;
-      default:
-        // 绘制默认页面
-        int textSize = height < 400 ? 2 : 3;
-        displayDriver->drawString(leftPanelWidth + 20, 20, "页面未定义", GxEPD_BLACK, GxEPD_WHITE, textSize);
-        break;
+          break;
+        case RIGHT_PAGE_STOCK:
+          drawStockPage(leftPanelWidth + 20, 20);
+          break;
+        case RIGHT_PAGE_MESSAGE:
+          drawMessagePage(leftPanelWidth + 20, 20);
+          break;
+        case RIGHT_PAGE_PLUGIN:
+          drawPluginPage(leftPanelWidth + 20, 20);
+          break;
+        case RIGHT_PAGE_PLUGIN_MANAGE:
+          drawPluginManagePage(leftPanelWidth + 20, 20);
+          break;
+        case RIGHT_PAGE_SETTING:
+          drawSettingPage(leftPanelWidth + 20, 20);
+          break;
+        default:
+          // 绘制默认页面
+          int textSize = height < 400 ? 2 : 3;
+          displayDriver->drawString(leftPanelWidth + 20, 20, "页面未定义", GxEPD_BLACK, GxEPD_WHITE, textSize);
+          break;
+      }
     }
   } catch (const std::exception& e) {
     DEBUG_PRINT("绘制右侧面板异常: ");
@@ -558,6 +651,37 @@ void DisplayManager::drawRightPanel() {
       displayDriver->init();
     }
   }
+}
+
+void DisplayManager::drawMessageNotificationContent(int x, int y) {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  // 绘制消息通知标题
+  int titleSize = height < 400 ? 3 : 4;
+  displayDriver->drawString(x, y, "新消息通知", GxEPD_RED, GxEPD_WHITE, titleSize);
+  
+  // 获取最新的消息
+  int messageCount = messageManager.getUnreadMessageCount();
+  displayDriver->drawString(x, y + (height < 400 ? 30 : 50), String(messageCount) + "条未读消息", GxEPD_BLACK, GxEPD_WHITE, height < 400 ? 2 : 3);
+  
+  // 绘制消息列表
+  int messageY = y + (height < 400 ? 60 : 100);
+  int messageItemHeight = height < 400 ? 40 : 60;
+  
+  // 这里假设MessageManager有获取消息列表的方法
+  // 实际项目中需要根据具体实现调整
+  for (int i = 0; i < min(messageCount, 5); i++) {
+    // 绘制消息标题和摘要
+    String message = "消息 " + String(i + 1);
+    String time = "刚刚";
+    drawMessageItem(x, messageY, message, time);
+    messageY += messageItemHeight;
+  }
+  
+  // 绘制提示信息
+  displayDriver->drawString(x, height - 30, "点击按钮切换回日历", GxEPD_GRAY2, GxEPD_WHITE, height < 400 ? 1 : 2);
 }
 
 void DisplayManager::drawDigitalClock(int x, int y, String time, String date) {
@@ -616,16 +740,18 @@ void DisplayManager::drawAnalogClock(int x, int y, int hour, int minute, int sec
   displayDriver->drawLine(x, y, hourX, hourY, GxEPD_BLACK);
   
   // 绘制分针
-  float minuteAngle = (minute + second / 60.0) * PI / 30 - PI / 2;
+  float minuteAngle = (minute + (showSeconds ? (second / 60.0) : 0)) * PI / 30 - PI / 2;
   int minuteX = x + cos(minuteAngle) * (radius - 10);
   int minuteY = y + sin(minuteAngle) * (radius - 10);
   displayDriver->drawLine(x, y, minuteX, minuteY, GxEPD_BLACK);
   
-  // 绘制秒针
-  float secondAngle = second * PI / 30 - PI / 2;
-  int secondX = x + cos(secondAngle) * (radius - 5);
-  int secondY = y + sin(secondAngle) * (radius - 5);
-  displayDriver->drawLine(x, y, secondX, secondY, GxEPD_RED);
+  // 绘制秒针 - 仅当showSeconds为true时显示
+  if (showSeconds) {
+    float secondAngle = second * PI / 30 - PI / 2;
+    int secondX = x + cos(secondAngle) * (radius - 5);
+    int secondY = y + sin(secondAngle) * (radius - 5);
+    displayDriver->drawLine(x, y, secondX, secondY, GxEPD_RED);
+  }
   
   // 绘制中心点
   displayDriver->drawRect(x - 2, y - 2, 4, 4, GxEPD_BLACK);
@@ -701,11 +827,33 @@ void DisplayManager::drawWeather(int x, int y, String city, String temp, String 
   // 绘制城市
   displayDriver->drawString(x, y, city, GxEPD_BLACK, GxEPD_WHITE, textSize);
   
-  // 绘制温度
+  // 绘制当前温度
   displayDriver->drawString(x, y + (height < 400 ? 20 : 40), temp, GxEPD_BLACK, GxEPD_WHITE, tempSize);
   
   // 绘制天气状况
   displayDriver->drawString(x, y + (height < 400 ? 50 : 100), condition, GxEPD_BLACK, GxEPD_WHITE, textSize);
+  
+  // 绘制天气图标（使用简单字符代替，实际项目中可以使用位图）
+  String weatherIcon = "☀️";
+  if (condition.indexOf("雨") != -1) {
+    weatherIcon = "🌧️";
+  } else if (condition.indexOf("云") != -1) {
+    weatherIcon = "☁️";
+  } else if (condition.indexOf("阴") != -1) {
+    weatherIcon = "⛅";
+  } else if (condition.indexOf("雪") != -1) {
+    weatherIcon = "❄️";
+  }
+  
+  displayDriver->drawString(x + (height < 400 ? 80 : 160), y + (height < 400 ? 40 : 80), weatherIcon, GxEPD_BLACK, GxEPD_WHITE, tempSize);
+  
+  // 绘制次日天气预报
+  ForecastData tomorrow = weatherManager.getForecastData(1);
+  if (tomorrow.date.length() > 0) {
+    int tomorrowY = y + (height < 400 ? 60 : 120);
+    String tomorrowText = "次日: " + tomorrow.condition + " " + String(tomorrow.tempDay) + "°C";
+    displayDriver->drawString(x, tomorrowY, tomorrowText, GxEPD_BLACK, GxEPD_WHITE, textSize);
+  }
 }
 
 void DisplayManager::drawSensorData(int x, int y, float temperature, float humidity) {

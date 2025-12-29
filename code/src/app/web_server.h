@@ -16,6 +16,8 @@ private:
   static const char* settings_html;
   static const char* plugin_html;
   static const char* plugin_list_html;
+  static const char* fonts_html;
+  static const char* tfcard_html;
   static const char* style_css;
   
   // 处理函数
@@ -23,6 +25,9 @@ private:
   void handleSettings();
   void handlePlugins();
   void handlePluginList();
+  void handleFonts();
+  void handleTFCard();
+  void handleUploadFont();
   void handleUpdateSettings();
   void handleAddPlugin();
   void handleUpdatePlugin();

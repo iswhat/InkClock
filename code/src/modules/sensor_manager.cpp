@@ -260,18 +260,9 @@ void SensorManager::update() {
       checkAlarmConditions();
     }
   } catch (const std::exception& e) {
-    currentData.valid = false;
     DEBUG_PRINT("传感器更新异常: ");
     DEBUG_PRINTLN(e.what());
-    
-    // 使用模拟数据，确保系统不会崩溃
-    currentData.temperature = 25.0 + random(-5, 5);
-    currentData.humidity = 50.0 + random(-10, 10);
-    currentData.gasLevel = random(0, 1024);
-    currentData.flameDetected = false;
-    currentData.lightLevel = random(0, 1024);
-    currentData.timestamp = millis();
-    DEBUG_PRINTLN("使用模拟传感器数据");
+    DEBUG_PRINTLN("保持上一次有效的传感器数据");
   }
   
   lastUpdate = millis();

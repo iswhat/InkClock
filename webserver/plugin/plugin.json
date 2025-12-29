@@ -1,0 +1,23 @@
+[
+  {
+    "name": "每日古诗",
+    "url": "/plugin/daily_poem/index.php",
+    "description": "每天获取一首经典古诗",
+    "refresh_interval": "60分钟",
+    "settings_url": "/plugin/daily_poem/index.php"
+  },
+  {
+    "name": "每日英语单词",
+    "url": "/plugin/daily_word/index.php",
+    "description": "每天学习一个英语单词",
+    "refresh_interval": "24小时",
+    "settings_url": "/plugin/daily_word/index.php"
+  },
+  {
+    "name": "新闻头条",
+    "url": "/plugin/news_headlines/index.php",
+    "description": "获取最新新闻头条",
+    "refresh_interval": "30分钟",
+    "settings_url": "/plugin/news_headlines/index.php"
+  }
+]

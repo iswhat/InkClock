@@ -1744,31 +1744,9 @@ bool EinkDisplay::drawAnimatedGIF(String gifPath, int x, int y, int width, int h
   
   DEBUG_PRINTLN("动画GIF绘制功能待实现");
   
-  // 模拟GIF播放
-  while (gifPlaying && !gifStopped) {
-    // 检查是否需要停止播放
-    if (gifLoopCount > 0 && gifCurrentLoop >= gifLoopCount) {
-      break;
-    }
-    
-    // 模拟绘制一帧
-    DEBUG_PRINTF("绘制GIF帧 %d/%d，循环 %d\n", gifCurrentFrame, gifTotalFrames, gifCurrentLoop);
-    
-    // 使用局部刷新更新当前帧
-    displayPartialRefresh(x, y, width, height);
-    
-    // 等待下一帧
-    delay(100); // 模拟帧间隔
-    
-    gifCurrentFrame++;
-    if (gifCurrentFrame >= gifTotalFrames) {
-      gifCurrentFrame = 0;
-      gifCurrentLoop++;
-    }
-  }
-  
+  // 目前未引入GIF解码库，直接返回
   gifPlaying = false;
-  return true;
+  return false;
 }
 
 /**

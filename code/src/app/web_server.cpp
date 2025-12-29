@@ -2,6 +2,8 @@
 #include "../services/wifi_manager.h"
 #include "../extensions/plugin_manager.h"
 #include "../modules/sensor_manager.h"
+#include "../core/font_manager.h"
+#include "../core/tf_card_manager.h"
 #include <ArduinoJson.h>
 
 // 外部全局对象
@@ -10,6 +12,7 @@ extern PluginManager pluginManager;
 extern SensorManager sensorManager;
 extern MessageManager messageManager;
 extern GeoManager geoManager;
+extern DisplayManager displayManager;
 
 // 定义网页内容
 const char* WebServerManager::index_html = R"(
@@ -34,6 +37,8 @@ const char* WebServerManager::index_html = R"(
                 <li><a href="/settings">设置</a></li>
                 <li><a href="/plugins">插件管理</a></li>
                 <li><a href="/plugin_list">推荐插件</a></li>
+                <li><a href="/fonts">字体管理</a></li>
+                <li><a href="/tfcard">TF卡管理</a></li>
             </ul>
         </nav>
         
@@ -100,6 +105,237 @@ const char* WebServerManager::index_html = R"(
             <p>&copy; 2025 InkClock. All rights reserved.</p>
         </footer>
     </div>
+    
+    <script>
+        // 插件管理选项卡切换功能
+        function switchTab(tabName) {
+            // 移除所有选项卡的活动状态
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 隐藏所有内容区域
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // 激活当前选项卡和内容
+            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            // 如果切换到在线插件，加载在线插件列表
+            if (tabName === 'online') {
+                loadOnlinePlugins();
+            }
+        }
+        
+        // 加载在线插件列表
+        function loadOnlinePlugins() {
+            const onlinePluginsContainer = document.querySelector('.online-plugins');
+            onlinePluginsContainer.innerHTML = '<div class="loading">正在加载在线插件列表...</div>';
+            
+            // 从服务器获取在线插件列表
+            const pluginUrl = 'http://localhost:80/plugin/plugin.json';
+            
+            fetch(pluginUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('网络响应错误');
+                    }
+                    return response.json();
+                })
+                .then(plugins => {
+                    if (!plugins || !plugins.length) {
+                        onlinePluginsContainer.innerHTML = '<div class="loading">暂无在线插件</div>';
+                        return;
+                    }
+                    
+                    // 生成在线插件列表HTML
+                    let html = '<div class="plugin-grid">';
+                    plugins.forEach(plugin => {
+                        html += `
+                            <div class="plugin-item">
+                                <h4>${plugin.name}</h4>
+                                <p>${plugin.description || '无描述'}</p>
+                                <div class="plugin-info">
+                                    <p><strong>刷新频率:</strong> ${plugin.refresh_interval || '默认'}</p>
+                                    ${plugin.settings_url ? `<p><strong>设置接口:</strong> <a href="${plugin.settings_url}" target="_blank">查看</a></p>` : ''}
+                                </div>
+                                <div class="plugin-actions">
+                                    <button class="btn btn-primary" onclick="addOnlinePlugin('${plugin.name}', '${plugin.url}')">添加</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    
+                    onlinePluginsContainer.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('加载在线插件失败:', error);
+                    onlinePluginsContainer.innerHTML = '<div class="loading error">加载在线插件失败，请检查网络连接或稍后重试</div>';
+                });
+        }
+        
+        // 添加在线插件
+        function addOnlinePlugin(name, url) {
+            // 跳转到手工添加插件页面，并自动填充表单
+            document.getElementById('plugin_name').value = name;
+            document.getElementById('plugin_url').value = url;
+            switchTab('manual');
+        }
+        
+        // 初始加载在线插件列表
+        loadOnlinePlugins();
+        
+        // 插件排序功能
+        function changePluginOrder(pluginName, direction) {
+            // 实际应该发送请求到服务器，更新插件排序
+            alert(`正在调整插件 ${pluginName} 的顺序，方向：${direction}`);
+        }
+    </script>
+    
+    <style>
+        /* 插件管理页面样式 */
+        .plugin-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--gray-light);
+            padding-bottom: 8px;
+        }
+        
+        .tab-btn {
+            padding: 10px 16px;
+            background: var(--light-color);
+            border: 1px solid var(--gray-light);
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .tab-btn:hover {
+            background: var(--primary-light);
+        }
+        
+        .tab-btn.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--gray);
+        }
+        
+        .plugin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+        }
+        
+        .plugin-item {
+            background: var(--light-color);
+            border: 1px solid var(--gray-light);
+            border-radius: 8px;
+            padding: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        .plugin-item:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--box-shadow);
+        }
+        
+        .plugin-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: var(--box-shadow);
+        }
+        
+        .plugin-table th,
+        .plugin-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-light);
+        }
+        
+        .plugin-table th {
+            background: var(--primary-color);
+            color: white;
+            font-weight: 600;
+        }
+        
+        .plugin-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .plugin-table tr:hover {
+            background: var(--light-color);
+        }
+        
+        /* 插件操作按钮 */
+        .plugin-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        /* 刷新时间选择器 */
+        .refresh-time {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .refresh-time input {
+            flex: 1;
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .plugin-tabs {
+                flex-direction: column;
+                gap: 4px;
+            }
+            
+            .tab-btn {
+                width: 100%;
+                border-radius: 8px;
+            }
+            
+            .plugin-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .plugin-table {
+                font-size: 14px;
+            }
+            
+            .plugin-table th,
+            .plugin-table td {
+                padding: 8px;
+            }
+            
+            .plugin-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
 </body>
 </html>
 )";
@@ -159,9 +395,82 @@ const char* WebServerManager::settings_html = R"(
             margin-bottom: 12px;
         }
         
+        /* 手机适配优化 */
         @media (max-width: 768px) {
             .form-row {
                 grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 12px;
+            }
+            
+            header h1 {
+                font-size: 1.5rem;
+            }
+            
+            nav ul {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            nav a {
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+            
+            .settings-container {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+            
+            .settings-card {
+                padding: 16px;
+            }
+            
+            .settings-card h3 {
+                font-size: 1.1rem;
+            }
+            
+            .form-group {
+                margin-bottom: 16px;
+            }
+            
+            .form-group label {
+                font-size: 0.9rem;
+            }
+            
+            input, select {
+                font-size: 1rem;
+                padding: 8px;
+            }
+            
+            .toggle-switch {
+                width: 50px;
+                height: 28px;
+            }
+            
+            .toggle-slider:before {
+                height: 20px;
+                width: 20px;
+            }
+            
+            input:checked + .toggle-slider:before {
+                transform: translateX(22px);
+            }
+            
+            .button-container {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                padding: 12px;
+                font-size: 1rem;
+            }
+            
+            .button-container {
+                margin-top: 24px;
             }
         }
         
@@ -264,6 +573,8 @@ const char* WebServerManager::settings_html = R"(
                 <li><a href="/settings" class="active">设置</a></li>
                 <li><a href="/plugins">插件管理</a></li>
                 <li><a href="/plugin_list">推荐插件</a></li>
+                <li><a href="/fonts">字体管理</a></li>
+                <li><a href="/tfcard">TF卡管理</a></li>
             </ul>
         </nav>
         
@@ -329,11 +640,21 @@ const char* WebServerManager::settings_html = R"(
                             </div>
                         </div>
                         
-                        <div class="form-group checkbox-group">
-                            <label for="display_inverse">显示反色:</label>
-                            <div class="toggle-switch">
-                                <input type="checkbox" id="display_inverse" name="display_inverse" %DISPLAY_INVERSE%>
-                                <span class="toggle-slider"></span>
+                        <div class="form-row">
+                            <div class="form-group checkbox-group">
+                                <label for="display_inverse">显示反色:</label>
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="display_inverse" name="display_inverse" %DISPLAY_INVERSE%>
+                                    <span class="toggle-slider"></span>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group checkbox-group">
+                                <label for="show_seconds">显示秒针:</label>
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="show_seconds" name="show_seconds" %SHOW_SECONDS%>
+                                    <span class="toggle-slider"></span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -472,6 +793,147 @@ const char* WebServerManager::plugin_html = R"(
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>InkClock - 插件管理</title>
     <link rel="stylesheet" href="/style.css">
+    <style>
+        /* 插件管理页面样式 */
+        .plugin-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--gray-light);
+            padding-bottom: 8px;
+        }
+        
+        .tab-btn {
+            padding: 10px 16px;
+            background: var(--light-color);
+            border: 1px solid var(--gray-light);
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .tab-btn:hover {
+            background: var(--primary-light);
+        }
+        
+        .tab-btn.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--gray);
+        }
+        
+        .plugin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+        }
+        
+        .plugin-item {
+            background: var(--light-color);
+            border: 1px solid var(--gray-light);
+            border-radius: 8px;
+            padding: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        .plugin-item:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--box-shadow);
+        }
+        
+        .plugin-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: var(--box-shadow);
+        }
+        
+        .plugin-table th,
+        .plugin-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-light);
+        }
+        
+        .plugin-table th {
+            background: var(--primary-color);
+            color: white;
+            font-weight: 600;
+        }
+        
+        .plugin-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .plugin-table tr:hover {
+            background: var(--light-color);
+        }
+        
+        /* 插件操作按钮 */
+        .plugin-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        /* 刷新时间选择器 */
+        .refresh-time {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .refresh-time input {
+            flex: 1;
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .plugin-tabs {
+                flex-direction: column;
+                gap: 4px;
+            }
+            
+            .tab-btn {
+                width: 100%;
+                border-radius: 8px;
+            }
+            
+            .plugin-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .plugin-table {
+                font-size: 14px;
+            }
+            
+            .plugin-table th,
+            .plugin-table td {
+                padding: 8px;
+            }
+            
+            .plugin-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -486,15 +948,36 @@ const char* WebServerManager::plugin_html = R"(
                 <li><a href="/settings">设置</a></li>
                 <li><a href="/plugins" class="active">插件管理</a></li>
                 <li><a href="/plugin_list">推荐插件</a></li>
+                <li><a href="/fonts">字体管理</a></li>
+                <li><a href="/tfcard">TF卡管理</a></li>
             </ul>
         </nav>
         
         <main>
             <section class="plugins-section">
-                <h2>插件列表</h2>
+                <h2>插件管理</h2>
                 
-                <div class="add-plugin">
-                    <h3>添加新插件</h3>
+                <!-- 插件管理选项卡 -->
+                <div class="plugin-tabs">
+                    <button class="tab-btn active" onclick="switchTab('online')">在线插件</button>
+                    <button class="tab-btn" onclick="switchTab('manual')">手工添加插件</button>
+                    <button class="tab-btn" onclick="switchTab('manage')">插件开关</button>
+                </div>
+                
+                <!-- 在线插件页面 -->
+                <div id="online-tab" class="tab-content active">
+                    <h3>在线插件</h3>
+                    <p>通过消息中转服务获取在线插件列表，直接添加到设备</p>
+                    
+                    <div class="online-plugins">
+                        <div class="loading">正在加载在线插件列表...</div>
+                        <!-- 在线插件列表将通过JavaScript动态加载 -->
+                    </div>
+                </div>
+                
+                <!-- 手工添加插件页面 -->
+                <div id="manual-tab" class="tab-content">
+                    <h3>手工添加插件</h3>
                     <form action="/add_plugin" method="POST">
                         <div class="form-group">
                             <label for="plugin_name">插件名称:</label>
@@ -512,21 +995,43 @@ const char* WebServerManager::plugin_html = R"(
                             <div class="refresh-time">
                                 <input type="number" id="plugin_refresh_interval" name="plugin_refresh_interval" value="60" step="1" min="1" required>
                                 <select name="plugin_refresh_unit">
-                                    <option value="second">秒</option>
                                     <option value="minute" selected>分钟</option>
                                     <option value="hour">小时</option>
-                                    <option value="day">天</option>
                                 </select>
                             </div>
                         </div>
                         
                         <div class="form-group">
-                            <button type="submit">添加插件</button>
+                            <button type="submit" class="btn btn-primary">添加插件</button>
                         </div>
                     </form>
                 </div>
                 
-                <div class="plugin-list">
+                <!-- 插件开关页面 -->
+                <div id="manage-tab" class="tab-content">
+                    <h3>插件开关与排序</h3>
+                    <p>管理已安装的插件，设置开启/关闭状态和排序顺序</p>
+                    
+                    <div class="plugin-management">
+                        <table class="plugin-table">
+                            <thead>
+                                <tr>
+                                    <th>插件名称</th>
+                                    <th>状态</th>
+                                    <th>刷新时间</th>
+                                    <th>操作</th>
+                                    <th>排序</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                %PLUGIN_MANAGE_LIST%
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- 传统插件列表（保持兼容） -->
+                <div class="plugin-list" style="display: none;">
                     <h3>已安装插件</h3>
                     %PLUGIN_LIST%
                 </div>
@@ -537,6 +1042,95 @@ const char* WebServerManager::plugin_html = R"(
             <p>&copy; 2025 InkClock. All rights reserved.</p>
         </footer>
     </div>
+    
+    <script>
+        // 插件管理选项卡切换功能
+        function switchTab(tabName) {
+            // 移除所有选项卡的活动状态
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 隐藏所有内容区域
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // 激活当前选项卡和内容
+            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            // 如果切换到在线插件，加载在线插件列表
+            if (tabName === 'online') {
+                loadOnlinePlugins();
+            }
+        }
+        
+        // 加载在线插件列表
+        function loadOnlinePlugins() {
+            const onlinePluginsContainer = document.querySelector('.online-plugins');
+            onlinePluginsContainer.innerHTML = '<div class="loading">正在加载在线插件列表...</div>';
+            
+            // 从服务器获取在线插件列表
+            const pluginUrl = 'http://localhost:80/plugin/plugin.json';
+            
+            fetch(pluginUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('网络响应错误');
+                    }
+                    return response.json();
+                })
+                .then(plugins => {
+                    if (!plugins || !plugins.length) {
+                        onlinePluginsContainer.innerHTML = '<div class="loading">暂无在线插件</div>';
+                        return;
+                    }
+                    
+                    // 生成在线插件列表HTML
+                    let html = '<div class="plugin-grid">';
+                    plugins.forEach(plugin => {
+                        html += `
+                            <div class="plugin-item">
+                                <h4>${plugin.name}</h4>
+                                <p>${plugin.description || '无描述'}</p>
+                                <div class="plugin-info">
+                                    <p><strong>刷新频率:</strong> ${plugin.refresh_interval || '默认'}</p>
+                                    ${plugin.settings_url ? `<p><strong>设置接口:</strong> <a href="${plugin.settings_url}" target="_blank">查看</a></p>` : ''}
+                                </div>
+                                <div class="plugin-actions">
+                                    <button class="btn btn-primary" onclick="addOnlinePlugin('${plugin.name}', '${plugin.url}')">添加</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    
+                    onlinePluginsContainer.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('加载在线插件失败:', error);
+                    onlinePluginsContainer.innerHTML = '<div class="loading error">加载在线插件失败，请检查网络连接或稍后重试</div>';
+                });
+        }
+        
+        // 添加在线插件
+        function addOnlinePlugin(name, url) {
+            // 跳转到手工添加插件页面，并自动填充表单
+            document.getElementById('plugin_name').value = name;
+            document.getElementById('plugin_url').value = url;
+            switchTab('manual');
+        }
+        
+        // 初始加载在线插件列表
+        loadOnlinePlugins();
+        
+        // 插件排序功能
+        function changePluginOrder(pluginName, direction) {
+            // 实际应该发送请求到服务器，更新插件排序
+            alert(`正在调整插件 ${pluginName} 的顺序，方向：${direction}`);
+        }
+    </script>
 </body>
 </html>
 )";
@@ -563,6 +1157,8 @@ const char* WebServerManager::plugin_list_html = R"(
                 <li><a href="/settings">设置</a></li>
                 <li><a href="/plugins">插件管理</a></li>
                 <li><a href="/plugin_list" class="active">推荐插件</a></li>
+                <li><a href="/fonts">字体管理</a></li>
+                <li><a href="/tfcard">TF卡管理</a></li>
             </ul>
         </nav>
         
@@ -700,6 +1296,318 @@ const char* WebServerManager::plugin_list_html = R"(
             form.submit();
         }
     </script>
+</body>
+</html>
+)";
+
+// 字体管理页面HTML
+const char* WebServerManager::fonts_html = R"(
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InkClock - 字体管理</title>
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .font-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: var(--box-shadow);
+        }
+        
+        .font-table th,
+        .font-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-light);
+        }
+        
+        .font-table th {
+            background: var(--primary-color);
+            color: white;
+            font-weight: 600;
+        }
+        
+        .font-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .font-table tr:hover {
+            background: var(--light-color);
+        }
+        
+        .file-upload {
+            margin: 20px 0;
+            padding: 20px;
+            background: var(--light-color);
+            border: 1px solid var(--gray-light);
+            border-radius: var(--border-radius);
+        }
+        
+        .file-upload h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+        
+        .file-upload input[type="file"] {
+            margin: 10px 0;
+        }
+        
+        .status-message {
+            margin: 15px 0;
+            padding: 12px;
+            border-radius: var(--border-radius);
+        }
+        
+        .status-message.success {
+            background: rgba(40, 167, 69, 0.1);
+            color: var(--success-color);
+            border-left: 4px solid var(--success-color);
+        }
+        
+        .status-message.error {
+            background: rgba(220, 53, 69, 0.1);
+            color: var(--danger-color);
+            border-left: 4px solid var(--danger-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>InkClock - 字体管理</h1>
+            <p>智能墨水屏万年历字体管理界面</p>
+        </header>
+        
+        <nav>
+            <ul>
+                <li><a href="/">设备状态</a></li>
+                <li><a href="/settings">设置</a></li>
+                <li><a href="/plugins">插件管理</a></li>
+                <li><a href="/plugin_list">推荐插件</a></li>
+                <li><a href="/fonts" class="active">字体管理</a></li>
+                <li><a href="/tfcard">TF卡管理</a></li>
+            </ul>
+        </nav>
+        
+        <main>
+            <section class="fonts-section">
+                <h2>字体管理</h2>
+                <p>管理设备上的字体文件，支持上传、删除和设置默认字体</p>
+                
+                <!-- 字体上传表单 -->
+                <div class="file-upload">
+                    <h3>上传字体文件</h3>
+                    <form action="/upload_font" method="POST" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label for="font_name">字体名称:</label>
+                            <input type="text" id="font_name" name="font_name" required>
+                            <small>请输入字体名称（不含扩展名）</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="font_file">选择字体文件:</label>
+                            <input type="file" id="font_file" name="font_file" accept=".bin" required>
+                            <small>请选择.bin格式的GxFonts字体文件</small>
+                        </div>
+                        
+                        <div class="button-container">
+                            <button type="submit" class="btn btn-primary">上传字体</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- 字体列表 -->
+                <div class="font-list">
+                    <h3>已安装字体</h3>
+                    <table class="font-table">
+                        <thead>
+                            <tr>
+                                <th>字体名称</th>
+                                <th>类型</th>
+                                <th>大小</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            %FONT_LIST%
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+        
+        <footer>
+            <p>&copy; 2025 InkClock. All rights reserved.</p>
+        </footer>
+    </div>
+</body>
+</html>
+)";
+
+// TF卡管理页面HTML
+const char* WebServerManager::tfcard_html = R"(
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InkClock - TF卡管理</title>
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .tfcard-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .info-card {
+            background: var(--light-color);
+            border: 1px solid var(--gray-light);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            transition: var(--transition);
+        }
+        
+        .info-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--box-shadow);
+        }
+        
+        .info-card h3 {
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+        
+        .info-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        
+        .file-browser {
+            margin: 20px 0;
+            padding: 20px;
+            background: var(--light-color);
+            border: 1px solid var(--gray-light);
+            border-radius: var(--border-radius);
+        }
+        
+        .file-browser h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+        
+        .file-list {
+            margin: 15px 0;
+        }
+        
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: white;
+            border: 1px solid var(--gray-light);
+            border-radius: var(--border-radius);
+            margin: 8px 0;
+        }
+        
+        .file-item:hover {
+            border-color: var(--primary-color);
+        }
+        
+        .file-name {
+            font-weight: 500;
+        }
+        
+        .file-size {
+            color: var(--gray-color);
+            font-size: 0.9rem;
+        }
+        
+        .status-message {
+            margin: 15px 0;
+            padding: 12px;
+            border-radius: var(--border-radius);
+        }
+        
+        .status-message.success {
+            background: rgba(40, 167, 69, 0.1);
+            color: var(--success-color);
+            border-left: 4px solid var(--success-color);
+        }
+        
+        .status-message.error {
+            background: rgba(220, 53, 69, 0.1);
+            color: var(--danger-color);
+            border-left: 4px solid var(--danger-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>InkClock - TF卡管理</h1>
+            <p>智能墨水屏万年历TF卡管理界面</p>
+        </header>
+        
+        <nav>
+            <ul>
+                <li><a href="/">设备状态</a></li>
+                <li><a href="/settings">设置</a></li>
+                <li><a href="/plugins">插件管理</a></li>
+                <li><a href="/plugin_list">推荐插件</a></li>
+                <li><a href="/fonts">字体管理</a></li>
+                <li><a href="/tfcard" class="active">TF卡管理</a></li>
+            </ul>
+        </nav>
+        
+        <main>
+            <section class="tfcard-section">
+                <h2>TF卡管理</h2>
+                
+                <!-- TF卡状态信息 -->
+                <div class="tfcard-info">
+                    <div class="info-card">
+                        <h3>TF卡状态</h3>
+                        <div class="info-value">%TF_CARD_STATUS%</div>
+                    </div>
+                    <div class="info-card">
+                        <h3>总容量</h3>
+                        <div class="info-value">%TF_CARD_TOTAL% MB</div>
+                    </div>
+                    <div class="info-card">
+                        <h3>已用空间</h3>
+                        <div class="info-value">%TF_CARD_USED% MB</div>
+                    </div>
+                    <div class="info-card">
+                        <h3>可用空间</h3>
+                        <div class="info-value">%TF_CARD_FREE% MB</div>
+                    </div>
+                </div>
+                
+                <!-- TF卡文件浏览器 -->
+                <div class="file-browser">
+                    <h3>文件浏览器</h3>
+                    <div class="file-list">
+                        %TF_CARD_FILES%
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <footer>
+            <p>&copy; 2025 InkClock. All rights reserved.</p>
+        </footer>
+    </div>
 </body>
 </html>
 )";
@@ -1317,6 +2225,9 @@ void WebServerManager::init() {
     server.on("/settings", std::bind(&WebServerManager::handleSettings, this));
     server.on("/plugins", std::bind(&WebServerManager::handlePlugins, this));
     server.on("/plugin_list", std::bind(&WebServerManager::handlePluginList, this));
+    server.on("/fonts", std::bind(&WebServerManager::handleFonts, this));
+    server.on("/tfcard", std::bind(&WebServerManager::handleTFCard, this));
+    server.on("/upload_font", HTTP_POST, std::bind(&WebServerManager::handleUploadFont, this));
     server.on("/update_settings", HTTP_POST, std::bind(&WebServerManager::handleUpdateSettings, this));
     server.on("/add_plugin", HTTP_POST, std::bind(&WebServerManager::handleAddPlugin, this));
     server.on("/update_plugin", HTTP_POST, std::bind(&WebServerManager::handleUpdatePlugin, this));
@@ -1393,6 +2304,10 @@ void WebServerManager::handleSettings() {
     html.replace("%LATITUDE%", String(geoManager.getLatitude()));
     html.replace("%LONGITUDE%", String(geoManager.getLongitude()));
     
+    // 替换显示设置相关模板变量
+    String showSecondsChecked = displayManager.getShowSeconds() ? "checked" : "";
+    html.replace("%SHOW_SECONDS%", showSecondsChecked);
+    
     server.send(200, "text/html", html);
 }
 
@@ -1401,7 +2316,7 @@ void WebServerManager::handlePlugins() {
     
     String html = String(plugin_html);
     
-    // 生成插件列表
+    // 生成插件列表（传统插件列表，保持兼容）
     String pluginList = "";
     int pluginCount = pluginManager.getPluginCount();
     
@@ -1492,7 +2407,66 @@ void WebServerManager::handlePlugins() {
         }
     }
     
+    // 生成插件管理列表（用于插件开关页面）
+    String pluginManageList = "";
+    
+    if (pluginCount == 0) {
+        pluginManageList = "<tr><td colspan=\"5\" style=\"text-align: center; padding: 20px;\">暂无插件，请添加新插件。</td></tr>";
+    } else {
+        for (int i = 0; i < pluginCount; i++) {
+            PluginData plugin = pluginManager.getPlugin(i);
+            
+            // 生成状态文本和类名
+            String statusText = plugin.status == PLUGIN_DISABLED ? "已禁用" : "已启用";
+            bool isEnabled = plugin.status != PLUGIN_DISABLED;
+            
+            // 生成刷新时间文本
+            unsigned long updateInterval = plugin.urlData.updateInterval;
+            String refreshTimeText = "";
+            if (updateInterval < 60000) {
+                refreshTimeText = String(updateInterval / 1000) + "秒";
+            } else if (updateInterval < 3600000) {
+                refreshTimeText = String(updateInterval / 60000) + "分钟";
+            } else {
+                refreshTimeText = String(updateInterval / 3600000) + "小时";
+            }
+            
+            // 生成插件管理项HTML
+            pluginManageList += "<tr>";
+            pluginManageList += "  <td>" + plugin.name + "</td>";
+            pluginManageList += "  <td>";
+            pluginManageList += "    <form action=\"" + String(isEnabled ? "/disable_plugin" : "/enable_plugin") + "\" method=\"POST\" style=\"display:inline;\">";
+            pluginManageList += "      <input type=\"hidden\" name=\"plugin_name\" value=\"" + plugin.name + "\">";
+            pluginManageList += "      <button type=\"submit\" class=\"btn btn-sm " + String(isEnabled ? "btn-warning" : "btn-success") + "\">";
+            pluginManageList += isEnabled ? "禁用" : "启用";
+            pluginManageList += "      </button>";
+            pluginManageList += "    </form>";
+            pluginManageList += "  </td>";
+            pluginManageList += "  <td>" + refreshTimeText + "</td>";
+            pluginManageList += "  <td>";
+            pluginManageList += "    <div class=\"plugin-actions\">";
+            pluginManageList += "      <form action=\"/update_plugin\" method=\"POST\" style=\"display:inline;\">";
+            pluginManageList += "        <input type=\"hidden\" name=\"plugin_name\" value=\"" + plugin.name + "\">";
+            pluginManageList += "        <button type=\"submit\" class=\"btn btn-sm btn-primary\">更新</button>";
+            pluginManageList += "      </form>";
+            pluginManageList += "      <form action=\"/delete_plugin\" method=\"POST\" style=\"display:inline;\">";
+            pluginManageList += "        <input type=\"hidden\" name=\"plugin_name\" value=\"" + plugin.name + "\">";
+            pluginManageList += "        <button type=\"submit\" class=\"btn btn-sm btn-danger\">删除</button>";
+            pluginManageList += "      </form>";
+            pluginManageList += "    </div>";
+            pluginManageList += "  </td>";
+            pluginManageList += "  <td>";
+            pluginManageList += "    <div class=\"plugin-actions\">";
+            pluginManageList += "      <button class=\"btn btn-sm btn-secondary\" onclick=\"changePluginOrder('" + plugin.name + "', 'up')\"" + (i == 0 ? " disabled" : "") + ">上移</button>";
+            pluginManageList += "      <button class=\"btn btn-sm btn-secondary\" onclick=\"changePluginOrder('" + plugin.name + "', 'down')\"" + (i == pluginCount - 1 ? " disabled" : "") + ">下移</button>";
+            pluginManageList += "    </div>";
+            pluginManageList += "  </td>";
+            pluginManageList += "</tr>";
+        }
+    }
+    
     html.replace("%PLUGIN_LIST%", pluginList);
+    html.replace("%PLUGIN_MANAGE_LIST%", pluginManageList);
     
     server.send(200, "text/html", html);
 }
@@ -1523,6 +2497,10 @@ void WebServerManager::handleUpdateSettings() {
         
         geoManager.setLocation(geoInfo);
     }
+    
+    // 处理显示设置
+    bool showSeconds = server.hasArg("show_seconds");
+    displayManager.setShowSeconds(showSeconds);
     
     // 重定向回设置页面
     server.sendHeader("Location", "/settings");
@@ -1840,6 +2818,134 @@ void WebServerManager::sendJsonResponse(const String& json, int statusCode) {
  * @brief 获取当前时间
  * @return 当前时间字符串，格式：YYYY-MM-DD HH:MM:SS
  */
+// 字体管理页面处理函数
+void WebServerManager::handleFonts() {
+    DEBUG_PRINTLN("处理字体管理页面请求");
+    
+    String html = String(fonts_html);
+    
+    // 生成字体列表
+    String fontList = "";
+    FontManager fontManager;
+    fontManager.init();
+    
+    auto fonts = fontManager.getFontList();
+    if (fonts.empty()) {
+        fontList = "<tr><td colspan=\"5\" style=\"text-align: center; padding: 20px;\">暂无字体文件</td></tr>";
+    } else {
+        for (const auto& font : fonts) {
+            String fontType = font.isBuiltIn ? "内置字体" : "自定义字体";
+            String status = font.isDefault ? "默认字体" : "";
+            String actions = "";
+            
+            if (!font.isBuiltIn) {
+                actions = "<div class=\"plugin-actions\">";
+                if (!font.isDefault) {
+                    actions += "<button class=\"btn btn-sm btn-primary\">设为默认</button>";
+                }
+                actions += "<button class=\"btn btn-sm btn-danger\">删除</button>";
+                actions += "</div>";
+            }
+            
+            fontList += "<tr>";
+            fontList += "  <td>" + font.name + "</td>";
+            fontList += "  <td>" + fontType + "</td>";
+            fontList += "  <td>" + String(font.size) + "px</td>";
+            fontList += "  <td>" + status + "</td>";
+            fontList += "  <td>" + actions + "</td>";
+            fontList += "</tr>";
+        }
+    }
+    
+    html.replace("%FONT_LIST%", fontList);
+    
+    server.send(200, "text/html", html);
+}
+
+// 字体上传处理函数
+void WebServerManager::handleUploadFont() {
+    DEBUG_PRINTLN("处理字体上传请求");
+    
+    // 处理上传的字体文件
+    HTTPUpload& upload = server.upload();
+    
+    if (upload.status == UPLOAD_FILE_START) {
+        DEBUG_PRINTF("开始上传字体文件: %s\n", upload.filename.c_str());
+    } else if (upload.status == UPLOAD_FILE_WRITE) {
+        // 这里可以处理上传的文件数据，暂时忽略
+    } else if (upload.status == UPLOAD_FILE_END) {
+        DEBUG_PRINTF("字体文件上传完成: %s, 大小: %zu\n", upload.filename.c_str(), upload.totalSize);
+        
+        // 获取字体名称
+        String fontName = server.arg("font_name");
+        if (fontName.isEmpty()) {
+            // 如果没有提供字体名称，使用文件名（不含扩展名）
+            fontName = upload.filename;
+            int dotIndex = fontName.lastIndexOf('.');
+            if (dotIndex != -1) {
+                fontName = fontName.substring(0, dotIndex);
+            }
+        }
+        
+        // 这里应该调用FontManager的uploadFont方法来保存字体文件
+        // 暂时返回成功
+        server.sendHeader("Location", "/fonts");
+        server.send(302, "text/plain", "");
+    }
+}
+
+// TF卡管理页面处理函数
+void WebServerManager::handleTFCard() {
+    DEBUG_PRINTLN("处理TF卡管理页面请求");
+    
+    String html = String(tfcard_html);
+    
+    // 获取TF卡状态信息
+    uint64_t total, used, free;
+    getTFCardInfo(total, used, free);
+    
+    String status = isTFCardMounted() ? "已挂载" : "未挂载";
+    
+    // 替换模板变量
+    html.replace("%TF_CARD_STATUS%", status);
+    html.replace("%TF_CARD_TOTAL%", String(total));
+    html.replace("%TF_CARD_USED%", String(used));
+    html.replace("%TF_CARD_FREE%", String(free));
+    
+    // 生成文件列表
+    String fileList = "";
+    if (isTFCardMounted()) {
+        File root = getTFCard().open("/");
+        if (root && root.isDirectory()) {
+            File file = root.openNextFile();
+            while (file) {
+                String fileName = file.name();
+                String fileSize = String(file.size() / 1024) + " KB";
+                
+                fileList += "<div class=\"file-item\">";
+                fileList += "  <div class=\"file-info\">";
+                fileList += "    <div class=\"file-name\">" + fileName + "</div>";
+                fileList += "    <div class=\"file-size\">" + fileSize + "</div>";
+                fileList += "  </div>";
+                fileList += "  <div class=\"plugin-actions\">";
+                fileList += "    <button class=\"btn btn-sm btn-danger\">删除</button>";
+                fileList += "  </div>";
+                fileList += "</div>";
+                
+                file = root.openNextFile();
+            }
+            file.close();
+        }
+        root.close();
+    } else {
+        fileList = "<div class=\"status-message error\">TF卡未挂载，无法访问文件</div>";
+    }
+    
+    html.replace("%TF_CARD_FILES%", fileList);
+    
+    server.send(200, "text/html", html);
+}
+
 String WebServerManager::getCurrentTime() {
     // 从NTP获取当前时间
     time_t now;

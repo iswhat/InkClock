@@ -9,18 +9,19 @@ enum SensorType {
   SENSOR_TYPE_AUTO_DETECT,  // 自动检测传感器类型
   
   // 温湿度传感器
-  SENSOR_TYPE_DHT22,        // DHT22 温湿度传感器
   SENSOR_TYPE_DHT11,        // DHT11 温湿度传感器
   SENSOR_TYPE_DHT12,        // DHT12 温湿度传感器
-  SENSOR_TYPE_SHT30,        // Sensirion SHT30 温湿度传感器
-  SENSOR_TYPE_SHT21,        // Sensirion SHT21 温湿度传感器
-  SENSOR_TYPE_SHT40,        // Sensirion SHT40 温湿度传感器
+  SENSOR_TYPE_DHT22,        // DHT22 温湿度传感器
   SENSOR_TYPE_AM2302,       // AOSONG AM2302 温湿度传感器
+  SENSOR_TYPE_SHT20,        // Sensirion SHT20 温湿度传感器
+  SENSOR_TYPE_SHT21,        // Sensirion SHT21 温湿度传感器
+  SENSOR_TYPE_SHT30,        // Sensirion SHT30 温湿度传感器
+  SENSOR_TYPE_SHT40,        // Sensirion SHT40 温湿度传感器
   SENSOR_TYPE_HDC1080,      // TI HDC1080 温湿度传感器
-  SENSOR_TYPE_BME280,       // Bosch BME280 温湿度气压传感器
-  SENSOR_TYPE_BME680,       // Bosch BME680 温湿度气压气体传感器
   SENSOR_TYPE_HTU21D,       // Measurement Specialties HTU21D 温湿度传感器
   SENSOR_TYPE_SI7021,       // Silicon Labs SI7021 温湿度传感器
+  SENSOR_TYPE_BME280,       // Bosch BME280 温湿度气压传感器
+  SENSOR_TYPE_BME680,       // Bosch BME680 温湿度气压气体传感器
   
   // 人体感应传感器
   SENSOR_TYPE_PIR,          // 通用人体感应传感器
@@ -28,33 +29,32 @@ enum SensorType {
   SENSOR_TYPE_HC_SR505,     // HC-SR505 人体感应传感器
   SENSOR_TYPE_RE200B,       // Excelitas RE200B 红外人体传感器
   SENSOR_TYPE_LD2410,       // 乐鑫 LD2410 毫米波雷达传感器
-  SENSOR_TYPE_BH1750,       // Rohm BH1750 光照传感器（同时支持人体感应）
   
   // 气体传感器
-  SENSOR_TYPE_GAS_MQ2,      // 武汉敏芯 MQ-2 气体传感器
-  SENSOR_TYPE_GAS_MQ5,      // 深圳炜盛 MQ-5 气体传感器
-  SENSOR_TYPE_GAS_MQ7,      // 广州汉威 MQ-7 气体传感器
-  SENSOR_TYPE_GAS_MQ8,      // MQ-8 气体传感器
-  SENSOR_TYPE_GAS_MQ135,    // 郑州炜盛 MQ-135 气体传感器
-  SENSOR_TYPE_GAS_TGS2600,  // Figaro TGS2600 气体传感器
+  SENSOR_TYPE_MQ2,          // 武汉敏芯 MQ-2 气体传感器
+  SENSOR_TYPE_MQ5,          // 深圳炜盛 MQ-5 气体传感器
+  SENSOR_TYPE_MQ7,          // 广州汉威 MQ-7 气体传感器
+  SENSOR_TYPE_MQ8,          // MQ-8 气体传感器
+  SENSOR_TYPE_MQ135,        // 郑州炜盛 MQ-135 气体传感器
+  SENSOR_TYPE_TGS2600,      // Figaro TGS2600 气体传感器
+  SENSOR_TYPE_SGP30,        // Sensirion SGP30 气体传感器
   
   // 火焰传感器
-  SENSOR_TYPE_FLAME_IR,     // 红外火焰传感器
-  SENSOR_TYPE_FLAME_UV,     // 紫外线火焰传感器
-  SENSOR_TYPE_FLAME_YG1006, // 杭州晶华 YG1006 火焰传感器
-  SENSOR_TYPE_FLAME_MQ2,    // MQ-2 火焰传感器
-  SENSOR_TYPE_FLAME_TGS2600,// TGS2600 火焰传感器
+  SENSOR_TYPE_IR_FLAME,     // 红外火焰传感器
+  SENSOR_TYPE_UV_FLAME,     // 紫外线火焰传感器
+  SENSOR_TYPE_YG1006_FLAME, // 杭州晶华 YG1006 火焰传感器
   
   // 光照传感器
-  SENSOR_TYPE_LIGHT_BH1750, // Rohm BH1750 光照传感器
-  SENSOR_TYPE_LIGHT_VEML6075, // VEML6075 光照传感器
-  SENSOR_TYPE_LIGHT_TSL2561, // ams TSL2561 光照传感器
-  SENSOR_TYPE_LIGHT_GY30,   // 杭州晶华 GY30 光照传感器
-  SENSOR_TYPE_LIGHT_SI1145, // Silicon Labs SI1145 光照传感器
+  SENSOR_TYPE_BH1750,       // Rohm BH1750 光照传感器
+  SENSOR_TYPE_VEML6075,     // VEML6075 光照传感器
+  SENSOR_TYPE_TSL2561,      // ams TSL2561 光照传感器
+  SENSOR_TYPE_GY30,         // 杭州晶华 GY30 光照传感器
+  SENSOR_TYPE_SI1145,       // Silicon Labs SI1145 光照传感器
   
   // 气压传感器
-  SENSOR_TYPE_LPS25HB,      // STMicroelectronics LPS25HB 气压传感器
-  SENSOR_TYPE_BMP388        // Bosch BMP388 气压传感器
+  SENSOR_TYPE_BMP280,       // Bosch BMP280 气压传感器
+  SENSOR_TYPE_BMP388,       // Bosch BMP388 气压传感器
+  SENSOR_TYPE_LPS25HB       // STMicroelectronics LPS25HB 气压传感器
 };
 
 // 传感器数据结构

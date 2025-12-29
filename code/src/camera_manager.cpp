@@ -1,4 +1,5 @@
 #include "camera_manager.h"
+#include "core/tf_card_manager.h"
 
 // 摄像头管理类实现
 CameraManager::CameraManager() {
@@ -164,6 +165,12 @@ bool CameraManager::startRecording(unsigned long duration, VideoQuality quality)
       return false;
     }
     
+    // 检查TF卡是否已挂载
+    if (!isTFCardMounted()) {
+      DEBUG_PRINTLN("TF卡未挂载，无法录制视频");
+      return false;
+    }
+    
     // 设置视频质量
     setVideoQuality(quality);
     
@@ -200,6 +207,12 @@ bool CameraManager::takePhoto() {
       return false;
     }
     
+    // 检查TF卡是否已挂载
+    if (!isTFCardMounted()) {
+      DEBUG_PRINTLN("TF卡未挂载，无法保存照片");
+      return false;
+    }
+    
     // 拍摄照片
     camera_fb_t *fb = esp_camera_fb_get();
     if (!fb) {
@@ -207,13 +220,36 @@ bool CameraManager::takePhoto() {
       return false;
     }
     
-    // 保存照片到SD卡
-    // 这里需要实现SD卡写入逻辑
+    // 生成照片文件名
+    char filename[30];
+    time_t now;
+    struct tm timeinfo;
+    time(&now);
+    localtime_r(&now, &timeinfo);
+    strftime(filename, sizeof(filename), "/photo_%Y%m%d_%H%M%S.jpg", &timeinfo);
+    
+    // 保存照片到TF卡
+    File file = getTFCard().open(filename, FILE_WRITE);
+    if (!file) {
+      DEBUG_PRINTF("创建照片文件失败: %s\n", filename);
+      esp_camera_fb_return(fb);
+      return false;
+    }
+    
+    // 写入照片数据
+    if (file.write(fb->buf, fb->len) != fb->len) {
+      DEBUG_PRINTF("写入照片数据失败: %s\n", filename);
+      file.close();
+      esp_camera_fb_return(fb);
+      return false;
+    }
+    
+    file.close();
     
     // 释放帧缓冲区
     esp_camera_fb_return(fb);
     
-    DEBUG_PRINTLN("拍摄照片成功");
+    DEBUG_PRINTF("拍摄照片成功，文件: %s\n", filename);
     return true;
   #else
     return false;
