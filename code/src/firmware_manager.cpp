@@ -1,9 +1,9 @@
 #include "firmware_manager.h"
-#include "config.h"
-#include "display_manager.h"
-#include "sensor_manager.h"
+#include "core/config.h"
+#include "app/display_manager.h"
+#include "modules/sensor_manager.h"
 #include "audio_manager.h"
-#include "wifi_manager.h"
+#include "services/wifi_manager.h"
 #include <SdFat.h>
 #include <Update.h>
 #include <HTTPClient.h>

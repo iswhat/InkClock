@@ -2,8 +2,8 @@
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
-#include "wifi_manager.h"
-#include "message_manager.h"
+#include "../services/wifi_manager.h"
+#include "../modules/message_manager.h"
 
 // 外部全局对象
 extern WiFiManager wifiManager;

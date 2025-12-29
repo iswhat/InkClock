@@ -7,14 +7,14 @@
  */
 
 #include "api_manager.h"
-#include "wifi_manager.h"
-#include "debug_config.h"
+#include "../services/wifi_manager.h"
+
 
 // 外部全局对象
 extern WiFiManager wifiManager;
 
 // 使用config.h中定义的配置参数
-#include "config.h"
+#include "../core/config.h"
 
 APIManager::APIManager() {
     // 初始化成员变量

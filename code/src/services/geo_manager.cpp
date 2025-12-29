@@ -7,8 +7,8 @@
  */
 
 #include "geo_manager.h"
-#include "wifi_manager.h"
-#include "api_manager.h"
+#include "../services/wifi_manager.h"
+#include "../services/api_manager.h"
 #include <ArduinoJson.h>
 
 // 外部全局对象

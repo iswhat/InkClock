@@ -1,6 +1,6 @@
 #include "ipv6_server.h"
 #include <ArduinoJson.h>
-#include "wifi_manager.h"
+#include "services/wifi_manager.h"
 
 // 外部全局对象
 extern WiFiManager wifiManager;

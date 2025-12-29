@@ -1,8 +1,8 @@
 #include "plugin_manager.h"
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
-#include "web_client.h"
-#include "wifi_manager.h"
+#include "../app/web_client.h"
+#include "../services/wifi_manager.h"
 
 PluginManager::PluginManager() {
   // 初始化插件数组

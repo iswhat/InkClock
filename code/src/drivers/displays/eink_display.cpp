@@ -1,9 +1,9 @@
 #include "eink_display.h"
-#include "time_manager.h"
-#include "weather_manager.h"
-#include "sensor_manager.h"
-#include "stock_manager.h"
-#include "message_manager.h"
+#include "../../services/time_manager.h"
+#include "../../modules/weather_manager.h"
+#include "../../modules/sensor_manager.h"
+#include "../../modules/stock_manager.h"
+#include "../../modules/message_manager.h"
 
 // 外部全局对象
 extern TimeManager timeManager;

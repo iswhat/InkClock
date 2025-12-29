@@ -7,7 +7,7 @@
 #include <GxIO/GxIO_SPI/GxIO_SPI.h>
 #include <GxIO/GxIO.h>
 #include <GxFonts/GxFonts.h>
-#include "config.h"
+#include "../core/config.h"
 
 // 右侧页面类型枚举
 enum RightPageType {

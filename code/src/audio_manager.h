@@ -2,7 +2,7 @@
 #define AUDIO_MANAGER_H
 
 #include <Arduino.h>
-#include "config.h"
+#include "core/config.h"
 
 // 音频状态枚举
 enum AudioState {

@@ -2,7 +2,7 @@
 #define TOUCH_MANAGER_H
 
 #include <Arduino.h>
-#include "config.h"
+#include "core/config.h"
 
 // 触摸事件类型
 enum TouchEventType {

@@ -2,7 +2,7 @@
 #define CAMERA_MANAGER_H
 
 #include <Arduino.h>
-#include "config.h"
+#include "core/config.h"
 
 // 摄像头状态
 enum CameraStatus {

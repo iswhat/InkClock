@@ -2,7 +2,7 @@
 #define BUTTON_MANAGER_H
 
 #include <Arduino.h>
-#include "config.h"
+#include "core/config.h"
 
 // 按键事件类型
 enum ButtonEvent {
