@@ -3,9 +3,9 @@
 
 #include <Arduino.h>
 #include <WiFiClientSecure.h>
-#include "config.h"
-#include "message_manager.h"
-#include "api_manager.h"
+#include "../core/config.h"
+#include "../modules/message_manager.h"
+#include "../services/api_manager.h"
 
 class WebClient {
 public:

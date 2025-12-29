@@ -2,7 +2,7 @@
 #define SENSOR_DRIVER_H
 
 #include <Arduino.h>
-#include "config.h"
+#include "../core/config.h"
 
 // 传感器类型枚举
 enum SensorType {

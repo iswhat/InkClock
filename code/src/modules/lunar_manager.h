@@ -3,8 +3,8 @@
 
 #include <Arduino.h>
 #include <time.h>
-#include "web_client.h"
-#include "api_manager.h"
+#include "../app/web_client.h"
+#include "../services/api_manager.h"
 
 // 节日信息结构
 typedef struct {

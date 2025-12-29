@@ -2,8 +2,8 @@
 #define SENSOR_MANAGER_H
 
 #include <Arduino.h>
-#include "config.h"
-#include "sensor_driver.h"
+#include "../core/config.h"
+#include "../drivers/sensors/sensor_driver.h"
 
 
 

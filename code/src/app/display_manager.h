@@ -2,8 +2,8 @@
 #define DISPLAY_MANAGER_H
 
 #include <Arduino.h>
-#include "display_driver.h"
-#include "config.h"
+#include "../drivers/displays/display_driver.h"
+#include "../core/config.h"
 
 // 右侧页面类型枚举
 enum RightPageType {

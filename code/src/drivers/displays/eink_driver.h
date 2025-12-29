@@ -4,7 +4,7 @@
 #include "display_driver.h"
 #include <GxIO/GxIO_SPI/GxIO_SPI.h>
 #include <GxFonts/GxFonts.h>
-#include "config.h"
+#include "../core/config.h"
 
 // 根据显示类型选择合适的墨水屏库
 #if DISPLAY_TYPE == EINK_102_INCH

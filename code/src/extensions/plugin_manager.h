@@ -2,7 +2,7 @@
 #define PLUGIN_MANAGER_H
 
 #include <Arduino.h>
-#include "config.h"
+#include "../core/config.h"
 
 // 插件状态枚举
 enum PluginStatus {

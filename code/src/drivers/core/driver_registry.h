@@ -3,9 +3,9 @@
 
 #include <Arduino.h>
 #include <vector>
-#include "config.h"
-#include "display_driver.h"
-#include "sensor_driver.h"
+#include "../core/config.h"
+#include "../displays/display_driver.h"
+#include "../sensors/sensor_driver.h"
 
 // 驱动注册表类，用于管理所有可用的驱动
 class DriverRegistry {

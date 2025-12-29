@@ -4,8 +4,8 @@
 #include <Arduino.h>
 #include <WiFiUdp.h>
 #include <time.h>
-#include "config.h"
-#include "api_manager.h"
+#include "../core/config.h"
+#include "../services/api_manager.h"
 // 时间数据结构
 typedef struct {
   int year;
