@@ -2,7 +2,7 @@
 #define FIRMWARE_MANAGER_H
 
 #include <Arduino.h>
-#include "config.h"
+#include "core/config.h"
 
 // 固件更新状态枚举
 enum FirmwareUpdateStatus {

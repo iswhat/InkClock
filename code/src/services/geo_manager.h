@@ -15,7 +15,7 @@
 #define GEO_MANAGER_H
 
 #include <Arduino.h>
-#include "config.h"
+#include "../core/config.h"
 
 // 地理位置信息结构体
 typedef struct {

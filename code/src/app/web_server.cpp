@@ -1,7 +1,7 @@
 #include "web_server.h"
-#include "wifi_manager.h"
-#include "plugin_manager.h"
-#include "sensor_manager.h"
+#include "../services/wifi_manager.h"
+#include "../extensions/plugin_manager.h"
+#include "../modules/sensor_manager.h"
 #include <ArduinoJson.h>
 
 // 外部全局对象

@@ -1,6 +1,6 @@
 #include "weather_manager.h"
-#include "wifi_manager.h"
-#include "geo_manager.h"
+#include "../services/wifi_manager.h"
+#include "../services/geo_manager.h"
 
 // 外部全局对象
 extern WiFiManager wifiManager;

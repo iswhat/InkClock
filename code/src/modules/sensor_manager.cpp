@@ -1,5 +1,5 @@
 #include "sensor_manager.h"
-#include "driver_registry.h"
+#include "../drivers/core/driver_registry.h"
 
 SensorManager::SensorManager() : sensorDriver(nullptr) {
   // 初始化传感器数据
