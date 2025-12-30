@@ -219,24 +219,34 @@ SUPPORTED_HARDWARE = {
                 'esp32-wroom-32': 'ESP32-WROOM-32 (WiFi+BT5.0)',
                 'esp32-c3-devkitc-02': 'ESP32-C3-DevKitC-02 (WiFi+BT5.0)',
                 'esp32-s3-devkitc-1': 'ESP32-S3-DevKitC-1 (WiFi+BT5.0)',
-                'esp32-c6-n4': 'ESP32-C6-N4 (WiFi+BT5.0+IPv6)',
+                'esp32-c6-devkitc-1': 'ESP32-C6-DevKitC-1 (WiFi 6+BT5.0+IPv6)',
                 'esp32-s2-devkitc-1': 'ESP32-S2-DevKitC-1 (WiFi)',
-                'esp32-c3-supermini': 'ESP32-C3-SuperMini (WiFi+BT5.0)'
+                'esp32-c3-supermini': 'ESP32-C3-SuperMini (WiFi+BT5.0)',
+                'esp32-s3-box': 'ESP32-S3-Box (WiFi+BT5.0+屏幕+摄像头)',
+                'seeed_xiao_esp32-s3': 'Seeed Studio XIAO ESP32-S3 (邮票孔设计)',
+                'esp32-s3-lcd-ev-board': 'ESP32-S3-LCD-EV-Board (LCD控制器)',
+                'dfrobot_firebeetle_2_esp32-s3': 'DFRobot FireBeetle 2 ESP32-S3 (低功耗)'
             },
             'ESP8266': {
                 'nodemcuv2': 'NodeMCU v2 (WiFi)',
-                'd1_mini': 'WeMos D1 Mini (WiFi)'
+                'd1_mini': 'WeMos D1 Mini (WiFi)',
+                'esp8266-devkitc': 'ESP8266-DevKitC (官方设计)'
             },
             'NRF52': {
                 'nrf52840dk': 'nRF52840 DK (WiFi+BT5.0)',
-                'nrf52832dk': 'nRF52832 DK (BT5.0)'
+                'nrf52832dk': 'nRF52832 DK (BT5.0)',
+                'adafruit_feather_nrf52832': 'Adafruit Feather nRF52832 (蓝牙5.0)'
             },
             'STM32': {
                 'bluepill_f103c8': 'Blue Pill STM32F103C8',
-                'nucleo_f401re': 'Nucleo-F401RE'
+                'nucleo_f401re': 'Nucleo-F401RE',
+                'stm32l432kc': 'STM32L432KC (低功耗)',
+                'stm32g431kb': 'STM32G431KB (高性能)',
+                'stm32f411ceu6': 'STM32F411CEU6 (经典型号)'
             },
             'RP2040': {
                 'raspberrypi_pico': 'Raspberry Pi Pico',
+                'raspberrypi_pico_w': 'Raspberry Pi Pico W (WiFi+蓝牙)',
                 'adafruit_feather_rp2040': 'Adafruit Feather RP2040'
             }
         }
@@ -365,20 +375,48 @@ SUPPORTED_HARDWARE = {
     'sensor': {
         'name': '传感器',
         'options': {
+            # 温湿度传感器
             'DHT22': 'DHT22 温湿度传感器',
+            'AM2302': 'AM2302 温湿度传感器 (DHT22封装版)',
+            'SHT20': 'SHT20 温湿度传感器',
             'SHT30': 'SHT30 温湿度传感器',
-            'BH1750': 'BH1750 光照传感器',
-            'HC_SR501': 'HC-SR501 人体感应传感器',
-            'MQ135': 'MQ-135 气体传感器',
-            'IR_FLAME': 'IR 火焰传感器',
+            'SHT40': 'SHT40 温湿度传感器',
+            'HDC1080': 'HDC1080 温湿度传感器',
             'BME280': 'BME280 温湿度气压传感器',
+            'BME680': 'BME680 温湿度气压气体传感器',
+            # 人体感应传感器
+            'HC_SR501': 'HC-SR501 人体感应传感器',
+            'HC_SR505': 'HC-SR505 小型人体感应传感器',
+            'RCWL_0516': 'RCWL-0516 微波雷达感应模块',
+            'LD2410': 'LD2410 毫米波雷达模块',
+            # 光照传感器
+            'BH1750': 'BH1750 光照传感器',
+            'GY30': 'GY30 高精度光照传感器',
+            'TSL2561': 'TSL2561 宽动态范围光照传感器',
+            'OPT3001': 'OPT3001 高精度环境光传感器',
+            # 气体传感器
+            'MQ2': 'MQ-2 烟雾燃气传感器',
+            'MQ5': 'MQ-5 液化石油气传感器',
+            'MQ7': 'MQ-7 一氧化碳传感器',
+            'MQ135': 'MQ-135 多种有害气体传感器',
+            'SGP30': 'SGP30 数字空气质量传感器',
+            # 火焰传感器
+            'IR_FLAME': 'IR 火焰传感器',
+            'YG1006': 'YG1006 高灵敏度红外火焰传感器',
+            'UV_FLAME': 'UV 火焰传感器',
+            # 气压传感器
+            'LPS25HB': 'LPS25HB 气压传感器',
+            'BMP388': 'BMP388 高精度气压传感器',
         }
     },
     'hardware': {
         'name': '硬件模块',
         'options': {
             'TF_CARD': 'TF卡模块',
-            'CAMERA': '摄像头模块'  # 用于视频留言
+            'CAMERA_GC0308': 'GC0308 微型摄像头 (30万像素)',
+            'CAMERA_OV2640': 'OV2640 微型摄像头 (200万像素)',
+            'CAMERA_OV5640': 'OV5640 微型摄像头 (500万像素)',
+            'CAMERA_ESP32_CAM': 'ESP32-CAM 专用摄像头 (200万像素)'
         }
     },
     'feature': {
