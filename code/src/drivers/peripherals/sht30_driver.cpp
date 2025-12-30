@@ -54,15 +54,8 @@ bool SHT30Driver::readData(SensorData& data) {
   t += tempOffset;
   h += humOffset;
   
-  // 填充传感器数据
-  data.valid = true;
-  data.timestamp = millis();
-  data.temperature = t;
-  data.humidity = h;
-  data.motionDetected = false; // SHT30不支持人体感应
-  data.gasLevel = 0; // SHT30不支持气体检测
-  data.flameDetected = false; // SHT30不支持火焰检测
-  data.lightLevel = 0; // SHT30不支持光照检测
+  // 使用通用方法填充传感器数据
+  fillSensorData(data, t, h);
   
   recordSuccess();
   return true;

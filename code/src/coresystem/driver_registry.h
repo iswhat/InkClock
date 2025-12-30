@@ -160,6 +160,43 @@ private:
     }
   }
   
+  // 私有方法：创建设备信息
+  DeviceInfo createDeviceInfo(const String& deviceId, const String& deviceName, 
+                              const String& deviceType, const String& driverName, 
+                              DeviceStatus status, const String& connectionInfo) {
+    DeviceInfo deviceInfo;
+    deviceInfo.deviceId = deviceId;
+    deviceInfo.deviceName = deviceName;
+    deviceInfo.deviceType = deviceType;
+    deviceInfo.driverName = driverName;
+    deviceInfo.status = status;
+    deviceInfo.connectionInfo = connectionInfo;
+    deviceInfo.discoveredTime = millis();
+    deviceInfo.lastUpdateTime = millis();
+    return deviceInfo;
+  }
+  
+  // 私有方法：发布设备发现事件
+  void publishDeviceDiscovered(const DeviceInfo& deviceInfo) {
+    auto deviceData = std::make_shared<DeviceEventData>(deviceInfo.deviceName, deviceInfo.deviceType, deviceInfo.deviceId);
+    eventBus->publish(EVENT_DEVICE_DISCOVERED, deviceData);
+  }
+  
+  // 私有方法：发布驱动错误事件
+  void publishDriverError(const String& driverName, const String& message, int errorCode) {
+    auto errorData = std::make_shared<SystemErrorEventData>(message, errorCode, driverName);
+    eventBus->publish(EVENT_DRIVER_ERROR, errorData);
+  }
+  
+  // 私有方法：发布设备连接事件
+  void publishDeviceConnected(const DeviceInfo& deviceInfo) {
+    auto deviceData = std::make_shared<DeviceEventData>(deviceInfo.deviceName, deviceInfo.deviceType, deviceInfo.deviceId);
+    eventBus->publish(EVENT_DEVICE_CONNECTED, deviceData);
+  }
+  
+  // 私有方法：处理传感器设备扫描结果
+  void handleSensorScanResult(ISensorDriver* driver, bool initResult, const String& deviceId, const String& deviceName);
+
 public:
   // 获取单例实例
   static DriverRegistry* getInstance() {
@@ -435,21 +472,13 @@ public:
           updateDriverStatus(driver->getTypeName(), DRIVER_STATUS_READY);
           
           // 创建设备信息
-          DeviceInfo deviceInfo;
-          deviceInfo.deviceId = String(driver->getType());
-          deviceInfo.deviceName = driver->getTypeName();
-          deviceInfo.deviceType = "sensor";
-          deviceInfo.driverName = driver->getTypeName();
-          deviceInfo.status = DEVICE_STATUS_DISCOVERED;
-          deviceInfo.connectionInfo = "Auto-detected";
-          deviceInfo.discoveredTime = millis();
-          deviceInfo.lastUpdateTime = millis();
-          
+          String deviceId = String(driver->getType());
+          DeviceInfo deviceInfo = createDeviceInfo(deviceId, driver->getTypeName(), "sensor", 
+                                                 driver->getTypeName(), DEVICE_STATUS_DISCOVERED, "Auto-detected");
           deviceInfos.push_back(deviceInfo);
           
           // 发布传感器发现事件
-          auto deviceData = std::make_shared<DeviceEventData>(deviceInfo.deviceName, deviceInfo.deviceType, deviceInfo.deviceId);
-          eventBus->publish(EVENT_DEVICE_DISCOVERED, deviceData);
+          publishDeviceDiscovered(deviceInfo);
           
           return driver;
         }
@@ -458,8 +487,7 @@ public:
       updateDriverStatus(driver->getTypeName(), DRIVER_STATUS_ERROR);
       
       // 发布驱动错误事件
-      auto errorData = std::make_shared<SystemErrorEventData>("Driver initialization failed", 2001, driver->getTypeName());
-      eventBus->publish(EVENT_DRIVER_ERROR, errorData);
+      publishDriverError(driver->getTypeName(), "Driver initialization failed", 2001);
     }
     return nullptr;
   }
@@ -477,21 +505,13 @@ public:
           updateDriverStatus(driverName, DRIVER_STATUS_READY);
           
           // 创建设备信息
-          DeviceInfo deviceInfo;
-          deviceInfo.deviceId = String(driver->getType());
-          deviceInfo.deviceName = "EinkDisplay";
-          deviceInfo.deviceType = "display";
-          deviceInfo.driverName = driverName;
-          deviceInfo.status = DEVICE_STATUS_DISCOVERED;
-          deviceInfo.connectionInfo = "Auto-detected";
-          deviceInfo.discoveredTime = millis();
-          deviceInfo.lastUpdateTime = millis();
-          
+          String deviceId = String(driver->getType());
+          DeviceInfo deviceInfo = createDeviceInfo(deviceId, "EinkDisplay", "display", 
+                                                 driverName, DEVICE_STATUS_DISCOVERED, "Auto-detected");
           deviceInfos.push_back(deviceInfo);
           
           // 发布设备发现事件
-          auto deviceData = std::make_shared<DeviceEventData>(deviceInfo.deviceName, deviceInfo.deviceType, deviceInfo.deviceId);
-          eventBus->publish(EVENT_DEVICE_DISCOVERED, deviceData);
+          publishDeviceDiscovered(deviceInfo);
           
           return driver;
         }
@@ -500,8 +520,7 @@ public:
       updateDriverStatus(driverName, DRIVER_STATUS_ERROR);
       
       // 发布驱动错误事件
-      auto errorData = std::make_shared<SystemErrorEventData>("Eink driver initialization failed", 2002, driverName);
-      eventBus->publish(EVENT_DRIVER_ERROR, errorData);
+      publishDriverError(driverName, "Eink driver initialization failed", 2002);
     }
     return nullptr;
   }
@@ -519,21 +538,13 @@ public:
           updateDriverStatus(driverName, DRIVER_STATUS_READY);
           
           // 创建设备信息
-          DeviceInfo deviceInfo;
-          deviceInfo.deviceId = String(driver->getType());
-          deviceInfo.deviceName = "AudioDevice";
-          deviceInfo.deviceType = "audio";
-          deviceInfo.driverName = driverName;
-          deviceInfo.status = DEVICE_STATUS_DISCOVERED;
-          deviceInfo.connectionInfo = "Auto-detected";
-          deviceInfo.discoveredTime = millis();
-          deviceInfo.lastUpdateTime = millis();
-          
+          String deviceId = String(driver->getType());
+          DeviceInfo deviceInfo = createDeviceInfo(deviceId, "AudioDevice", "audio", 
+                                                 driverName, DEVICE_STATUS_DISCOVERED, "Auto-detected");
           deviceInfos.push_back(deviceInfo);
           
           // 发布设备发现事件
-          auto deviceData = std::make_shared<DeviceEventData>(deviceInfo.deviceName, deviceInfo.deviceType, deviceInfo.deviceId);
-          eventBus->publish(EVENT_DEVICE_DISCOVERED, deviceData);
+          publishDeviceDiscovered(deviceInfo);
           
           return driver;
         }
@@ -542,8 +553,7 @@ public:
       updateDriverStatus(driverName, DRIVER_STATUS_ERROR);
       
       // 发布驱动错误事件
-      auto errorData = std::make_shared<SystemErrorEventData>("Audio driver initialization failed", 2003, driverName);
-      eventBus->publish(EVENT_DRIVER_ERROR, errorData);
+      publishDriverError(driverName, "Audio driver initialization failed", 2003);
     }
     return nullptr;
   }
@@ -646,7 +656,11 @@ public:
     
     // 扫描传感器设备
     for (auto driver : sensorDrivers) {
-      updateDriverStatus(driver->getTypeName(), DRIVER_STATUS_INITIALIZING);
+      String driverName = driver->getTypeName();
+      String deviceId = String(driver->getType());
+      String deviceName = driverName;
+      
+      updateDriverStatus(driverName, DRIVER_STATUS_INITIALIZING);
       
       // 尝试初始化驱动
       SensorConfig config;
@@ -657,133 +671,115 @@ public:
       config.tempOffset = 0.0;
       config.humOffset = 0.0;
       
-      if (driver->init(config)) {
-        updateDriverStatus(driver->getTypeName(), DRIVER_STATUS_READY);
+      bool initResult = driver->init(config);
+      
+      if (initResult) {
+        updateDriverStatus(driverName, DRIVER_STATUS_READY);
         
-        String deviceId = String(driver->getType());
         DeviceInfo* existingDevice = getDeviceInfo(deviceId);
         
         if (existingDevice != nullptr) {
           // 更新现有设备信息
           updateDeviceStatus(deviceId, DEVICE_STATUS_CONNECTED);
           existingDevice->lastUpdateTime = millis();
+          
+          // 发布设备发现和连接事件
+          DeviceInfo tempDeviceInfo = *existingDevice;
+          publishDeviceDiscovered(tempDeviceInfo);
+          publishDeviceConnected(tempDeviceInfo);
         } else {
           // 创建新设备信息
-          DeviceInfo deviceInfo;
-          deviceInfo.deviceId = deviceId;
-          deviceInfo.deviceName = driver->getTypeName();
-          deviceInfo.deviceType = "sensor";
-          deviceInfo.driverName = driver->getTypeName();
-          deviceInfo.status = DEVICE_STATUS_CONNECTED;
-          deviceInfo.connectionInfo = "Connected";
-          deviceInfo.discoveredTime = millis();
-          deviceInfo.lastUpdateTime = millis();
-          
+          DeviceInfo deviceInfo = createDeviceInfo(deviceId, deviceName, "sensor", 
+                                                 driverName, DEVICE_STATUS_CONNECTED, "Connected");
           deviceInfos.push_back(deviceInfo);
+          
+          // 发布设备发现和连接事件
+          publishDeviceDiscovered(deviceInfo);
+          publishDeviceConnected(deviceInfo);
         }
-        
-        // 发布设备发现事件
-        auto deviceData = std::make_shared<DeviceEventData>(driver->getTypeName(), "sensor", deviceId);
-        eventBus->publish(EVENT_DEVICE_DISCOVERED, deviceData);
-        
-        // 发布设备连接事件
-        eventBus->publish(EVENT_DEVICE_CONNECTED, deviceData);
       } else {
-        updateDriverStatus(driver->getTypeName(), DRIVER_STATUS_ERROR);
-        
-        // 发布驱动错误事件
-        auto errorData = std::make_shared<SystemErrorEventData>("Device scan failed", 2003, driver->getTypeName());
-        eventBus->publish(EVENT_DRIVER_ERROR, errorData);
+        updateDriverStatus(driverName, DRIVER_STATUS_ERROR);
+        publishDriverError(driverName, "Device scan failed", 2003);
       }
     }
     
     // 扫描显示设备（只支持EINK）
     for (auto driver : displayDrivers) {
       String driverName = "Eink_Driver";
+      String deviceId = String(driver->getType());
+      String deviceName = "EinkDisplay";
+      
       updateDriverStatus(driverName, DRIVER_STATUS_INITIALIZING);
       
-      if (driver->init()) {
+      bool initResult = driver->init();
+      
+      if (initResult) {
         updateDriverStatus(driverName, DRIVER_STATUS_READY);
         
-        String deviceId = String(driver->getType());
         DeviceInfo* existingDevice = getDeviceInfo(deviceId);
         
         if (existingDevice != nullptr) {
           // 更新现有设备信息
           updateDeviceStatus(deviceId, DEVICE_STATUS_CONNECTED);
           existingDevice->lastUpdateTime = millis();
+          
+          // 发布设备发现和连接事件
+          DeviceInfo tempDeviceInfo = *existingDevice;
+          publishDeviceDiscovered(tempDeviceInfo);
+          publishDeviceConnected(tempDeviceInfo);
         } else {
           // 创建新设备信息
-          DeviceInfo deviceInfo;
-          deviceInfo.deviceId = deviceId;
-          deviceInfo.deviceName = "EinkDisplay";
-          deviceInfo.deviceType = "display";
-          deviceInfo.driverName = driverName;
-          deviceInfo.status = DEVICE_STATUS_CONNECTED;
-          deviceInfo.connectionInfo = "Connected";
-          deviceInfo.discoveredTime = millis();
-          deviceInfo.lastUpdateTime = millis();
-          
+          DeviceInfo deviceInfo = createDeviceInfo(deviceId, deviceName, "display", 
+                                                 driverName, DEVICE_STATUS_CONNECTED, "Connected");
           deviceInfos.push_back(deviceInfo);
+          
+          // 发布设备发现和连接事件
+          publishDeviceDiscovered(deviceInfo);
+          publishDeviceConnected(deviceInfo);
         }
-        
-        // 发布设备发现事件
-        auto deviceData = std::make_shared<DeviceEventData>("EinkDisplay", "display", deviceId);
-        eventBus->publish(EVENT_DEVICE_DISCOVERED, deviceData);
-        
-        // 发布设备连接事件
-        eventBus->publish(EVENT_DEVICE_CONNECTED, deviceData);
       } else {
         updateDriverStatus(driverName, DRIVER_STATUS_ERROR);
-        
-        // 发布驱动错误事件
-        auto errorData = std::make_shared<SystemErrorEventData>("Eink device scan failed", 2004, driverName);
-        eventBus->publish(EVENT_DRIVER_ERROR, errorData);
+        publishDriverError(driverName, "Eink device scan failed", 2004);
       }
     }
     
     // 扫描音频设备
     for (auto driver : audioDrivers) {
       String driverName = String(driver->getType());
+      String deviceId = String(driver->getType());
+      String deviceName = "AudioDevice";
+      
       updateDriverStatus(driverName, DRIVER_STATUS_INITIALIZING);
       
-      if (driver->init()) {
+      bool initResult = driver->init();
+      
+      if (initResult) {
         updateDriverStatus(driverName, DRIVER_STATUS_READY);
         
-        String deviceId = String(driver->getType());
         DeviceInfo* existingDevice = getDeviceInfo(deviceId);
         
         if (existingDevice != nullptr) {
           // 更新现有设备信息
           updateDeviceStatus(deviceId, DEVICE_STATUS_CONNECTED);
           existingDevice->lastUpdateTime = millis();
+          
+          // 发布设备发现和连接事件
+          DeviceInfo tempDeviceInfo = *existingDevice;
+          publishDeviceDiscovered(tempDeviceInfo);
+          publishDeviceConnected(tempDeviceInfo);
         } else {
           // 创建新设备信息
-          DeviceInfo deviceInfo;
-          deviceInfo.deviceId = deviceId;
-          deviceInfo.deviceName = "AudioDevice";
-          deviceInfo.deviceType = "audio";
-          deviceInfo.driverName = driverName;
-          deviceInfo.status = DEVICE_STATUS_CONNECTED;
-          deviceInfo.connectionInfo = "Connected";
-          deviceInfo.discoveredTime = millis();
-          deviceInfo.lastUpdateTime = millis();
-          
+          DeviceInfo deviceInfo = createDeviceInfo(deviceId, deviceName, "audio", 
+                                                 driverName, DEVICE_STATUS_CONNECTED, "Connected");
           deviceInfos.push_back(deviceInfo);
+          
+          // 发布设备发现和连接事件
+          publishDeviceDiscovered(deviceInfo);
+          publishDeviceConnected(deviceInfo);
         }
-        
-        // 发布设备发现事件
-        auto deviceData = std::make_shared<DeviceEventData>(deviceInfo.deviceName, deviceInfo.deviceType, deviceInfo.deviceId);
-        eventBus->publish(EVENT_DEVICE_DISCOVERED, deviceData);
-        
-        // 发布设备连接事件
-        eventBus->publish(EVENT_DEVICE_CONNECTED, deviceData);
       } else {
         updateDriverStatus(driverName, DRIVER_STATUS_ERROR);
-        
-        // 发布驱动错误事件
-        auto errorData = std::make_shared<SystemErrorEventData>("Audio device scan failed", 2005, driverName);
-        eventBus->publish(EVENT_DRIVER_ERROR, errorData);
+        publishDriverError(driverName, "Audio device scan failed", 2005);
       }
     }
     

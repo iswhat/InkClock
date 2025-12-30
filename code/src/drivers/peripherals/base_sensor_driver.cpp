@@ -126,3 +126,17 @@ bool BaseSensorDriver::matchHardware() {
     return false;
   }
 }
+
+// 填充传感器数据的通用方法
+void BaseSensorDriver::fillSensorData(SensorData& data, float temperature, float humidity, 
+                                     bool motionDetected, float gasLevel,
+                                     bool flameDetected, float lightLevel) {
+  data.valid = true;
+  data.timestamp = millis();
+  data.temperature = temperature;
+  data.humidity = humidity;
+  data.motionDetected = motionDetected;
+  data.gasLevel = gasLevel;
+  data.flameDetected = flameDetected;
+  data.lightLevel = lightLevel;
+}

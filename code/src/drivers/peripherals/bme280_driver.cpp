@@ -57,15 +57,8 @@ bool BME280Driver::readData(SensorData& data) {
   t += tempOffset;
   h += humOffset;
   
-  // 填充传感器数据
-  data.valid = true;
-  data.timestamp = millis();
-  data.temperature = t;
-  data.humidity = h;
-  data.motionDetected = false; // BME280不支持人体感应
-  data.gasLevel = 0; // BME280不支持气体检测
-  data.flameDetected = false; // BME280不支持火焰检测
-  data.lightLevel = 0; // BME280不支持光照检测
+  // 使用通用方法填充传感器数据
+  fillSensorData(data, t, h);
   
   recordSuccess();
   return true;
