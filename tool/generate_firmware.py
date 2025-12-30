@@ -389,11 +389,6 @@ SUPPORTED_HARDWARE = {
             'HC_SR505': 'HC-SR505 小型人体感应传感器',
             'RCWL_0516': 'RCWL-0516 微波雷达感应模块',
             'LD2410': 'LD2410 毫米波雷达模块',
-            # 光照传感器
-            'BH1750': 'BH1750 光照传感器',
-            'GY30': 'GY30 高精度光照传感器',
-            'TSL2561': 'TSL2561 宽动态范围光照传感器',
-            'OPT3001': 'OPT3001 高精度环境光传感器',
             # 气体传感器
             'MQ2': 'MQ-2 烟雾燃气传感器',
             'MQ5': 'MQ-5 液化石油气传感器',
@@ -422,15 +417,17 @@ SUPPORTED_HARDWARE = {
     'feature': {
         'name': '功能模块',
         'options': {
-            'FONT': '字体管理功能',
-            'ALARM_DISPLAY': '报警显示功能',
-            'AUDIO': '音频功能',
-            'VOICE_MESSAGE': '语音留言功能',
-            'VIDEO_MESSAGE': '视频留言功能',
-            'TF_CARD_MANAGEMENT': 'TF卡管理功能',
-            'TOUCH': '触摸功能',
-            'TEMPERATURE_HUMIDITY_DISPLAY': '室内温湿度显示功能',
-            'MOTION_SAVING': '感应节能功能'
+            'TEMPERATURE_HUMIDITY_DISPLAY': '室内温湿度显示 (温湿度传感器)',
+            'VOICE_MESSAGE': '音频留言 (音频解码模块)',
+            'AUDIO': '音频本地留言 (音频解码模块)',
+            'VIDEO_MESSAGE': '视频本地留言 (摄像头模块)',
+            'TF_CARD_MANAGEMENT': '存储卡管理',
+            'MOTION_SAVING': '感应节能功能 (人体传感器)',
+            'LIGHT_SAVING': '夜间节能功能 (光照传感器)',
+            'GAS_ALARM': '燃气泄漏报警 (气体感应器)',
+            'FIRE_ALARM': '火焰感应报警 (火焰感应器)',
+            'FONT': '字体自定义',
+            'TOUCH': '触摸屏'
         }
     },
     'mandatory_features': {
@@ -474,16 +471,20 @@ SUPPORTED_HARDWARE = {
 
 # 功能与硬件的映射关系
 FEATURE_HARDWARE_MAPPING = {
-    'AUDIO': ['audio_module'],
+    'TEMPERATURE_HUMIDITY_DISPLAY': ['sensor'],  # 关联温湿度相关传感器
     'VOICE_MESSAGE': ['audio_module', 'tf_card'],
+    'AUDIO': ['audio_module'],
     'VIDEO_MESSAGE': ['camera', 'tf_card'],
     'TF_CARD_MANAGEMENT': ['tf_card'],
-    'ALARM_DISPLAY': ['audio_module', 'sensor'],  # 关联音频模块（扬声器/蜂鸣器）和传感器
-    'TEMPERATURE_HUMIDITY_DISPLAY': ['sensor'],  # 关联温湿度相关传感器
     'MOTION_SAVING': ['sensor'],  # 关联人体感应传感器
+    'LIGHT_SAVING': ['sensor'],  # 关联光照传感器
+    'GAS_ALARM': ['sensor', 'audio_module'],  # 关联气体感应器和音频模块
+    'FIRE_ALARM': ['sensor', 'audio_module'],  # 关联火焰感应器和音频模块
+    'FONT': [],  # 无需额外硬件
+    'TOUCH': ['display'],
+    'ALARM_DISPLAY': ['audio_module', 'sensor'],  # 关联音频模块（扬声器/蜂鸣器）和传感器
     'WIFI': ['wifi_bt_module'],
     'BLUETOOTH': ['wifi_bt_module'],
-    'TOUCH': ['display'],
     'TEXT_MESSAGE': ['wifi_bt_module'],
     'WEBCLIENT': ['wifi_bt_module'],
     'FIRMWARE': ['wifi_bt_module'],
