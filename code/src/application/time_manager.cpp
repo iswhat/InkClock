@@ -1,6 +1,6 @@
 #include "time_manager.h"
 #include "wifi_manager.h"
-#include "../core/event_bus.h"
+#include "../coresystem/event_bus.h"
 
 // 外部全局对象
 extern WiFiManager wifiManager;

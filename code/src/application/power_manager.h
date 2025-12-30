@@ -2,7 +2,7 @@
 #define POWER_MANAGER_H
 
 #include <Arduino.h>
-#include "../core/config.h"
+#include "../coresystem/config.h"
 
 class CoreSystem;
 

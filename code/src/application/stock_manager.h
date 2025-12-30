@@ -2,7 +2,7 @@
 #define STOCK_MANAGER_H
 
 #include <Arduino.h>
-#include "../core/config.h"
+#include "../coresystem/config.h"
 #include "../services/api_manager.h"
 
 // 大盘曲线数据点结构

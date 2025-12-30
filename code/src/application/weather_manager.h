@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
-#include "../core/config.h"
+#include "../coresystem/config.h"
 #include "../services/api_manager.h"
 
 // 天气数据结构

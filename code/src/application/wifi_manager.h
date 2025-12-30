@@ -5,7 +5,7 @@
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <WiFiUdp.h>
-#include "../core/config.h"
+#include "../coresystem/config.h"
 
 class WiFiManager {
 public:

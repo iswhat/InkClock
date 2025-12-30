@@ -1,6 +1,6 @@
 #include "power_manager.h"
-#include "../core/core_system.h"
-#include "../core/event_bus.h"
+#include "../coresystem/core_system.h"
+#include "../coresystem/event_bus.h"
 
 PowerManager::PowerManager() {
   batteryVoltage = 0.0;

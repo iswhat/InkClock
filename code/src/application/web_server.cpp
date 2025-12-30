@@ -2,8 +2,8 @@
 #include "../services/wifi_manager.h"
 #include "../extensions/plugin_manager.h"
 #include "../modules/sensor_manager.h"
-#include "../core/font_manager.h"
-#include "../core/tf_card_manager.h"
+#include "../coresystem/font_manager.h"
+#include "../coresystem/tf_card_manager.h"
 #include <ArduinoJson.h>
 
 // 外部全局对象

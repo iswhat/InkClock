@@ -6,7 +6,7 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
-#include "core/config.h"
+#include "coresystem/config.h"
 
 class BluetoothManager {
 private:

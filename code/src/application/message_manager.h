@@ -2,7 +2,7 @@
 #define MESSAGE_MANAGER_H
 
 #include <Arduino.h>
-#include "../core/config.h"
+#include "../coresystem/config.h"
 
 // 消息类型枚举
 enum MessageType {

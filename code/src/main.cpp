@@ -16,23 +16,23 @@
  */
 
 #include <Arduino.h>
-#include "core/config.h"
-#include "core/core_system.h"
-#include "core/platform_abstraction.h"
-#include "app/display_manager.h"
-#include "drivers/displays/display_driver.h"
-#include "drivers/displays/eink_driver.h"
-#include "services/wifi_manager.h"
-#include "services/time_manager.h"
-#include "modules/weather_manager.h"
-#include "modules/sensor_manager.h"
+#include "coresystem/config.h"
+#include "coresystem/core_system.h"
+#include "coresystem/platform_abstraction.h"
+#include "application/display_manager.h"
+#include "drivers/peripherals/display_driver.h"
+#include "drivers/peripherals/eink_driver.h"
+#include "application/wifi_manager.h"
+#include "application/time_manager.h"
+#include "application/weather_manager.h"
+#include "application/sensor_manager.h"
 #include "button_manager.h"
-#include "app/web_server.h"
-#include "services/power_manager.h"
-#include "modules/lunar_manager.h"
-#include "services/api_manager.h"
-#include "services/geo_manager.h"
-#include "core/spiffs_manager.h"
+#include "application/web_server.h"
+#include "application/power_manager.h"
+#include "application/lunar_manager.h"
+#include "application/api_manager.h"
+#include "application/geo_manager.h"
+#include "coresystem/spiffs_manager.h"
 
 // 条件包含可选模块 - 可通过修改这些宏来启用或禁用相应功能
 // 音频功能 - 用于音频录制和播放
@@ -90,11 +90,11 @@
 #endif
 
 #if ENABLE_STOCK
-  #include "modules/stock_manager.h"
+  #include "application/stock_manager.h"
 #endif
 
 #if ENABLE_MESSAGE
-  #include "modules/message_manager.h"
+  #include "application/message_manager.h"
 #endif
 
 #if ENABLE_PLUGIN
@@ -102,11 +102,11 @@
 #endif
 
 #if ENABLE_WEBCLIENT
-  #include "app/web_client.h"
+  #include "application/web_client.h"
 #endif
 
 #if ENABLE_FONT
-  #include "core/font_manager.h"
+  #include "coresystem/font_manager.h"
 #endif
 
 #if ENABLE_IPV6
@@ -403,7 +403,7 @@ void initLocalModules() {
   
   #if ENABLE_TF_CARD
     try {
-      #include "core/tf_card_manager.h"
+      #include "coresystem/tf_card_manager.h"
       initTFCard(SD_CS);          // TF卡初始化
       Serial.println("TF卡初始化完成");
     } catch (const std::exception& e) {

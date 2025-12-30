@@ -14,7 +14,7 @@
 extern WiFiManager wifiManager;
 
 // 使用config.h中定义的配置参数
-#include "../core/config.h"
+#include "../coresystem/config.h"
 
 APIManager::APIManager() {
     // 初始化成员变量

@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <WebServer.h>
 #include <ESPmDNS.h>
-#include "../core/config.h"
+#include "../coresystem/config.h"
 
 class WebServerManager {
 private:

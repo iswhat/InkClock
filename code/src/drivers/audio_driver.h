@@ -2,7 +2,7 @@
 #define AUDIO_DRIVER_H
 
 #include <Arduino.h>
-#include "core/config.h"
+#include "coresystem/config.h"
 
 // 音频驱动类型枚举
 enum AudioDriverType {

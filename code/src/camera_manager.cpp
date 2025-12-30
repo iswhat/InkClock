@@ -1,5 +1,5 @@
 #include "camera_manager.h"
-#include "core/tf_card_manager.h"
+#include "coresystem/tf_card_manager.h"
 
 // 摄像头管理类实现
 CameraManager::CameraManager() {

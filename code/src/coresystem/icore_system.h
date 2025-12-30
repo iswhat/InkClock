@@ -2,7 +2,19 @@
 
 #include <Arduino.h>
 #include <string>
-#include "core_system.h" // 包含CoreSystemState枚举定义
+
+// 核心系统状态枚举
+enum CoreSystemState {
+  SYSTEM_STATE_UNINITIALIZED,
+  SYSTEM_STATE_INITIALIZING,
+  SYSTEM_STATE_RUNNING,
+  SYSTEM_STATE_LOW_POWER,
+  SYSTEM_STATE_ERROR,
+  SYSTEM_STATE_SHUTTING_DOWN
+};
+
+// 定时器回调函数类型
+typedef std::function<void(uint32_t)> TimerCallback;
 
 // 核心系统抽象接口
 class ICoreSystem {

@@ -2,21 +2,12 @@
 #define CORE_SYSTEM_H
 
 #include <Arduino.h>
+#include "icore_system.h" // 包含ICoreSystem接口和CoreSystemState枚举
 #include "event_bus.h"
 #include "driver_registry.h"
 #include "config.h"
 #include "spiffs_manager.h"
 #include "platform_abstraction.h"
-
-// 核心系统状态枚举
-enum CoreSystemState {
-  SYSTEM_STATE_UNINITIALIZED,
-  SYSTEM_STATE_INITIALIZING,
-  SYSTEM_STATE_RUNNING,
-  SYSTEM_STATE_LOW_POWER,
-  SYSTEM_STATE_ERROR,
-  SYSTEM_STATE_SHUTTING_DOWN
-};
 
 // 配置项结构体
 typedef struct {

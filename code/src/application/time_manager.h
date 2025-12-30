@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <WiFiUdp.h>
 #include <time.h>
-#include "../core/config.h"
+#include "../coresystem/config.h"
 #include "../services/api_manager.h"
 // 时间数据结构
 typedef struct {

@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 #include <WiFiClientSecure.h>
-#include "../core/config.h"
+#include "../coresystem/config.h"
 #include "../modules/message_manager.h"
 #include "../services/api_manager.h"
 

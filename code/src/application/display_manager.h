@@ -2,8 +2,8 @@
 #define DISPLAY_MANAGER_H
 
 #include <Arduino.h>
-#include "../core/config.h"
-#include "../core/event_bus.h"
+#include "../coresystem/config.h"
+#include "../coresystem/event_bus.h"
 
 // 前向声明驱动接口
 class IDisplayDriver;

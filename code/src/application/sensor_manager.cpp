@@ -1,6 +1,6 @@
 #include "sensor_manager.h"
-#include "../core/driver_registry.h"
-#include "../core/event_bus.h"
+#include "../coresystem/driver_registry.h"
+#include "../coresystem/event_bus.h"
 
 SensorManager::SensorManager() : sensorDriver(nullptr) {
   // 初始化传感器数据

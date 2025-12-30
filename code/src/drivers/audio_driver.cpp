@@ -1,7 +1,7 @@
 #include "audio_driver.h"
 #include <ESP32-audioI2S.h>
-#include "core/config.h"
-#include "core/spiffs_manager.h"
+#include "coresystem/config.h"
+#include "coresystem/spiffs_manager.h"
 #include <SPIFFS.h>
 
 // 基础音频驱动类，基于ESP32-audioI2S库实现

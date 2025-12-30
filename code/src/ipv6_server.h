@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WebServer.h>
-#include "modules/message_manager.h"
+#include "application/message_manager.h"
 
 // 外部全局对象
 extern MessageManager messageManager;

@@ -1,6 +1,6 @@
 #include "audio_manager.h"
 #include <SPIFFS.h>
-#include "core/spiffs_manager.h"
+#include "coresystem/spiffs_manager.h"
 
 AudioManager::AudioManager() {
   // 初始化音频状态

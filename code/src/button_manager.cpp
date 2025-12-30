@@ -1,5 +1,5 @@
 #include "button_manager.h"
-#include "app/display_manager.h"
+#include "application/display_manager.h"
 
 // 外部全局对象
 extern DisplayManager displayManager;
