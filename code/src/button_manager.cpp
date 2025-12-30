@@ -118,11 +118,24 @@ void ButtonManager::processButtonEvents() {
         }
         // 单击事件会在后续检查中处理
       } else {
-        // 长按事件
+        // 处理长按事件
         if (callback != NULL) {
           callback(i, BUTTON_LONG_PRESS);
         }
         state.clickCount = 0;
+        
+        // 长按持续时间超过5秒，触发恢复出厂设置
+        if (pressDuration > 5000) {
+          DEBUG_PRINTLN("长按超过5秒，触发恢复出厂设置");
+          // 发布恢复出厂设置事件
+          EventBus* eventBus = EventBus::getInstance();
+          eventBus->publish(EVENT_SYSTEM_RESET, nullptr);
+          
+          // 直接调用CoreSystem的resetConfig和reset方法
+          CoreSystem* coreSystem = CoreSystem::getInstance();
+          coreSystem->resetConfig();
+          coreSystem->reset();
+        }
       }
       
       state.lastState = false;

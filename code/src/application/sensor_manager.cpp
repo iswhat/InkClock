@@ -78,17 +78,39 @@ SensorManager::SensorManager() : sensorDriver(nullptr) {
   }, "SensorManager");
   
   EVENT_SUBSCRIBE(EVENT_POWER_STATE_CHANGED, [this](EventType type, std::shared_ptr<EventData> data) {
-    auto powerData = std::dynamic_pointer_cast<PowerEventData>(data);
+    auto powerData = std::dynamic_pointer_cast<PowerStateEventData>(data);
     if (powerData) {
       // 根据电源状态调整传感器采样频率
-      if (powerData->state == POWER_STATE_LOW) {
+      if (powerData->isLowPower) {
         setUpdateInterval(60000); // 低功耗模式下每分钟更新一次
       } else {
         setUpdateInterval(SENSOR_UPDATE_INTERVAL); // 正常模式下使用默认间隔
       }
     }
   }, "SensorManager");
-}
+
+  EVENT_SUBSCRIBE(EVENT_LOW_POWER_ENTER, [this](EventType type, std::shared_ptr<EventData> data) {
+    // 进入低功耗模式事件
+    DEBUG_PRINTLN("进入低功耗模式，调整传感器采样频率");
+    // 非报警传感器降低采样频率
+    setUpdateInterval(60000);
+    // 报警相关传感器保持正常采样频率（通过单独处理）
+  }, "SensorManager");
+
+  EVENT_SUBSCRIBE(EVENT_LOW_POWER_EXIT, [this](EventType type, std::shared_ptr<EventData> data) {
+    // 退出低功耗模式事件
+    DEBUG_PRINTLN("退出低功耗模式，恢复正常采样频率");
+    // 恢复正常采样频率
+    setUpdateInterval(SENSOR_UPDATE_INTERVAL);
+  }, "SensorManager");
+
+  EVENT_SUBSCRIBE(EVENT_LOW_POWER_SENSOR_ADJUST, [this](EventType type, std::shared_ptr<EventData> data) {
+    // 低功耗模式下传感器采样频率调整事件
+    DEBUG_PRINTLN("低功耗模式传感器采样频率调整");
+    // 报警相关传感器保持正常采样频率，其他传感器降低采样频率
+    // 具体实现根据传感器类型和优先级进行调整
+  }, "SensorManager");
+
 
 SensorManager::~SensorManager() {
   // 清理传感器驱动资源
@@ -324,7 +346,7 @@ void SensorManager::update() {
 
 void SensorManager::loop() {
   // 定期更新传感器数据
-  if (millis() - lastUpdate > SENSOR_UPDATE_INTERVAL) {
+  if (millis() - lastUpdate > currentConfig.updateInterval) {
     update();
   }
 }

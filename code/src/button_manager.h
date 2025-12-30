@@ -3,6 +3,8 @@
 
 #include <Arduino.h>
 #include "coresystem/config.h"
+#include "coresystem/event_bus.h"
+#include "coresystem/core_system.h"
 
 // 按键事件类型
 enum ButtonEvent {

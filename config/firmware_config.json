@@ -1,23 +1,13 @@
 {
     "platform": "ESP32",
     "board": "esp32-c3-devkitc-02",
-    "audio_module": "AUDIO_DRIVER_ESP32_AUDIO",
+    "audio_module": "AUDIO_DRIVER_NONE",
     "wifi_bt_module": "WIFI_BT_INTERNAL",
     "display": "EINK_42_INCH_HEMA",
     "tf_card_reader": "TF_READER_NONE",
-    "sensors": [
-        "DHT22",
-        "HC_SR501",
-        "IR_FLAME"
-    ],
+    "sensors": [],
     "hardware": [],
     "features": [
-        "ALARM_DISPLAY",
-        "AUDIO",
-        "VOICE_MESSAGE",
-        "TEMPERATURE_HUMIDITY_DISPLAY",
-        "MOTION_SAVING",
-        "TF_CARD_MANAGEMENT",
         "WIFI",
         "BLUETOOTH",
         "TEXT_MESSAGE",

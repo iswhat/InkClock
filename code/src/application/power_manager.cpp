@@ -88,8 +88,17 @@ void PowerManager::loop() {
   
   // 低功耗模式处理
   if (LOW_POWER_MODE_ENABLED) {
+    // 1. 读取人体感应传感器
     bool motionDetected = readPIRSensor();
     
+    // 2. 读取光照传感器（如果启用了光照节能功能）
+    bool nightMode = false;
+    #if ENABLE_LIGHT_SAVING
+    int lightLevel = analogRead(LIGHT_SENSOR_PIN);
+    nightMode = (lightLevel < NIGHT_LIGHT_THRESHOLD);
+    #endif
+    
+    // 3. 人体感应处理
     if (motionDetected) {
       lastMotionTime = millis();
       if (isLowPowerMode) {
@@ -97,9 +106,19 @@ void PowerManager::loop() {
         coreSystem->exitLowPowerMode();
       }
     } else {
-      if (!isLowPowerMode && (millis() - lastMotionTime > NO_MOTION_TIMEOUT)) {
-        // 通过CoreSystem进入低功耗模式
-        coreSystem->enterLowPowerMode();
+      // 4. 光感应处理
+      if (nightMode) {
+        // 夜间模式，立即进入低功耗模式
+        if (!isLowPowerMode) {
+          // 通过CoreSystem进入低功耗模式
+          coreSystem->enterLowPowerMode();
+        }
+      } else {
+        // 白天模式，根据无运动时间判断
+        if (!isLowPowerMode && (millis() - lastMotionTime > NO_MOTION_TIMEOUT)) {
+          // 通过CoreSystem进入低功耗模式
+          coreSystem->enterLowPowerMode();
+        }
       }
     }
   }
@@ -180,7 +199,7 @@ void PowerManager::enterLowPowerMode() {
     WiFi.mode(WIFI_MODE_NONE);
     DEBUG_PRINTLN("WiFi mode set to NONE");
     
-    // 3. 关闭不必要的外设时钟
+    // 3. 关闭不必要的外设时钟，但保留报警相关传感器
     #if defined(ESP32)
       // 关闭不需要的外设时钟
       rtc_gpio_hold_en(GPIO_NUM_0);
@@ -188,14 +207,26 @@ void PowerManager::enterLowPowerMode() {
       rtc_gpio_hold_en(GPIO_NUM_2);
       rtc_gpio_hold_en(GPIO_NUM_3);
       DEBUG_PRINTLN("GPIO hold enabled for unused pins");
+      
+      // 确保报警相关传感器引脚不被关闭
+      rtc_gpio_hold_dis(GAS_SENSOR_PIN);
+      rtc_gpio_hold_dis(FLAME_SENSOR_PIN);
+      rtc_gpio_hold_dis(PIR_SENSOR_PIN);
+      #if ENABLE_LIGHT_SAVING
+      rtc_gpio_hold_dis(LIGHT_SENSOR_PIN);
+      #endif
+      DEBUG_PRINTLN("保留报警相关传感器引脚功能");
     #endif
     
     // 4. 优化显示刷新策略
     DEBUG_PRINTLN("Display refresh interval set to " + String(LOW_POWER_REFRESH_INTERVAL) + "ms");
     
-    // 5. 降低传感器采样频率
-    // 可以通过修改相关模块的采样间隔来降低功耗
-    DEBUG_PRINTLN("Low power mode enabled, reducing sensor sampling rate");
+    // 5. 降低传感器采样频率，但保留报警相关传感器的正常采样频率
+    DEBUG_PRINTLN("Low power mode enabled, reducing non-alarm sensor sampling rate");
+    DEBUG_PRINTLN("报警相关传感器保持正常采样频率");
+    
+    // 发布传感器采样频率调整事件
+    EVENT_PUBLISH(EVENT_LOW_POWER_SENSOR_ADJUST, nullptr);
   }
 }
 

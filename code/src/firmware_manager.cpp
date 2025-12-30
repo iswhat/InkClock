@@ -7,6 +7,7 @@
 #include <SdFat.h>
 #include <Update.h>
 #include <HTTPClient.h>
+#include <ArduinoJson.h>
 
 // 创建SD对象
 SdFat SD;
@@ -181,6 +182,60 @@ bool FirmwareManager::checkTFValidity() {
     return false;
   }
   
+  // 检查固件版本信息文件是否存在
+  if (!SD.exists("/firmware_info.json")) {
+    logUpdateStatus("Firmware info file not found: /firmware_info.json");
+    return false;
+  }
+  
+  // 读取固件版本信息
+  File infoFile = SD.open("/firmware_info.json");
+  if (!infoFile) {
+    logUpdateStatus("Failed to open firmware info file");
+    return false;
+  }
+  
+  // 解析固件信息JSON
+  DynamicJsonDocument jsonDoc(1024);
+  DeserializationError error = deserializeJson(jsonDoc, infoFile);
+  infoFile.close();
+  
+  if (error) {
+    logUpdateStatus("Failed to parse firmware info file");
+    return false;
+  }
+  
+  // 获取固件支持的硬件列表
+  JsonArray supportedHardware = jsonDoc["supported_hardware"];
+  if (supportedHardware.isNull()) {
+    logUpdateStatus("Firmware info missing supported_hardware field");
+    return false;
+  }
+  
+  // 自动检测当前硬件
+  String currentHardware = detectCurrentHardware();
+  logUpdateStatus("Current hardware: " + currentHardware);
+  
+  // 检查当前硬件是否在固件支持列表中
+  bool hardwareSupported = false;
+  for (JsonVariant hw : supportedHardware) {
+    String hwName = hw.as<String>();
+    if (hwName.equalsIgnoreCase(currentHardware)) {
+      hardwareSupported = true;
+      break;
+    }
+  }
+  
+  if (!hardwareSupported) {
+    logUpdateStatus("Hardware not supported by this firmware: " + currentHardware);
+    logUpdateStatus("Supported hardware: ");
+    for (JsonVariant hw : supportedHardware) {
+      logUpdateStatus("  - " + hw.as<String>());
+    }
+    return false;
+  }
+  
+  // 检查固件文件大小
   File firmwareFile = SD.open("/firmware.bin");
   if (!firmwareFile) {
     logUpdateStatus("Failed to open firmware file");
@@ -195,7 +250,10 @@ bool FirmwareManager::checkTFValidity() {
     return false;
   }
   
+  // 验证固件CRC或哈希值（可选，这里跳过）
+  
   logUpdateStatus("Valid firmware found, size: " + String(firmwareSize) + " bytes");
+  logUpdateStatus("Firmware is compatible with current hardware");
   return true;
 }
 

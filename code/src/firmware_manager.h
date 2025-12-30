@@ -72,6 +72,9 @@ private:
   
   // 日志记录
   void logUpdateStatus(String message);
+  
+  // 检测当前硬件型号
+  String detectCurrentHardware();
 };
 
 #endif // FIRMWARE_MANAGER_H

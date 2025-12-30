@@ -71,24 +71,69 @@ def install_dependencies():
 
 # 检测PlatformIO安装状态
 def check_platformio_installation():
-    """检测PlatformIO是否已安装"""
+    """检测PlatformIO是否已安装，如未安装则自动安装"""
     print("2. 检查PlatformIO安装状态...")
     
+    # 尝试两种方式检测PlatformIO
+    detection_methods = [
+        ['pio', '--version'],  # 直接使用pio命令
+        [sys.executable, '-m', 'platformio', '--version']  # 使用python -m platformio
+    ]
+    
+    for method in detection_methods:
+        try:
+            # 尝试运行PlatformIO命令
+            result = subprocess.run(method, capture_output=True, text=True, check=True)
+            version_output = result.stdout.strip()
+            print(f"   PlatformIO已安装: {version_output}")
+            print(f"   使用命令: {' '.join(method)}")
+            return True
+        except subprocess.CalledProcessError:
+            # 命令执行失败，尝试下一种方法
+            continue
+        except FileNotFoundError:
+            # 命令未找到，尝试下一种方法
+            continue
+        except Exception as e:
+            # 其他异常，尝试下一种方法
+            print(f"   尝试 {' '.join(method)} 时发生异常: {str(e)}")
+            continue
+    
+    # 所有检测方法都失败，说明PlatformIO未安装或安装损坏
+    print("   错误: PlatformIO未安装或安装损坏")
+    
+    # 尝试自动安装PlatformIO
+    return install_platformio()
+
+# 安装PlatformIO
+def install_platformio():
+    """自动安装PlatformIO"""
+    print("   正在自动安装PlatformIO...")
+    
     try:
-        # 尝试运行pio命令
-        result = subprocess.run(['pio', '--version'], capture_output=True, text=True, check=True)
-        version_output = result.stdout.strip()
-        print(f"   PlatformIO已安装: {version_output}")
+        # 使用pip安装PlatformIO，添加--user参数确保安装到用户目录
+        print("   执行命令: pip install --user platformio")
+        result = subprocess.run([sys.executable, '-m', 'pip', 'install', '--user', 'platformio'], 
+                              capture_output=True, text=True, check=True)
+        print("   PlatformIO安装成功!")
+        
+        # 安装完成后，使用python -m platformio来检测是否安装成功
+        print("   验证PlatformIO安装...")
+        verify_result = subprocess.run([sys.executable, '-m', 'platformio', '--version'], 
+                                     capture_output=True, text=True, check=True)
+        verify_output = verify_result.stdout.strip()
+        print(f"   PlatformIO版本: {verify_output}")
         return True
-    except subprocess.CalledProcessError:
-        print("   错误: PlatformIO安装可能损坏")
+    except subprocess.CalledProcessError as e:
+        print(f"   错误: PlatformIO安装失败")
+        print(f"   错误信息: {e.stderr}")
         return False
     except FileNotFoundError:
-        print("   错误: PlatformIO未安装")
-        print("   请访问 https://platformio.org/ 安装PlatformIO")
+        print("   错误: 未找到pip命令")
+        print("   请确保Python和pip已正确安装")
         return False
     except Exception as e:
-        print(f"   错误: 检测PlatformIO时发生异常: {str(e)}")
+        print(f"   错误: 安装PlatformIO时发生异常: {str(e)}")
         return False
 
 # 检测特定平台支持
@@ -96,30 +141,51 @@ def check_platform_support(platform_name):
     """检测是否支持特定平台"""
     print(f"3. 检查{platform_name}平台支持...")
     
-    try:
-        # 检查是否已安装该平台
-        result = subprocess.run(['pio', 'platform', 'list'], capture_output=True, text=True, check=True)
-        
-        # 映射平台名称到PlatformIO平台ID
-        platform_id_mapping = {
-            'ESP32': 'espressif32',
-            'ESP8266': 'espressif8266',
-            'NRF52': 'nordicnrf52',
-            'STM32': 'ststm32',
-            'RP2040': 'raspberrypi'
-        }
-        
-        platform_id = platform_id_mapping.get(platform_name.upper())
-        if platform_id and platform_id in result.stdout:
-            print(f"   {platform_name}平台支持已安装")
-            return True
-        else:
-            print(f"   错误: 未安装{platform_name}平台支持")
-            print(f"   请运行: pio platform install {platform_id}")
-            return False
-    except Exception as e:
-        print(f"   错误: 检测{platform_name}平台时发生异常: {str(e)}")
-        return False
+    # 尝试两种方式运行PlatformIO命令
+    pio_commands = [
+        ['pio', 'platform', 'list'],  # 直接使用pio命令
+        [sys.executable, '-m', 'platformio', 'platform', 'list']  # 使用python -m platformio
+    ]
+    
+    for pio_cmd in pio_commands:
+        try:
+            # 检查是否已安装该平台
+            result = subprocess.run(pio_cmd, capture_output=True, text=True, check=True)
+            
+            # 映射平台名称到PlatformIO平台ID
+            platform_id_mapping = {
+                'ESP32': 'espressif32',
+                'ESP8266': 'espressif8266',
+                'NRF52': 'nordicnrf52',
+                'STM32': 'ststm32',
+                'RP2040': 'raspberrypi'
+            }
+            
+            platform_id = platform_id_mapping.get(platform_name.upper())
+            if platform_id and platform_id in result.stdout:
+                print(f"   {platform_name}平台支持已安装")
+                print(f"   使用命令: {' '.join(pio_cmd)}")
+                return True
+            else:
+                print(f"   错误: 未安装{platform_name}平台支持")
+                print(f"   请运行: {' '.join(pio_cmd[:-1])} install {platform_id}")
+                return False
+        except subprocess.CalledProcessError as e:
+            # 命令执行失败，尝试下一种方法
+            print(f"   尝试 {' '.join(pio_cmd)} 时执行失败")
+            continue
+        except FileNotFoundError:
+            # 命令未找到，尝试下一种方法
+            print(f"   未找到命令: {' '.join(pio_cmd)}")
+            continue
+        except Exception as e:
+            # 其他异常，尝试下一种方法
+            print(f"   检测{platform_name}平台时发生异常: {str(e)}")
+            continue
+    
+    # 所有方法都失败
+    print(f"   错误: 无法检测{platform_name}平台支持")
+    return False
 
 # 检测Arduino框架支持
 def check_arduino_framework():
@@ -424,7 +490,6 @@ SUPPORTED_HARDWARE = {
             'VOICE_MESSAGE': '音频留言 (音频解码模块)',
             'AUDIO': '音频本地留言 (音频解码模块)',
             'VIDEO_MESSAGE': '视频本地留言 (摄像头模块)',
-            'TF_CARD_MANAGEMENT': '存储卡管理',
             'MOTION_SAVING': '感应节能功能 (人体传感器)',
             'LIGHT_SAVING': '夜间节能功能 (光照传感器)',
             'GAS_ALARM': '燃气泄漏报警 (气体感应器)',
@@ -560,8 +625,9 @@ def select_features():
         features.append(feature_key)
     
     # 自动添加关联功能
-    # 1. 选择了音频功能，自动添加TF卡管理功能
-    if 'AUDIO' in features and 'TF_CARD_MANAGEMENT' not in features:
+    # 1. 选择了音频或视频功能，自动添加TF卡管理功能
+    has_audio_video = any(feature in features for feature in ['AUDIO', 'VOICE_MESSAGE', 'VIDEO_MESSAGE'])
+    if has_audio_video and 'TF_CARD_MANAGEMENT' not in features:
         features.append('TF_CARD_MANAGEMENT')
     
     # 自动添加所有必选功能
@@ -571,15 +637,18 @@ def select_features():
     
     # 显示最终选择的功能
     print("\n已选择功能:")
+    # 创建完整的功能字典，包括TF_CARD_MANAGEMENT
     all_features_dict = {**SUPPORTED_HARDWARE['mandatory_features']['options'], **SUPPORTED_HARDWARE['feature']['options']}
+    all_features_dict['TF_CARD_MANAGEMENT'] = '存储卡管理'
+    
     for feature_key in features:
         is_mandatory = feature_key in mandatory_feature_keys
         mandatory_mark = "*" if is_mandatory else ""
         print(f"   [{mandatory_mark}] {all_features_dict[feature_key]}")
     
     # 显示功能关联说明
-    if 'AUDIO' in features and 'TF_CARD_MANAGEMENT' in features:
-        print("   🔗 音频功能自动关联了TF卡管理功能")
+    if 'TF_CARD_MANAGEMENT' in features:
+        print("   🔗 存储卡管理功能已自动关联")
     
     if 'ALARM_DISPLAY' in features:
         print("   🔗 报警显示功能关联了气体和火焰传感器，以及扬声器/蜂鸣器")
@@ -824,123 +893,205 @@ def select_hardware_components(config, required_hardware):
 
 # 选择传感器
 def select_sensors(config):
-    """选择传感器"""
+    """根据功能选择的情况分开选择传感器"""
     print(f"\n{'=' * 50}")
-    print("7. 可选：选择传感器")
+    print("7. 根据功能选择传感器")
     print(f"{'=' * 50}")
     
+    # 初始化传感器列表
+    config['sensors'] = []
+    
     # 检查是否选择了相关功能
-    has_alarm_display = 'ALARM_DISPLAY' in config['features']
     has_temp_humidity_display = 'TEMPERATURE_HUMIDITY_DISPLAY' in config['features']
     has_motion_saving = 'MOTION_SAVING' in config['features']
+    has_gas_alarm = 'GAS_ALARM' in config['features']
+    has_fire_alarm = 'FIRE_ALARM' in config['features']
     
-    # 打印功能相关提示
-    print("   您可以选择一个或多个传感器来扩展设备功能")
-    
-    # 功能相关传感器推荐提示
-    recommended_sensors = []
-    if has_alarm_display:
-        recommended_sensors.append("气体和火焰传感器")
+    # 1. 室内温湿度显示功能 - 选择温湿度传感器
     if has_temp_humidity_display:
-        recommended_sensors.append("温湿度相关传感器")
-    if has_motion_saving:
-        recommended_sensors.append("人体感应传感器")
-    
-    if recommended_sensors:
-        print(f"   由于您选择的功能，建议选择: {', '.join(recommended_sensors)}")
-    
-    print("   输入格式示例: 1 2 3 或 1,2,3")
-    print("   直接按回车跳过，不选择任何传感器")
-    
-    sensor_options = list(SUPPORTED_HARDWARE['sensor']['options'].items())
-    sensor_keys = [key for key, _ in sensor_options]
-    
-    print("   可选传感器列表:")
-    for i, (key, name) in enumerate(sensor_options, 1):
-        # 标记相关传感器为推荐
-        is_recommended = False
+        print("\n   7.1 选择温湿度传感器")
+        print("   用于室内温湿度显示功能")
+        print("   输入格式示例: 1 或 2")
+        print("   直接按回车跳过，将使用默认传感器")
         
-        # 报警显示功能推荐气体和火焰传感器
-        if has_alarm_display and (key == 'MQ135' or key == 'IR_FLAME'):
-            is_recommended = True
-        # 室内温湿度显示功能推荐温湿度相关传感器
-        elif has_temp_humidity_display and (key == 'DHT22' or key == 'SHT30' or key == 'BME280'):
-            is_recommended = True
-        # 感应节能功能推荐人体感应传感器
-        elif has_motion_saving and key == 'HC_SR501':
-            is_recommended = True
+        # 温湿度传感器列表
+        temp_humidity_sensors = {
+            'DHT22': 'DHT22 温湿度传感器',
+            'AM2302': 'AM2302 温湿度传感器 (DHT22封装版)',
+            'SHT20': 'SHT20 温湿度传感器',
+            'SHT30': 'SHT30 温湿度传感器',
+            'SHT40': 'SHT40 温湿度传感器',
+            'HDC1080': 'HDC1080 温湿度传感器',
+            'BME280': 'BME280 温湿度气压传感器',
+            'BME680': 'BME680 温湿度气压气体传感器'
+        }
         
-        if is_recommended:
-            print(f"      {i}. {name} (推荐)")
-        else:
+        # 显示温湿度传感器选项
+        temp_humidity_options = list(temp_humidity_sensors.items())
+        for i, (key, name) in enumerate(temp_humidity_options, 1):
             print(f"      {i}. {name}")
+        
+        # 获取用户选择
+        while True:
+            try:
+                user_input = input("   请输入选择: ").strip()
+                
+                if not user_input:
+                    # 默认选择DHT22
+                    config['sensors'].append('DHT22')
+                    print("   ✓ 使用默认传感器: DHT22 温湿度传感器")
+                    break
+                
+                # 处理输入
+                selected_idx = int(user_input.strip())
+                if 1 <= selected_idx <= len(temp_humidity_options):
+                    sensor_key = temp_humidity_options[selected_idx-1][0]
+                    config['sensors'].append(sensor_key)
+                    print(f"   ✓ 已选择: {temp_humidity_sensors[sensor_key]}")
+                    break
+                else:
+                    print("   输入无效，请输入有效的传感器编号")
+            except ValueError:
+                print("   输入无效，请输入数字")
     
-    while True:
-        try:
-            user_input = input("   请输入选择: ").strip()
-            
-            # 处理不同的输入格式
-            if not user_input:
-                selected_indices = []
-            elif ',' in user_input:
-                selected_indices = [int(x.strip()) for x in user_input.split(',')]
-            else:
-                selected_indices = [int(x.strip()) for x in user_input.split()]
-            
-            # 验证输入范围
-            if selected_indices and not all(1 <= idx <= len(sensor_options) for idx in selected_indices):
-                print("   输入无效，请输入有效的传感器编号")
-                continue
-            
-            # 添加选择的传感器
-            config['sensors'] = []
-            for idx in selected_indices:
-                sensor_key = sensor_keys[idx-1]
-                config['sensors'].append(sensor_key)
-            
-            # 检查各功能对应的传感器是否已选择
-            missing_sensors = []
-            
-            # 1. 报警显示功能 - 需要气体或火焰传感器
-            if has_alarm_display:
-                has_gas_sensor = 'MQ135' in config['sensors']
-                has_flame_sensor = 'IR_FLAME' in config['sensors']
+    # 2. 感应节能功能 - 选择人体感应传感器
+    if has_motion_saving:
+        print("\n   7.2 选择人体感应传感器")
+        print("   用于感应节能功能")
+        print("   输入格式示例: 1 或 2")
+        print("   直接按回车跳过，将使用默认传感器")
+        
+        # 人体感应传感器列表
+        motion_sensors = {
+            'HC_SR501': 'HC-SR501 人体感应传感器',
+            'HC_SR505': 'HC-SR505 小型人体感应传感器',
+            'RCWL_0516': 'RCWL-0516 微波雷达感应模块',
+            'LD2410': 'LD2410 毫米波雷达模块'
+        }
+        
+        # 显示人体感应传感器选项
+        motion_options = list(motion_sensors.items())
+        for i, (key, name) in enumerate(motion_options, 1):
+            print(f"      {i}. {name}")
+        
+        # 获取用户选择
+        while True:
+            try:
+                user_input = input("   请输入选择: ").strip()
                 
-                if not has_gas_sensor and not has_flame_sensor:
-                    missing_sensors.append("报警显示功能需要气体或火焰传感器")
-            
-            # 2. 室内温湿度显示功能 - 需要温湿度相关传感器
-            if has_temp_humidity_display:
-                has_temp_humidity_sensor = any(sensor in config['sensors'] for sensor in ['DHT22', 'SHT30', 'BME280'])
+                if not user_input:
+                    # 默认选择HC_SR501
+                    config['sensors'].append('HC_SR501')
+                    print("   ✓ 使用默认传感器: HC-SR501 人体感应传感器")
+                    break
                 
-                if not has_temp_humidity_sensor:
-                    missing_sensors.append("室内温湿度显示功能需要温湿度相关传感器")
-            
-            # 3. 感应节能功能 - 需要人体感应传感器
-            if has_motion_saving:
-                has_motion_sensor = 'HC_SR501' in config['sensors']
-                
-                if not has_motion_sensor:
-                    missing_sensors.append("感应节能功能需要人体感应传感器")
-            
-            # 如果所有必需的传感器都已选择，退出循环
-            if not missing_sensors:
-                break
-            else:
-                # 显示缺少的传感器信息
-                print("\n   ⚠ 缺少必需的传感器:")
-                for missing in missing_sensors:
-                    print(f"   - {missing}")
-                print("   请重新选择传感器，确保包含所有必需的传感器")
-                print()
-        except ValueError:
-            print("   输入无效，请输入数字")
+                # 处理输入
+                selected_idx = int(user_input.strip())
+                if 1 <= selected_idx <= len(motion_options):
+                    sensor_key = motion_options[selected_idx-1][0]
+                    config['sensors'].append(sensor_key)
+                    print(f"   ✓ 已选择: {motion_sensors[sensor_key]}")
+                    break
+                else:
+                    print("   输入无效，请输入有效的传感器编号")
+            except ValueError:
+                print("   输入无效，请输入数字")
     
-    if not config['sensors']:
-        print("\n   ✓ 未选择任何传感器，将使用默认配置")
-    else:
+    # 3. 燃气泄漏报警功能 - 选择气体传感器
+    if has_gas_alarm:
+        print("\n   7.3 选择气体传感器")
+        print("   用于燃气泄漏报警功能")
+        print("   输入格式示例: 1 或 2")
+        print("   直接按回车跳过，将使用默认传感器")
+        
+        # 气体传感器列表
+        gas_sensors = {
+            'MQ2': 'MQ-2 烟雾燃气传感器',
+            'MQ5': 'MQ-5 液化石油气传感器',
+            'MQ7': 'MQ-7 一氧化碳传感器',
+            'MQ135': 'MQ-135 多种有害气体传感器',
+            'SGP30': 'SGP30 数字空气质量传感器'
+        }
+        
+        # 显示气体传感器选项
+        gas_options = list(gas_sensors.items())
+        for i, (key, name) in enumerate(gas_options, 1):
+            print(f"      {i}. {name}")
+        
+        # 获取用户选择
+        while True:
+            try:
+                user_input = input("   请输入选择: ").strip()
+                
+                if not user_input:
+                    # 默认选择MQ135
+                    config['sensors'].append('MQ135')
+                    print("   ✓ 使用默认传感器: MQ-135 多种有害气体传感器")
+                    break
+                
+                # 处理输入
+                selected_idx = int(user_input.strip())
+                if 1 <= selected_idx <= len(gas_options):
+                    sensor_key = gas_options[selected_idx-1][0]
+                    config['sensors'].append(sensor_key)
+                    print(f"   ✓ 已选择: {gas_sensors[sensor_key]}")
+                    break
+                else:
+                    print("   输入无效，请输入有效的传感器编号")
+            except ValueError:
+                print("   输入无效，请输入数字")
+    
+    # 4. 火焰感应报警功能 - 选择火焰传感器
+    if has_fire_alarm:
+        print("\n   7.4 选择火焰传感器")
+        print("   用于火焰感应报警功能")
+        print("   输入格式示例: 1 或 2")
+        print("   直接按回车跳过，将使用默认传感器")
+        
+        # 火焰传感器列表
+        flame_sensors = {
+            'IR_FLAME': 'IR 火焰传感器',
+            'YG1006': 'YG1006 高灵敏度红外火焰传感器',
+            'UV_FLAME': 'UV 火焰传感器'
+        }
+        
+        # 显示火焰传感器选项
+        flame_options = list(flame_sensors.items())
+        for i, (key, name) in enumerate(flame_options, 1):
+            print(f"      {i}. {name}")
+        
+        # 获取用户选择
+        while True:
+            try:
+                user_input = input("   请输入选择: ").strip()
+                
+                if not user_input:
+                    # 默认选择IR_FLAME
+                    config['sensors'].append('IR_FLAME')
+                    print("   ✓ 使用默认传感器: IR 火焰传感器")
+                    break
+                
+                # 处理输入
+                selected_idx = int(user_input.strip())
+                if 1 <= selected_idx <= len(flame_options):
+                    sensor_key = flame_options[selected_idx-1][0]
+                    config['sensors'].append(sensor_key)
+                    print(f"   ✓ 已选择: {flame_sensors[sensor_key]}")
+                    break
+                else:
+                    print("   输入无效，请输入有效的传感器编号")
+            except ValueError:
+                print("   输入无效，请输入数字")
+    
+    # 5. 夜间节能功能 - 选择光照传感器
+    # 注意：当前传感器列表中没有光照传感器，所以这里不做处理
+    
+    # 显示最终选择的传感器
+    if config['sensors']:
         selected_sensor_names = [SUPPORTED_HARDWARE['sensor']['options'][s] for s in config['sensors']]
-        print(f"\n   ✓ 已选择传感器: {', '.join(selected_sensor_names)}")
+        print(f"\n   ✓ 已选择的传感器: {', '.join(selected_sensor_names)}")
+    else:
+        print("\n   ✓ 未选择任何传感器")
     
     return config
 
@@ -1047,8 +1198,53 @@ def generate_firmware_config():
         'has_tf_card': False
     }
     
+    # 0. 选择固件生成模式
+    print("0. 选择固件生成模式")
+    print("   1. 生成全量固件（包括全部驱动和功能）")
+    print("   2. 自定义生成精简固件（选择性添加功能）")
+    print()
+    
+    is_full_firmware = False
+    if is_test_mode:
+        # 测试模式下默认使用自定义模式
+        firmware_mode_choice = '2'
+    else:
+        firmware_mode_choice = input("   请输入选择 (1-2): ").strip()
+    
+    if firmware_mode_choice == '1':
+        is_full_firmware = True
+        print("   已选择: 生成全量固件")
+    else:
+        is_full_firmware = False
+        print("   已选择: 自定义生成精简固件")
+    print()
+    
     # 1. 选择功能模块
-    config['features'], all_features_dict = select_features()
+    if is_full_firmware:
+        # 生成全量固件，自动选择所有功能
+        print("   全量固件模式: 自动选择所有功能")
+        # 获取所有可选功能
+        all_optional_features = list(SUPPORTED_HARDWARE['feature']['options'].keys())
+        # 获取所有必选功能
+        all_mandatory_features = list(SUPPORTED_HARDWARE['mandatory_features']['options'].keys())
+        # 合并所有功能
+        all_features = all_optional_features + all_mandatory_features
+        # 去重
+        all_features = list(set(all_features))
+        # 设置功能
+        config['features'] = all_features
+        # 创建完整的功能字典
+        all_features_dict = {**SUPPORTED_HARDWARE['mandatory_features']['options'], **SUPPORTED_HARDWARE['feature']['options']}
+        all_features_dict['TF_CARD_MANAGEMENT'] = '存储卡管理'
+        # 显示选择的功能
+        print("\n已选择功能:")
+        for feature_key in config['features']:
+            is_mandatory = feature_key in all_mandatory_features
+            mandatory_mark = "*" if is_mandatory else ""
+            print(f"   [{mandatory_mark}] {all_features_dict[feature_key]}")
+    else:
+        # 自定义固件模式，调用原有的select_features函数
+        config['features'], all_features_dict = select_features()
     
     # 2. 根据选择的功能确定所需的硬件类型
     required_hardware = determine_required_hardware(config['features'])
@@ -1144,6 +1340,18 @@ def update_config_header(config):
         enabled = feature in config['features']
         feature_macros.append(f'#define ENABLE_{feature} {1 if enabled else 0}')
     
+    # 生成电源管理相关宏定义
+    # 检查是否启用了低功耗模式相关功能
+    has_low_power_features = any(feature in config['features'] for feature in ['MOTION_SAVING', 'LIGHT_SAVING'])
+    power_macros = [
+        f'#define LOW_POWER_MODE_ENABLED {1 if has_low_power_features else 0}',
+        '#define NO_MOTION_TIMEOUT 30000',  # 无运动超时时间，单位毫秒
+        '#define NIGHT_LIGHT_THRESHOLD 100',  # 夜间光照阈值
+        '#define LIGHT_CHANGE_THRESHOLD 50',  # 光照变化阈值
+        '#define NORMAL_REFRESH_INTERVAL 60000',  # 正常刷新间隔
+        '#define LOW_POWER_REFRESH_INTERVAL 300000'  # 低功耗刷新间隔
+    ]
+    
     # 合并所有宏定义
     all_macros = [
         '// Platform macros',
@@ -1170,7 +1378,10 @@ def update_config_header(config):
         *hardware_macros,
         '',
         '// Feature macros',
-        *feature_macros
+        *feature_macros,
+        '',
+        '// Power management macros',
+        *power_macros,
     ]
     
     # 替换配置文件中的宏定义部分
@@ -1229,33 +1440,68 @@ def generate_firmware(config):
     print(f"\n1. 正在编译固件...")
     print(f"   使用环境: {env}")
     
+    # 尝试两种方式运行PlatformIO命令
+    pio_commands = [
+        ['pio', 'run'],  # 直接使用pio命令
+        [sys.executable, '-m', 'platformio', 'run']  # 使用python -m platformio
+    ]
+    
+    pio_cmd = None
+    pio_success = False
+    
+    # 尝试编译固件
+    for base_cmd in pio_commands:
+        try:
+            cmd = base_cmd + ['--environment', env]
+            print(f"   尝试使用命令编译: {' '.join(cmd)}")
+            
+            # 使用PlatformIO编译固件
+            result = subprocess.run(
+                cmd,
+                cwd=code_dir,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            
+            pio_cmd = cmd
+            pio_success = True
+            print("   固件编译成功！")
+            break
+        except subprocess.CalledProcessError as e:
+            print(f"   命令 {' '.join(cmd)} 编译失败")
+            continue
+        except FileNotFoundError:
+            print(f"   命令 {' '.join(cmd)} 未找到")
+            continue
+        except Exception as e:
+            print(f"   命令 {' '.join(cmd)} 执行异常: {str(e)}")
+            continue
+    
+    if not pio_success:
+        print("   错误: 所有PlatformIO命令都执行失败")
+        return
+    
+    # 获取编译输出的固件路径
+    firmware_bin_path = os.path.join(code_dir, '.pio', 'build', env, 'firmware.bin')
+    if os.path.exists(firmware_bin_path):
+        # 复制固件到release目录
+        dest_firmware_path = os.path.join(release_dir, f'firmware_{env}.bin')
+        shutil.copy2(firmware_bin_path, dest_firmware_path)
+        print(f"   固件已复制到: {dest_firmware_path}")
+    else:
+        print(f"   警告: 未找到固件文件: {firmware_bin_path}")
+    
+    # 生成OTA升级包
+    print(f"\n2. 正在生成OTA升级包...")
+    
     try:
-        # 使用PlatformIO编译固件
-        result = subprocess.run(
-            ['pio', 'run', '--environment', env],
-            cwd=code_dir,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        print("   固件编译成功！")
+        # 使用相同的成功命令生成OTA包
+        ota_cmd = pio_cmd + ['--target', 'upload']
+        print(f"   尝试使用命令生成OTA包: {' '.join(ota_cmd)}")
         
-        # 获取编译输出的固件路径
-        firmware_bin_path = os.path.join(code_dir, '.pio', 'build', env, 'firmware.bin')
-        if os.path.exists(firmware_bin_path):
-            # 复制固件到release目录
-            dest_firmware_path = os.path.join(release_dir, f'firmware_{env}.bin')
-            shutil.copy2(firmware_bin_path, dest_firmware_path)
-            print(f"   固件已复制到: {dest_firmware_path}")
-        else:
-            print(f"   警告: 未找到固件文件: {firmware_bin_path}")
-        
-        # 生成OTA升级包
-        print(f"\n2. 正在生成OTA升级包...")
-        
-        # 使用PlatformIO生成OTA包
         ota_result = subprocess.run(
-            ['pio', 'run', '--environment', env, '--target', 'upload'],
+            ota_cmd,
             cwd=code_dir,
             capture_output=True,
             text=True,
@@ -1316,6 +1562,12 @@ def main():
         # 检查运行环境
         if not check_environment(config['platform']):
             print("运行环境检查失败，程序将退出")
+            sys.exit(1)
+    else:
+        # 测试模式下，只检查PlatformIO安装状态
+        print("\n===== 测试模式: 检查PlatformIO安装状态 ======")
+        if not check_platformio_installation():
+            print("PlatformIO检查失败，程序将退出")
             sys.exit(1)
     
     # 生成配置文件
