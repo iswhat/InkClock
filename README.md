@@ -90,7 +90,7 @@
 2. 克隆项目代码
 3. 在PlatformIO中打开项目
 4. 选择对应的开发板型号
-5. 修改`config.h`中的基本配置
+5. 修改`src/coresystem/config.h`中的基本配置
 6. 编译并上传固件
 
 ### 首次配置
@@ -186,7 +186,7 @@ python3 generate_firmware.py
 
 ## 配置说明
 
-主要配置文件为`config.h`，包含以下主要配置项：
+主要配置文件为`src/coresystem/config.h`，包含以下主要配置项：
 
 | 配置项 | 说明 | 默认值 |
 |--------|------|--------|

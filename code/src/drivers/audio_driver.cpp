@@ -268,25 +268,25 @@ public:
 
 // 根据配置创建音频驱动实例
 AudioDriver* createAudioDriver() {
-    #if AUDIO_MODULE_TYPE == AUDIO_MODULE_VS1053B_NO_HEADPHONE
+    #if AUDIO_DRIVER_TYPE == AUDIO_DRIVER_VS1053B_NO_HEADPHONE
         return new VS1053BAudioDriver();
-    #elif AUDIO_MODULE_TYPE == AUDIO_MODULE_VS1003B_STORAGE
+    #elif AUDIO_DRIVER_TYPE == AUDIO_DRIVER_VS1003B_STORAGE
         return new VS1003BAudioDriver();
-    #elif AUDIO_MODULE_TYPE == AUDIO_MODULE_YX5300
+    #elif AUDIO_DRIVER_TYPE == AUDIO_DRIVER_YX5300
         return new YX5300AudioDriver();
-    #elif AUDIO_MODULE_TYPE == AUDIO_MODULE_YX6300
+    #elif AUDIO_DRIVER_TYPE == AUDIO_DRIVER_YX6300
         return new YX6300AudioDriver();
-    #elif AUDIO_MODULE_TYPE == AUDIO_MODULE_WT588D
+    #elif AUDIO_DRIVER_TYPE == AUDIO_DRIVER_WT588D
         return new WT588DAudioDriver();
-    #elif AUDIO_MODULE_TYPE == AUDIO_MODULE_ISD1820
+    #elif AUDIO_DRIVER_TYPE == AUDIO_DRIVER_ISD1820
         return new ISD1820AudioDriver();
-    #elif AUDIO_MODULE_TYPE == AUDIO_MODULE_NRF52832
+    #elif AUDIO_DRIVER_TYPE == AUDIO_DRIVER_NRF52832
         return new NRF52832AudioDriver();
-    #elif AUDIO_MODULE_TYPE == AUDIO_MODULE_ESP32_AUDIO
+    #elif AUDIO_DRIVER_TYPE == AUDIO_DRIVER_ESP32_AUDIO
         return new ESP32AudioDriver();
-    #elif AUDIO_MODULE_TYPE == AUDIO_MODULE_STM32_AUDIO
+    #elif AUDIO_DRIVER_TYPE == AUDIO_DRIVER_STM32_AUDIO
         return new STM32AudioDriver();
-    #elif AUDIO_MODULE_TYPE == AUDIO_MODULE_ATMEGA328
+    #elif AUDIO_DRIVER_TYPE == AUDIO_DRIVER_ATMEGA328
         return new ATmega328AudioDriver();
     #else
         DEBUG_PRINTLN("使用默认音频驱动");

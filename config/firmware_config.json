@@ -1,23 +1,30 @@
 {
     "platform": "ESP32",
-    "board": "esp32-wroom-32",
-    "audio_module": "AUDIO_MODULE_ES8388",
-    "display": "EINK_154_INCH",
+    "board": "esp32-c3-devkitc-02",
+    "audio_module": "AUDIO_DRIVER_ESP32_AUDIO",
+    "wifi_bt_module": "WIFI_BT_INTERNAL",
+    "display": "EINK_42_INCH_HEMA",
+    "tf_card_reader": "TF_READER_NONE",
     "sensors": [
-        "DHT22"
+        "DHT22",
+        "HC_SR501",
+        "IR_FLAME"
     ],
-    "hardware": [
-        "TF_CARD"
-    ],
+    "hardware": [],
     "features": [
+        "ALARM_DISPLAY",
         "AUDIO",
-        "CAMERA",
-        "TEXT_MESSAGE",
         "VOICE_MESSAGE",
-        "VIDEO_MESSAGE",
+        "TEMPERATURE_HUMIDITY_DISPLAY",
+        "MOTION_SAVING",
+        "TF_CARD_MANAGEMENT",
         "WIFI",
         "BLUETOOTH",
+        "TEXT_MESSAGE",
         "WEBCLIENT",
-        "FIRMWARE"
-    ]
+        "FIRMWARE",
+        "PLUGIN"
+    ],
+    "has_wifi_bt": true,
+    "has_tf_card": false
 }

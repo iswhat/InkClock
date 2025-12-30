@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>家用网络智能墨水屏万年历 - DIY选配件系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            background-color: #3498db;
+            color: white;
+            border-radius: 8px;
+        }
+        
+        h2 {
+            color: #2c3e50;
+            margin: 20px 0 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+        }
+        
+        h3 {
+            color: #34495e;
+            margin: 15px 0 10px;
+        }
+        
+        .component-section {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .component-category {
+            margin-bottom: 20px;
+        }
+        
+        .component-item {
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .component-item:hover {
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border-color: #3498db;
+        }
+        
+        .component-item.selected {
+            background-color: #e8f4f8;
+            border-color: #3498db;
+        }
+        
+        .component-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .component-name {
+            font-weight: bold;
+            font-size: 16px;
+            color: #2c3e50;
+        }
+        
+        .component-price {
+            font-weight: bold;
+            color: #e74c3c;
+            font-size: 18px;
+        }
+        
+        .component-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .component-detail {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .component-detail-label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .total-section {
+            background-color: #2c3e50;
+            color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .total-price {
+            font-size: 36px;
+            font-weight: bold;
+            color: #3498db;
+            margin: 10px 0;
+        }
+        
+        .selected-components {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .selected-component {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .selected-component:last-child {
+            border-bottom: none;
+        }
+        
+        .remove-component {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .remove-component:hover {
+            background-color: #c0392b;
+        }
+        
+        .recommended-configs {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .recommended-config {
+            background-color: white;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .config-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .config-name {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .config-price {
+            font-weight: bold;
+            color: #e74c3c;
+        }
+        
+        .config-components {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .config-component {
+            margin: 5px 0;
+            padding-left: 15px;
+        }
+        
+        .select-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .select-btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .clear-btn {
+            background-color: #95a5a6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .clear-btn:hover {
+            background-color: #7f8c8d;
+        }
+        
+        .header-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-secondary {
+            background-color: #95a5a6;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #7f8c8d;
+        }
+        
+        @media (max-width: 768px) {
+            .component-details {
+                grid-template-columns: 1fr;
+            }
+            
+            .component-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .component-price {
+                margin-top: 5px;
+            }
+            
+            .total-price {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>家用网络智能墨水屏万年历 - DIY选配件系统</h1>
+        
+        <div class="header-buttons">
+            <button class="btn btn-primary" onclick="toggleAllSections()">展开/折叠所有分类</button>
+            <button class="btn btn-secondary" onclick="clearSelection()">清空选择</button>
+        </div>
+        
+        <div class="total-section">
+            <h2>当前总价</h2>
+            <div class="total-price" id="totalPrice">0元</div>
+            <p>已选择 <span id="selectedCount">0</span> 个组件</p>
+        </div>
+        
+        <div class="selected-components">
+            <h2>已选择的组件</h2>
+            <div id="selectedComponentsList"></div>
+        </div>
+        
+        <div class="recommended-configs">
+            <h2>推荐配置方案</h2>
+            <div class="recommended-config">
+                <div class="config-header">
+                    <span class="config-name">基础版</span>
+                    <span class="config-price">123元</span>
+                </div>
+                <div class="config-components">
+                    <div class="config-component">ESP32-S3-DevKitC-1</div>
+                    <div class="config-component">2.9英寸墨水屏 (GDEW029T5)</div>
+                    <div class="config-component">DHT22温湿度传感器</div>
+                    <div class="config-component">轻触按键 (6×6×5mm)</div>
+                    <div class="config-component">10KΩ电阻 (1/4W)</div>
+                    <div class="config-component">软包聚合物电池 (3.7V 2000mAh)</div>
+                    <div class="config-component">Type-C充电模块</div>
+                    <div class="config-component">杜邦线 (20cm)</div>
+                    <div class="config-component">3D打印外壳 (2.9英寸)</div>
+                    <div class="config-component">螺丝 (M2.5×8)</div>
+                </div>
+                <button class="select-btn" onclick="selectRecommendedConfig('basic')">选择此配置</button>
+            </div>
+            
+            <div class="recommended-config">
+                <div class="config-header">
+                    <span class="config-name">进阶版</span>
+                    <span class="config-price">205.6元</span>
+                </div>
+                <div class="config-components">
+                    <div class="config-component">ESP32-S3-WROOM-2</div>
+                    <div class="config-component">4.2英寸墨水屏 (GDEW042T2)</div>
+                    <div class="config-component">SHT30温湿度传感器</div>
+                    <div class="config-component">轻触按键 (12×12×7mm)</div>
+                    <div class="config-component">10KΩ电阻 (1/4W)</div>
+                    <div class="config-component">软包聚合物电池 (3.7V 3000mAh)</div>
+                    <div class="config-component">AXP192+Type-C电源管理模块</div>
+                    <div class="config-component">BH1750光照传感器</div>
+                    <div class="config-component">杜邦线 (20cm)</div>
+                    <div class="config-component">塑料外壳 (4.2英寸)</div>
+                    <div class="config-component">螺丝 (M3×10)</div>
+                </div>
+                <button class="select-btn" onclick="selectRecommendedConfig('advanced')">选择此配置</button>
+            </div>
+            
+            <div class="recommended-config">
+                <div class="config-header">
+                    <span class="config-name">高级版</span>
+                    <span class="config-price">459元</span>
+                </div>
+                <div class="config-components">
+                    <div class="config-component">ESP32-S3-Box</div>
+                    <div class="config-component">7.5英寸墨水屏 (GDEW075T7)</div>
+                    <div class="config-component">SHT30温湿度传感器</div>
+                    <div class="config-component">BMP280气压传感器</div>
+                    <div class="config-component">轻触按键 (12×12×7mm)</div>
+                    <div class="config-component">10KΩ电阻 (1/4W)</div>
+                    <div class="config-component">软包聚合物电池 (3.7V 6000mAh)</div>
+                    <div class="config-component">AXP192+Type-C电源管理模块</div>
+                    <div class="config-component">BH1750光照传感器</div>
+                    <div class="config-component">彩排线 (10cm，10Pin)</div>
+                    <div class="config-component">木质外壳 (7.5英寸)</div>
+                    <div class="config-component">螺丝 (M3×12)</div>
+                </div>
+                <button class="select-btn" onclick="selectRecommendedConfig('premium')">选择此配置</button>
+            </div>
+        </div>
+        
+        <!-- 核心组件 -->
+        <div class="component-section" id="coreComponents">
+            <h2 onclick="toggleSection('coreComponents')">▼ 核心组件</h2>
+            
+            <!-- 主控芯片 -->
+            <div class="component-category">
+                <h3>主控芯片</h3>
+                <div class="component-item" onclick="selectComponent(this, 'ESP8266-12F', 10, {brand: '乐鑫', spec: '单核32位处理器，主频80MHz，80KB SRAM，4MB Flash，WiFi', size: '10×10×1.2mm'})">
+                    <div class="component-header">
+                        <span class="component-name">ESP8266-12F</span>
+                        <span class="component-price">10元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>乐鑫</span></div>
+                        <div class="component-detail"><span class="component-detail-label">规格:</span> <span>单核32位处理器，主频80MHz，80KB SRAM，4MB Flash，WiFi</span></div>
+                        <div class="component-detail"><span class="component-detail-label">尺寸:</span> <span>10×10×1.2mm</span></div>
+                    </div>
+                </div>
+                
+                <div class="component-item" onclick="selectComponent(this, 'ESP32-C3-WROOM-02', 15, {brand: '乐鑫', spec: '单核32位处理器，主频160MHz，400KB SRAM，8MB Flash，WiFi+蓝牙双模', size: '8×8×1.2mm'})">
+                    <div class="component-header">
+                        <span class="component-name">ESP32-C3-WROOM-02</span>
+                        <span class="component-price">15元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>乐鑫</span></div>
+                        <div class="component-detail"><span class="component-detail-label">规格:</span> <span>单核32位处理器，主频160MHz，400KB SRAM，8MB Flash，WiFi+蓝牙双模</span></div>
+                        <div class="component-detail"><span class="component-detail-label">尺寸:</span> <span>8×8×1.2mm</span></div>
+                    </div>
+                </div>
+                
+                <div class="component-item" onclick="selectComponent(this, 'ESP32-S3-WROOM-1', 20, {brand: '乐鑫', spec: '双核32位处理器，主频240MHz，512KB SRAM，16MB Flash，WiFi+蓝牙双模', size: '8×8×1.2mm'})">
+                    <div class="component-header">
+                        <span class="component-name">ESP32-S3-WROOM-1</span>
+                        <span class="component-price">20元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>乐鑫</span></div>
+                        <div class="component-detail"><span class="component-detail-label">规格:</span> <span>双核32位处理器，主频240MHz，512KB SRAM，16MB Flash，WiFi+蓝牙双模</span></div>
+                        <div class="component-detail"><span class="component-detail-label">尺寸:</span> <span>8×8×1.2mm</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 开发板 -->
+            <div class="component-category">
+                <h3>开发板</h3>
+                <div class="component-item" onclick="selectComponent(this, 'ESP8266-DevKitC', 20, {brand: '乐鑫', cpu: '单核32位处理器，主频80MHz', rom: '4MB Flash', ram: '80KB SRAM', integrated: 'WiFi 802.11b/g/n，USB Type-C接口', size: '25×68×3mm'})">
+                    <div class="component-header">
+                        <span class="component-name">ESP8266-DevKitC</span>
+                        <span class="component-price">20元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>乐鑫</span></div>
+                        <div class="component-detail"><span class="component-detail-label">CPU:</span> <span>单核32位处理器，主频80MHz</span></div>
+                        <div class="component-detail"><span class="component-detail-label">ROM:</span> <span>4MB Flash</span></div>
+                        <div class="component-detail"><span class="component-detail-label">RAM:</span> <span>80KB SRAM</span></div>
+                        <div class="component-detail"><span class="component-detail-label">集成元件:</span> <span>WiFi 802.11b/g/n，USB Type-C接口</span></div>
+                        <div class="component-detail"><span class="component-detail-label">尺寸:</span> <span>25×68×3mm</span></div>
+                    </div>
+                </div>
+                
+                <div class="component-item" onclick="selectComponent(this, 'ESP32-C3-DevKitC-02', 20, {brand: '乐鑫', cpu: '单核32位处理器，主频160MHz', rom: '8MB Flash', ram: '400KB SRAM', integrated: 'WiFi 802.11b/g/n，蓝牙5.0，USB Type-C接口', size: '25.4×40×3mm'})">
+                    <div class="component-header">
+                        <span class="component-name">ESP32-C3-DevKitC-02</span>
+                        <span class="component-price">20元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>乐鑫</span></div>
+                        <div class="component-detail"><span class="component-detail-label">CPU:</span> <span>单核32位处理器，主频160MHz</span></div>
+                        <div class="component-detail"><span class="component-detail-label">ROM:</span> <span>8MB Flash</span></div>
+                        <div class="component-detail"><span class="component-detail-label">RAM:</span> <span>400KB SRAM</span></div>
+                        <div class="component-detail"><span class="component-detail-label">集成元件:</span> <span>WiFi 802.11b/g/n，蓝牙5.0，USB Type-C接口</span></div>
+                        <div class="component-detail"><span class="component-detail-label">尺寸:</span> <span>25.4×40×3mm</span></div>
+                    </div>
+                </div>
+                
+                <div class="component-item" onclick="selectComponent(this, 'ESP32-S3-DevKitC-1', 30, {brand: '乐鑫', cpu: '双核32位处理器，主频240MHz', rom: '16MB Flash', ram: '512KB SRAM', integrated: 'WiFi 802.11b/g/n，蓝牙5.0，USB Type-C接口', size: '25.4×60×3mm'})">
+                    <div class="component-header">
+                        <span class="component-name">ESP32-S3-DevKitC-1</span>
+                        <span class="component-price">30元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>乐鑫</span></div>
+                        <div class="component-detail"><span class="component-detail-label">CPU:</span> <span>双核32位处理器，主频240MHz</span></div>
+                        <div class="component-detail"><span class="component-detail-label">ROM:</span> <span>16MB Flash</span></div>
+                        <div class="component-detail"><span class="component-detail-label">RAM:</span> <span>512KB SRAM</span></div>
+                        <div class="component-detail"><span class="component-detail-label">集成元件:</span> <span>WiFi 802.11b/g/n，蓝牙5.0，USB Type-C接口</span></div>
+                        <div class="component-detail"><span class="component-detail-label">尺寸:</span> <span>25.4×60×3mm</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 显示组件 -->
+        <div class="component-section" id="displayComponents">
+            <h2 onclick="toggleSection('displayComponents')">▼ 显示组件</h2>
+            
+            <!-- 墨水屏 -->
+            <div class="component-category">
+                <h3>墨水屏</h3>
+                <div class="component-item" onclick="selectComponent(this, '1.54英寸墨水屏', 30, {model: 'GDEW0154M09', brand: 'Good Display', resolution: '200×200', interface: 'SPI'})">
+                    <div class="component-header">
+                        <span class="component-name">1.54英寸墨水屏 (GDEW0154M09)</span>
+                        <span class="component-price">30元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>Good Display</span></div>
+                        <div class="component-detail"><span class="component-detail-label">分辨率:</span> <span>200×200</span></div>
+                        <div class="component-detail"><span class="component-detail-label">接口:</span> <span>SPI</span></div>
+                    </div>
+                </div>
+                
+                <div class="component-item" onclick="selectComponent(this, '2.9英寸墨水屏', 50, {model: 'GDEW029T5', brand: 'Good Display', resolution: '296×128', interface: 'SPI'})">
+                    <div class="component-header">
+                        <span class="component-name">2.9英寸墨水屏 (GDEW029T5)</span>
+                        <span class="component-price">50元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>Good Display</span></div>
+                        <div class="component-detail"><span class="component-detail-label">分辨率:</span> <span>296×128</span></div>
+                        <div class="component-detail"><span class="component-detail-label">接口:</span> <span>SPI</span></div>
+                    </div>
+                </div>
+                
+                <div class="component-item" onclick="selectComponent(this, '4.2英寸墨水屏', 80, {model: 'GDEW042T2', brand: 'Good Display', resolution: '400×300', interface: 'SPI'})">
+                    <div class="component-header">
+                        <span class="component-name">4.2英寸墨水屏 (GDEW042T2)</span>
+                        <span class="component-price">80元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>Good Display</span></div>
+                        <div class="component-detail"><span class="component-detail-label">分辨率:</span> <span>400×300</span></div>
+                        <div class="component-detail"><span class="component-detail-label">接口:</span> <span>SPI</span></div>
+                    </div>
+                </div>
+                
+                <div class="component-item" onclick="selectComponent(this, '7.5英寸墨水屏', 120, {model: 'GDEW075T7', brand: 'Good Display', resolution: '800×480', interface: 'SPI'})">
+                    <div class="component-header">
+                        <span class="component-name">7.5英寸墨水屏 (GDEW075T7)</span>
+                        <span class="component-price">120元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>Good Display</span></div>
+                        <div class="component-detail"><span class="component-detail-label">分辨率:</span> <span>800×480</span></div>
+                        <div class="component-detail"><span class="component-detail-label">接口:</span> <span>SPI</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 墨水屏驱动板 -->
+            <div class="component-category">
+                <h3>墨水屏驱动板</h3>
+                <div class="component-item" onclick="selectComponent(this, 'DIY驱动板', 10, {brand: '自制', spec: '基于ESP32-S3设计', size: '35×25×2mm'})">
+                    <div class="component-header">
+                        <span class="component-name">DIY驱动板</span>
+                        <span class="component-price">10元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>自制</span></div>
+                        <div class="component-detail"><span class="component-detail-label">规格:</span> <span>基于ESP32-S3设计</span></div>
+                        <div class="component-detail"><span class="component-detail-label">尺寸:</span> <span>35×25×2mm</span></div>
+                    </div>
+                </div>
+                
+                <div class="component-item" onclick="selectComponent(this, 'Waveshare e-Paper Driver HAT', 20, {brand: 'Waveshare', spec: '支持多种尺寸的墨水屏', size: '65×30×2mm'})">
+                    <div class="component-header">
+                        <span class="component-name">Waveshare e-Paper Driver HAT</span>
+                        <span class="component-price">20元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>Waveshare</span></div>
+                        <div class="component-detail"><span class="component-detail-label">规格:</span> <span>支持多种尺寸的墨水屏</span></div>
+                        <div class="component-detail"><span class="component-detail-label">尺寸:</span> <span>65×30×2mm</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 电源组件 -->
+        <div class="component-section" id="powerComponents">
+            <h2 onclick="toggleSection('powerComponents')">▼ 电源组件</h2>
+            
+            <!-- 软包聚合物电池 -->
+            <div class="component-category">
+                <h3>软包聚合物电池</h3>
+                <div class="component-item" onclick="selectComponent(this, '103450电池', 5, {model: '103450', brand: 'MY', spec: '3.7V，2000mAh，三元锂电池', size: '10×34×5mm'})">
+                    <div class="component-header">
+                        <span class="component-name">103450电池 (3.7V 2000mAh)</span>
+                        <span class="component-price">5元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>MY</span></div>
+                        <div class="component-detail"><span class="component-detail-label">规格:</span> <span>3.7V，2000mAh，三元锂电池</span></div>
+                        <div class="component-detail"><span class="component-detail-label">尺寸:</span> <span>10×34×5mm</span></div>
+                    </div>
+                </div>
+                
+                <div class="component-item" onclick="selectComponent(this, '303450电池', 8, {model: '303450', brand: '中顺芯', spec: '3.7V，2000mAh，高温软包', size: '30×34×5mm'})">
+                    <div class="component-header">
+                        <span class="component-name">303450电池 (3.7V 2000mAh)</span>
+                        <span class="component-price">8元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>中顺芯</span></div>
+                        <div class="component-detail"><span class="component-detail-label">规格:</span> <span>3.7V，2000mAh，高温软包</span></div>
+                        <div class="component-detail"><span class="component-detail-label">尺寸:</span> <span>30×34×5mm</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 充电模块 -->
+            <div class="component-category">
+                <h3>充电模块</h3>
+                <div class="component-item" onclick="selectComponent(this, 'TP4056+Type-C', 5, {model: 'TP4056+Type-C', brand: 'MakerBase', spec: 'USB-Type-C接口，TP4056充电IC，支持10W充电', size: '25×15×2mm'})">
+                    <div class="component-header">
+                        <span class="component-name">TP4056+Type-C充电模块</span>
+                        <span class="component-price">5元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>MakerBase</span></div>
+                        <div class="component-detail"><span class="component-detail-label">规格:</span> <span>USB-Type-C接口，TP4056充电IC，支持10W充电</span></div>
+                        <div class="component-detail"><span class="component-detail-label">尺寸:</span> <span>25×15×2mm</span></div>
+                    </div>
+                </div>
+                
+                <div class="component-item" onclick="selectComponent(this, 'AXP192+Type-C', 20, {model: 'AXP192+Type-C', brand: 'LILYGO', spec: 'USB-Type-C接口，AXP192电源管理IC，支持10W-15W充电', size: '30×20×3mm'})">
+                    <div class="component-header">
+                        <span class="component-name">AXP192+Type-C电源管理模块</span>
+                        <span class="component-price">20元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>LILYGO</span></div>
+                        <div class="component-detail"><span class="component-detail-label">规格:</span> <span>USB-Type-C接口，AXP192电源管理IC，支持10W-15W充电</span></div>
+                        <div class="component-detail"><span class="component-detail-label">尺寸:</span> <span>30×20×3mm</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 传感器组件 -->
+        <div class="component-section" id="sensorComponents">
+            <h2 onclick="toggleSection('sensorComponents')">▼ 传感器组件</h2>
+            
+            <!-- 温湿度传感器 -->
+            <div class="component-category">
+                <h3>温湿度传感器</h3>
+                <div class="component-item" onclick="selectComponent(this, 'DHT22', 5, {model: 'DHT22', brand: 'AOSONG', spec: '温度：-40℃~80℃，湿度：0%~100%RH，精度：±0.5℃/±2%RH', size: '22×15×5mm', interface: '单总线'})">
+                    <div class="component-header">
+                        <span class="component-name">DHT22温湿度传感器</span>
+                        <span class="component-price">5元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>AOSONG</span></div>
+                        <div class="component-detail"><span class="component-detail-label">规格:</span> <span>温度：-40℃~80℃，湿度：0%~100%RH，精度：±0.5℃/±2%RH</span></div>
+                        <div class="component-detail"><span class="component-detail-label">接口:</span> <span>单总线</span></div>
+                    </div>
+                </div>
+                
+                <div class="component-item" onclick="selectComponent(this, 'SHT30', 10, {model: 'SHT30', brand: 'Sensirion', spec: '温度：-40℃~125℃，湿度：0%~100%RH，精度：±0.3℃/±2%RH', size: '5×5×1.3mm', interface: 'I2C'})">
+                    <div class="component-header">
+                        <span class="component-name">SHT30温湿度传感器</span>
+                        <span class="component-price">10元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>Sensirion</span></div>
+                        <div class="component-detail"><span class="component-detail-label">规格:</span> <span>温度：-40℃~125℃，湿度：0%~100%RH，精度：±0.3℃/±2%RH</span></div>
+                        <div class="component-detail"><span class="component-detail-label">接口:</span> <span>I2C</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 人体感应传感器 -->
+            <div class="component-category">
+                <h3>人体感应传感器</h3>
+                <div class="component-item" onclick="selectComponent(this, 'HC-SR501', 3, {model: 'HC-SR501', brand: '深圳捷顺', spec: '检测距离：3-7米，检测角度：110°', size: '32×24×15mm', interface: '数字输出'})">
+                    <div class="component-header">
+                        <span class="component-name">HC-SR501人体感应传感器</span>
+                        <span class="component-price">3元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>深圳捷顺</span></div>
+                        <div class="component-detail"><span class="component-detail-label">规格:</span> <span>检测距离：3-7米，检测角度：110°</span></div>
+                        <div class="component-detail"><span class="component-detail-label">接口:</span> <span>数字输出</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 光照传感器 -->
+            <div class="component-category">
+                <h3>光照传感器</h3>
+                <div class="component-item" onclick="selectComponent(this, 'BH1750', 5, {model: 'BH1750', brand: 'Rohm', spec: '1-65535 lx，精度：±20%', size: '3×3×0.9mm', interface: 'I2C'})">
+                    <div class="component-header">
+                        <span class="component-name">BH1750光照传感器</span>
+                        <span class="component-price">5元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>Rohm</span></div>
+                        <div class="component-detail"><span class="component-detail-label">规格:</span> <span>1-65535 lx，精度：±20%</span></div>
+                        <div class="component-detail"><span class="component-detail-label">接口:</span> <span>I2C</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 多媒体组件 -->
+        <div class="component-section" id="multimediaComponents">
+            <h2 onclick="toggleSection('multimediaComponents')">▼ 多媒体组件</h2>
+            
+            <!-- 音频解码模块 -->
+            <div class="component-category">
+                <h3>音频解码模块</h3>
+                <div class="component-item" onclick="selectComponent(this, 'VS1053B无耳机孔模块', 20, {model: 'VS1053B无耳机孔模块', brand: '国产', spec: '集成VS1053B解码芯片、MicroSD卡插槽、音频放大器', interface: 'SPI', size: '30×40×5mm'})">
+                    <div class="component-header">
+                        <span class="component-name">VS1053B无耳机孔模块</span>
+                        <span class="component-price">20元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>国产</span></div>
+                        <div class="component-detail"><span class="component-detail-label">规格:</span> <span>集成VS1053B解码芯片、MicroSD卡插槽、音频放大器</span></div>
+                        <div class="component-detail"><span class="component-detail-label">接口:</span> <span>SPI</span></div>
+                        <div class="component-detail"><span class="component-detail-label">尺寸:</span> <span>30×40×5mm</span></div>
+                    </div>
+                </div>
+                
+                <div class="component-item" onclick="selectComponent(this, 'YX5300-24SS', 10, {model: 'YX5300-24SS', brand: '国产', spec: '集成YX5300解码芯片、SPI Flash存储、音频输出', interface: 'UART', size: '20×25×3mm'})">
+                    <div class="component-header">
+                        <span class="component-name">YX5300-24SS音频模块</span>
+                        <span class="component-price">10元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>国产</span></div>
+                        <div class="component-detail"><span class="component-detail-label">规格:</span> <span>集成YX5300解码芯片、SPI Flash存储、音频输出</span></div>
+                        <div class="component-detail"><span class="component-detail-label">接口:</span> <span>UART</span></div>
+                        <div class="component-detail"><span class="component-detail-label">尺寸:</span> <span>20×25×3mm</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 麦克风模块 -->
+            <div class="component-category">
+                <h3>麦克风模块</h3>
+                <div class="component-item" onclick="selectComponent(this, 'MAX4466', 5, {model: 'MAX4466', brand: 'Maxim', spec: '模拟麦克风放大器，可调增益', interface: '模拟', size: '9×9×2mm'})">
+                    <div class="component-header">
+                        <span class="component-name">MAX4466麦克风模块</span>
+                        <span class="component-price">5元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>Maxim</span></div>
+                        <div class="component-detail"><span class="component-detail-label">规格:</span> <span>模拟麦克风放大器，可调增益</span></div>
+                        <div class="component-detail"><span class="component-detail-label">接口:</span> <span>模拟</span></div>
+                        <div class="component-detail"><span class="component-detail-label">尺寸:</span> <span>9×9×2mm</span></div>
+                    </div>
+                </div>
+                
+                <div class="component-item" onclick="selectComponent(this, 'INMP441', 10, {model: 'INMP441', brand: 'InvenSense', spec: 'I2S数字麦克风，-26dBFS灵敏度，低功耗', interface: 'I2S', size: '3.5×2.65×0.98mm'})">
+                    <div class="component-header">
+                        <span class="component-name">INMP441数字麦克风模块</span>
+                        <span class="component-price">10元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>InvenSense</span></div>
+                        <div class="component-detail"><span class="component-detail-label">规格:</span> <span>I2S数字麦克风，-26dBFS灵敏度，低功耗</span></div>
+                        <div class="component-detail"><span class="component-detail-label">接口:</span> <span>I2S</span></div>
+                        <div class="component-detail"><span class="component-detail-label">尺寸:</span> <span>3.5×2.65×0.98mm</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 输入输出组件 -->
+        <div class="component-section" id="ioComponents">
+            <h2 onclick="toggleSection('ioComponents')">▼ 输入输出组件</h2>
+            
+            <!-- 按键 -->
+            <div class="component-category">
+                <h3>按键</h3>
+                <div class="component-item" onclick="selectComponent(this, '轻触按键 6×6×5mm', 0.1, {model: '轻触按键', brand: '东莞安规', spec: '6×6×5mm', size: '6×6×5mm'})">
+                    <div class="component-header">
+                        <span class="component-name">轻触按键 (6×6×5mm)</span>
+                        <span class="component-price">0.1元/个</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>东莞安规</span></div>
+                        <div class="component-detail"><span class="component-detail-label">规格:</span> <span>6×6×5mm</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 指示灯 -->
+            <div class="component-category">
+                <h3>指示灯</h3>
+                <div class="component-item" onclick="selectComponent(this, '贴片LED 0805', 0.05, {model: '贴片LED', brand: '苏州晶方', spec: '0805，电流：10mA', size: '2×1.25×0.8mm'})">
+                    <div class="component-header">
+                        <span class="component-name">贴片LED (0805)</span>
+                        <span class="component-price">0.05元/个</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>苏州晶方</span></div>
+                        <div class="component-detail"><span class="component-detail-label">规格:</span> <span>0805，电流：10mA</span></div>
+                        <div class="component-detail"><span class="component-detail-label">尺寸:</span> <span>2×1.25×0.8mm</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 结构组件 -->
+        <div class="component-section" id="structureComponents">
+            <h2 onclick="toggleSection('structureComponents')">▼ 结构组件</h2>
+            
+            <!-- 外壳 -->
+            <div class="component-category">
+                <h3>外壳</h3>
+                <div class="component-item" onclick="selectComponent(this, '3D打印外壳 PLA', 10, {model: '3D打印外壳', brand: '深圳创想三维', spec: 'PLA材料', size: '定制尺寸'})">
+                    <div class="component-header">
+                        <span class="component-name">3D打印外壳 (PLA)</span>
+                        <span class="component-price">10元（材料成本）</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>深圳创想三维</span></div>
+                        <div class="component-detail"><span class="component-detail-label">材质:</span> <span>PLA</span></div>
+                        <div class="component-detail"><span class="component-detail-label">尺寸:</span> <span>定制尺寸</span></div>
+                    </div>
+                </div>
+                
+                <div class="component-item" onclick="selectComponent(this, '亚克力外壳', 20, {model: '亚克力外壳', brand: '上海亚克力', spec: '透明亚克力', size: '定制尺寸'})">
+                    <div class="component-header">
+                        <span class="component-name">亚克力外壳</span>
+                        <span class="component-price">20元</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>上海亚克力</span></div>
+                        <div class="component-detail"><span class="component-detail-label">材质:</span> <span>亚克力</span></div>
+                        <div class="component-detail"><span class="component-detail-label">尺寸:</span> <span>定制尺寸</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 紧固件 -->
+            <div class="component-category">
+                <h3>紧固件</h3>
+                <div class="component-item" onclick="selectComponent(this, '螺丝 M2.5×8', 0.15, {model: '螺丝', brand: '上海紧固件', spec: 'M2.5×8', material: '不锈钢'})">
+                    <div class="component-header">
+                        <span class="component-name">螺丝 (M2.5×8)</span>
+                        <span class="component-price">0.15元/个</span>
+                    </div>
+                    <div class="component-details">
+                        <div class="component-detail"><span class="component-detail-label">品牌:</span> <span>上海紧固件</span></div>
+                        <div class="component-detail"><span class="component-detail-label">规格:</span> <span>M2.5×8</span></div>
+                        <div class="component-detail"><span class="component-detail-label">材质:</span> <span>不锈钢</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 存储选择的组件
+        let selectedComponents = [];
+        
+        // 选择组件
+        function selectComponent(element, name, price, details) {
+            // 切换选中状态
+            element.classList.toggle('selected');
+            
+            // 检查是否已选中
+            const existingIndex = selectedComponents.findIndex(comp => comp.name === name);
+            
+            if (existingIndex >= 0) {
+                // 已选中，移除
+                selectedComponents.splice(existingIndex, 1);
+            } else {
+                // 未选中，添加
+                selectedComponents.push({ name, price, details });
+            }
+            
+            // 更新总价和选择列表
+            updateTotalPrice();
+            updateSelectedComponentsList();
+        }
+        
+        // 更新总价
+        function updateTotalPrice() {
+            const total = selectedComponents.reduce((sum, comp) => sum + comp.price, 0);
+            document.getElementById('totalPrice').textContent = total.toFixed(2) + '元';
+            document.getElementById('selectedCount').textContent = selectedComponents.length;
+        }
+        
+        // 更新已选择组件列表
+        function updateSelectedComponentsList() {
+            const list = document.getElementById('selectedComponentsList');
+            
+            if (selectedComponents.length === 0) {
+                list.innerHTML = '<p>尚未选择任何组件</p>';
+                return;
+            }
+            
+            list.innerHTML = selectedComponents.map((comp, index) => `
+                <div class="selected-component">
+                    <div>
+                        <div><strong>${comp.name}</strong></div>
+                        <div style="font-size: 14px; color: #666;">${comp.price.toFixed(2)}元</div>
+                    </div>
+                    <button class="remove-component" onclick="removeComponent(${index})">移除</button>
+                </div>
+            `).join('');
+        }
+        
+        // 移除组件
+        function removeComponent(index) {
+            selectedComponents.splice(index, 1);
+            updateTotalPrice();
+            updateSelectedComponentsList();
+            
+            // 更新所有组件的选中状态
+            const allComponents = document.querySelectorAll('.component-item');
+            allComponents.forEach(item => {
+                item.classList.remove('selected');
+            });
+        }
+        
+        // 清空选择
+        function clearSelection() {
+            selectedComponents = [];
+            updateTotalPrice();
+            updateSelectedComponentsList();
+            
+            // 移除所有组件的选中状态
+            const allComponents = document.querySelectorAll('.component-item');
+            allComponents.forEach(item => {
+                item.classList.remove('selected');
+            });
+        }
+        
+        // 切换分类展开/折叠
+        function toggleSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            const h2 = section.querySelector('h2');
+            const categories = section.querySelectorAll('.component-category');
+            
+            // 切换图标
+            if (h2.textContent.startsWith('▼')) {
+                h2.textContent = '▶ ' + h2.textContent.slice(2);
+                categories.forEach(category => {
+                    category.style.display = 'none';
+                });
+            } else {
+                h2.textContent = '▼ ' + h2.textContent.slice(2);
+                categories.forEach(category => {
+                    category.style.display = 'block';
+                });
+            }
+        }
+        
+        // 切换所有分类展开/折叠
+        function toggleAllSections() {
+            const sections = document.querySelectorAll('.component-section');
+            let allExpanded = true;
+            
+            // 检查当前状态
+            sections.forEach(section => {
+                const h2 = section.querySelector('h2');
+                if (h2.textContent.startsWith('▶')) {
+                    allExpanded = false;
+                }
+            });
+            
+            // 切换所有分类
+            sections.forEach(section => {
+                const h2 = section.querySelector('h2');
+                const categories = section.querySelectorAll('.component-category');
+                
+                if (allExpanded) {
+                    // 全部折叠
+                    h2.textContent = '▶ ' + h2.textContent.slice(2);
+                    categories.forEach(category => {
+                        category.style.display = 'none';
+                    });
+                } else {
+                    // 全部展开
+                    h2.textContent = '▼ ' + h2.textContent.slice(2);
+                    categories.forEach(category => {
+                        category.style.display = 'block';
+                    });
+                }
+            });
+        }
+        
+        // 选择推荐配置
+        function selectRecommendedConfig(configType) {
+            clearSelection();
+            
+            // 根据配置类型选择组件
+            switch(configType) {
+                case 'basic':
+                    // 基础版配置
+                    selectComponentByName('ESP32-S3-DevKitC-1');
+                    selectComponentByName('2.9英寸墨水屏 (GDEW029T5)');
+                    selectComponentByName('DHT22温湿度传感器');
+                    selectComponentByName('轻触按键 (6×6×5mm)');
+                    selectComponentByName('103450电池 (3.7V 2000mAh)');
+                    selectComponentByName('TP4056+Type-C充电模块');
+                    selectComponentByName('3D打印外壳 (PLA)');
+                    selectComponentByName('螺丝 (M2.5×8)');
+                    break;
+                    
+                case 'advanced':
+                    // 进阶版配置
+                    selectComponentByName('ESP32-S3-WROOM-1');
+                    selectComponentByName('4.2英寸墨水屏 (GDEW042T2)');
+                    selectComponentByName('SHT30温湿度传感器');
+                    selectComponentByName('轻触按键 (6×6×5mm)');
+                    selectComponentByName('303450电池 (3.7V 2000mAh)');
+                    selectComponentByName('AXP192+Type-C电源管理模块');
+                    selectComponentByName('BH1750光照传感器');
+                    selectComponentByName('亚克力外壳');
+                    selectComponentByName('螺丝 (M2.5×8)');
+                    break;
+                    
+                case 'premium':
+                    // 高级版配置
+                    selectComponentByName('ESP32-S3-DevKitC-1');
+                    selectComponentByName('7.5英寸墨水屏 (GDEW075T7)');
+                    selectComponentByName('SHT30温湿度传感器');
+                    selectComponentByName('轻触按键 (6×6×5mm)');
+                    selectComponentByName('303450电池 (3.7V 2000mAh)');
+                    selectComponentByName('AXP192+Type-C电源管理模块');
+                    selectComponentByName('BH1750光照传感器');
+                    selectComponentByName('VS1053B无耳机孔模块');
+                    selectComponentByName('INMP441数字麦克风模块');
+                    selectComponentByName('亚克力外壳');
+                    selectComponentByName('螺丝 (M2.5×8)');
+                    break;
+            }
+        }
+        
+        // 根据名称选择组件
+        function selectComponentByName(name) {
+            const components = document.querySelectorAll('.component-item');
+            components.forEach(component => {
+                const componentName = component.querySelector('.component-name').textContent;
+                if (componentName.includes(name)) {
+                    // 模拟点击事件
+                    component.click();
+                }
+            });
+        }
+        
+        // 初始化 - 折叠所有分类
+        document.addEventListener('DOMContentLoaded', function() {
+            const sections = document.querySelectorAll('.component-section');
+            sections.forEach(section => {
+                const h2 = section.querySelector('h2');
+                const categories = section.querySelectorAll('.component-category');
+                
+                h2.textContent = '▶ ' + h2.textContent.slice(2);
+                categories.forEach(category => {
+                    category.style.display = 'none';
+                });
+            });
+        });
+    </script>
+</body>
+</html>

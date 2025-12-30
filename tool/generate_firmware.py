@@ -242,48 +242,53 @@ SUPPORTED_HARDWARE = {
         }
     },
     'audio_module': {
-        'name': '音频模块',
-        'options': {
-            'AUDIO_MODULE_VS1053B_NO_HEADPHONE': 'VS1053B无耳机孔模块 (存储+扩音器+不带3.5mm耳机孔)',
-            'AUDIO_MODULE_VS1003B_STORAGE': 'VS1003B存储版 (存储+扩音器+不带3.5mm耳机孔)',
-            'AUDIO_MODULE_YX5300': 'YX5300-24SS (存储+扩音器+不带3.5mm耳机孔)',
-            'AUDIO_MODULE_YX6300': 'YX6300-24SS (TF卡+扩音器+不带3.5mm耳机孔)',
-            'AUDIO_MODULE_WT588D': 'WT588D-M02 (存储+扩音器+不带3.5mm耳机孔)',
-            'AUDIO_MODULE_ISD1820': 'ISD1820录音模块 (存储+麦克风+不带3.5mm耳机孔)',
-            'AUDIO_MODULE_NRF52832': 'NRF52832音频模块 (存储+蓝牙+不带3.5mm耳机孔)',
-            'AUDIO_MODULE_ESP32_AUDIO': 'ESP32音频解码模块 (TF卡+WiFi+蓝牙+不带3.5mm耳机孔)',
-            'AUDIO_MODULE_STM32_AUDIO': 'STM32F103音频模块 (存储+扩音器+不带3.5mm耳机孔)',
-            'AUDIO_MODULE_ATMEGA328': 'ATmega328音频播放器 (SD卡+扩音器+不带3.5mm耳机孔)'
+            'name': '音频模块',
+            'options': {
+                'AUDIO_DRIVER_NONE': '无音频模块',
+                'AUDIO_DRIVER_ES8388': 'ES8388音频编解码器',
+                'AUDIO_DRIVER_MAX98357': 'MAX98357音频放大器',
+                'AUDIO_DRIVER_PCM5102': 'PCM5102音频解码器',
+                'AUDIO_DRIVER_VS1053B_NO_HEADPHONE': 'VS1053B无耳机孔模块 (存储+扩音器+不带3.5mm耳机孔)',
+                'AUDIO_DRIVER_VS1003B_STORAGE': 'VS1003B存储版 (存储+扩音器+不带3.5mm耳机孔)',
+                'AUDIO_DRIVER_YX5300': 'YX5300-24SS (存储+扩音器+不带3.5mm耳机孔)',
+                'AUDIO_DRIVER_YX6300': 'YX6300-24SS (TF卡+扩音器+不带3.5mm耳机孔)',
+                'AUDIO_DRIVER_WT588D': 'WT588D-M02 (存储+扩音器+不带3.5mm耳机孔)',
+                'AUDIO_DRIVER_ISD1820': 'ISD1820录音模块 (存储+麦克风+不带3.5mm耳机孔)',
+                'AUDIO_DRIVER_NRF52832': 'NRF52832音频模块 (存储+蓝牙+不带3.5mm耳机孔)',
+                'AUDIO_DRIVER_ESP32_AUDIO': 'ESP32音频解码模块 (TF卡+WiFi+蓝牙+不带3.5mm耳机孔)',
+                'AUDIO_DRIVER_STM32_AUDIO': 'STM32F103音频模块 (存储+扩音器+不带3.5mm耳机孔)',
+                'AUDIO_DRIVER_ATMEGA328': 'ATmega328音频播放器 (SD卡+扩音器+不带3.5mm耳机孔)'
+            },
+            'integrated_tf_card': {
+                'AUDIO_DRIVER_VS1053B_NO_HEADPHONE': True,
+                'AUDIO_DRIVER_VS1003B_STORAGE': True,
+                'AUDIO_DRIVER_YX5300': True,
+                'AUDIO_DRIVER_YX6300': True,
+                'AUDIO_DRIVER_WT588D': True,
+                'AUDIO_DRIVER_ISD1820': True,
+                'AUDIO_DRIVER_NRF52832': True,
+                'AUDIO_DRIVER_ESP32_AUDIO': True,
+                'AUDIO_DRIVER_STM32_AUDIO': True,
+                'AUDIO_DRIVER_ATMEGA328': True
+            },
+            'integrated_microphone': {
+                'AUDIO_DRIVER_ISD1820': True,
+                'AUDIO_DRIVER_NRF52832': True,
+                'AUDIO_DRIVER_ESP32_AUDIO': True
+            },
+            'integrated_speaker': {
+                'AUDIO_DRIVER_MAX98357': True,
+                'AUDIO_DRIVER_VS1053B_NO_HEADPHONE': True,
+                'AUDIO_DRIVER_VS1003B_STORAGE': True,
+                'AUDIO_DRIVER_YX5300': True,
+                'AUDIO_DRIVER_YX6300': True,
+                'AUDIO_DRIVER_WT588D': True,
+                'AUDIO_DRIVER_NRF52832': True,
+                'AUDIO_DRIVER_ESP32_AUDIO': True,
+                'AUDIO_DRIVER_STM32_AUDIO': True,
+                'AUDIO_DRIVER_ATMEGA328': True
+            }
         },
-        'integrated_tf_card': {
-            'AUDIO_MODULE_VS1053B_NO_HEADPHONE': True,
-            'AUDIO_MODULE_VS1003B_STORAGE': True,
-            'AUDIO_MODULE_YX5300': True,
-            'AUDIO_MODULE_YX6300': True,
-            'AUDIO_MODULE_WT588D': True,
-            'AUDIO_MODULE_ISD1820': True,
-            'AUDIO_MODULE_NRF52832': True,
-            'AUDIO_MODULE_ESP32_AUDIO': True,
-            'AUDIO_MODULE_STM32_AUDIO': True,
-            'AUDIO_MODULE_ATMEGA328': True
-        },
-        'integrated_microphone': {
-            'AUDIO_MODULE_ISD1820': True,
-            'AUDIO_MODULE_NRF52832': True,
-            'AUDIO_MODULE_ESP32_AUDIO': True
-        },
-        'integrated_speaker': {
-            'AUDIO_MODULE_VS1053B_NO_HEADPHONE': True,
-            'AUDIO_MODULE_VS1003B_STORAGE': True,
-            'AUDIO_MODULE_YX5300': True,
-            'AUDIO_MODULE_YX6300': True,
-            'AUDIO_MODULE_WT588D': True,
-            'AUDIO_MODULE_NRF52832': True,
-            'AUDIO_MODULE_ESP32_AUDIO': True,
-            'AUDIO_MODULE_STM32_AUDIO': True,
-            'AUDIO_MODULE_ATMEGA328': True
-        }
-    },
     'tf_card_reader': {
         'name': 'TF卡读卡器',
         'options': {
@@ -380,7 +385,14 @@ SUPPORTED_HARDWARE = {
         'name': '功能模块',
         'options': {
             'FONT': '字体管理功能',
-            'ALARM_DISPLAY': '报警显示功能'
+            'ALARM_DISPLAY': '报警显示功能',
+            'AUDIO': '音频功能',
+            'VOICE_MESSAGE': '语音留言功能',
+            'VIDEO_MESSAGE': '视频留言功能',
+            'TF_CARD_MANAGEMENT': 'TF卡管理功能',
+            'TOUCH': '触摸功能',
+            'TEMPERATURE_HUMIDITY_DISPLAY': '室内温湿度显示功能',
+            'MOTION_SAVING': '感应节能功能'
         }
     },
     'mandatory_features': {
@@ -422,16 +434,558 @@ SUPPORTED_HARDWARE = {
     }
 }
 
-# 生成固件配置
-def generate_firmware_config():
-    """通过向导生成固件配置"""
-    print("===== 家用网络智能墨水屏万年历 - 固件生成工具 ======")
-    print("请按照向导逐步选择配置选项\n")
+# 功能与硬件的映射关系
+FEATURE_HARDWARE_MAPPING = {
+    'AUDIO': ['audio_module'],
+    'VOICE_MESSAGE': ['audio_module', 'tf_card'],
+    'VIDEO_MESSAGE': ['camera', 'tf_card'],
+    'TF_CARD_MANAGEMENT': ['tf_card'],
+    'ALARM_DISPLAY': ['audio_module', 'sensor'],  # 关联音频模块（扬声器/蜂鸣器）和传感器
+    'TEMPERATURE_HUMIDITY_DISPLAY': ['sensor'],  # 关联温湿度相关传感器
+    'MOTION_SAVING': ['sensor'],  # 关联人体感应传感器
+    'WIFI': ['wifi_bt_module'],
+    'BLUETOOTH': ['wifi_bt_module'],
+    'TOUCH': ['display'],
+    'TEXT_MESSAGE': ['wifi_bt_module'],
+    'WEBCLIENT': ['wifi_bt_module'],
+    'FIRMWARE': ['wifi_bt_module'],
+    'PLUGIN': ['platform']
+}
+
+# 选择功能模块
+def select_features():
+    """通过向导选择功能模块"""
+    print("1. 选择功能模块")
+    print("   必选功能会自动添加，无需手动选择")
+    print()
     
+    # 显示必选功能
+    print("   === 必选功能 ===")
+    mandatory_features = list(SUPPORTED_HARDWARE['mandatory_features']['options'].items())
+    for i, (key, name) in enumerate(mandatory_features, 1):
+        print(f"   [{i}*] {name}")
+    
+    print()
+    
+    # 显示可选功能
+    print("   === 可选功能 ===")
+    optional_features = list(SUPPORTED_HARDWARE['feature']['options'].items())
+    optional_feature_keys = [key for key, _ in optional_features]
+    
+    for i, (key, name) in enumerate(optional_features, 1):
+        print(f"   [{i}] {name}")
+    
+    print()
+    print("   请选择需要的可选功能（可多选）")
+    print("   输入格式示例: 1 2 3 或 1,2,3")
+    print("   直接按回车跳过，不选择任何可选功能")
+    
+    # 获取用户选择
+    while True:
+        try:
+            user_input = input("   请输入选择: ").strip()
+            
+            # 处理不同的输入格式
+            if not user_input:
+                selected_indices = []
+                break
+            elif ',' in user_input:
+                selected_indices = [int(x.strip()) for x in user_input.split(',')]
+            else:
+                selected_indices = [int(x.strip()) for x in user_input.split()]
+            
+            # 验证输入范围
+            if all(1 <= idx <= len(optional_features) for idx in selected_indices):
+                break
+            else:
+                print("   输入无效，请重新选择")
+        except ValueError:
+            print("   输入无效，请输入数字")
+    
+    # 添加选择的可选功能
+    features = []
+    for idx in selected_indices:
+        feature_key = optional_feature_keys[idx-1]
+        features.append(feature_key)
+    
+    # 自动添加关联功能
+    # 1. 选择了音频功能，自动添加TF卡管理功能
+    if 'AUDIO' in features and 'TF_CARD_MANAGEMENT' not in features:
+        features.append('TF_CARD_MANAGEMENT')
+    
+    # 自动添加所有必选功能
+    mandatory_feature_keys = [key for key, _ in mandatory_features]
+    for feature_key in mandatory_feature_keys:
+        features.append(feature_key)
+    
+    # 显示最终选择的功能
+    print("\n已选择功能:")
+    all_features_dict = {**SUPPORTED_HARDWARE['mandatory_features']['options'], **SUPPORTED_HARDWARE['feature']['options']}
+    for feature_key in features:
+        is_mandatory = feature_key in mandatory_feature_keys
+        mandatory_mark = "*" if is_mandatory else ""
+        print(f"   [{mandatory_mark}] {all_features_dict[feature_key]}")
+    
+    # 显示功能关联说明
+    if 'AUDIO' in features and 'TF_CARD_MANAGEMENT' in features:
+        print("   🔗 音频功能自动关联了TF卡管理功能")
+    
+    if 'ALARM_DISPLAY' in features:
+        print("   🔗 报警显示功能关联了气体和火焰传感器，以及扬声器/蜂鸣器")
+    
+    print()
+    
+    return features, all_features_dict
+
+# 根据选择的功能确定所需的硬件类型
+def determine_required_hardware(features):
+    """根据选择的功能确定所需的硬件类型"""
+    required_hardware = set()
+    for feature in features:
+        if feature in FEATURE_HARDWARE_MAPPING:
+            required_hardware.update(FEATURE_HARDWARE_MAPPING[feature])
+    
+    print(f"\n{'=' * 50}")
+    print("硬件需求分析")
+    print(f"{'=' * 50}")
+    print(f"根据所选功能，需要配置以下硬件组件: {list(required_hardware)}")
+    print("系统将自动处理集成硬件冲突，避免重复选择")
+    print()
+    
+    return required_hardware
+
+# 选择微控制器平台和开发板
+def select_platform_and_board():
+    """选择微控制器平台和开发板"""
     config = {
         'platform': '',
         'board': '',
-        'audio_module': '',
+        'has_wifi_bt': False
+    }
+    
+    # 选择微控制器平台
+    print("\n3. 选择微控制器平台")
+    print("   请选择适合您项目的微控制器平台")
+    platform_options = list(SUPPORTED_HARDWARE['platform']['options'].items())
+    for i, (key, name) in enumerate(platform_options, 1):
+        print(f"   {i}. {name}")
+    
+    while True:
+        try:
+            choice = int(input("   请输入选择 (1-{}): ".format(len(platform_options))))
+            if 1 <= choice <= len(platform_options):
+                config['platform'] = platform_options[choice-1][0]
+                break
+            else:
+                print("   输入无效，请重新选择")
+        except ValueError:
+            print("   输入无效，请输入数字")
+    
+    print(f"\n   ✓ 已选择: {SUPPORTED_HARDWARE['platform']['options'][config['platform']]}")
+    
+    # 选择开发板型号
+    print("\n4. 选择开发板型号")
+    print(f"   请从 {SUPPORTED_HARDWARE['platform']['options'][config['platform']]} 系列中选择开发板")
+    board_options = list(SUPPORTED_HARDWARE['board']['options'][config['platform']].items())
+    for i, (key, name) in enumerate(board_options, 1):
+        print(f"   {i}. {name}")
+    
+    while True:
+        try:
+            choice = int(input("   请输入选择 (1-{}): ".format(len(board_options))))
+            if 1 <= choice <= len(board_options):
+                config['board'] = board_options[choice-1][0]
+                break
+            else:
+                print("   输入无效，请重新选择")
+        except ValueError:
+            print("   输入无效，请输入数字")
+    
+    print(f"\n   ✓ 已选择: {SUPPORTED_HARDWARE['board']['options'][config['platform']][config['board']]}")
+    
+    # 检查开发板是否内置WiFi+蓝牙
+    config['has_wifi_bt'] = SUPPORTED_HARDWARE['board_has_wifi_bt'][config['platform']][config['board']]
+    
+    return config
+
+# 检查开发板内置功能
+def check_integrated_features(config):
+    """检查开发板内置功能"""
+    print("\n5. 开发板内置功能检查")
+    if config['has_wifi_bt']:
+        print(f"   ✓ 开发板内置WiFi+蓝牙模块，无需额外配置")
+        config['wifi_bt_module'] = 'WIFI_BT_INTERNAL'
+    else:
+        print(f"   ⚠ 开发板不内置WiFi+蓝牙模块，稍后需手动选择")
+    
+    return config
+
+# 根据功能选择硬件组件
+def select_hardware_components(config, required_hardware):
+    """根据功能选择硬件组件"""
+    print(f"\n{'=' * 50}")
+    print("6. 根据功能选择硬件组件")
+    print(f"{'=' * 50}")
+    
+    # 处理WiFi+蓝牙模块
+    if 'wifi_bt_module' in required_hardware:
+        if not config['has_wifi_bt']:
+            print("   选择WiFi+蓝牙模块:")
+            wifi_bt_options = list(SUPPORTED_HARDWARE['wifi_bt_module']['options'].items())
+            # 移除内置选项，因为需要外接模块
+            wifi_bt_options = [opt for opt in wifi_bt_options if opt[0] != 'WIFI_BT_INTERNAL']
+            
+            for i, (key, name) in enumerate(wifi_bt_options, 1):
+                print(f"      {i}. {name}")
+            
+            while True:
+                try:
+                    choice = int(input("      请输入选择 (1-{}): ".format(len(wifi_bt_options))))
+                    if 1 <= choice <= len(wifi_bt_options):
+                        config['wifi_bt_module'] = wifi_bt_options[choice-1][0]
+                        break
+                    else:
+                        print("      输入无效，请重新选择")
+                except ValueError:
+                    print("      输入无效，请输入数字")
+            
+            print(f"   已选择: {SUPPORTED_HARDWARE['wifi_bt_module']['options'][config['wifi_bt_module']]}\n")
+        else:
+            print(f"   ✓ WiFi+蓝牙功能由开发板内置提供\n")
+            # 从required_hardware中移除，避免后续重复处理
+            required_hardware.discard('wifi_bt_module')
+    
+    # 处理音频模块
+    if 'audio_module' in required_hardware:
+        print("   选择音频模块型号:")
+        audio_options = list(SUPPORTED_HARDWARE['audio_module']['options'].items())
+        # 移除"无音频模块"选项，因为需要音频功能
+        audio_options = [opt for opt in audio_options if opt[0] != 'AUDIO_DRIVER_NONE']
+        
+        # 显示每个音频模块的集成功能，帮助用户选择
+        for i, (key, name) in enumerate(audio_options, 1):
+            # 检查集成功能
+            has_integrated_tf = SUPPORTED_HARDWARE['audio_module']['integrated_tf_card'].get(key, False)
+            has_integrated_mic = SUPPORTED_HARDWARE['audio_module']['integrated_microphone'].get(key, False)
+            has_integrated_speaker = SUPPORTED_HARDWARE['audio_module']['integrated_speaker'].get(key, False)
+            
+            # 生成集成功能描述
+            integrated_features = []
+            if has_integrated_tf:
+                integrated_features.append("TF卡")
+            if has_integrated_mic:
+                integrated_features.append("麦克风")
+            if has_integrated_speaker:
+                integrated_features.append("扬声器")
+            
+            if integrated_features:
+                integrated_desc = f" (集成: {', '.join(integrated_features)})"
+            else:
+                integrated_desc = ""
+            
+            print(f"      {i}. {name}{integrated_desc}")
+        
+        while True:
+            try:
+                choice = int(input("      请输入选择 (1-{}): ".format(len(audio_options))))
+                if 1 <= choice <= len(audio_options):
+                    config['audio_module'] = audio_options[choice-1][0]
+                    break
+                else:
+                    print("      输入无效，请重新选择")
+            except ValueError:
+                print("      输入无效，请输入数字")
+        
+        print(f"   已选择: {SUPPORTED_HARDWARE['audio_module']['options'][config['audio_module']]}\n")
+        
+        # 检查音频模块是否集成了其他硬件功能，更新required_hardware
+        if SUPPORTED_HARDWARE['audio_module']['integrated_tf_card'].get(config['audio_module'], False):
+            print(f"   ✓ 音频模块集成了TF卡功能，无需额外配置TF卡读卡器")
+            # 从required_hardware中移除，避免后续重复处理
+            required_hardware.discard('tf_card')
+    else:
+        config['audio_module'] = 'AUDIO_DRIVER_NONE'
+    
+    # 处理墨水屏
+    print("   选择墨水屏型号:")
+    display_options = list(SUPPORTED_HARDWARE['display']['options'].items())
+    
+    for i, (key, name) in enumerate(display_options, 1):
+        print(f"      {i}. {name}")
+    
+    while True:
+        try:
+            choice = int(input("      请输入选择 (1-{}): ".format(len(display_options))))
+            if 1 <= choice <= len(display_options):
+                config['display'] = display_options[choice-1][0]
+                break
+            else:
+                print("      输入无效，请重新选择")
+        except ValueError:
+            print("      输入无效，请输入数字")
+    
+    print(f"   已选择: {SUPPORTED_HARDWARE['display']['options'][config['display']]}\n")
+    
+    # 处理TF卡相关硬件
+    config['has_tf_card'] = False
+    if 'tf_card' in required_hardware:
+        # 检查音频模块是否集成TF卡功能
+        has_integrated_tf = False
+        if config['audio_module'] != 'AUDIO_DRIVER_NONE':
+            has_integrated_tf = SUPPORTED_HARDWARE['audio_module']['integrated_tf_card'].get(config['audio_module'], False)
+        
+        if has_integrated_tf:
+            config['has_tf_card'] = True
+            config['tf_card_reader'] = 'TF_READER_NONE'
+            print(f"   ✓ 音频模块已集成TF卡功能，无需额外配置\n")
+        else:
+            # 选择TF卡读卡器
+            print("   选择TF卡读卡器:")
+            tf_options = list(SUPPORTED_HARDWARE['tf_card_reader']['options'].items())
+            # 移除"不使用"选项，因为需要TF卡功能
+            tf_options = [opt for opt in tf_options if opt[0] != 'TF_READER_NONE']
+            
+            for i, (key, name) in enumerate(tf_options, 1):
+                print(f"      {i}. {name}")
+            
+            while True:
+                try:
+                    choice = int(input("      请输入选择 (1-{}): ".format(len(tf_options))))
+                    if 1 <= choice <= len(tf_options):
+                        config['tf_card_reader'] = tf_options[choice-1][0]
+                        break
+                    else:
+                        print("      输入无效，请重新选择")
+                except ValueError:
+                    print("      输入无效，请输入数字")
+            
+            print(f"   已选择: {SUPPORTED_HARDWARE['tf_card_reader']['options'][config['tf_card_reader']]}\n")
+            config['has_tf_card'] = True
+    
+    # 处理摄像头模块
+    if 'camera' in required_hardware and config['platform'] == 'ESP32':
+        # ESP32系列开发板支持摄像头，自动添加
+        if 'CAMERA' not in config['hardware']:
+            config['hardware'].append('CAMERA')
+            print(f"   ✓ 自动添加摄像头模块 (ESP32系列开发板支持)\n")
+    
+    return config
+
+# 选择传感器
+def select_sensors(config):
+    """选择传感器"""
+    print(f"\n{'=' * 50}")
+    print("7. 可选：选择传感器")
+    print(f"{'=' * 50}")
+    
+    # 检查是否选择了相关功能
+    has_alarm_display = 'ALARM_DISPLAY' in config['features']
+    has_temp_humidity_display = 'TEMPERATURE_HUMIDITY_DISPLAY' in config['features']
+    has_motion_saving = 'MOTION_SAVING' in config['features']
+    
+    # 打印功能相关提示
+    print("   您可以选择一个或多个传感器来扩展设备功能")
+    
+    # 功能相关传感器推荐提示
+    recommended_sensors = []
+    if has_alarm_display:
+        recommended_sensors.append("气体和火焰传感器")
+    if has_temp_humidity_display:
+        recommended_sensors.append("温湿度相关传感器")
+    if has_motion_saving:
+        recommended_sensors.append("人体感应传感器")
+    
+    if recommended_sensors:
+        print(f"   由于您选择的功能，建议选择: {', '.join(recommended_sensors)}")
+    
+    print("   输入格式示例: 1 2 3 或 1,2,3")
+    print("   直接按回车跳过，不选择任何传感器")
+    
+    sensor_options = list(SUPPORTED_HARDWARE['sensor']['options'].items())
+    sensor_keys = [key for key, _ in sensor_options]
+    
+    print("   可选传感器列表:")
+    for i, (key, name) in enumerate(sensor_options, 1):
+        # 标记相关传感器为推荐
+        is_recommended = False
+        
+        # 报警显示功能推荐气体和火焰传感器
+        if has_alarm_display and (key == 'MQ135' or key == 'IR_FLAME'):
+            is_recommended = True
+        # 室内温湿度显示功能推荐温湿度相关传感器
+        elif has_temp_humidity_display and (key == 'DHT22' or key == 'SHT30' or key == 'BME280'):
+            is_recommended = True
+        # 感应节能功能推荐人体感应传感器
+        elif has_motion_saving and key == 'HC_SR501':
+            is_recommended = True
+        
+        if is_recommended:
+            print(f"      {i}. {name} (推荐)")
+        else:
+            print(f"      {i}. {name}")
+    
+    while True:
+        try:
+            user_input = input("   请输入选择: ").strip()
+            
+            # 处理不同的输入格式
+            if not user_input:
+                selected_indices = []
+            elif ',' in user_input:
+                selected_indices = [int(x.strip()) for x in user_input.split(',')]
+            else:
+                selected_indices = [int(x.strip()) for x in user_input.split()]
+            
+            # 验证输入范围
+            if selected_indices and not all(1 <= idx <= len(sensor_options) for idx in selected_indices):
+                print("   输入无效，请输入有效的传感器编号")
+                continue
+            
+            # 添加选择的传感器
+            config['sensors'] = []
+            for idx in selected_indices:
+                sensor_key = sensor_keys[idx-1]
+                config['sensors'].append(sensor_key)
+            
+            # 检查各功能对应的传感器是否已选择
+            missing_sensors = []
+            
+            # 1. 报警显示功能 - 需要气体或火焰传感器
+            if has_alarm_display:
+                has_gas_sensor = 'MQ135' in config['sensors']
+                has_flame_sensor = 'IR_FLAME' in config['sensors']
+                
+                if not has_gas_sensor and not has_flame_sensor:
+                    missing_sensors.append("报警显示功能需要气体或火焰传感器")
+            
+            # 2. 室内温湿度显示功能 - 需要温湿度相关传感器
+            if has_temp_humidity_display:
+                has_temp_humidity_sensor = any(sensor in config['sensors'] for sensor in ['DHT22', 'SHT30', 'BME280'])
+                
+                if not has_temp_humidity_sensor:
+                    missing_sensors.append("室内温湿度显示功能需要温湿度相关传感器")
+            
+            # 3. 感应节能功能 - 需要人体感应传感器
+            if has_motion_saving:
+                has_motion_sensor = 'HC_SR501' in config['sensors']
+                
+                if not has_motion_sensor:
+                    missing_sensors.append("感应节能功能需要人体感应传感器")
+            
+            # 如果所有必需的传感器都已选择，退出循环
+            if not missing_sensors:
+                break
+            else:
+                # 显示缺少的传感器信息
+                print("\n   ⚠ 缺少必需的传感器:")
+                for missing in missing_sensors:
+                    print(f"   - {missing}")
+                print("   请重新选择传感器，确保包含所有必需的传感器")
+                print()
+        except ValueError:
+            print("   输入无效，请输入数字")
+    
+    if not config['sensors']:
+        print("\n   ✓ 未选择任何传感器，将使用默认配置")
+    else:
+        selected_sensor_names = [SUPPORTED_HARDWARE['sensor']['options'][s] for s in config['sensors']]
+        print(f"\n   ✓ 已选择传感器: {', '.join(selected_sensor_names)}")
+    
+    return config
+
+# 自动配置硬件模块和处理集成冲突
+def auto_configure_hardware(config):
+    """自动配置硬件模块和处理集成冲突"""
+    print(f"\n{'=' * 50}")
+    print("8. 自动配置硬件模块和处理集成冲突")
+    print(f"{'=' * 50}")
+    
+    # 如果音频模块或TF卡读卡器已经提供TF卡支持，自动添加TF_CARD到硬件模块
+    if config['has_tf_card'] and 'TF_CARD' not in config['hardware']:
+        config['hardware'].append('TF_CARD')
+        print(f"   ✓ 自动添加: {SUPPORTED_HARDWARE['hardware']['options']['TF_CARD']} (由音频模块或TF卡读卡器提供支持)")
+    
+    # 检查音频模块集成的功能，避免重复配置硬件模块
+    has_integrated_mic = SUPPORTED_HARDWARE['audio_module']['integrated_microphone'].get(config['audio_module'], False)
+    has_integrated_speaker = SUPPORTED_HARDWARE['audio_module']['integrated_speaker'].get(config['audio_module'], False)
+    
+    # 如果音频模块已集成麦克风和扬声器，不需要额外的音频硬件
+    if has_integrated_mic or has_integrated_speaker:
+        if has_integrated_mic and has_integrated_speaker:
+            print(f"   ✓ 音频模块已集成麦克风和扬声器，无需额外音频硬件")
+        elif has_integrated_mic:
+            print(f"   ✓ 音频模块已集成麦克风，无需额外麦克风硬件")
+        elif has_integrated_speaker:
+            print(f"   ✓ 音频模块已集成扬声器，无需额外扬声器硬件")
+    
+    if config['hardware']:
+        selected_hardware_names = [SUPPORTED_HARDWARE['hardware']['options'][h] for h in config['hardware']]
+        print(f"   ✓ 已自动添加硬件模块: {', '.join(selected_hardware_names)}")
+    else:
+        print(f"   ✓ 未添加额外硬件模块")
+    
+    return config
+
+# 显示最终配置
+def display_final_config(config, all_features_dict):
+    """显示最终配置和集成硬件冲突处理总结"""
+    # 显示最终配置
+    print("\n===== 最终配置 =====")
+    print(f"已选择功能: {[all_features_dict[f] for f in config['features']]}")
+    print(f"微控制器平台: {SUPPORTED_HARDWARE['platform']['options'][config['platform']]}")
+    print(f"开发板型号: {SUPPORTED_HARDWARE['board']['options'][config['platform']][config['board']]}")
+    print(f"音频模块: {SUPPORTED_HARDWARE['audio_module']['options'][config['audio_module']]}")
+    print(f"墨水屏型号: {SUPPORTED_HARDWARE['display']['options'][config['display']]}")
+    print(f"WiFi+蓝牙模块: {SUPPORTED_HARDWARE['wifi_bt_module']['options'][config['wifi_bt_module']]}")
+    print(f"TF卡读卡器: {SUPPORTED_HARDWARE['tf_card_reader']['options'][config['tf_card_reader']]}")
+    if config['sensors']:
+        print(f"传感器: {[SUPPORTED_HARDWARE['sensor']['options'][s] for s in config['sensors']]}")
+    if config['hardware']:
+        print(f"硬件模块: {[SUPPORTED_HARDWARE['hardware']['options'][h] for h in config['hardware']]}")
+    print()
+    
+    # 集成硬件冲突处理总结
+    print("===== 集成硬件冲突处理总结 =====")
+    if config['has_wifi_bt']:
+        print("✓ 开发板内置WiFi+蓝牙，无需额外模块")
+    
+    if config['audio_module'] != 'AUDIO_DRIVER_NONE':
+        if SUPPORTED_HARDWARE['audio_module']['integrated_tf_card'].get(config['audio_module'], False):
+            print("✓ 音频模块集成TF卡功能，无需额外TF卡读卡器")
+        
+        has_integrated_mic = SUPPORTED_HARDWARE['audio_module']['integrated_microphone'].get(config['audio_module'], False)
+        has_integrated_speaker = SUPPORTED_HARDWARE['audio_module']['integrated_speaker'].get(config['audio_module'], False)
+        
+        if has_integrated_mic and has_integrated_speaker:
+            print("✓ 音频模块集成麦克风和扬声器，无需额外音频硬件")
+        elif has_integrated_mic:
+            print("✓ 音频模块集成麦克风，无需额外麦克风")
+        elif has_integrated_speaker:
+            print("✓ 音频模块集成扬声器，无需额外扬声器")
+    
+    if 'CAMERA' in config['hardware']:
+        print("✓ 摄像头模块由ESP32开发板支持，已自动配置")
+    
+    print()
+    
+    return config
+
+# 生成固件配置
+def generate_firmware_config():
+    """通过向导生成固件配置"""
+    print("=" * 60)
+    print("欢迎使用 家用网络智能墨水屏万年历 - 固件生成工具")
+    print("=" * 60)
+    print("本工具将帮助您根据需求生成个性化固件")
+    print("流程：功能选择 → 硬件选择 → 配置生成 → 固件编译")
+    print("注意：带 * 标记的功能为必选功能，将自动添加")
+    print("\n")
+    
+    # 初始化配置
+    config = {
+        'platform': '',
+        'board': '',
+        'audio_module': 'AUDIO_DRIVER_NONE',
         'wifi_bt_module': 'WIFI_BT_INTERNAL',
         'display': '',
         'tf_card_reader': 'TF_READER_NONE',
@@ -442,298 +996,30 @@ def generate_firmware_config():
         'has_tf_card': False
     }
     
-    # 选择微控制器平台
-    print("1. 选择微控制器平台:")
-    platform_options = list(SUPPORTED_HARDWARE['platform']['options'].items())
-    for i, (key, name) in enumerate(platform_options, 1):
-        print(f"   {i}. {name}")
+    # 1. 选择功能模块
+    config['features'], all_features_dict = select_features()
     
-    while True:
-        try:
-            choice = int(input("请输入选择 (1-{}): ".format(len(platform_options))))
-            if 1 <= choice <= len(platform_options):
-                config['platform'] = platform_options[choice-1][0]
-                break
-            else:
-                print("输入无效，请重新选择")
-        except ValueError:
-            print("输入无效，请输入数字")
+    # 2. 根据选择的功能确定所需的硬件类型
+    required_hardware = determine_required_hardware(config['features'])
     
-    print(f"已选择: {SUPPORTED_HARDWARE['platform']['options'][config['platform']]}\n")
+    # 3. 选择微控制器平台和开发板
+    platform_board_config = select_platform_and_board()
+    config.update(platform_board_config)
     
-    # 选择开发板型号
-    print("2. 选择开发板型号:")
-    board_options = list(SUPPORTED_HARDWARE['board']['options'][config['platform']].items())
-    for i, (key, name) in enumerate(board_options, 1):
-        print(f"   {i}. {name}")
+    # 4. 检查开发板内置功能
+    config = check_integrated_features(config)
     
-    while True:
-        try:
-            choice = int(input("请输入选择 (1-{}): ".format(len(board_options))))
-            if 1 <= choice <= len(board_options):
-                config['board'] = board_options[choice-1][0]
-                break
-            else:
-                print("输入无效，请重新选择")
-        except ValueError:
-            print("输入无效，请输入数字")
+    # 5. 根据功能选择硬件组件
+    config = select_hardware_components(config, required_hardware)
     
-    print(f"已选择: {SUPPORTED_HARDWARE['board']['options'][config['platform']][config['board']]}\n")
+    # 6. 选择传感器
+    config = select_sensors(config)
     
-    # 检查开发板是否内置WiFi+蓝牙
-    config['has_wifi_bt'] = SUPPORTED_HARDWARE['board_has_wifi_bt'][config['platform']][config['board']]
+    # 7. 自动配置硬件模块和处理集成冲突
+    config = auto_configure_hardware(config)
     
-    # 如果开发板没有内置WiFi+蓝牙，让用户选择外接模块
-    if not config['has_wifi_bt']:
-        print("3. 选择WiFi+蓝牙模块:")
-        wifi_bt_options = list(SUPPORTED_HARDWARE['wifi_bt_module']['options'].items())
-        for i, (key, name) in enumerate(wifi_bt_options, 1):
-            print(f"   {i}. {name}")
-        
-        while True:
-            try:
-                choice = int(input("请输入选择 (1-{}): ".format(len(wifi_bt_options))))
-                if 1 <= choice <= len(wifi_bt_options):
-                    config['wifi_bt_module'] = wifi_bt_options[choice-1][0]
-                    break
-                else:
-                    print("输入无效，请重新选择")
-            except ValueError:
-                print("输入无效，请输入数字")
-        
-        print(f"已选择: {SUPPORTED_HARDWARE['wifi_bt_module']['options'][config['wifi_bt_module']]}\n")
-    else:
-        config['wifi_bt_module'] = 'WIFI_BT_INTERNAL'
-        print("3. 开发板内置WiFi+蓝牙模块，无需额外选择\n")
-    
-    # 选择音频模块
-    print("4. 选择音频模块型号:")
-    audio_options = list(SUPPORTED_HARDWARE['audio_module']['options'].items())
-    for i, (key, name) in enumerate(audio_options, 1):
-        print(f"   {i}. {name}")
-    
-    while True:
-        try:
-            choice = int(input("请输入选择 (1-{}): ".format(len(audio_options))))
-            if 1 <= choice <= len(audio_options):
-                config['audio_module'] = audio_options[choice-1][0]
-                break
-            else:
-                print("输入无效，请重新选择")
-        except ValueError:
-            print("输入无效，请输入数字")
-    
-    print(f"已选择: {SUPPORTED_HARDWARE['audio_module']['options'][config['audio_module']]}\n")
-    
-    # 选择墨水屏
-    print("5. 选择墨水屏型号:")
-    display_options = list(SUPPORTED_HARDWARE['display']['options'].items())
-    for i, (key, name) in enumerate(display_options, 1):
-        print(f"   {i}. {name}")
-    
-    while True:
-        try:
-            choice = int(input("请输入选择 (1-{}): ".format(len(display_options))))
-            if 1 <= choice <= len(display_options):
-                config['display'] = display_options[choice-1][0]
-                break
-            else:
-                print("输入无效，请重新选择")
-        except ValueError:
-            print("输入无效，请输入数字")
-    
-    print(f"已选择: {SUPPORTED_HARDWARE['display']['options'][config['display']]}\n")
-    
-    # 检查音频模块是否集成TF读卡器
-    if SUPPORTED_HARDWARE['audio_module']['integrated_tf_card'].get(config['audio_module'], False):
-        config['has_tf_card'] = True
-        print(f"   提示: 该音频模块集成了TF卡功能，将自动启用TF卡功能\n")
-        config['tf_card_reader'] = 'TF_READER_NONE'
-        
-        # 如果硬件模块中已有TF_CARD，自动移除，避免重复
-        if 'TF_CARD' in config['hardware']:
-            config['hardware'].remove('TF_CARD')
-            print(f"   提示: 由于音频模块已集成TF卡功能，已自动移除重复的TF_CARD硬件模块\n")
-    else:
-        # 选择TF卡读卡器（如果音频模块没有集成的话）
-        print("6. 选择TF卡读卡器:")
-        tf_options = list(SUPPORTED_HARDWARE['tf_card_reader']['options'].items())
-        for i, (key, name) in enumerate(tf_options, 1):
-            print(f"   {i}. {name}")
-        
-        while True:
-            try:
-                choice = int(input("请输入选择 (1-{}): ".format(len(tf_options))))
-                if 1 <= choice <= len(tf_options):
-                    config['tf_card_reader'] = tf_options[choice-1][0]
-                    break
-                else:
-                    print("输入无效，请重新选择")
-            except ValueError:
-                print("输入无效，请输入数字")
-        
-        print(f"已选择: {SUPPORTED_HARDWARE['tf_card_reader']['options'][config['tf_card_reader']]}\n")
-        
-        if config['tf_card_reader'] != 'TF_READER_NONE':
-            config['has_tf_card'] = True
-            print("   提示: TF卡功能已启用\n")
-    
-    # 选择传感器
-    print("7. 选择传感器 (可多选，输入0结束):")
-    sensor_options = list(SUPPORTED_HARDWARE['sensor']['options'].items())
-    for i, (key, name) in enumerate(sensor_options, 1):
-        print(f"   {i}. {name}")
-    
-    while True:
-        try:
-            choice = int(input("请输入选择 (1-{}, 0结束): ".format(len(sensor_options))))
-            if choice == 0:
-                break
-            elif 1 <= choice <= len(sensor_options):
-                sensor_key = sensor_options[choice-1][0]
-                if sensor_key not in config['sensors']:
-                    config['sensors'].append(sensor_key)
-                    print(f"已添加: {SUPPORTED_HARDWARE['sensor']['options'][sensor_key]}")
-                else:
-                    print("该传感器已添加")
-            else:
-                print("输入无效，请重新选择")
-        except ValueError:
-            print("输入无效，请输入数字")
-    
-    if not config['sensors']:
-        print("未选择任何传感器，将使用默认配置\n")
-    else:
-        print(f"已选择传感器: {[SUPPORTED_HARDWARE['sensor']['options'][s] for s in config['sensors']]}\n")
-    
-    # 自动添加硬件模块
-    print("8. 自动配置硬件模块:")
-    
-    # 如果音频模块或TF卡读卡器已经提供TF卡支持，自动添加TF_CARD到硬件模块
-    if config['has_tf_card'] and 'TF_CARD' not in config['hardware']:
-        config['hardware'].append('TF_CARD')
-        print(f"   自动添加: {SUPPORTED_HARDWARE['hardware']['options']['TF_CARD']} (由音频模块或TF卡读卡器提供支持)")
-    
-    # 根据硬件自动添加摄像头模块支持
-    if config['platform'] == 'ESP32' and 'CAMERA' not in config['hardware']:
-        # ESP32系列开发板支持摄像头
-        config['hardware'].append('CAMERA')
-        print(f"   自动添加: 摄像头模块支持 (ESP32系列开发板)")
-    
-    # 检查音频模块集成的功能，避免重复配置硬件模块
-    has_integrated_mic = SUPPORTED_HARDWARE['audio_module']['integrated_microphone'].get(config['audio_module'], False)
-    has_integrated_speaker = SUPPORTED_HARDWARE['audio_module']['integrated_speaker'].get(config['audio_module'], False)
-    
-    # 如果音频模块已集成麦克风和扬声器，不需要额外的音频硬件
-    if has_integrated_mic or has_integrated_speaker:
-        if has_integrated_mic and has_integrated_speaker:
-            print(f"   提示: 音频模块已集成麦克风和扬声器，无需额外音频硬件")
-        elif has_integrated_mic:
-            print(f"   提示: 音频模块已集成麦克风，无需额外麦克风硬件")
-        elif has_integrated_speaker:
-            print(f"   提示: 音频模块已集成扬声器，无需额外扬声器硬件")
-    
-    if not config['hardware']:
-        print("   未自动添加任何硬件模块\n")
-    else:
-        print(f"   已自动添加硬件模块: {[SUPPORTED_HARDWARE['hardware']['options'].get(h, h) for h in config['hardware']]}\n")
-    
-    # 选择可选功能模块
-    print("9. 选择可选功能模块 (可多选，输入0结束):")
-    feature_options = list(SUPPORTED_HARDWARE['feature']['options'].items())
-    
-    # 显示可用功能
-    for i, (key, name) in enumerate(feature_options, 1):
-        print(f"   {i}. {name}")
-    
-    while True:
-        try:
-            choice = int(input("请输入选择 (1-{}, 0结束): ".format(len(feature_options))))
-            if choice == 0:
-                break
-            elif 1 <= choice <= len(feature_options):
-                feature_key = feature_options[choice-1][0]
-                if feature_key not in config['features']:
-                    config['features'].append(feature_key)
-                    print(f"已添加: {SUPPORTED_HARDWARE['feature']['options'][feature_key]}")
-                else:
-                    print("该功能已添加")
-            else:
-                print("输入无效，请重新选择")
-        except ValueError:
-            print("输入无效，请输入数字")
-    
-    # 根据硬件自动添加功能
-    print("\n10. 根据硬件自动配置功能:")
-    has_tf_card = 'TF_CARD' in config['hardware'] or config['has_tf_card']
-    has_camera = 'CAMERA' in config['hardware']
-    has_wifi = config['has_wifi_bt'] or config['wifi_bt_module'] != 'WIFI_BT_INTERNAL'
-    has_bt = config['has_wifi_bt'] or 'BLUETOOTH' in config['wifi_bt_module']
-    
-    # 自动添加音频功能和语音留言功能（如果有音频模块和TF卡支持）
-    if config['audio_module'] != 'AUDIO_MODULE_INTERNAL':
-        if 'AUDIO' not in config['features']:
-            config['features'].append('AUDIO')
-            print(f"   自动添加: 音频功能 (由音频模块提供)")
-        
-        if has_tf_card and 'VOICE_MESSAGE' not in config['features']:
-            config['features'].append('VOICE_MESSAGE')
-            print(f"   自动添加: 语音留言功能 (由音频模块和TF卡提供)")
-    
-    # 自动添加视频留言功能（如果有摄像头和TF卡支持）
-    if has_camera and has_tf_card and 'VIDEO_MESSAGE' not in config['features']:
-        config['features'].append('VIDEO_MESSAGE')
-        print(f"   自动添加: 视频留言功能 (由摄像头和TF卡提供)")
-    
-    # 自动添加TF卡管理功能（如果有TF卡支持）
-    if has_tf_card and 'TF_CARD_MANAGEMENT' not in config['features']:
-        config['features'].append('TF_CARD_MANAGEMENT')
-        print(f"   自动添加: TF卡管理功能 (由TF卡提供)")
-    
-    # 自动添加IPV6功能（如果开发板WiFi模块支持）
-    if has_wifi and 'IPV6' not in config['features']:
-        # 检查开发板是否支持IPv6
-        ipv6_supported = False
-        if config['platform'] == 'ESP32':
-            # ESP32-C6系列支持IPv6
-            if config['board'] == 'esp32-c6-n4':
-                ipv6_supported = True
-        elif config['platform'] == 'NRF52':
-            # NRF52840支持IPv6
-            if config['board'] == 'nrf52840dk':
-                ipv6_supported = True
-        
-        if ipv6_supported:
-            config['features'].append('IPV6')
-            print(f"   自动添加: IPv6功能 (由开发板WiFi模块提供)")
-    
-    # 自动添加触摸功能（如果屏幕和开发板支持）
-    if 'TOUCH' not in config['features']:
-        # 检查屏幕是否支持触摸
-        touch_supported = False
-        # 根据屏幕型号添加触摸支持判断
-        touch_supported_models = ['EINK_75_INCH', 'EINK_42_INCH', 'EINK_583_INCH', 'EINK_103_INCH']
-        for model in touch_supported_models:
-            if model in config['display']:
-                touch_supported = True
-                break
-        
-        if touch_supported:
-            config['features'].append('TOUCH')
-            print(f"   自动添加: 触摸功能 (由屏幕和开发板提供)")
-    
-    # 添加必选功能
-    mandatory_features = list(SUPPORTED_HARDWARE['mandatory_features']['options'].keys())
-    for feature in mandatory_features:
-        if feature not in config['features']:
-            config['features'].append(feature)
-            print(f"   自动添加: {SUPPORTED_HARDWARE['mandatory_features']['options'][feature]} (必选功能)")
-    
-    # 显示最终配置
-    print(f"\n已选择功能: {[SUPPORTED_HARDWARE['feature']['options'][f] if f in SUPPORTED_HARDWARE['feature']['options'] else SUPPORTED_HARDWARE['mandatory_features']['options'][f] for f in config['features']]}")
-    if config['hardware']:
-        print(f"已选择硬件模块: {[SUPPORTED_HARDWARE['hardware']['options'][h] for h in config['hardware']]}")
-    print()
+    # 8. 显示最终配置
+    config = display_final_config(config, all_features_dict)
     
     return config
 
@@ -753,7 +1039,7 @@ def generate_config_file(config):
 # 更新条件编译宏配置头文件
 def update_config_header(config):
     """更新条件编译宏配置头文件"""
-    config_header_path = os.path.join(PROJECT_ROOT, 'code', 'src', 'core', 'config.h')
+    config_header_path = os.path.join(PROJECT_ROOT, 'code', 'src', 'coresystem', 'config.h')
     
     # 读取现有文件内容，如果不存在则创建基本结构
     if not os.path.exists(config_header_path):
@@ -771,7 +1057,7 @@ def update_config_header(config):
         platform_macros.append(f'#define PLATFORM_{platform} {1 if enabled else 0}')
     
     # 生成音频模块宏定义
-    audio_macro = f'#define AUDIO_MODULE_TYPE {config["audio_module"]}'
+    audio_macro = f'#define AUDIO_DRIVER_TYPE {config["audio_module"]}'
     
     # 生成WiFi+蓝牙模块宏定义
     wifi_bt_macro = f'#define WIFI_BT_MODULE_TYPE {config["wifi_bt_module"]}'
