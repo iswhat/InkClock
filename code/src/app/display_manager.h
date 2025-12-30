@@ -2,9 +2,11 @@
 #define DISPLAY_MANAGER_H
 
 #include <Arduino.h>
-#include "../drivers/displays/display_driver.h"
 #include "../core/config.h"
 #include "../core/event_bus.h"
+
+// 前向声明驱动接口
+class IDisplayDriver;
 
 // 右侧页面类型枚举
 enum RightPageType {

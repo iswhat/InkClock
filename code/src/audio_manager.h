@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 #include "core/config.h"
-#include <ESP32-audioI2S.h>
+#include "drivers/audio_driver.h"
 #include "core/event_bus.h"
 
 // 音频状态枚举
@@ -72,8 +72,8 @@ private:
   unsigned long playPosition;
   unsigned long totalDuration;
   
-  // ESP32-audioI2S对象
-  Audio audio;
+  // 音频驱动指针
+  AudioDriver* audioDriver;
   
   // 私有方法
   void initI2S();

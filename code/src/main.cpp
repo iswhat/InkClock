@@ -18,6 +18,7 @@
 #include <Arduino.h>
 #include "core/config.h"
 #include "core/core_system.h"
+#include "core/platform_abstraction.h"
 #include "app/display_manager.h"
 #include "drivers/displays/display_driver.h"
 #include "drivers/displays/eink_driver.h"
@@ -848,7 +849,7 @@ void loop() {
     Serial.println("软件看门狗超时，系统将重启");
     Serial.flush();
     delay(1000);
-    ESP.restart(); // 重启系统
+    platformReset(); // 重启系统
   }
   
   // 短暂延迟，降低CPU占用

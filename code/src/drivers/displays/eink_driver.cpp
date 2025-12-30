@@ -125,9 +125,9 @@ void EinkDriver::wakeup() {
   display.powerOn();
 }
 
-EinkDisplayType EinkDriver::getType() const {
+DisplayType EinkDriver::getType() const {
   // 返回当前配置的显示类型
-  return DISPLAY_TYPE;
+  return DisplayType::DISPLAY_TYPE_EINK;
 }
 
 int16_t EinkDriver::measureTextWidth(const String& text, uint8_t size) const {

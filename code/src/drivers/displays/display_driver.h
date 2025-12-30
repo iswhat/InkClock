@@ -3,6 +3,16 @@
 
 #include <Arduino.h>
 
+// 显示类型枚举
+enum class DisplayType {
+  DISPLAY_TYPE_UNKNOWN,
+  DISPLAY_TYPE_EINK,      // 电子墨水屏
+  DISPLAY_TYPE_LCD,       // LCD显示屏
+  DISPLAY_TYPE_OLED,      // OLED显示屏
+  DISPLAY_TYPE_TFT,       // TFT显示屏
+  DISPLAY_TYPE_LED        // LED矩阵屏
+};
+
 // 显示驱动抽象接口
 class IDisplayDriver {
 public:
@@ -54,7 +64,7 @@ public:
   virtual void wakeup() = 0;
   
   // 获取显示类型
-  virtual EinkDisplayType getType() const = 0;
+  virtual DisplayType getType() const = 0;
 };
 
 // 显示驱动工厂类

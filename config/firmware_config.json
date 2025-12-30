@@ -1,0 +1,23 @@
+{
+    "platform": "ESP32",
+    "board": "esp32-wroom-32",
+    "audio_module": "AUDIO_MODULE_ES8388",
+    "display": "EINK_154_INCH",
+    "sensors": [
+        "DHT22"
+    ],
+    "hardware": [
+        "TF_CARD"
+    ],
+    "features": [
+        "AUDIO",
+        "CAMERA",
+        "TEXT_MESSAGE",
+        "VOICE_MESSAGE",
+        "VIDEO_MESSAGE",
+        "WIFI",
+        "BLUETOOTH",
+        "WEBCLIENT",
+        "FIRMWARE"
+    ]
+}

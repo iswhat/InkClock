@@ -6,6 +6,7 @@
 #include "driver_registry.h"
 #include "config.h"
 #include "spiffs_manager.h"
+#include "platform_abstraction.h"
 
 // 核心系统状态枚举
 enum CoreSystemState {
@@ -37,7 +38,7 @@ typedef struct {
 } TimerItem;
 
 // 核心系统类，作为底层操作系统的核心组件
-class CoreSystem {
+class CoreSystem : public ICoreSystem {
 private:
   static CoreSystem* instance;
   
@@ -57,6 +58,26 @@ private:
     
     // 初始化配置管理
     configLoaded = false;
+    
+    // 初始化内存管理
+    totalAllocatedMemory = 0;
+    peakAllocatedMemory = 0;
+    lastMemoryUpdate = 0;
+    
+    // 初始化运算资源管理
+    currentCpuFreqMHz = platformGetCpuFreqMHz();
+    minCpuFreqMHz = 80;    // 默认最小CPU频率80MHz
+    maxCpuFreqMHz = 240;   // 默认最大CPU频率240MHz
+    dynamicCpuFreqEnabled = true;
+    
+    // 初始化任务优先级管理
+    defaultTaskPriority = 5; // 默认任务优先级5
+    
+    // 初始化线程管理
+    systemMutex = xSemaphoreCreateMutex();
+    if (systemMutex == NULL) {
+      Serial.println("Failed to create system mutex");
+    }
   }
   
   // 系统状态
@@ -76,6 +97,21 @@ private:
   bool isLowPowerMode;
   unsigned long lastPowerUpdate;
   
+  // 运算资源管理
+  int currentCpuFreqMHz;
+  int minCpuFreqMHz;
+  int maxCpuFreqMHz;
+  bool dynamicCpuFreqEnabled;
+  
+  // 任务优先级管理
+  std::map<uint32_t, int> taskPriorities;
+  int defaultTaskPriority;
+  
+  // 线程管理
+  std::vector<uint32_t> activeThreads;
+  std::map<uint32_t, SemaphoreHandle_t> threadMutexes;
+  SemaphoreHandle_t systemMutex;  // 系统级互斥锁
+  
   // 配置管理
   bool configLoaded;
   std::vector<ConfigItem> configItems;
@@ -83,6 +119,20 @@ private:
   // 定时器管理
   std::vector<TimerItem> timers;
   uint32_t nextTimerId;
+  
+  // 内存管理
+  struct MemoryPool {
+    void* pool;          // 内存池指针
+    size_t blockSize;    // 块大小
+    size_t blockCount;   // 块数量
+    size_t freeBlocks;   // 空闲块数量
+    void** freeList;     // 空闲块链表
+  };
+  
+  std::vector<MemoryPool> memoryPools;  // 内存池列表
+  size_t totalAllocatedMemory;           // 总分配内存大小
+  size_t peakAllocatedMemory;            // 峰值分配内存大小
+  unsigned long lastMemoryUpdate;        // 上次内存更新时间
   
   // 初始化SPIFFS文件系统
   bool initSPIFFS() {
@@ -323,12 +373,7 @@ public:
   // 重置系统
   void reset() {
     eventBus->publish(EVENT_SYSTEM_RESET, nullptr);
-    #ifdef ESP32
-      ESP.restart();
-    #else
-      // 其他平台的重置实现
-      Serial.println("System reset not implemented for this platform");
-    #endif
+    platformReset();
   }
   
   // 获取系统状态
@@ -503,48 +548,384 @@ public:
   
   // 获取系统内存信息
   void getMemoryInfo(size_t& freeHeap, size_t& minimumFreeHeap) {
-    #ifdef ESP32
-      freeHeap = ESP.getFreeHeap();
-      minimumFreeHeap = ESP.getMinFreeHeap();
-    #else
-      // 其他平台的内存信息实现
-      freeHeap = 0;
-      minimumFreeHeap = 0;
-      Serial.println("Memory info not implemented for this platform");
-    #endif
+    freeHeap = platformGetFreeHeap();
+    minimumFreeHeap = platformGetMinFreeHeap();
   }
   
   // 获取系统CPU频率
   uint32_t getCpuFrequencyMhz() {
-    #ifdef ESP32
-      return ESP.getCpuFreqMHz();
-    #else
-      // 其他平台的CPU频率实现
-      Serial.println("CPU frequency not implemented for this platform");
-      return 0;
-    #endif
+    return platformGetCpuFreqMHz();
+  }
+  
+  // 设置CPU频率
+  bool setCpuFrequencyMhz(uint32_t freqMHz) {
+    if (freqMHz >= minCpuFreqMHz && freqMHz <= maxCpuFreqMHz) {
+      if (platformSetCpuFreqMHz(freqMHz)) {
+        currentCpuFreqMHz = freqMHz;
+        return true;
+      }
+    }
+    return false;
+  }
+  
+  // 启用动态CPU频率调整
+  void enableDynamicCpuFreq(bool enable) {
+    dynamicCpuFreqEnabled = enable;
+  }
+  
+  // 设置CPU频率范围
+  void setCpuFreqRange(int minFreq, int maxFreq) {
+    minCpuFreqMHz = minFreq;
+    maxCpuFreqMHz = maxFreq;
+    
+    // 确保当前频率在范围内
+    if (currentCpuFreqMHz < minFreq) {
+      setCpuFrequencyMhz(minFreq);
+    } else if (currentCpuFreqMHz > maxFreq) {
+      setCpuFrequencyMhz(maxFreq);
+    }
+  }
+  
+  // 动态调整CPU频率
+  void adjustCpuFreqBasedOnLoad() {
+    if (!dynamicCpuFreqEnabled) {
+      return;
+    }
+    
+    // 根据系统负载调整CPU频率
+    // 这里使用简单的算法，实际应用中可以更复杂
+    size_t freeHeap = platformGetFreeHeap();
+    size_t minFreeHeap = platformGetMinFreeHeap();
+    
+    // 如果内存使用率高，提高CPU频率以加快处理速度
+    if (freeHeap < minFreeHeap * 2) {
+      setCpuFrequencyMhz(maxCpuFreqMHz);
+    } 
+    // 如果内存充足且系统处于低功耗模式，降低CPU频率
+    else if (isLowPowerMode) {
+      setCpuFrequencyMhz(minCpuFreqMHz);
+    }
+    // 否则使用中等频率
+    else {
+      setCpuFrequencyMhz((minCpuFreqMHz + maxCpuFreqMHz) / 2);
+    }
+  }
+  
+  // 设置任务优先级
+  void setTaskPriority(uint32_t taskId, int priority) {
+    // 优先级范围：1-10，1最低，10最高
+    if (priority >= 1 && priority <= 10) {
+      taskPriorities[taskId] = priority;
+    }
+  }
+  
+  // 获取任务优先级
+  int getTaskPriority(uint32_t taskId) {
+    auto it = taskPriorities.find(taskId);
+    if (it != taskPriorities.end()) {
+      return it->second;
+    }
+    return defaultTaskPriority;
+  }
+  
+  // 设置默认任务优先级
+  void setDefaultTaskPriority(int priority) {
+    if (priority >= 1 && priority <= 10) {
+      defaultTaskPriority = priority;
+    }
+  }
+  
+  // 线程管理方法
+  
+  // 创建线程互斥锁
+  SemaphoreHandle_t createMutex() {
+    SemaphoreHandle_t mutex = xSemaphoreCreateMutex();
+    if (mutex != NULL) {
+      threadMutexes[(uint32_t)mutex] = mutex;
+    }
+    return mutex;
+  }
+  
+  // 锁定互斥锁
+  bool lockMutex(SemaphoreHandle_t mutex, uint32_t timeoutMs = portMAX_DELAY) {
+    if (mutex != NULL) {
+      return xSemaphoreTake(mutex, pdMS_TO_TICKS(timeoutMs)) == pdTRUE;
+    }
+    return false;
+  }
+  
+  // 解锁互斥锁
+  bool unlockMutex(SemaphoreHandle_t mutex) {
+    if (mutex != NULL) {
+      return xSemaphoreGive(mutex) == pdTRUE;
+    }
+    return false;
+  }
+  
+  // 销毁互斥锁
+  void destroyMutex(SemaphoreHandle_t mutex) {
+    if (mutex != NULL) {
+      auto it = threadMutexes.find((uint32_t)mutex);
+      if (it != threadMutexes.end()) {
+        threadMutexes.erase(it);
+        vSemaphoreDelete(mutex);
+      }
+    }
+  }
+  
+  // 获取系统级互斥锁
+  SemaphoreHandle_t getSystemMutex() {
+    return systemMutex;
+  }
+  
+  // 添加活动线程
+  void addActiveThread(uint32_t threadId) {
+    activeThreads.push_back(threadId);
+  }
+  
+  // 移除活动线程
+  void removeActiveThread(uint32_t threadId) {
+    auto it = std::find(activeThreads.begin(), activeThreads.end(), threadId);
+    if (it != activeThreads.end()) {
+      activeThreads.erase(it);
+    }
+  }
+  
+  // 获取活动线程数量
+  size_t getActiveThreadCount() {
+    return activeThreads.size();
+  }
+  
+  // 功耗控制增强
+  
+  // 进入深度睡眠模式
+  void enterDeepSleep(uint64_t sleepTimeMs) {
+    // 发布深度睡眠事件
+    eventBus->publish(EVENT_SYSTEM_DEEP_SLEEP, nullptr);
+    
+    // 清理资源
+    cleanupMemory();
+    
+    // 进入深度睡眠
+    platformDeepSleep(sleepTimeMs);
+  }
+  
+  // 进入轻度睡眠模式
+  void enterLightSleep(uint64_t sleepTimeMs) {
+    // 发布轻度睡眠事件
+    eventBus->publish(EVENT_SYSTEM_LIGHT_SLEEP, nullptr);
+    
+    // 进入轻度睡眠
+    platformLightSleep(sleepTimeMs);
+    
+    // 唤醒后恢复
+    eventBus->publish(EVENT_SYSTEM_WAKEUP, nullptr);
+  }
+  
+  // 设置低功耗模式
+  void setLowPowerMode(bool enable) {
+    if (isLowPowerMode != enable) {
+      isLowPowerMode = enable;
+      
+      if (enable) {
+        // 进入低功耗模式
+        eventBus->publish(EVENT_SYSTEM_LOW_POWER, nullptr);
+        
+        // 降低CPU频率
+        setCpuFrequencyMhz(minCpuFreqMHz);
+        
+        // 关闭不必要的外设
+        // 这里可以添加具体的外设关闭逻辑
+      } else {
+        // 退出低功耗模式
+        eventBus->publish(EVENT_SYSTEM_NORMAL_POWER, nullptr);
+        
+        // 恢复CPU频率
+        adjustCpuFreqBasedOnLoad();
+        
+        // 重新初始化必要的外设
+        // 这里可以添加具体的外设初始化逻辑
+      }
+    }
+  }
+  
+  // 优化功耗的周期性任务
+  void optimizePowerConsumption() {
+    // 根据电池电量调整功耗策略
+    if (batteryPercentage < 20) {
+      // 电量低于20%，进入深度低功耗模式
+      setLowPowerMode(true);
+      // 延长传感器读取间隔
+      // 减少WiFi/BLE活动
+    } else if (batteryPercentage < 50) {
+      // 电量低于50%，进入中度低功耗模式
+      setLowPowerMode(true);
+    } else {
+      // 电量充足，使用正常模式
+      setLowPowerMode(false);
+    }
+    
+    // 动态调整CPU频率
+    adjustCpuFreqBasedOnLoad();
+    
+    // 清理内存，减少内存占用
+    cleanupMemory();
   }
   
   // 获取芯片ID
   uint32_t getChipId() {
-    #ifdef ESP32
-      return ESP.getChipId();
-    #else
-      // 其他平台的芯片ID实现
-      Serial.println("Chip ID not implemented for this platform");
-      return 0;
-    #endif
+    return platformGetChipId();
   }
   
   // 获取Flash大小
   uint32_t getFlashChipSize() {
-    #ifdef ESP32
-      return ESP.getFlashChipSize();
-    #else
-      // 其他平台的Flash大小实现
-      Serial.println("Flash size not implemented for this platform");
-      return 0;
-    #endif
+    return platformGetFlashChipSize();
+  }
+  
+  // 内存管理方法
+  
+  // 创建内存池
+  void* createMemoryPool(size_t blockSize, size_t blockCount) {
+    MemoryPool pool;
+    pool.blockSize = blockSize;
+    pool.blockCount = blockCount;
+    pool.freeBlocks = blockCount;
+    
+    // 分配内存池
+    pool.pool = malloc(blockSize * blockCount);
+    if (pool.pool == nullptr) {
+      return nullptr;
+    }
+    
+    // 初始化空闲块链表
+    pool.freeList = (void**)malloc(sizeof(void*) * blockCount);
+    if (pool.freeList == nullptr) {
+      free(pool.pool);
+      return nullptr;
+    }
+    
+    // 填充空闲块链表
+    for (size_t i = 0; i < blockCount; i++) {
+      pool.freeList[i] = (uint8_t*)pool.pool + (i * blockSize);
+    }
+    
+    memoryPools.push_back(pool);
+    totalAllocatedMemory += blockSize * blockCount + sizeof(void*) * blockCount;
+    if (totalAllocatedMemory > peakAllocatedMemory) {
+      peakAllocatedMemory = totalAllocatedMemory;
+    }
+    
+    return pool.pool;
+  }
+  
+  // 从内存池分配内存
+  void* allocateFromPool(void* poolPtr, size_t size) {
+    for (auto& pool : memoryPools) {
+      if (pool.pool == poolPtr && size <= pool.blockSize && pool.freeBlocks > 0) {
+        void* ptr = pool.freeList[--pool.freeBlocks];
+        memset(ptr, 0, pool.blockSize);
+        return ptr;
+      }
+    }
+    return nullptr;
+  }
+  
+  // 释放内存回内存池
+  void freeToPool(void* poolPtr, void* ptr) {
+    for (auto& pool : memoryPools) {
+      if (pool.pool == poolPtr) {
+        // 检查ptr是否属于该内存池
+        if (ptr >= pool.pool && ptr < (uint8_t*)pool.pool + (pool.blockSize * pool.blockCount)) {
+          pool.freeList[pool.freeBlocks++] = ptr;
+          return;
+        }
+        break;
+      }
+    }
+  }
+  
+  // 销毁内存池
+  void destroyMemoryPool(void* poolPtr) {
+    for (auto it = memoryPools.begin(); it != memoryPools.end(); ++it) {
+      if (it->pool == poolPtr) {
+        totalAllocatedMemory -= it->blockSize * it->blockCount + sizeof(void*) * it->blockCount;
+        free(it->freeList);
+        free(it->pool);
+        memoryPools.erase(it);
+        return;
+      }
+    }
+  }
+  
+  // 获取内存池使用情况
+  void getMemoryPoolInfo(void* poolPtr, size_t& totalBlocks, size_t& freeBlocks) {
+    for (auto& pool : memoryPools) {
+      if (pool.pool == poolPtr) {
+        totalBlocks = pool.blockCount;
+        freeBlocks = pool.freeBlocks;
+        return;
+      }
+    }
+    totalBlocks = 0;
+    freeBlocks = 0;
+  }
+  
+  // 执行内存清理
+  void cleanupMemory() {
+    // 清理定时器
+    auto it = timers.begin();
+    while (it != timers.end()) {
+      if (!it->enabled && it->isOneShot) {
+        it = timers.erase(it);
+      } else {
+        ++it;
+      }
+    }
+    
+    // 检查并清理内存泄漏
+    checkMemoryLeaks();
+    
+    // 更新内存使用统计
+    updateMemoryStats();
+  }
+  
+  // 检查内存泄漏
+  void checkMemoryLeaks() {
+    // 简单的内存泄漏检查，实际应用中可以更复杂
+    size_t currentHeap = platformGetFreeHeap();
+    if (lastMemoryUpdate > 0) {
+      // 检查内存是否持续增长
+      static size_t previousHeap = currentHeap;
+      static int leakCounter = 0;
+      
+      if (currentHeap < previousHeap - 1024) { // 如果内存减少超过1KB
+        leakCounter++;
+        if (leakCounter > 10) { // 连续10次检测到内存泄漏
+          sendError("Potential memory leak detected", 4001, "CoreSystem");
+          leakCounter = 0;
+        }
+      } else {
+        leakCounter = 0;
+      }
+      previousHeap = currentHeap;
+    }
+  }
+  
+  // 更新内存统计信息
+  void updateMemoryStats() {
+    lastMemoryUpdate = millis();
+    
+    // 可以在这里添加更详细的内存统计
+  }
+  
+  // 获取内存使用统计
+  void getMemoryStats(size_t& totalMemory, size_t& usedMemory, size_t& peakMemory) {
+    size_t freeHeap = platformGetFreeHeap();
+    size_t totalHeap = platformGetFlashChipSize(); // 近似值，实际应该使用芯片总RAM
+    
+    totalMemory = totalHeap;
+    usedMemory = totalHeap - freeHeap + totalAllocatedMemory;
+    peakMemory = peakAllocatedMemory;
   }
   
   // 析构函数
@@ -552,6 +933,39 @@ public:
     // 清理资源
     timers.clear();
     configItems.clear();
+    
+    // 清理事件总线订阅
+    if (eventBus != nullptr) {
+      eventBus->unsubscribeAll(this);
+    }
+    
+    // 清理驱动注册表
+    if (driverRegistry != nullptr) {
+      driverRegistry->clear();
+    }
+    
+    // 释放内存池资源
+    for (auto& pool : memoryPools) {
+      free(pool.freeList);
+      free(pool.pool);
+    }
+    memoryPools.clear();
+    
+    // 清理线程资源
+    for (auto& mutex : threadMutexes) {
+      vSemaphoreDelete(mutex.second);
+    }
+    threadMutexes.clear();
+    
+    if (systemMutex != NULL) {
+      vSemaphoreDelete(systemMutex);
+      systemMutex = NULL;
+    }
+    
+    activeThreads.clear();
+    taskPriorities.clear();
+    
+    state = SYSTEM_STATE_UNINITIALIZED;
   }
 };
 

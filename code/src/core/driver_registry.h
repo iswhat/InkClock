@@ -309,7 +309,7 @@ public:
   }
   
   // 根据显示类型获取驱动
-  IDisplayDriver* getDisplayDriver(EinkDisplayType type) {
+  IDisplayDriver* getDisplayDriver(DisplayType type) {
     for (auto driver : displayDrivers) {
       if (driver->getType() == type) {
         return driver;

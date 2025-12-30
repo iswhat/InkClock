@@ -2,34 +2,6 @@
 #include <SPIFFS.h>
 #include "core/spiffs_manager.h"
 
-// 音频回调函数
-void AudioManager::audioInfoCallback(const char *info) {
-  DEBUG_PRINT("音频信息: ");
-  DEBUG_PRINTLN(info);
-}
-
-void AudioManager::audioErrorCallback(const char *info) {
-  DEBUG_PRINT("音频错误: ");
-  DEBUG_PRINTLN(info);
-}
-
-void AudioManager::audioStatusCallback(void* arg, int code, const char* status) {
-  AudioManager* manager = static_cast<AudioManager*>(arg);
-  DEBUG_PRINT("音频状态: ");
-  DEBUG_PRINT(code);
-  DEBUG_PRINT(" - ");
-  DEBUG_PRINTLN(status);
-  
-  // 更新播放状态
-  if (code == 200) {
-    // 播放成功开始
-    manager->state = AUDIO_PLAYING;
-  } else if (code == 300) {
-    // 播放完成
-    manager->state = AUDIO_IDLE;
-  }
-}
-
 AudioManager::AudioManager() {
   // 初始化音频状态
   state = AUDIO_IDLE;
@@ -46,11 +18,17 @@ AudioManager::AudioManager() {
   // 初始化播放进度
   playPosition = 0;
   totalDuration = 0;
+  
+  // 初始化音频驱动指针
+  audioDriver = nullptr;
 }
 
 AudioManager::~AudioManager() {
   // 清理资源
-  audio.stopSong();
+  if (audioDriver != nullptr) {
+    delete audioDriver;
+    audioDriver = nullptr;
+  }
 }
 
 void AudioManager::init() {
@@ -66,16 +44,24 @@ void AudioManager::init() {
   }
   DEBUG_PRINTLN("SPIFFS初始化完成");
   
-  // 设置音频回调函数
-  audio.setInfoCallback(audioInfoCallback);
-  audio.setErrorCallback(audioErrorCallback);
-  audio.setStatusCallback(audioStatusCallback, this);
+  // 创建音频驱动实例
+  audioDriver = createAudioDriver();
   
-  // 配置I2S引脚
-  audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT, I2S_DIN);
-  
-  // 设置初始音量
-  setVolume(volume);
+  // 初始化音频驱动
+  if (audioDriver != nullptr) {
+    if (audioDriver->init()) {
+      DEBUG_PRINTLN("音频驱动初始化成功");
+      
+      // 设置初始音量
+      setVolume(volume);
+    } else {
+      DEBUG_PRINTLN("音频驱动初始化失败");
+      return;
+    }
+  } else {
+    DEBUG_PRINTLN("创建音频驱动失败");
+    return;
+  }
   
   // 订阅报警事件
   EVENT_SUBSCRIBE(EVENT_ALARM_TRIGGERED, [this](EventType type, std::shared_ptr<EventData> data) {
@@ -88,18 +74,31 @@ void AudioManager::init() {
 }
 
 void AudioManager::update() {
-  // 运行音频库的loop函数
-  audio.loop();
-  
-  // 更新播放进度
-  if (state == AUDIO_PLAYING) {
-    playPosition = audio.getAudioCurrentTime();
-    totalDuration = audio.getAudioTotalTime();
-  } else if (state == AUDIO_RECORDING) {
-    // 检查录音时长
-    if (millis() - recordStartTime > AUDIO_RECORD_DURATION * 1000) {
-      // 录音时长已到，自动停止
-      stopRecording();
+  // 运行音频驱动的loop函数
+  if (audioDriver != nullptr) {
+    audioDriver->loop();
+    
+    // 更新播放状态和进度
+    if (audioDriver->isPlaying()) {
+      if (state != AUDIO_PLAYING) {
+        state = AUDIO_PLAYING;
+      }
+      playPosition = audioDriver->getPlayPosition();
+      totalDuration = audioDriver->getTotalDuration();
+    } else if (audioDriver->isRecording()) {
+      if (state != AUDIO_RECORDING) {
+        state = AUDIO_RECORDING;
+        recordStartTime = millis();
+      }
+      // 检查录音时长
+      if (millis() - recordStartTime > AUDIO_RECORD_DURATION * 1000) {
+        // 录音时长已到，自动停止
+        stopRecording();
+      }
+    } else {
+      if (state != AUDIO_IDLE) {
+        state = AUDIO_IDLE;
+      }
     }
   }
 }
@@ -115,6 +114,12 @@ bool AudioManager::startRecording(String filename) {
   // 检查当前状态
   if (state != AUDIO_IDLE) {
     DEBUG_PRINTLN("当前状态不允许录音");
+    return false;
+  }
+  
+  // 检查音频驱动
+  if (audioDriver == nullptr) {
+    DEBUG_PRINTLN("音频驱动未初始化");
     return false;
   }
   
@@ -134,21 +139,18 @@ bool AudioManager::startRecording(String filename) {
   // 保存文件名
   currentFilename = filename;
   
-  // 构建文件路径
-  String filepath = "/" + filename;
-  
   // 开始录音
-  if (!audio.connectToRecord(filepath.c_str(), getSPIFFS(), AUDIO_SAMPLE_RATE)) {
-    DEBUG_PRINTLN("开始录音失败");
-    return false;
+  if (audioDriver->startRecording(filename.c_str())) {
+    // 更新状态
+    state = AUDIO_RECORDING;
+    recordStartTime = millis();
+    
+    DEBUG_PRINTF("录音开始，文件: %s\n", filename.c_str());
+    return true;
   }
   
-  // 更新状态
-  state = AUDIO_RECORDING;
-  recordStartTime = millis();
-  
-  DEBUG_PRINTF("录音开始，文件: %s\n", filepath.c_str());
-  return true;
+  DEBUG_PRINTLN("开始录音失败");
+  return false;
 }
 
 bool AudioManager::stopRecording() {
@@ -160,8 +162,14 @@ bool AudioManager::stopRecording() {
     return false;
   }
   
+  // 检查音频驱动
+  if (audioDriver == nullptr) {
+    DEBUG_PRINTLN("音频驱动未初始化");
+    return false;
+  }
+  
   // 停止录音
-  audio.stopRecord();
+  audioDriver->stopRecording();
   
   // 更新状态
   state = AUDIO_IDLE;
@@ -180,32 +188,40 @@ bool AudioManager::startPlaying(String filename) {
     return false;
   }
   
-  // 停止当前播放
-  audio.stopSong();
+  // 检查音频驱动
+  if (audioDriver == nullptr) {
+    DEBUG_PRINTLN("音频驱动未初始化");
+    return false;
+  }
   
   // 保存文件名
   currentFilename = filename;
   
-  // 使用ESP32-audioI2S库播放音频文件
-  String filepath = "/" + filename;
-  if (!audio.connecttoFS(getSPIFFS(), filepath.c_str())) {
-    DEBUG_PRINTLN("无法播放音频文件");
-    return false;
+  // 开始播放
+  if (audioDriver->startPlayback(filename.c_str())) {
+    // 更新状态
+    state = AUDIO_PLAYING;
+    playPosition = 0;
+    
+    DEBUG_PRINTLN("音频播放开始");
+    return true;
   }
   
-  // 更新状态
-  state = AUDIO_PLAYING;
-  playPosition = 0;
-  
-  DEBUG_PRINTLN("音频播放开始");
-  return true;
+  DEBUG_PRINTLN("无法播放音频文件");
+  return false;
 }
 
 bool AudioManager::stopPlaying() {
   DEBUG_PRINTLN("停止播放音频...");
   
+  // 检查音频驱动
+  if (audioDriver == nullptr) {
+    DEBUG_PRINTLN("音频驱动未初始化");
+    return false;
+  }
+  
   // 停止音频播放
-  audio.stopSong();
+  audioDriver->stopPlayback();
   
   // 更新状态
   state = AUDIO_IDLE;
@@ -225,8 +241,14 @@ bool AudioManager::pausePlaying() {
     return false;
   }
   
+  // 检查音频驱动
+  if (audioDriver == nullptr) {
+    DEBUG_PRINTLN("音频驱动未初始化");
+    return false;
+  }
+  
   // 暂停音频播放
-  audio.pauseSong();
+  audioDriver->pausePlayback();
   
   // 更新状态
   state = AUDIO_PAUSED;
@@ -244,8 +266,14 @@ bool AudioManager::resumePlaying() {
     return false;
   }
   
+  // 检查音频驱动
+  if (audioDriver == nullptr) {
+    DEBUG_PRINTLN("音频驱动未初始化");
+    return false;
+  }
+  
   // 恢复音频播放
-  audio.resumeSong();
+  audioDriver->resumePlayback();
   
   // 更新状态
   state = AUDIO_PLAYING;
@@ -263,7 +291,9 @@ void AudioManager::setVolume(uint8_t volume) {
   this->volume = volume;
   
   // 应用音量设置
-  audio.setVolume(volume);
+  if (audioDriver != nullptr) {
+    audioDriver->setVolume(volume);
+  }
   
   DEBUG_PRINT("音量设置为: ");
   DEBUG_PRINTLN(volume);
@@ -278,51 +308,30 @@ bool AudioManager::playAlarmSound() {
     return false;
   }
   
-  // 停止当前播放
-  audio.stopSong();
-  
-  // 保存当前状态
-  state = AUDIO_PLAYING;
-  
-  // 使用ESP32-audioI2S库播放一个简单的报警音调
-  // 这里我们生成一个简单的WAV格式的报警声音
-  
-  // 生成一个1000Hz的方波报警声音
-  // 注意：ESP32-audioI2S库支持播放WAV文件，我们可以生成一个简单的WAV格式的报警声音
-  
-  // 这里使用一个简单的实现：播放一个已知存在的报警WAV文件
-  // 如果文件不存在，会自动失败
-  String alarmFilePath = "/alarm.wav";
-  
-  if (audio.connecttoFS(getSPIFFS(), alarmFilePath.c_str())) {
-    DEBUG_PRINTLN("报警声音播放开始");
-    // 等待播放完成
-    delay(1000); // 假设报警声音时长为1秒
-    audio.stopSong();
-  } else {
-    // 如果无法播放WAV文件，使用蜂鸣器引脚生成简单的蜂鸣音
-    DEBUG_PRINTLN("无法播放报警WAV文件，使用蜂鸣音");
-    
-    // 使用I2S_DOUT引脚作为蜂鸣器引脚
-    pinMode(I2S_DOUT, OUTPUT);
-    
-    // 生成1000Hz的方波，持续500ms
-    for (int i = 0; i < 500; i++) {
-      digitalWrite(I2S_DOUT, HIGH);
-      delayMicroseconds(500); // 1000Hz的半周期
-      digitalWrite(I2S_DOUT, LOW);
-      delayMicroseconds(500);
-    }
-    
-    // 恢复引脚状态
-    pinMode(I2S_DOUT, INPUT);
+  // 检查音频驱动
+  if (audioDriver == nullptr) {
+    DEBUG_PRINTLN("音频驱动未初始化");
+    return false;
   }
   
-  // 恢复状态
-  state = AUDIO_IDLE;
-  
-  DEBUG_PRINTLN("报警声音播放完成");
-  return true;
+  // 播放报警声音
+  if (audioDriver->startPlayback("alarm.wav")) {
+    // 等待播放完成或超时
+    unsigned long startTime = millis();
+    while (audioDriver->isPlaying() && (millis() - startTime) < 2000) {
+      audioDriver->loop();
+      delay(100);
+    }
+    
+    // 停止播放
+    audioDriver->stopPlayback();
+    
+    DEBUG_PRINTLN("报警声音播放完成");
+    return true;
+  } else {
+    DEBUG_PRINTLN("无法播放报警声音");
+    return false;
+  }
 }
 
 // 以下方法暂未实现
