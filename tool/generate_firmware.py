@@ -13,6 +13,9 @@ import subprocess
 import platform
 from pathlib import Path
 
+# 检查是否是测试模式
+is_test_mode = len(sys.argv) > 1 and sys.argv[1] == "--test"
+
 # 检查Python版本
 def check_python_version():
     """检查Python版本是否符合要求"""
@@ -515,31 +518,40 @@ def select_features():
         print(f"   [{i}] {name}")
     
     print()
-    print("   请选择需要的可选功能（可多选）")
-    print("   输入格式示例: 1 2 3 或 1,2,3")
-    print("   直接按回车跳过，不选择任何可选功能")
     
-    # 获取用户选择
-    while True:
-        try:
-            user_input = input("   请输入选择: ").strip()
-            
-            # 处理不同的输入格式
-            if not user_input:
-                selected_indices = []
-                break
-            elif ',' in user_input:
-                selected_indices = [int(x.strip()) for x in user_input.split(',')]
-            else:
-                selected_indices = [int(x.strip()) for x in user_input.split()]
-            
-            # 验证输入范围
-            if all(1 <= idx <= len(optional_features) for idx in selected_indices):
-                break
-            else:
-                print("   输入无效，请重新选择")
-        except ValueError:
-            print("   输入无效，请输入数字")
+    # 检查是否在测试模式
+    test_mode = '--test' in sys.argv
+    if test_mode:
+        # 测试模式下，直接返回空的可选功能列表
+        print("   测试模式: 跳过可选功能选择")
+        selected_indices = []
+    else:
+        # 交互式选择
+        print("   请选择需要的可选功能（可多选）")
+        print("   输入格式示例: 1 2 3 或 1,2,3")
+        print("   直接按回车跳过，不选择任何可选功能")
+        
+        # 获取用户选择
+        while True:
+            try:
+                user_input = input("   请输入选择: ").strip()
+                
+                # 处理不同的输入格式
+                if not user_input:
+                    selected_indices = []
+                    break
+                elif ',' in user_input:
+                    selected_indices = [int(x.strip()) for x in user_input.split(',')]
+                else:
+                    selected_indices = [int(x.strip()) for x in user_input.split()]
+                
+                # 验证输入范围
+                if all(1 <= idx <= len(optional_features) for idx in selected_indices):
+                    break
+                else:
+                    print("   输入无效，请重新选择")
+            except ValueError:
+                print("   输入无效，请输入数字")
     
     # 添加选择的可选功能
     features = []
