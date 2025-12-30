@@ -112,3 +112,28 @@ void SGP30Driver::setConfig(const SensorConfig& config) {
 SensorConfig SGP30Driver::getConfig() const {
   return config;
 }
+
+bool SGP30Driver::matchHardware() {
+  DEBUG_PRINTLN("检测SGP30硬件匹配...");
+  
+  try {
+    // 尝试初始化SGP30传感器
+    bool success = sgp30.begin();
+    
+    if (success) {
+      DEBUG_PRINTLN("SGP30硬件匹配成功");
+      // 调用end()方法释放资源（如果有的话）
+      // 注意：Adafruit_SGP30库可能没有end()方法，根据实际情况调整
+      return true;
+    } else {
+      DEBUG_PRINTLN("SGP30硬件匹配失败");
+      return false;
+    }
+  } catch (const std::exception& e) {
+    DEBUG_PRINTLN("SGP30硬件匹配失败: " + String(e.what()));
+    return false;
+  } catch (...) {
+    DEBUG_PRINTLN("SGP30硬件匹配未知错误");
+    return false;
+  }
+}

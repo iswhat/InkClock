@@ -58,6 +58,26 @@ uint32_t platformGetChipId();
 uint32_t platformGetFlashChipSize();
 
 /**
+ * @brief 获取固件大小（已使用的Flash空间）
+ * @return 固件大小（字节）
+ */
+uint32_t platformGetFirmwareSize();
+
+/**
+ * @brief 获取可用Flash空间
+ * @return 可用Flash空间（字节）
+ */
+uint32_t platformGetFreeFlashSize();
+
+/**
+ * @brief 获取Flash使用情况
+ * @param totalSize 总Flash大小（字节）
+ * @param firmwareSize 固件大小（字节）
+ * @param freeSize 可用Flash空间（字节）
+ */
+void platformGetFlashInfo(uint32_t& totalSize, uint32_t& firmwareSize, uint32_t& freeSize);
+
+/**
  * @brief 动态调整CPU频率
  * @param freqMHz CPU频率（MHz）
  * @return 是否成功

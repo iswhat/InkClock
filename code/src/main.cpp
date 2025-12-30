@@ -511,6 +511,10 @@ void initNetworkDependentModules() {
   
   // 初始化Web服务器
   try {
+    // 设置web_server.cpp中的coreSystem指针
+    extern CoreSystem* coreSystem;
+    coreSystem = CoreSystem::getInstance();
+    
     webServerManager.init();
     Serial.println("Web服务器初始化完成");
   } catch (const std::exception& e) {

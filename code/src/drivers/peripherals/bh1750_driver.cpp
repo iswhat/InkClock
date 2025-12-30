@@ -86,3 +86,36 @@ void BH1750Driver::setConfig(const SensorConfig& config) {
 SensorConfig BH1750Driver::getConfig() const {
   return config;
 }
+
+bool BH1750Driver::matchHardware() {
+  DEBUG_PRINTLN("检测BH1750硬件匹配...");
+  
+  try {
+    // BH1750使用I2C接口，通常有两个地址可选：0x23和0x5C
+    uint8_t addresses[] = {BH1750_ADDRESS, BH1750_ADDRESS_LOW};
+    bool matched = false;
+    
+    // 尝试创建BH1750对象并检测两个可能的地址
+    BH1750* tempBh1750 = new BH1750();
+    
+    for (uint8_t address : addresses) {
+      if (tempBh1750->begin(BH1750::CONTINUOUS_HIGH_RES_MODE, address)) {
+        // 初始化成功，尝试读取一次数据验证
+        float lux = tempBh1750->readLightLevel();
+        if (!isnan(lux)) {
+          matched = true;
+          break;
+        }
+      }
+    }
+    
+    delete tempBh1750;
+    return matched;
+  } catch (const std::exception& e) {
+    DEBUG_PRINTLN("BH1750硬件匹配失败: " + String(e.what()));
+    return false;
+  } catch (...) {
+    DEBUG_PRINTLN("BH1750硬件匹配失败: 未知异常");
+    return false;
+  }
+}

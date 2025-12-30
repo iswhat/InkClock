@@ -96,7 +96,41 @@ String BMP388Driver::getTypeName() const {
  * @return 传感器类型枚举值
  */
 SensorType BMP388Driver::getType() const {
-  return SENSOR_TYPE_BME280;  // BMP388与BME280类型兼容，都是气压传感器
+  return SENSOR_TYPE_BMP388;  // 返回正确的BMP388传感器类型
+}
+
+/**
+ * @brief 检测硬件是否匹配
+ * 
+ * @return 硬件是否匹配
+ */
+bool BMP388Driver::matchHardware() {
+  DEBUG_PRINTLN("检测BMP388硬件匹配...");
+  
+  try {
+    // BMP388使用I2C接口，通常地址为0x76或0x77
+    uint8_t addresses[] = {0x76, 0x77};
+    bool matched = false;
+    
+    for (uint8_t address : addresses) {
+      // 尝试使用当前地址初始化传感器
+      if (bmp388.begin_I2C(address)) {
+        // 初始化成功，尝试读取一次数据验证
+        if (bmp388.performReading()) {
+          matched = true;
+          break;
+        }
+      }
+    }
+    
+    return matched;
+  } catch (const std::exception& e) {
+    DEBUG_PRINTLN("BMP388硬件匹配失败: " + String(e.what()));
+    return false;
+  } catch (...) {
+    DEBUG_PRINTLN("BMP388硬件匹配失败: 未知异常");
+    return false;
+  }
 }
 
 /**

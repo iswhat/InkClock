@@ -86,3 +86,43 @@ void AM2302Driver::setConfig(const SensorConfig& config) {
 SensorConfig AM2302Driver::getConfig() const {
   return config;
 }
+
+bool AM2302Driver::matchHardware() {
+  DEBUG_PRINTLN("检测AM2302硬件匹配...");
+  
+  try {
+    // AM2302使用单总线接口，需要检测特定引脚
+    // 尝试常见的引脚
+    int testPins[] = {4, 5, 12, 13, 14, 15, 25, 26, 27, 32, 33}; // 常见的GPIO引脚
+    
+    for (int pin : testPins) {
+      // 创建临时DHT对象进行检测
+      DHT* tempDht = new DHT(pin, DHT22);
+      tempDht->begin();
+      
+      // 等待传感器稳定
+      delay(2000);
+      
+      // 读取温湿度数据
+      float h = tempDht->readHumidity();
+      float t = tempDht->readTemperature();
+      
+      delete tempDht;
+      
+      // 检查数据是否有效
+      if (!isnan(h) && !isnan(t)) {
+        DEBUG_PRINTF("AM2302硬件匹配成功，引脚: %d\n", pin);
+        return true;
+      }
+    }
+    
+    DEBUG_PRINTLN("未检测到AM2302硬件");
+    return false;
+  } catch (const std::exception& e) {
+    DEBUG_PRINTLN("AM2302硬件匹配失败: " + String(e.what()));
+    return false;
+  } catch (...) {
+    DEBUG_PRINTLN("AM2302硬件匹配未知错误");
+    return false;
+  }
+}

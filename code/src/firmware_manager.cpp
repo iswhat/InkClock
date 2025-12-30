@@ -508,3 +508,28 @@ void FirmwareManager::logUpdateStatus(String message) {
   // 记录更新状态日志
   Serial.println("[FirmwareManager] " + message);
 }
+
+String FirmwareManager::detectCurrentHardware() {
+  logUpdateStatus("Detecting current hardware...");
+  
+  // 基于平台类型检测硬件
+  String hardwareType = "Unknown";
+  
+  #ifdef PLATFORM_ESP32
+    hardwareType = "ESP32";
+  #elif defined(PLATFORM_ESP8266)
+    hardwareType = "ESP8266";
+  #elif defined(PLATFORM_NRF52)
+    hardwareType = "NRF52";
+  #elif defined(PLATFORM_STM32)
+    hardwareType = "STM32";
+  #elif defined(PLATFORM_RP2040)
+    hardwareType = "RP2040";
+  #endif
+  
+  // 可以在这里添加更详细的硬件检测逻辑，例如检测具体的开发板型号
+  // 例如，对于ESP32，可以检测不同的开发板变体
+  
+  logUpdateStatus("Hardware detection result: " + hardwareType);
+  return hardwareType;
+}

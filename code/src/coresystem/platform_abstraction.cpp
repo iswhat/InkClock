@@ -165,6 +165,65 @@ uint32_t platformGetFlashChipSize() {
 }
 
 /**
+ * @brief 获取固件大小实现
+ */
+uint32_t platformGetFirmwareSize() {
+    #ifdef ESP32
+        return ESP.getSketchSize();
+    #elif defined(ESP8266)
+        return ESP.getSketchSize();
+    #elif defined(NRF52)
+        // NRF52固件大小实现 - 假设固件从0地址开始
+        extern uint32_t __etext; // 固件结束地址
+        return (uint32_t)&__etext;
+    #elif defined(STM32)
+        // STM32固件大小实现 - 假设固件从0地址开始
+        extern uint32_t __etext; // 固件结束地址
+        return (uint32_t)&__etext;
+    #elif defined(RP2040)
+        // RP2040固件大小实现
+        // 对于RP2040，固件大小通常在链接脚本中定义
+        extern uint32_t __binary_info_size;
+        return (uint32_t)&__binary_info_size;
+    #else
+        // 默认实现
+        return 0;
+    #endif
+}
+
+/**
+ * @brief 获取可用Flash空间实现
+ */
+uint32_t platformGetFreeFlashSize() {
+    #ifdef ESP32
+        return ESP.getFlashChipSize() - ESP.getSketchSize() - ESP.getFreeSketchSpace();
+    #elif defined(ESP8266)
+        return ESP.getFreeSketchSpace();
+    #elif defined(NRF52)
+        // NRF52可用Flash空间实现
+        return platformGetFlashChipSize() - platformGetFirmwareSize();
+    #elif defined(STM32)
+        // STM32可用Flash空间实现
+        return platformGetFlashChipSize() - platformGetFirmwareSize();
+    #elif defined(RP2040)
+        // RP2040可用Flash空间实现
+        return platformGetFlashChipSize() - platformGetFirmwareSize();
+    #else
+        // 默认实现
+        return 0;
+    #endif
+}
+
+/**
+ * @brief 获取Flash使用情况实现
+ */
+void platformGetFlashInfo(uint32_t& totalSize, uint32_t& firmwareSize, uint32_t& freeSize) {
+    totalSize = platformGetFlashChipSize();
+    firmwareSize = platformGetFirmwareSize();
+    freeSize = platformGetFreeFlashSize();
+}
+
+/**
  * @brief 动态调整CPU频率实现
  */
 bool platformSetCpuFreqMHz(int freqMHz) {

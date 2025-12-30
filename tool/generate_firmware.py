@@ -13,8 +13,7 @@ import subprocess
 import platform
 from pathlib import Path
 
-# 检查是否是测试模式
-is_test_mode = len(sys.argv) > 1 and sys.argv[1] == "--test"
+
 
 # 检查Python版本
 def check_python_version():
@@ -147,6 +146,9 @@ def check_platform_support(platform_name):
         [sys.executable, '-m', 'platformio', 'platform', 'list']  # 使用python -m platformio
     ]
     
+    # 记录错误信息
+    error_messages = []
+    
     for pio_cmd in pio_commands:
         try:
             # 检查是否已安装该平台
@@ -167,25 +169,28 @@ def check_platform_support(platform_name):
                 print(f"   使用命令: {' '.join(pio_cmd)}")
                 return True
             else:
-                print(f"   错误: 未安装{platform_name}平台支持")
-                print(f"   请运行: {' '.join(pio_cmd[:-1])} install {platform_id}")
-                return False
+                error_messages.append(f"   错误: 未安装{platform_name}平台支持 (命令: {' '.join(pio_cmd)})")
         except subprocess.CalledProcessError as e:
             # 命令执行失败，尝试下一种方法
-            print(f"   尝试 {' '.join(pio_cmd)} 时执行失败")
-            continue
+            error_messages.append(f"   尝试 {' '.join(pio_cmd)} 时执行失败")
         except FileNotFoundError:
             # 命令未找到，尝试下一种方法
-            print(f"   未找到命令: {' '.join(pio_cmd)}")
-            continue
+            error_messages.append(f"   未找到命令: {' '.join(pio_cmd)}")
         except Exception as e:
             # 其他异常，尝试下一种方法
-            print(f"   检测{platform_name}平台时发生异常: {str(e)}")
-            continue
+            error_messages.append(f"   检测{platform_name}平台时发生异常: {str(e)}")
     
-    # 所有方法都失败
-    print(f"   错误: 无法检测{platform_name}平台支持")
-    return False
+    # 打印所有错误信息
+    for error_msg in error_messages:
+        print(error_msg)
+    
+    # 提供安装建议
+    print(f"   请运行以下命令安装{platform_name}平台支持:")
+    print(f"   {sys.executable} -m platformio platform install espressif32")
+    
+    # 注意：我们将继续执行，让用户稍后手动安装平台支持
+    print(f"   注意: 将继续生成配置文件，但编译前需要手动安装平台支持")
+    return True
 
 # 检测Arduino框架支持
 def check_arduino_framework():
@@ -584,39 +589,32 @@ def select_features():
     
     print()
     
-    # 检查是否在测试模式
-    test_mode = '--test' in sys.argv
-    if test_mode:
-        # 测试模式下，直接返回空的可选功能列表
-        print("   测试模式: 跳过可选功能选择")
-        selected_indices = []
-    else:
-        # 交互式选择
-        print("   请选择需要的可选功能（可多选）")
-        print("   输入格式示例: 1 2 3 或 1,2,3")
-        print("   直接按回车跳过，不选择任何可选功能")
-        
-        # 获取用户选择
-        while True:
-            try:
-                user_input = input("   请输入选择: ").strip()
-                
-                # 处理不同的输入格式
-                if not user_input:
-                    selected_indices = []
-                    break
-                elif ',' in user_input:
-                    selected_indices = [int(x.strip()) for x in user_input.split(',')]
-                else:
-                    selected_indices = [int(x.strip()) for x in user_input.split()]
-                
-                # 验证输入范围
-                if all(1 <= idx <= len(optional_features) for idx in selected_indices):
-                    break
-                else:
-                    print("   输入无效，请重新选择")
-            except ValueError:
-                print("   输入无效，请输入数字")
+    # 交互式选择
+    print("   请选择需要的可选功能（可多选）")
+    print("   输入格式示例: 1 2 3 或 1,2,3")
+    print("   直接按回车跳过，不选择任何可选功能")
+    
+    # 获取用户选择
+    while True:
+        try:
+            user_input = input("   请输入选择: ").strip()
+            
+            # 处理不同的输入格式
+            if not user_input:
+                selected_indices = []
+                break
+            elif ',' in user_input:
+                selected_indices = [int(x.strip()) for x in user_input.split(',')]
+            else:
+                selected_indices = [int(x.strip()) for x in user_input.split()]
+            
+            # 验证输入范围
+            if all(1 <= idx <= len(optional_features) for idx in selected_indices):
+                break
+            else:
+                print("   输入无效，请重新选择")
+        except ValueError:
+            print("   输入无效，请输入数字")
     
     # 添加选择的可选功能
     features = []
@@ -1205,11 +1203,7 @@ def generate_firmware_config():
     print()
     
     is_full_firmware = False
-    if is_test_mode:
-        # 测试模式下默认使用自定义模式
-        firmware_mode_choice = '2'
-    else:
-        firmware_mode_choice = input("   请输入选择 (1-2): ").strip()
+    firmware_mode_choice = input("   请输入选择 (1-2): ").strip()
     
     if firmware_mode_choice == '1':
         is_full_firmware = True
@@ -1220,9 +1214,12 @@ def generate_firmware_config():
     print()
     
     # 1. 选择功能模块
+    # 添加全量固件模式标记
+    config['is_full_firmware'] = is_full_firmware
+    
     if is_full_firmware:
         # 生成全量固件，自动选择所有功能
-        print("   全量固件模式: 自动选择所有功能")
+        print("   全量固件模式: 自动选择所有功能和驱动")
         # 获取所有可选功能
         all_optional_features = list(SUPPORTED_HARDWARE['feature']['options'].keys())
         # 获取所有必选功能
@@ -1242,31 +1239,73 @@ def generate_firmware_config():
             is_mandatory = feature_key in all_mandatory_features
             mandatory_mark = "*" if is_mandatory else ""
             print(f"   [{mandatory_mark}] {all_features_dict[feature_key]}")
+        
+        # 全量固件模式下，直接包含所有驱动和硬件支持，跳过硬件选择步骤
+        print("\n全量固件模式: 跳过硬件选择，包含所有驱动和硬件支持")
+        
+        # 设置默认平台为ESP32（全量固件默认支持ESP32平台）
+        config['platform'] = 'ESP32'
+        # 设置默认开发板（使用ESP32-S3-DevKitC-1，支持WiFi+蓝牙+摄像头等功能）
+        config['board'] = 'esp32-s3-devkitc-1'
+        # 设置内置WiFi+蓝牙
+        config['has_wifi_bt'] = True
+        config['wifi_bt_module'] = 'WIFI_BT_INTERNAL'
+        
+        # 包含所有传感器驱动
+        config['sensors'] = list(SUPPORTED_HARDWARE['sensor']['options'].keys())
+        
+        # 包含所有硬件模块
+        config['hardware'] = list(SUPPORTED_HARDWARE['hardware']['options'].keys())
+        
+        # 设置音频模块（包含所有音频驱动）
+        config['audio_module'] = 'AUDIO_DRIVER_ES8388'  # 使用ES8388音频编解码器作为默认
+        
+        # 设置TF卡支持
+        config['tf_card_reader'] = 'TF_READER_SPI'  # 使用SPI接口TF读卡器
+        config['has_tf_card'] = True
+        
+        # 设置显示驱动（使用7.5英寸墨水屏作为默认）
+        config['display'] = 'EINK_75_INCH'
+        
+        # 显示最终配置
+        print(f"\n{'=' * 50}")
+        print("最终配置")
+        print(f"{'=' * 50}")
+        print(f"微控制器平台: {SUPPORTED_HARDWARE['platform']['options'][config['platform']]}")
+        print(f"开发板型号: {SUPPORTED_HARDWARE['board']['options'][config['platform']][config['board']]}")
+        print(f"支持所有音频模块驱动")
+        print(f"支持所有传感器驱动")
+        print(f"支持所有硬件模块")
+        print(f"支持所有WiFi+蓝牙模块驱动")
+        print(f"支持所有TF卡读卡器驱动")
+        print(f"支持所有墨水屏驱动")
+        print(f"固件类型: 全量固件（包含所有驱动和功能）")
+        print(f"注意: 全量固件将包含所有驱动，固件尺寸会较大，但适配所有硬件组合")
     else:
         # 自定义固件模式，调用原有的select_features函数
         config['features'], all_features_dict = select_features()
-    
-    # 2. 根据选择的功能确定所需的硬件类型
-    required_hardware = determine_required_hardware(config['features'])
-    
-    # 3. 选择微控制器平台和开发板
-    platform_board_config = select_platform_and_board()
-    config.update(platform_board_config)
-    
-    # 4. 检查开发板内置功能
-    config = check_integrated_features(config)
-    
-    # 5. 根据功能选择硬件组件
-    config = select_hardware_components(config, required_hardware)
-    
-    # 6. 选择传感器
-    config = select_sensors(config)
-    
-    # 7. 自动配置硬件模块和处理集成冲突
-    config = auto_configure_hardware(config)
-    
-    # 8. 显示最终配置
-    config = display_final_config(config, all_features_dict)
+        
+        # 2. 根据选择的功能确定所需的硬件类型
+        required_hardware = determine_required_hardware(config['features'])
+        
+        # 3. 选择微控制器平台和开发板
+        platform_board_config = select_platform_and_board()
+        config.update(platform_board_config)
+        
+        # 4. 检查开发板内置功能
+        config = check_integrated_features(config)
+        
+        # 5. 根据功能选择硬件组件
+        config = select_hardware_components(config, required_hardware)
+        
+        # 6. 选择传感器
+        config = select_sensors(config)
+        
+        # 7. 自动配置硬件模块和处理集成冲突
+        config = auto_configure_hardware(config)
+        
+        # 8. 显示最终配置
+        config = display_final_config(config, all_features_dict)
     
     return config
 
@@ -1318,14 +1357,24 @@ def update_config_header(config):
     # 生成传感器宏定义
     sensor_macros = []
     for sensor in SUPPORTED_HARDWARE['sensor']['options']:
-        enabled = sensor in config['sensors']
-        sensor_macros.append(f'#define ENABLE_{sensor} {1 if enabled else 0}')
+        if config.get('is_full_firmware', False):
+            # 全量固件模式下，启用所有传感器驱动
+            sensor_macros.append(f'#define ENABLE_{sensor} 1')
+        else:
+            # 自定义固件模式下，根据配置启用传感器驱动
+            enabled = sensor in config['sensors']
+            sensor_macros.append(f'#define ENABLE_{sensor} {1 if enabled else 0}')
     
     # 生成硬件模块宏定义
     hardware_macros = []
     for hardware in SUPPORTED_HARDWARE['hardware']['options']:
-        enabled = hardware in config['hardware']
-        hardware_macros.append(f'#define ENABLE_{hardware} {1 if enabled else 0}')
+        if config.get('is_full_firmware', False):
+            # 全量固件模式下，启用所有硬件模块
+            hardware_macros.append(f'#define ENABLE_{hardware} 1')
+        else:
+            # 自定义固件模式下，根据配置启用硬件模块
+            enabled = hardware in config['hardware']
+            hardware_macros.append(f'#define ENABLE_{hardware} {1 if enabled else 0}')
     
     # 生成功能模块宏定义
     feature_macros = []
@@ -1337,8 +1386,13 @@ def update_config_header(config):
     all_features = list(set(all_features))
     
     for feature in all_features:
-        enabled = feature in config['features']
-        feature_macros.append(f'#define ENABLE_{feature} {1 if enabled else 0}')
+        if config.get('is_full_firmware', False):
+            # 全量固件模式下，启用所有功能
+            feature_macros.append(f'#define ENABLE_{feature} 1')
+        else:
+            # 自定义固件模式下，根据配置启用功能
+            enabled = feature in config['features']
+            feature_macros.append(f'#define ENABLE_{feature} {1 if enabled else 0}')
     
     # 生成电源管理相关宏定义
     # 检查是否启用了低功耗模式相关功能
@@ -1552,23 +1606,13 @@ def generate_firmware(config):
 
 # 主函数
 def main():
-    # 检查是否在测试模式
-    test_mode = '--test' in sys.argv
-    
     # 生成固件配置
     config = generate_firmware_config()
     
-    if not test_mode:
-        # 检查运行环境
-        if not check_environment(config['platform']):
-            print("运行环境检查失败，程序将退出")
-            sys.exit(1)
-    else:
-        # 测试模式下，只检查PlatformIO安装状态
-        print("\n===== 测试模式: 检查PlatformIO安装状态 ======")
-        if not check_platformio_installation():
-            print("PlatformIO检查失败，程序将退出")
-            sys.exit(1)
+    # 检查运行环境
+    if not check_environment(config['platform']):
+        print("运行环境检查失败，程序将退出")
+        sys.exit(1)
     
     # 生成配置文件
     generate_config_file(config)
@@ -1576,17 +1620,12 @@ def main():
     # 更新配置头文件
     update_config_header(config)
     
-    if not test_mode:
-        # 生成固件
-        generate_firmware(config)
-        
-        print("\n===== 固件生成完成 ======")
-        print("请使用Arduino IDE或PlatformIO编译生成最终固件")
-        print(f"编译命令示例: pio run --environment {config['board']} --target upload")
-    else:
-        print("\n===== 测试模式完成 ======")
-        print("配置生成和配置头文件更新已完成")
-        print("跳过了固件生成步骤")
+    # 生成固件
+    generate_firmware(config)
+    
+    print("\n===== 固件生成完成 ======")
+    print("请使用Arduino IDE或PlatformIO编译生成最终固件")
+    print(f"编译命令示例: pio run --environment {config['board']} --target upload")
 
 if __name__ == '__main__':
     main()

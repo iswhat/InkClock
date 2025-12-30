@@ -115,3 +115,34 @@ void SHT20Driver::setConfig(const SensorConfig& config) {
 SensorConfig SHT20Driver::getConfig() const {
   return config;
 }
+
+bool SHT20Driver::matchHardware() {
+  DEBUG_PRINTLN("检测SHT20硬件匹配...");
+  
+  try {
+    // SHT20使用I2C接口，默认地址为0x40
+    uint8_t address = 0x40;
+    
+    // 尝试初始化SHT20传感器
+    if (sht20.begin(address)) {
+      // 初始化成功，尝试读取一次数据验证
+      float temperature = sht20.readTemperature();
+      float humidity = sht20.readHumidity();
+      
+      if (!isnan(temperature) && !isnan(humidity)) {
+        // 数据有效，硬件匹配成功
+        DEBUG_PRINTF("SHT20硬件匹配成功，I2C地址: 0x%02X\n", address);
+        return true;
+      }
+    }
+    
+    DEBUG_PRINTLN("未检测到SHT20硬件");
+    return false;
+  } catch (const std::exception& e) {
+    DEBUG_PRINTLN("SHT20硬件匹配失败: " + String(e.what()));
+    return false;
+  } catch (...) {
+    DEBUG_PRINTLN("SHT20硬件匹配未知错误");
+    return false;
+  }
+}

@@ -101,6 +101,9 @@ public:
   // 测量文本高度
   int16_t measureTextHeight(const String& text, uint8_t size) const override;
   
+  // 检测驱动与硬件是否匹配
+  bool matchHardware() override;
+  
 private:
   // 墨水屏IO和显示对象
   GxIO_Class io;

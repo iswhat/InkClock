@@ -98,7 +98,25 @@
 2. 在VS Code中安装PlatformIO插件
 3. 克隆项目代码：`git clone https://github.com/iswhat/InkClock.git`
 
-### 2. 配置修改
+### 2. 固件生成工具
+
+系统提供了命令行固件生成工具`generate_firmware.py`，用于根据实际需求生成最简固件。该工具支持两种生成模式：
+
+- **全量固件模式**：自动选择所有功能和驱动，生成包含全部功能的固件
+- **自定义精简固件模式**：根据用户选择生成包含特定功能的最简固件
+
+**使用方法**：
+
+```bash
+# Windows
+cd tool
+generate_firmware.bat
+
+# Linux/Mac
+python3 generate_firmware.py
+```
+
+### 3. 配置修改
 
 打开`code/src/config.h`文件，修改以下配置项：
 
@@ -115,9 +133,14 @@
 // 天气API配置
 #define WEATHER_API_KEY "your_weather_api_key" // 天气API密钥
 #define WEATHER_API_KEY_BACKUP "your_weatherapi_key" // 备用天气API密钥
+
+// 低功耗配置
+#define LOW_POWER_MODE_ENABLED true // 是否启用低功耗模式
+#define NO_MOTION_TIMEOUT 30000 // 无运动超时时间（毫秒）
+#define NIGHT_LIGHT_THRESHOLD 100 // 夜间光照阈值
 ```
 
-### 3. 编译和上传
+### 4. 编译和上传
 
 1. 在PlatformIO中打开项目
 2. 选择对应的开发板型号（ESP32-S3 Dev Module）

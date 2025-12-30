@@ -113,3 +113,41 @@ void TSL2561Driver::setConfig(const SensorConfig& config) {
 SensorConfig TSL2561Driver::getConfig() const {
   return config;
 }
+
+bool TSL2561Driver::matchHardware() {
+  DEBUG_PRINTLN("检测TSL2561硬件匹配...");
+  
+  try {
+    // TSL2561使用I2C接口，通常有两个地址可选：0x29（默认）和0x39（AD0接地）
+    uint8_t addresses[] = {0x29, 0x39};
+    bool matched = false;
+    
+    for (uint8_t address : addresses) {
+      // 尝试初始化TSL2561传感器
+      if (tsl2561.begin(address)) {
+        // 初始化成功，尝试读取一次数据验证
+        sensors_event_t event;
+        tsl2561.getEvent(&event);
+        
+        if (event.light >= 0) {
+          // 数据有效，硬件匹配成功
+          DEBUG_PRINTF("TSL2561硬件匹配成功，I2C地址: 0x%02X\n", address);
+          matched = true;
+          break;
+        }
+      }
+    }
+    
+    if (!matched) {
+      DEBUG_PRINTLN("未检测到TSL2561硬件");
+    }
+    
+    return matched;
+  } catch (const std::exception& e) {
+    DEBUG_PRINTLN("TSL2561硬件匹配失败: " + String(e.what()));
+    return false;
+  } catch (...) {
+    DEBUG_PRINTLN("TSL2561硬件匹配未知错误");
+    return false;
+  }
+}

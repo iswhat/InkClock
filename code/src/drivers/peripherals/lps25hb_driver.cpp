@@ -92,8 +92,8 @@ String LPS25HBDriver::getTypeName() const {
  * @return 传感器类型枚举值
  */
 SensorType LPS25HBDriver::getType() const {
-  // 使用BME280类型，因为它们都是气压传感器
-  return SENSOR_TYPE_BME280;
+  // 返回正确的LPS25HB传感器类型
+  return SENSOR_TYPE_LPS25HB;
 }
 
 /**
@@ -114,4 +114,42 @@ void LPS25HBDriver::setConfig(const SensorConfig& config) {
  */
 SensorConfig LPS25HBDriver::getConfig() const {
   return config;
+}
+
+bool LPS25HBDriver::matchHardware() {
+  DEBUG_PRINTLN("检测LPS25HB硬件匹配...");
+  
+  try {
+    // LPS25HB使用I2C接口，通常有两个地址可选：0x5C（默认）和0x5D（SDO引脚拉高）
+    uint8_t addresses[] = {0x5C, 0x5D};
+    bool matched = false;
+    
+    for (uint8_t address : addresses) {
+      // 尝试初始化LPS25HB传感器
+      if (lps25hb.begin(address)) {
+        // 初始化成功，尝试读取一次数据验证
+        float pressure = lps25hb.readPressure();
+        float temperature = lps25hb.readTemperature();
+        
+        if (!isnan(pressure) && !isnan(temperature)) {
+          // 数据有效，硬件匹配成功
+          DEBUG_PRINTF("LPS25HB硬件匹配成功，I2C地址: 0x%02X\n", address);
+          matched = true;
+          break;
+        }
+      }
+    }
+    
+    if (!matched) {
+      DEBUG_PRINTLN("未检测到LPS25HB硬件");
+    }
+    
+    return matched;
+  } catch (const std::exception& e) {
+    DEBUG_PRINTLN("LPS25HB硬件匹配失败: " + String(e.what()));
+    return false;
+  } catch (...) {
+    DEBUG_PRINTLN("LPS25HB硬件匹配未知错误");
+    return false;
+  }
 }

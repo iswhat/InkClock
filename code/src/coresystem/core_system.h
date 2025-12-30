@@ -286,11 +286,31 @@ public:
     Serial.println("Scanning for devices...");
     driverRegistry->scanDevices();
     
-    // 6. 初始化电源管理
+    // 6. 系统自检：驱动与硬件匹配检测
+    Serial.println("====================================");
+    Serial.println("Performing System Self-Check...");
+    Serial.println("====================================");
+    
+    // 6.1 执行驱动硬件匹配检测
+    bool hardwareMatch = driverRegistry->performHardwareMatch();
+    if (!hardwareMatch) {
+      Serial.println("Warning: Some drivers do not match hardware");
+    }
+    
+    // 6.2 根据检测结果启用/禁用功能模块
+    driverRegistry->enableCompatibleModules();
+    
+    // 6.3 禁用不支持的功能模块
+    driverRegistry->disableIncompatibleModules();
+    
+    // 6.4 打印自检结果
+    driverRegistry->printSelfCheckResult();
+    
+    // 7. 初始化电源管理
     Serial.println("Initializing Power Management...");
     updatePowerState();
     
-    // 7. 发布系统启动事件
+    // 8. 发布系统启动事件
     eventBus->publish(EVENT_SYSTEM_STARTUP, nullptr);
     
     state = SYSTEM_STATE_RUNNING;
@@ -771,6 +791,21 @@ public:
   // 获取Flash大小
   uint32_t getFlashChipSize() {
     return platformGetFlashChipSize();
+  }
+  
+  // 获取固件大小（已使用的Flash空间）
+  uint32_t getFirmwareSize() {
+    return platformGetFirmwareSize();
+  }
+  
+  // 获取可用Flash空间
+  uint32_t getFreeFlashSize() {
+    return platformGetFreeFlashSize();
+  }
+  
+  // 获取Flash使用情况
+  void getFlashInfo(uint32_t& totalSize, uint32_t& firmwareSize, uint32_t& freeSize) {
+    platformGetFlashInfo(totalSize, firmwareSize, freeSize);
   }
   
   // 内存管理方法

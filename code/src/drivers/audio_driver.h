@@ -71,6 +71,12 @@ public:
   
   // 音频驱动轮询函数
   virtual void loop() = 0;
+  
+  // 检测驱动与硬件是否匹配
+  virtual bool matchHardware() = 0;
+  
+  // 获取驱动类型
+  virtual AudioDriverType getType() = 0;
 };
 
 // 根据配置创建音频驱动实例

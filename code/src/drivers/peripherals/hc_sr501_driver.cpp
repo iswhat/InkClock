@@ -68,3 +68,39 @@ void HC_SR501Driver::setConfig(const SensorConfig& config) {
 SensorConfig HC_SR501Driver::getConfig() const {
   return config;
 }
+
+bool HC_SR501Driver::matchHardware() {
+  DEBUG_PRINTLN("检测HC-SR501硬件匹配...");
+  
+  try {
+    // 人体感应传感器使用数字输入引脚，尝试检测常见引脚
+    int testPins[] = {2, 4, 5, 12, 13, 14, 15, 25, 26, 27, 32, 33}; // 常见的GPIO引脚
+    
+    for (int testPin : testPins) {
+      // 设置引脚模式为输入
+      pinMode(testPin, INPUT);
+      
+      // 读取几次引脚状态，检查是否有信号
+      for (int i = 0; i < 10; i++) {
+        bool state = digitalRead(testPin);
+        
+        // 如果检测到高电平（有人或物体移动），则认为硬件匹配
+        if (state) {
+          DEBUG_PRINTF("HC-SR501硬件匹配成功，引脚: %d\n", testPin);
+          return true;
+        }
+        
+        delay(100); // 等待100ms再读取下一次
+      }
+    }
+    
+    DEBUG_PRINTLN("未检测到HC-SR501硬件");
+    return false;
+  } catch (const std::exception& e) {
+    DEBUG_PRINTLN("HC-SR501硬件匹配失败: " + String(e.what()));
+    return false;
+  } catch (...) {
+    DEBUG_PRINTLN("HC-SR501硬件匹配失败: 未知异常");
+    return false;
+  }
+}

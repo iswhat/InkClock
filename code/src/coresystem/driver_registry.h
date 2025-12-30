@@ -8,6 +8,7 @@
 #include "event_bus.h"
 #include "../drivers/sensors/sensor_driver.h"
 #include "../drivers/displays/display_driver.h"
+#include "../drivers/audio_driver.h"
 
 // 驱动类型枚举
 enum DriverType {
@@ -71,6 +72,33 @@ typedef struct {
   std::map<String, String> properties;
 } DeviceInfo;
 
+// 基础驱动接口，所有驱动类型都应继承自该接口
+class IDriver {
+public:
+  virtual ~IDriver() {}
+  
+  // 获取驱动名称
+  virtual String getName() const = 0;
+  
+  // 获取驱动类型
+  virtual DriverType getDriverType() const = 0;
+  
+  // 检测驱动与硬件是否匹配
+  virtual bool matchHardware() = 0;
+  
+  // 获取驱动状态
+  virtual DriverStatus getStatus() const = 0;
+  
+  // 设置驱动状态
+  virtual void setStatus(DriverStatus status) = 0;
+  
+  // 判断驱动是否启用
+  virtual bool isEnabled() const = 0;
+  
+  // 设置驱动启用状态
+  virtual void setEnabled(bool enabled) = 0;
+};
+
 // 驱动注册中心类
 class DriverRegistry {
 private:
@@ -86,6 +114,7 @@ private:
   // 驱动列表
   std::vector<ISensorDriver*> sensorDrivers;
   std::vector<IDisplayDriver*> displayDrivers;
+  std::vector<AudioDriver*> audioDrivers;
   
   // 设备信息列表
   std::vector<DeviceInfo> deviceInfos;
@@ -193,9 +222,9 @@ public:
     
     displayDrivers.push_back(driver);
     
-    // 创建驱动信息
+    // 创建驱动信息（只支持EINK）
     DriverInfo info;
-    info.name = "EinkDriver";
+    info.name = "Eink_Driver";
     info.type = "display";
     info.version = "1.0.0";
     info.vendor = "Unknown";
@@ -217,6 +246,42 @@ public:
     eventBus->publish(EVENT_DRIVER_REGISTERED, driverData);
     
     Serial.printf("Display driver registered: %s\n", info.name.c_str());
+    return true;
+  }
+  
+  // 注册音频驱动
+  bool registerAudioDriver(AudioDriver* driver) {
+    if (driver == nullptr) {
+      Serial.println("Error: Attempt to register null audio driver");
+      return false;
+    }
+    
+    audioDrivers.push_back(driver);
+    
+    // 创建驱动信息
+    DriverInfo info;
+    info.name = String(driver->getType());
+    info.type = "audio";
+    info.version = "1.0.0";
+    info.vendor = "Unknown";
+    info.driverType = DRIVER_TYPE_AUDIO;
+    info.status = DRIVER_STATUS_UNINITIALIZED;
+    info.enabled = false;
+    info.deviceId = String(driver->getType());
+    info.deviceName = "AudioDevice";
+    info.deviceType = "audio";
+    info.firmwareVersion = "1.0.0";
+    info.lastActiveTime = millis();
+    info.startTime = millis();
+    info.errorCount = 0;
+    
+    driverInfos.push_back(info);
+    
+    // 发布驱动注册事件
+    auto driverData = std::make_shared<DriverEventData>(info.name, info.type);
+    eventBus->publish(EVENT_DRIVER_REGISTERED, driverData);
+    
+    Serial.printf("Audio driver registered: %s\n", info.name.c_str());
     return true;
   }
   
@@ -250,7 +315,7 @@ public:
     
     // 查找并移除显示驱动
     for (auto it = displayDrivers.begin(); it != displayDrivers.end(); ++it) {
-      if (String("EinkDriver") == driverName) {
+      if (driverName == "Eink_Driver") {
         // 发布驱动卸载事件
         auto driverData = std::make_shared<DriverEventData>(driverName, "display");
         eventBus->publish(EVENT_DRIVER_UNREGISTERED, driverData);
@@ -274,6 +339,33 @@ public:
       }
     }
     
+    // 查找并移除音频驱动
+    for (auto it = audioDrivers.begin(); it != audioDrivers.end(); ++it) {
+      String audioDriverName = String((*it)->getType());
+      if (audioDriverName == driverName) {
+        // 发布驱动卸载事件
+        auto driverData = std::make_shared<DriverEventData>(driverName, "audio");
+        eventBus->publish(EVENT_DRIVER_UNREGISTERED, driverData);
+        
+        // 更新驱动状态
+        updateDriverStatus(driverName, DRIVER_STATUS_UNREGISTERED);
+        
+        delete *it;
+        audioDrivers.erase(it);
+        
+        // 移除驱动信息
+        for (auto infoIt = driverInfos.begin(); infoIt != driverInfos.end(); ++infoIt) {
+          if (infoIt->name == driverName) {
+            driverInfos.erase(infoIt);
+            break;
+          }
+        }
+        
+        Serial.printf("Audio driver unregistered: %s\n", driverName.c_str());
+        return true;
+      }
+    }
+    
     Serial.printf("Error: Driver not found for unregistration: %s\n", driverName.c_str());
     return false;
   }
@@ -286,6 +378,11 @@ public:
   // 获取所有显示驱动
   std::vector<IDisplayDriver*> getDisplayDrivers() {
     return displayDrivers;
+  }
+  
+  // 获取所有音频驱动
+  std::vector<AudioDriver*> getAudioDrivers() {
+    return audioDrivers;
   }
   
   // 根据传感器类型获取驱动
@@ -318,84 +415,135 @@ public:
     return nullptr;
   }
   
-  // 自动检测传感器驱动
+  // 自动检测传感器驱动 - 优化版，减少初始化时间
   ISensorDriver* autoDetectSensorDriver() {
     for (auto driver : sensorDrivers) {
       updateDriverStatus(driver->getTypeName(), DRIVER_STATUS_INITIALIZING);
       
-      SensorConfig config;
-      config.type = driver->getType();
-      config.pin = -1;
-      config.address = 0;
-      config.updateInterval = 60000;
-      config.tempOffset = 0.0;
-      config.humOffset = 0.0;
-      
-      if (driver->init(config)) {
-        updateDriverStatus(driver->getTypeName(), DRIVER_STATUS_READY);
+      // 先使用matchHardware()快速检测硬件，减少不必要的完整初始化
+      if (driver->matchHardware()) {
+        // 硬件匹配成功，进行完整初始化
+        SensorConfig config;
+        config.type = driver->getType();
+        config.pin = -1;
+        config.address = 0;
+        config.updateInterval = 60000;
+        config.tempOffset = 0.0;
+        config.humOffset = 0.0;
         
-        // 创建设备信息
-        DeviceInfo deviceInfo;
-        deviceInfo.deviceId = String(driver->getType());
-        deviceInfo.deviceName = driver->getTypeName();
-        deviceInfo.deviceType = "sensor";
-        deviceInfo.driverName = driver->getTypeName();
-        deviceInfo.status = DEVICE_STATUS_DISCOVERED;
-        deviceInfo.connectionInfo = "Auto-detected";
-        deviceInfo.discoveredTime = millis();
-        deviceInfo.lastUpdateTime = millis();
-        
-        deviceInfos.push_back(deviceInfo);
-        
-        // 发布传感器发现事件
-        auto deviceData = std::make_shared<DeviceEventData>(deviceInfo.deviceName, deviceInfo.deviceType, deviceInfo.deviceId);
-        eventBus->publish(EVENT_DEVICE_DISCOVERED, deviceData);
-        
-        return driver;
-      } else {
-        updateDriverStatus(driver->getTypeName(), DRIVER_STATUS_ERROR);
-        
-        // 发布驱动错误事件
-        auto errorData = std::make_shared<SystemErrorEventData>("Driver initialization failed", 2001, driver->getTypeName());
-        eventBus->publish(EVENT_DRIVER_ERROR, errorData);
+        if (driver->init(config)) {
+          updateDriverStatus(driver->getTypeName(), DRIVER_STATUS_READY);
+          
+          // 创建设备信息
+          DeviceInfo deviceInfo;
+          deviceInfo.deviceId = String(driver->getType());
+          deviceInfo.deviceName = driver->getTypeName();
+          deviceInfo.deviceType = "sensor";
+          deviceInfo.driverName = driver->getTypeName();
+          deviceInfo.status = DEVICE_STATUS_DISCOVERED;
+          deviceInfo.connectionInfo = "Auto-detected";
+          deviceInfo.discoveredTime = millis();
+          deviceInfo.lastUpdateTime = millis();
+          
+          deviceInfos.push_back(deviceInfo);
+          
+          // 发布传感器发现事件
+          auto deviceData = std::make_shared<DeviceEventData>(deviceInfo.deviceName, deviceInfo.deviceType, deviceInfo.deviceId);
+          eventBus->publish(EVENT_DEVICE_DISCOVERED, deviceData);
+          
+          return driver;
+        }
       }
+      
+      updateDriverStatus(driver->getTypeName(), DRIVER_STATUS_ERROR);
+      
+      // 发布驱动错误事件
+      auto errorData = std::make_shared<SystemErrorEventData>("Driver initialization failed", 2001, driver->getTypeName());
+      eventBus->publish(EVENT_DRIVER_ERROR, errorData);
     }
     return nullptr;
   }
   
-  // 自动检测显示驱动
+  // 自动检测显示驱动（只支持EINK）
   IDisplayDriver* autoDetectDisplayDriver() {
     for (auto driver : displayDrivers) {
-      updateDriverStatus("EinkDriver", DRIVER_STATUS_INITIALIZING);
+      String driverName = "Eink_Driver";
+      updateDriverStatus(driverName, DRIVER_STATUS_INITIALIZING);
       
-      if (driver->init()) {
-        updateDriverStatus("EinkDriver", DRIVER_STATUS_READY);
-        
-        // 创建设备信息
-        DeviceInfo deviceInfo;
-        deviceInfo.deviceId = String(driver->getType());
-        deviceInfo.deviceName = "EinkDisplay";
-        deviceInfo.deviceType = "display";
-        deviceInfo.driverName = "EinkDriver";
-        deviceInfo.status = DEVICE_STATUS_DISCOVERED;
-        deviceInfo.connectionInfo = "Auto-detected";
-        deviceInfo.discoveredTime = millis();
-        deviceInfo.lastUpdateTime = millis();
-        
-        deviceInfos.push_back(deviceInfo);
-        
-        // 发布设备发现事件
-        auto deviceData = std::make_shared<DeviceEventData>(deviceInfo.deviceName, deviceInfo.deviceType, deviceInfo.deviceId);
-        eventBus->publish(EVENT_DEVICE_DISCOVERED, deviceData);
-        
-        return driver;
-      } else {
-        updateDriverStatus("EinkDriver", DRIVER_STATUS_ERROR);
-        
-        // 发布驱动错误事件
-        auto errorData = std::make_shared<SystemErrorEventData>("Display driver initialization failed", 2002, "EinkDriver");
-        eventBus->publish(EVENT_DRIVER_ERROR, errorData);
+      // 先使用matchHardware()快速检测硬件，减少不必要的完整初始化
+      if (driver->matchHardware()) {
+        // 硬件匹配成功，进行完整初始化
+        if (driver->init()) {
+          updateDriverStatus(driverName, DRIVER_STATUS_READY);
+          
+          // 创建设备信息
+          DeviceInfo deviceInfo;
+          deviceInfo.deviceId = String(driver->getType());
+          deviceInfo.deviceName = "EinkDisplay";
+          deviceInfo.deviceType = "display";
+          deviceInfo.driverName = driverName;
+          deviceInfo.status = DEVICE_STATUS_DISCOVERED;
+          deviceInfo.connectionInfo = "Auto-detected";
+          deviceInfo.discoveredTime = millis();
+          deviceInfo.lastUpdateTime = millis();
+          
+          deviceInfos.push_back(deviceInfo);
+          
+          // 发布设备发现事件
+          auto deviceData = std::make_shared<DeviceEventData>(deviceInfo.deviceName, deviceInfo.deviceType, deviceInfo.deviceId);
+          eventBus->publish(EVENT_DEVICE_DISCOVERED, deviceData);
+          
+          return driver;
+        }
       }
+      
+      updateDriverStatus(driverName, DRIVER_STATUS_ERROR);
+      
+      // 发布驱动错误事件
+      auto errorData = std::make_shared<SystemErrorEventData>("Eink driver initialization failed", 2002, driverName);
+      eventBus->publish(EVENT_DRIVER_ERROR, errorData);
+    }
+    return nullptr;
+  }
+  
+  // 自动检测音频驱动
+  AudioDriver* autoDetectAudioDriver() {
+    for (auto driver : audioDrivers) {
+      String driverName = String(driver->getType());
+      updateDriverStatus(driverName, DRIVER_STATUS_INITIALIZING);
+      
+      // 先使用matchHardware()快速检测硬件，减少不必要的完整初始化
+      if (driver->matchHardware()) {
+        // 硬件匹配成功，进行完整初始化
+        if (driver->init()) {
+          updateDriverStatus(driverName, DRIVER_STATUS_READY);
+          
+          // 创建设备信息
+          DeviceInfo deviceInfo;
+          deviceInfo.deviceId = String(driver->getType());
+          deviceInfo.deviceName = "AudioDevice";
+          deviceInfo.deviceType = "audio";
+          deviceInfo.driverName = driverName;
+          deviceInfo.status = DEVICE_STATUS_DISCOVERED;
+          deviceInfo.connectionInfo = "Auto-detected";
+          deviceInfo.discoveredTime = millis();
+          deviceInfo.lastUpdateTime = millis();
+          
+          deviceInfos.push_back(deviceInfo);
+          
+          // 发布设备发现事件
+          auto deviceData = std::make_shared<DeviceEventData>(deviceInfo.deviceName, deviceInfo.deviceType, deviceInfo.deviceId);
+          eventBus->publish(EVENT_DEVICE_DISCOVERED, deviceData);
+          
+          return driver;
+        }
+      }
+      
+      updateDriverStatus(driverName, DRIVER_STATUS_ERROR);
+      
+      // 发布驱动错误事件
+      auto errorData = std::make_shared<SystemErrorEventData>("Audio driver initialization failed", 2003, driverName);
+      eventBus->publish(EVENT_DRIVER_ERROR, errorData);
     }
     return nullptr;
   }
@@ -549,6 +697,96 @@ public:
       }
     }
     
+    // 扫描显示设备（只支持EINK）
+    for (auto driver : displayDrivers) {
+      String driverName = "Eink_Driver";
+      updateDriverStatus(driverName, DRIVER_STATUS_INITIALIZING);
+      
+      if (driver->init()) {
+        updateDriverStatus(driverName, DRIVER_STATUS_READY);
+        
+        String deviceId = String(driver->getType());
+        DeviceInfo* existingDevice = getDeviceInfo(deviceId);
+        
+        if (existingDevice != nullptr) {
+          // 更新现有设备信息
+          updateDeviceStatus(deviceId, DEVICE_STATUS_CONNECTED);
+          existingDevice->lastUpdateTime = millis();
+        } else {
+          // 创建新设备信息
+          DeviceInfo deviceInfo;
+          deviceInfo.deviceId = deviceId;
+          deviceInfo.deviceName = "EinkDisplay";
+          deviceInfo.deviceType = "display";
+          deviceInfo.driverName = driverName;
+          deviceInfo.status = DEVICE_STATUS_CONNECTED;
+          deviceInfo.connectionInfo = "Connected";
+          deviceInfo.discoveredTime = millis();
+          deviceInfo.lastUpdateTime = millis();
+          
+          deviceInfos.push_back(deviceInfo);
+        }
+        
+        // 发布设备发现事件
+        auto deviceData = std::make_shared<DeviceEventData>("EinkDisplay", "display", deviceId);
+        eventBus->publish(EVENT_DEVICE_DISCOVERED, deviceData);
+        
+        // 发布设备连接事件
+        eventBus->publish(EVENT_DEVICE_CONNECTED, deviceData);
+      } else {
+        updateDriverStatus(driverName, DRIVER_STATUS_ERROR);
+        
+        // 发布驱动错误事件
+        auto errorData = std::make_shared<SystemErrorEventData>("Eink device scan failed", 2004, driverName);
+        eventBus->publish(EVENT_DRIVER_ERROR, errorData);
+      }
+    }
+    
+    // 扫描音频设备
+    for (auto driver : audioDrivers) {
+      String driverName = String(driver->getType());
+      updateDriverStatus(driverName, DRIVER_STATUS_INITIALIZING);
+      
+      if (driver->init()) {
+        updateDriverStatus(driverName, DRIVER_STATUS_READY);
+        
+        String deviceId = String(driver->getType());
+        DeviceInfo* existingDevice = getDeviceInfo(deviceId);
+        
+        if (existingDevice != nullptr) {
+          // 更新现有设备信息
+          updateDeviceStatus(deviceId, DEVICE_STATUS_CONNECTED);
+          existingDevice->lastUpdateTime = millis();
+        } else {
+          // 创建新设备信息
+          DeviceInfo deviceInfo;
+          deviceInfo.deviceId = deviceId;
+          deviceInfo.deviceName = "AudioDevice";
+          deviceInfo.deviceType = "audio";
+          deviceInfo.driverName = driverName;
+          deviceInfo.status = DEVICE_STATUS_CONNECTED;
+          deviceInfo.connectionInfo = "Connected";
+          deviceInfo.discoveredTime = millis();
+          deviceInfo.lastUpdateTime = millis();
+          
+          deviceInfos.push_back(deviceInfo);
+        }
+        
+        // 发布设备发现事件
+        auto deviceData = std::make_shared<DeviceEventData>(deviceInfo.deviceName, deviceInfo.deviceType, deviceInfo.deviceId);
+        eventBus->publish(EVENT_DEVICE_DISCOVERED, deviceData);
+        
+        // 发布设备连接事件
+        eventBus->publish(EVENT_DEVICE_CONNECTED, deviceData);
+      } else {
+        updateDriverStatus(driverName, DRIVER_STATUS_ERROR);
+        
+        // 发布驱动错误事件
+        auto errorData = std::make_shared<SystemErrorEventData>("Audio device scan failed", 2005, driverName);
+        eventBus->publish(EVENT_DRIVER_ERROR, errorData);
+      }
+    }
+    
     lastScanTime = millis();
     Serial.printf("Device scan completed in %lu ms. Found %d devices.\n", millis() - scanStartTime, deviceInfos.size());
   }
@@ -578,6 +816,81 @@ public:
     }
   }
   
+  // 动态检测硬件变化
+  bool detectHardwareChanges() {
+    Serial.println("检测硬件变化...");
+    
+    bool hardwareChanged = false;
+    
+    // 记录当前设备状态
+    std::map<String, bool> currentDevices;
+    for (auto& device : deviceInfos) {
+      currentDevices[device.deviceId] = true;
+    }
+    
+    // 执行硬件匹配检测
+    performHardwareMatch();
+    
+    // 检测新增设备
+    for (auto& info : driverInfos) {
+      if (info.status == DRIVER_STATUS_READY) {
+        String deviceId = String(info.deviceId);
+        if (currentDevices.find(deviceId) == currentDevices.end()) {
+          // 新设备被检测到
+          Serial.printf("检测到新设备: %s\n", info.name.c_str());
+          hardwareChanged = true;
+        }
+      }
+    }
+    
+    // 检测移除的设备
+    for (auto& device : deviceInfos) {
+      bool driverExists = false;
+      for (auto& info : driverInfos) {
+        if (info.name == device.driverName && info.status == DRIVER_STATUS_READY) {
+          driverExists = true;
+          break;
+        }
+      }
+      
+      if (!driverExists && device.status == DEVICE_STATUS_CONNECTED) {
+        // 设备被移除
+        Serial.printf("设备已移除: %s\n", device.deviceName.c_str());
+        updateDeviceStatus(device.deviceId, DEVICE_STATUS_DISCONNECTED);
+        hardwareChanged = true;
+      }
+    }
+    
+    if (hardwareChanged) {
+      // 发布硬件变化事件
+      eventBus->publish(EVENT_HARDWARE_CHANGED, nullptr);
+      Serial.println("硬件变化检测完成，发现变化");
+    } else {
+      Serial.println("硬件变化检测完成，未发现变化");
+    }
+    
+    return hardwareChanged;
+  }
+  
+  // 重新适配硬件变化
+  void reconfigureHardware() {
+    Serial.println("重新适配硬件...");
+    
+    // 执行硬件匹配检测
+    performHardwareMatch();
+    
+    // 启用兼容模块
+    enableCompatibleModules();
+    
+    // 禁用不兼容模块
+    disableIncompatibleModules();
+    
+    // 打印自检结果
+    printSelfCheckResult();
+    
+    Serial.println("硬件重新适配完成");
+  }
+  
   // 清除所有驱动
   void clear() {
     // 发布系统关闭事件
@@ -596,17 +909,187 @@ public:
     
     for (auto driver : displayDrivers) {
       // 发布驱动卸载事件
-      auto driverData = std::make_shared<DriverEventData>("EinkDriver", "display");
+      String driverName = "Eink_Driver";
+      auto driverData = std::make_shared<DriverEventData>(driverName, "display");
       eventBus->publish(EVENT_DRIVER_UNREGISTERED, driverData);
       
       delete driver;
     }
     displayDrivers.clear();
     
+    for (auto driver : audioDrivers) {
+      // 发布驱动卸载事件
+      String driverName = String(driver->getType());
+      auto driverData = std::make_shared<DriverEventData>(driverName, "audio");
+      eventBus->publish(EVENT_DRIVER_UNREGISTERED, driverData);
+      
+      delete driver;
+    }
+    audioDrivers.clear();
+    
     driverInfos.clear();
     deviceInfos.clear();
     
     Serial.println("All drivers cleared");
+  }
+  
+  // 执行驱动硬件匹配检测
+  bool performHardwareMatch() {
+    Serial.println("Performing hardware match detection...");
+    
+    bool allMatched = true;
+    
+    // 检测传感器驱动
+    Serial.println("Checking sensor drivers...");
+    for (auto driver : sensorDrivers) {
+      String driverName = driver->getTypeName();
+      bool matched = driver->matchHardware();
+      
+      if (matched) {
+        Serial.printf("✓ %s driver matches hardware\n", driverName.c_str());
+      } else {
+        Serial.printf("✗ %s driver does not match hardware\n", driverName.c_str());
+        allMatched = false;
+      }
+      
+      // 更新驱动状态
+      updateDriverStatus(driverName, matched ? DRIVER_STATUS_READY : DRIVER_STATUS_ERROR);
+    }
+    
+    // 检测显示驱动（只支持EINK）
+    Serial.println("Checking display drivers...");
+    for (auto driver : displayDrivers) {
+      String driverName = "Eink_Driver";
+      bool matched = driver->matchHardware();
+      
+      if (matched) {
+        Serial.printf("✓ %s driver matches hardware\n", driverName.c_str());
+      } else {
+        Serial.printf("✗ %s driver does not match hardware\n", driverName.c_str());
+        allMatched = false;
+      }
+      
+      // 更新驱动状态
+      updateDriverStatus(driverName, matched ? DRIVER_STATUS_READY : DRIVER_STATUS_ERROR);
+    }
+    
+    // 检测音频驱动
+    Serial.println("Checking audio drivers...");
+    for (auto driver : audioDrivers) {
+      String driverName = String(driver->getType());
+      bool matched = driver->matchHardware();
+      
+      if (matched) {
+        Serial.printf("✓ %s driver matches hardware\n", driverName.c_str());
+      } else {
+        Serial.printf("✗ %s driver does not match hardware\n", driverName.c_str());
+        allMatched = false;
+      }
+      
+      // 更新驱动状态
+      updateDriverStatus(driverName, matched ? DRIVER_STATUS_READY : DRIVER_STATUS_ERROR);
+    }
+    
+    return allMatched;
+  }
+  
+  // 根据检测结果启用兼容模块
+  void enableCompatibleModules() {
+    Serial.println("Enabling compatible modules...");
+    
+    // 启用所有状态为READY的驱动
+    for (auto& info : driverInfos) {
+      if (info.status == DRIVER_STATUS_READY && !info.enabled) {
+        enableDriver(info.name);
+      }
+    }
+  }
+  
+  // 禁用不支持的功能模块
+  void disableIncompatibleModules() {
+    Serial.println("Disabling incompatible modules...");
+    
+    // 禁用所有状态为ERROR的驱动
+    for (auto& info : driverInfos) {
+      if (info.status == DRIVER_STATUS_ERROR && info.enabled) {
+        disableDriver(info.name);
+      }
+    }
+    
+    // 标记设备为不可用
+    for (auto& device : deviceInfos) {
+      bool driverFound = false;
+      for (auto& info : driverInfos) {
+        if (info.name == device.driverName && info.status == DRIVER_STATUS_READY) {
+          driverFound = true;
+          break;
+        }
+      }
+      
+      if (!driverFound) {
+        updateDeviceStatus(device.deviceId, DEVICE_STATUS_ERROR);
+      }
+    }
+  }
+  
+  // 打印自检结果
+  void printSelfCheckResult() {
+    Serial.println("====================================");
+    Serial.println("Self-Check Results:");
+    Serial.println("====================================");
+    
+    // 打印驱动状态
+    Serial.println("Driver Status:");
+    for (auto& info : driverInfos) {
+      String statusStr;
+      switch (info.status) {
+        case DRIVER_STATUS_READY:
+          statusStr = "READY   ";
+          break;
+        case DRIVER_STATUS_ERROR:
+          statusStr = "ERROR   ";
+          break;
+        case DRIVER_STATUS_DISABLED:
+          statusStr = "DISABLED";
+          break;
+        default:
+          statusStr = "UNKNOWN ";
+          break;
+      }
+      
+      String enabledStr = info.enabled ? "✓" : "✗";
+      Serial.printf("%s %s [%s] %s\n", enabledStr, statusStr.c_str(), info.type.c_str(), info.name.c_str());
+    }
+    
+    Serial.println();
+    
+    // 打印设备状态
+    Serial.println("Device Status:");
+    for (auto& device : deviceInfos) {
+      String statusStr;
+      switch (device.status) {
+        case DEVICE_STATUS_CONNECTED:
+          statusStr = "CONNECTED";
+          break;
+        case DEVICE_STATUS_DISCONNECTED:
+          statusStr = "DISCONNECTED";
+          break;
+        case DEVICE_STATUS_ERROR:
+          statusStr = "ERROR";
+          break;
+        case DEVICE_STATUS_DISCOVERED:
+          statusStr = "DISCOVERED";
+          break;
+        default:
+          statusStr = "UNKNOWN";
+          break;
+      }
+      
+      Serial.printf("%s [%s] %s\n", statusStr.c_str(), device.deviceType.c_str(), device.deviceName.c_str());
+    }
+    
+    // 发布自检完成事件
+    eventBus->publish(EVENT_SYSTEM_ACTIVE, nullptr);
   }
 };
 
@@ -622,6 +1105,11 @@ void registerSensorDriver() {
 template <typename T>
 void registerDisplayDriver() {
   DriverRegistry::getInstance()->registerDisplayDriver(new T());
+}
+
+template <typename T>
+void registerAudioDriver() {
+  DriverRegistry::getInstance()->registerAudioDriver(new T());
 }
 
 #endif // DRIVER_REGISTRY_H

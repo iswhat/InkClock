@@ -146,3 +146,53 @@ void GY30Driver::setConfig(const SensorConfig& config) {
 SensorConfig GY30Driver::getConfig() const {
   return config;
 }
+
+/**
+ * @brief 检测硬件是否匹配
+ * 
+ * @return 硬件是否匹配
+ */
+bool GY30Driver::matchHardware() {
+  DEBUG_PRINTLN("检测GY30硬件匹配...");
+  
+  try {
+    // GY30使用I2C接口，通常地址为0x23或0x5C
+    uint8_t addresses[] = {0x23, 0x5C};
+    bool matched = false;
+    
+    Wire.begin();
+    
+    for (uint8_t testAddress : addresses) {
+      // 尝试发送命令到当前地址
+      Wire.beginTransmission(testAddress);
+      Wire.write(GY30_POWER_ON);
+      int result = Wire.endTransmission();
+      
+      if (result == 0) {
+        // 命令发送成功，尝试读取数据
+        Wire.beginTransmission(testAddress);
+        Wire.write(GY30_SINGLE_HRES);
+        Wire.endTransmission();
+        
+        delay(180); // 等待测量完成
+        
+        Wire.requestFrom(testAddress, 2);
+        if (Wire.available() == 2) {
+          // 读取到有效数据，硬件匹配
+          Wire.read(); // 读取高字节
+          Wire.read(); // 读取低字节
+          matched = true;
+          break;
+        }
+      }
+    }
+    
+    return matched;
+  } catch (const std::exception& e) {
+    DEBUG_PRINTLN("GY30硬件匹配失败: " + String(e.what()));
+    return false;
+  } catch (...) {
+    DEBUG_PRINTLN("GY30硬件匹配失败: 未知异常");
+    return false;
+  }
+}

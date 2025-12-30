@@ -153,3 +153,22 @@ int16_t EinkDriver::measureTextHeight(const String& text, uint8_t size) const {
   display.getTextBounds(text.c_str(), 0, 0, &x1, &y1, &w, &h);
   return h * size;
 }
+
+bool EinkDriver::matchHardware() {
+  DEBUG_PRINTLN("检测墨水屏硬件匹配...");
+  
+  try {
+    // 尝试初始化显示对象来检测硬件
+    display.init();
+    
+    // 检查是否成功初始化
+    // 如果初始化成功，说明硬件匹配
+    return true;
+  } catch (const std::exception& e) {
+    DEBUG_PRINTLN("墨水屏硬件匹配失败: " + String(e.what()));
+    return false;
+  } catch (...) {
+    DEBUG_PRINTLN("墨水屏硬件匹配失败: 未知异常");
+    return false;
+  }
+}

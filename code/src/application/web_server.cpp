@@ -4,7 +4,11 @@
 #include "../modules/sensor_manager.h"
 #include "../coresystem/font_manager.h"
 #include "../coresystem/tf_card_manager.h"
+#include "../coresystem/core_system.h"
 #include <ArduinoJson.h>
+
+// 外部全局对象
+CoreSystem* coreSystem;
 
 // 外部全局对象
 extern WiFiManager wifiManager;
@@ -742,6 +746,24 @@ const char* WebServerManager::settings_html = R"(
                     <button type="submit" class="btn btn-primary">保存设置</button>
                     <button type="button" class="btn btn-secondary" onclick="resetForm()">重置表单</button>
                 </div>
+                
+                <!-- 工厂重置 -->
+                <div class="settings-card">
+                    <h3>工厂重置</h3>
+                    <p>执行工厂重置将清除所有设置，恢复设备到初始状态。此操作不可恢复！</p>
+                    <div class="button-container">
+                        <button type="button" class="btn btn-danger" onclick="confirmReset()">执行工厂重置</button>
+                    </div>
+                </div>
+                
+                <script>
+                    // 工厂重置确认
+                    function confirmReset() {
+                        if (confirm('确定要执行工厂重置吗？此操作将清除所有设置，不可恢复！')) {
+                            window.location.href = '/factory_reset';
+                        }
+                    }
+                </script>
             </form>
         </main>
         
@@ -2235,6 +2257,7 @@ void WebServerManager::init() {
     server.on("/enable_plugin", HTTP_POST, std::bind(&WebServerManager::handleEnablePlugin, this));
     server.on("/disable_plugin", HTTP_POST, std::bind(&WebServerManager::handleDisablePlugin, this));
     server.on("/style.css", std::bind(&WebServerManager::handleCSS, this));
+    server.on("/factory_reset", std::bind(&WebServerManager::handleFactoryReset, this));
     
     // API路由 - 设备管理API
     server.on("/api", std::bind(&WebServerManager::handleApi, this));
@@ -2959,4 +2982,27 @@ String WebServerManager::getCurrentTime() {
             timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
     
     return String(timeString);
+}
+
+void WebServerManager::handleFactoryReset() {
+    DEBUG_PRINTLN("处理工厂重置请求");
+    
+    String html = "<!DOCTYPE html>";
+    html += "<html lang=\"zh-CN\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>工厂重置</title><style>body{font-family:Arial,sans-serif;background:#f0f0f0;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;} .container{text-align:center;background:white;padding:40px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1);} h1{color:#333;} p{color:#666;margin:20px 0;} .btn{display:inline-block;padding:10px 20px;background:#4CAF50;color:white;text-decoration:none;border-radius:4px;transition:background 0.3s;} .btn:hover{background:#45a049;}</style></head><body>";
+    html += "<div class=\"container\"><h1>正在执行工厂重置</h1><p>设备将在3秒后重启...</p></div></body></html>";
+    
+    // 发送响应给客户端
+    server.send(200, "text/html", html);
+    
+    // 延迟一段时间让客户端收到响应
+    delay(1000);
+    
+    // 执行工厂重置
+    if (coreSystem) {
+        // 重置配置
+        coreSystem->resetConfig();
+        
+        // 重置系统
+        coreSystem->reset();
+    }
 }

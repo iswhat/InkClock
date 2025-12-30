@@ -124,6 +124,9 @@ public:
   
   // 获取当前配置
   virtual SensorConfig getConfig() const = 0;
+  
+  // 检测驱动与硬件是否匹配
+  virtual bool matchHardware() = 0;
 };
 
 // 传感器驱动工厂类

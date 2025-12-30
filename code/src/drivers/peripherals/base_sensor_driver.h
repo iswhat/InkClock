@@ -39,6 +39,9 @@ public:
   // 检查传感器是否正常工作
   bool isWorking() const;
   
+  // 检测驱动与硬件是否匹配
+  virtual bool matchHardware() override;
+  
 protected:
   // 传感器配置
   SensorConfig config;
@@ -65,4 +68,9 @@ protected:
   
   // 记录传感器成功
   void recordSuccess();
+  
+  // 填充传感器数据的通用方法
+  void fillSensorData(SensorData& data, float temperature = 0.0, float humidity = 0.0, 
+                     bool motionDetected = false, float gasLevel = 0.0,
+                     bool flameDetected = false, float lightLevel = 0.0);
 };

@@ -97,3 +97,35 @@ void BME680Driver::setConfig(const SensorConfig& config) {
 SensorConfig BME680Driver::getConfig() const {
   return config;
 }
+
+bool BME680Driver::matchHardware() {
+  DEBUG_PRINTLN("检测BME680硬件匹配...");
+  
+  try {
+    // BME680使用I2C接口，通常有两个地址可选：0x76和0x77
+    uint8_t addresses[] = {0x76, 0x77};
+    bool matched = false;
+    
+    // 尝试创建BME680对象并检测两个可能的地址
+    Adafruit_BME680* tempBme680 = new Adafruit_BME680();
+    
+    for (uint8_t address : addresses) {
+      if (tempBme680->begin(address)) {
+        // 初始化成功，尝试执行一次读数验证
+        if (tempBme680->performReading()) {
+          matched = true;
+          break;
+        }
+      }
+    }
+    
+    delete tempBme680;
+    return matched;
+  } catch (const std::exception& e) {
+    DEBUG_PRINTLN("BME680硬件匹配失败: " + String(e.what()));
+    return false;
+  } catch (...) {
+    DEBUG_PRINTLN("BME680硬件匹配失败: 未知异常");
+    return false;
+  }
+}

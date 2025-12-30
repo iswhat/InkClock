@@ -1,6 +1,6 @@
 #include "sht30_driver.h"
 
-SHT30Driver::SHT30Driver() : sht30(nullptr), tempOffset(0.0), humOffset(0.0), initialized(false) {
+SHT30Driver::SHT30Driver() : sht30(nullptr) {
   // 构造函数
 }
 
@@ -13,7 +13,10 @@ SHT30Driver::~SHT30Driver() {
 }
 
 bool SHT30Driver::init(const SensorConfig& config) {
-  this->config = config;
+  // 调用基类初始化
+  if (!BaseSensorDriver::init(config)) {
+    return false;
+  }
   
   // 创建SHT30对象
   sht30 = new Adafruit_SHT31();
@@ -28,12 +31,12 @@ bool SHT30Driver::init(const SensorConfig& config) {
     return false;
   }
   
-  initialized = true;
   return true;
 }
 
 bool SHT30Driver::readData(SensorData& data) {
-  if (!initialized || sht30 == nullptr) {
+  if (!isInitialized() || sht30 == nullptr) {
+    recordError();
     return false;
   }
   
@@ -43,6 +46,7 @@ bool SHT30Driver::readData(SensorData& data) {
   
   // 检查数据是否有效
   if (isnan(h) || isnan(t)) {
+    recordError();
     return false;
   }
   
@@ -60,12 +64,8 @@ bool SHT30Driver::readData(SensorData& data) {
   data.flameDetected = false; // SHT30不支持火焰检测
   data.lightLevel = 0; // SHT30不支持光照检测
   
+  recordSuccess();
   return true;
-}
-
-void SHT30Driver::calibrate(float tempOffset, float humOffset) {
-  this->tempOffset = tempOffset;
-  this->humOffset = humOffset;
 }
 
 String SHT30Driver::getTypeName() const {
@@ -76,17 +76,36 @@ SensorType SHT30Driver::getType() const {
   return SENSOR_TYPE_SHT30;
 }
 
-void SHT30Driver::setConfig(const SensorConfig& config) {
-  this->config = config;
+bool SHT30Driver::matchHardware() {
+  DEBUG_PRINTLN("检测SHT30硬件匹配...");
   
-  // 如果已经初始化，重新初始化传感器
-  if (initialized) {
-    delete sht30;
-    sht30 = nullptr;
-    init(config);
+  try {
+    // SHT30使用I2C接口，通常有两个地址可选：0x44和0x45
+    uint8_t addresses[] = {0x44, 0x45};
+    bool matched = false;
+    
+    // 尝试创建SHT30对象并检测两个可能的地址
+    Adafruit_SHT31* tempSht30 = new Adafruit_SHT31();
+    
+    for (uint8_t address : addresses) {
+      if (tempSht30->begin(address)) {
+        // 初始化成功，尝试读取一次数据验证
+        float h = tempSht30->readHumidity();
+        float t = tempSht30->readTemperature();
+        if (!isnan(h) && !isnan(t)) {
+          matched = true;
+          break;
+        }
+      }
+    }
+    
+    delete tempSht30;
+    return matched;
+  } catch (const std::exception& e) {
+    DEBUG_PRINTLN("SHT30硬件匹配失败: " + String(e.what()));
+    return false;
+  } catch (...) {
+    DEBUG_PRINTLN("SHT30硬件匹配失败: 未知异常");
+    return false;
   }
-}
-
-SensorConfig SHT30Driver::getConfig() const {
-  return config;
 }

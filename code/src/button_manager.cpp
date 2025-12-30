@@ -124,9 +124,9 @@ void ButtonManager::processButtonEvents() {
         }
         state.clickCount = 0;
         
-        // 长按持续时间超过5秒，触发恢复出厂设置
-        if (pressDuration > 5000) {
-          DEBUG_PRINTLN("长按超过5秒，触发恢复出厂设置");
+        // 长按持续时间超过10秒，触发恢复出厂设置
+        if (pressDuration > 10000) {
+          DEBUG_PRINTLN("长按超过10秒，触发恢复出厂设置");
           // 发布恢复出厂设置事件
           EventBus* eventBus = EventBus::getInstance();
           eventBus->publish(EVENT_SYSTEM_RESET, nullptr);
