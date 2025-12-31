@@ -31,7 +31,7 @@ bool HC_SR501Driver::readData(SensorData& data) {
   
   // 填充传感器数据
   data.valid = true;
-  data.timestamp = millis();
+  data.timestamp = platformGetMillis();
   data.temperature = 0.0; // HC-SR501不支持温度检测
   data.humidity = 0.0; // HC-SR501不支持湿度检测
   data.motionDetected = motionDetected;
@@ -90,7 +90,7 @@ bool HC_SR501Driver::matchHardware() {
           return true;
         }
         
-        delay(100); // 等待100ms再读取下一次
+        platformDelay(100); // 等待100ms再读取下一次
       }
     }
     

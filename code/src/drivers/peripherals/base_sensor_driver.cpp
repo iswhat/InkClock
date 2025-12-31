@@ -23,7 +23,7 @@ bool BaseSensorDriver::init(const SensorConfig& config) {
   initialized = true;
   working = true;
   errorCount = 0;
-  lastSuccessReadTime = millis();
+  lastSuccessReadTime = platformGetMillis();
   
   return true;
 }
@@ -132,7 +132,7 @@ void BaseSensorDriver::fillSensorData(SensorData& data, float temperature, float
                                      bool motionDetected, float gasLevel,
                                      bool flameDetected, float lightLevel) {
   data.valid = true;
-  data.timestamp = millis();
+  data.timestamp = platformGetMillis();
   data.temperature = temperature;
   data.humidity = humidity;
   data.motionDetected = motionDetected;

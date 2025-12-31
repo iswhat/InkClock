@@ -184,38 +184,48 @@ void PowerManager::enterLowPowerMode() {
     // 实际的低功耗操作
     // 1. 降低CPU频率（如果支持）
     #if defined(ESP32)
-      setCpuFrequencyMhz(80); // 降低CPU频率到80MHz
+      // 降低CPU频率到80MHz
+      coreSystem->setCpuFrequencyMhz(80);
       DEBUG_PRINTLN("CPU frequency reduced to 80MHz");
     #endif
     
     // 2. 关闭不必要的模块电源
     // 关闭蓝牙（如果支持）
     #if defined(CONFIG_BT_ENABLED)
-      btStop();
-      DEBUG_PRINTLN("Bluetooth disabled");
+      // 关闭蓝牙（如果支持）
+      #if defined(CONFIG_BT_ENABLED)
+        btStop();
+        DEBUG_PRINTLN("Bluetooth disabled");
+      #endif
     #endif
     
     // 关闭WiFi扫描
-    WiFi.mode(WIFI_MODE_NONE);
-    DEBUG_PRINTLN("WiFi mode set to NONE");
+      // 关闭WiFi（如果支持）
+      #if defined(ESP32) || defined(ESP8266)
+        WiFi.mode(WIFI_MODE_NONE);
+        DEBUG_PRINTLN("WiFi mode set to NONE");
+      #endif
     
     // 3. 关闭不必要的外设时钟，但保留报警相关传感器
     #if defined(ESP32)
       // 关闭不需要的外设时钟
-      rtc_gpio_hold_en(GPIO_NUM_0);
-      rtc_gpio_hold_en(GPIO_NUM_1);
-      rtc_gpio_hold_en(GPIO_NUM_2);
-      rtc_gpio_hold_en(GPIO_NUM_3);
-      DEBUG_PRINTLN("GPIO hold enabled for unused pins");
-      
-      // 确保报警相关传感器引脚不被关闭
-      rtc_gpio_hold_dis(GAS_SENSOR_PIN);
-      rtc_gpio_hold_dis(FLAME_SENSOR_PIN);
-      rtc_gpio_hold_dis(PIR_SENSOR_PIN);
-      #if ENABLE_LIGHT_SAVING
-      rtc_gpio_hold_dis(LIGHT_SENSOR_PIN);
+      // 关闭不需要的外设时钟，但保留报警相关传感器
+      #if defined(ESP32)
+        rtc_gpio_hold_en(GPIO_NUM_0);
+        rtc_gpio_hold_en(GPIO_NUM_1);
+        rtc_gpio_hold_en(GPIO_NUM_2);
+        rtc_gpio_hold_en(GPIO_NUM_3);
+        DEBUG_PRINTLN("GPIO hold enabled for unused pins");
+        
+        // 确保报警相关传感器引脚不被关闭
+        rtc_gpio_hold_dis(GAS_SENSOR_PIN);
+        rtc_gpio_hold_dis(FLAME_SENSOR_PIN);
+        rtc_gpio_hold_dis(PIR_SENSOR_PIN);
+        #if ENABLE_LIGHT_SAVING
+        rtc_gpio_hold_dis(LIGHT_SENSOR_PIN);
+        #endif
+        DEBUG_PRINTLN("保留报警相关传感器引脚功能");
       #endif
-      DEBUG_PRINTLN("保留报警相关传感器引脚功能");
     #endif
     
     // 4. 优化显示刷新策略
@@ -244,27 +254,37 @@ void PowerManager::exitLowPowerMode() {
     // 恢复正常操作
     // 1. 恢复CPU频率
     #if defined(ESP32)
-      setCpuFrequencyMhz(240); // 恢复CPU频率到240MHz
+      // 恢复CPU频率到240MHz
+      coreSystem->setCpuFrequencyMhz(240);
       DEBUG_PRINTLN("CPU frequency restored to 240MHz");
     #endif
     
     // 2. 恢复WiFi连接
-    WiFi.mode(WIFI_STA);
-    DEBUG_PRINTLN("WiFi mode set to STA");
+      // 恢复WiFi连接
+      #if defined(ESP32) || defined(ESP8266)
+        WiFi.mode(WIFI_STA);
+        DEBUG_PRINTLN("WiFi mode set to STA");
+      #endif
     
     // 恢复蓝牙（如果支持）
     #if defined(CONFIG_BT_ENABLED)
-      btStart();
-      DEBUG_PRINTLN("Bluetooth enabled");
+      // 恢复蓝牙（如果支持）
+      #if defined(CONFIG_BT_ENABLED)
+        btStart();
+        DEBUG_PRINTLN("Bluetooth enabled");
+      #endif
     #endif
     
     // 3. 恢复GPIO状态
     #if defined(ESP32)
-      rtc_gpio_hold_dis(GPIO_NUM_0);
-      rtc_gpio_hold_dis(GPIO_NUM_1);
-      rtc_gpio_hold_dis(GPIO_NUM_2);
-      rtc_gpio_hold_dis(GPIO_NUM_3);
-      DEBUG_PRINTLN("GPIO hold disabled");
+      // 恢复GPIO状态
+      #if defined(ESP32)
+        rtc_gpio_hold_dis(GPIO_NUM_0);
+        rtc_gpio_hold_dis(GPIO_NUM_1);
+        rtc_gpio_hold_dis(GPIO_NUM_2);
+        rtc_gpio_hold_dis(GPIO_NUM_3);
+        DEBUG_PRINTLN("GPIO hold disabled");
+      #endif
     #endif
     
     // 4. 恢复显示刷新频率
@@ -277,7 +297,25 @@ void PowerManager::exitLowPowerMode() {
 
 bool PowerManager::shouldUpdateDisplay() {
   unsigned long currentTime = millis();
-  unsigned long refreshInterval = isLowPowerMode ? LOW_POWER_REFRESH_INTERVAL : NORMAL_REFRESH_INTERVAL;
+  unsigned long refreshInterval;
+  
+  // 根据电池电量和充电状态动态调整刷新间隔
+  if (isCharging) {
+    // 充电时，使用正常刷新间隔
+    refreshInterval = NORMAL_REFRESH_INTERVAL;
+  } else if (batteryPercentage <= CRITICAL_BATTERY_THRESHOLD) {
+    // 电量极低时，大幅延长刷新间隔
+    refreshInterval = CRITICAL_LOW_POWER_REFRESH_INTERVAL;
+  } else if (isLowPowerMode) {
+    // 低功耗模式下，延长刷新间隔
+    refreshInterval = LOW_POWER_REFRESH_INTERVAL;
+  } else {
+    // 正常模式下，使用正常刷新间隔
+    refreshInterval = NORMAL_REFRESH_INTERVAL;
+  }
+  
+  // 确保刷新间隔在合理范围内
+  refreshInterval = constrain(refreshInterval, MIN_REFRESH_INTERVAL, MAX_REFRESH_INTERVAL);
   
   if (currentTime - lastDisplayUpdateTime >= refreshInterval) {
     lastDisplayUpdateTime = currentTime;

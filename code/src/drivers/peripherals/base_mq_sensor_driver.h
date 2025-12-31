@@ -1,7 +1,7 @@
 #ifndef BASE_MQ_SENSOR_DRIVER_H
 #define BASE_MQ_SENSOR_DRIVER_H
 
-#include "sensor_driver.h"
+#include "base_sensor_driver.h"
 
 /**
  * @brief 基础MQ系列气体传感器驱动类
@@ -9,10 +9,8 @@
  * 这个类为所有MQ系列气体传感器提供通用的实现，包括MQ-2、MQ-5、MQ-7、MQ-135等。
  * 具体的传感器驱动可以继承这个类，只需要实现特定的传感器类型和名称即可。
  */
-class BaseMQSensorDriver : public ISensorDriver {
+class BaseMQSensorDriver : public BaseSensorDriver {
 protected:
-  SensorConfig config;            ///< 传感器配置
-  bool initialized;              ///< 初始化状态标志
   String typeName;               ///< 传感器类型名称
   int threshold;                 ///< 检测阈值
   int pin;                       ///< 传感器引脚
@@ -23,7 +21,7 @@ public:
    * 
    * @param typeName 传感器类型名称
    */
-  BaseMQSensorDriver(const String& typeName) : initialized(false), typeName(typeName), threshold(512), pin(-1) {
+  BaseMQSensorDriver(const String& typeName) : BaseSensorDriver(), typeName(typeName), threshold(512), pin(-1) {
   }
   
   /**
@@ -39,19 +37,20 @@ public:
    * @return 初始化是否成功
    */
   bool init(const SensorConfig& config) override {
-    // 保存配置
-    this->config = config;
+    // 调用基类初始化
+    if (!BaseSensorDriver::init(config)) {
+      return false;
+    }
     
     // 使用配置中的引脚，或默认引脚
-    pin = (config.pin != -1) ? config.pin : A0;
+    pin = (this->config.pin != -1) ? this->config.pin : A0;
     
     // 设置传感器引脚为输入
     pinMode(pin, INPUT);
-    initialized = true;
     
     // 如果配置了气体阈值，则使用配置的阈值
-    if (config.gasThreshold > 0) {
-      threshold = config.gasThreshold;
+    if (this->config.gasThreshold > 0) {
+      threshold = this->config.gasThreshold;
     }
     
     Serial.printf("%s气体传感器初始化成功，引脚: %d，阈值: %d\n", typeName.c_str(), pin, threshold);
@@ -66,36 +65,19 @@ public:
    * @return 读取是否成功
    */
   bool readData(SensorData& data) override {
-    if (!initialized) {
+    if (!isInitialized()) {
+      recordError();
       return false;
     }
     
     // 读取模拟值
     int gasValue = analogRead(pin);
     
-    // 设置传感器数据
-    data.valid = true;
-    data.timestamp = millis();
-    data.gasLevel = gasValue;
-    data.temperature = 0.0; // MQ系列传感器不支持温度检测
-    data.humidity = 0.0; // MQ系列传感器不支持湿度检测
-    data.motionDetected = false; // MQ系列传感器不支持人体感应
-    data.flameDetected = false; // MQ系列传感器不支持火焰检测
-    data.lightLevel = 0; // MQ系列传感器不支持光照检测
+    // 使用基类的fillSensorData方法填充数据
+    fillSensorData(data, 0.0, 0.0, false, gasValue, false, 0);
     
+    recordSuccess();
     return true;
-  }
-  
-  /**
-   * @brief 校准传感器
-   * 
-   * MQ系列传感器不需要温湿度校准，所以这里不做任何操作
-   * 
-   * @param tempOffset 温度偏移量
-   * @param humOffset 湿度偏移量
-   */
-  void calibrate(float tempOffset, float humOffset) override {
-    // MQ系列传感器不需要温湿度校准
   }
   
   /**
@@ -105,26 +87,6 @@ public:
    */
   String getTypeName() const override {
     return typeName;
-  }
-  
-  /**
-   * @brief 设置传感器配置
-   * 
-   * @param config 传感器配置
-   */
-  void setConfig(const SensorConfig& config) override {
-    this->config = config;
-    // 重新初始化传感器
-    init(config);
-  }
-  
-  /**
-   * @brief 获取传感器配置
-   * 
-   * @return 传感器配置
-   */
-  SensorConfig getConfig() const override {
-    return config;
   }
   
   /**

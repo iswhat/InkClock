@@ -31,7 +31,7 @@ bool HC_SR505Driver::readData(SensorData& data) {
   
   // 填充传感器数据
   data.valid = true;
-  data.timestamp = millis();
+  data.timestamp = platformGetMillis();
   data.temperature = 0.0; // HC-SR505不支持温度检测
   data.humidity = 0.0; // HC-SR505不支持湿度检测
   data.motionDetected = motionDetected;

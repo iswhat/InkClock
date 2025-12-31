@@ -36,11 +36,23 @@ void BluetoothManager::MyWiFiPasswordCallbacks::onWrite(BLECharacteristic* pChar
     DEBUG_PRINT("WiFi Password received: ");
     DEBUG_PRINTLN(manager->wifiPassword);
     
-    // 当同时收到SSID和密码时，标记为已配置
+    // 当同时收到SSID和密码时，标记为已配置并尝试连接
     if (manager->wifiSSID.length() > 0 && manager->wifiPassword.length() > 0) {
       manager->wifiConfigured = true;
       manager->setWiFiConfigStatus(true);
       DEBUG_PRINTLN("WiFi configuration completed");
+      
+      // 获取WiFi管理器实例并连接到配置的WiFi网络
+      extern WiFiManager wifiManager;
+      wifiManager.setConfiguredWiFi(manager->wifiSSID, manager->wifiPassword);
+      wifiManager.connect(manager->wifiSSID, manager->wifiPassword);
+      
+      // 发送连接状态通知
+      String status = WiFi.status() == WL_CONNECTED ? "Connected" : "Connecting";
+      if (manager->pWiFiStatusCharacteristic != nullptr) {
+        manager->pWiFiStatusCharacteristic->setValue(status.c_str());
+        manager->pWiFiStatusCharacteristic->notify();
+      }
     }
   }
 }
@@ -134,7 +146,12 @@ void BluetoothManager::init() {
 void BluetoothManager::loop() {
   // 检查是否有设备连接
   if (deviceConnected) {
-    // 可以在这里添加一些连接状态下的处理
+    // 处理WiFi配置请求
+    if (pWiFiStatusCharacteristic != nullptr) {
+      String status = WiFi.status() == WL_CONNECTED ? "Connected" : "Disconnected";
+      pWiFiStatusCharacteristic->setValue(status.c_str());
+      pWiFiStatusCharacteristic->notify();
+    }
   }
 }
 

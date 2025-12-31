@@ -196,7 +196,7 @@ uint32_t platformGetFirmwareSize() {
  */
 uint32_t platformGetFreeFlashSize() {
     #ifdef ESP32
-        return ESP.getFlashChipSize() - ESP.getSketchSize() - ESP.getFreeSketchSpace();
+        return ESP.getFreeSketchSpace();
     #elif defined(ESP8266)
         return ESP.getFreeSketchSpace();
     #elif defined(NRF52)

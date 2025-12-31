@@ -54,8 +54,8 @@ void ButtonManager::update() {
 void ButtonManager::loop() {
   // 定期更新按键状态
   static unsigned long lastUpdate = 0;
-  if (millis() - lastUpdate > 10) { // 每10ms检查一次按键状态
-    lastUpdate = millis();
+  if (platformGetMillis() - lastUpdate > 10) { // 每10ms检查一次按键状态
+    lastUpdate = platformGetMillis();
     update();
   }
 }
@@ -75,7 +75,7 @@ void ButtonManager::readButtons() {
     
     // 检查状态是否变化
     if (state != buttonStates[i].lastState) {
-      buttonStates[i].lastChangeTime = millis();
+      buttonStates[i].lastChangeTime = platformGetMillis();
       buttonStates[i].lastState = state;
     }
   }
@@ -84,7 +84,7 @@ void ButtonManager::readButtons() {
 void ButtonManager::debounceButtons() {
   // 消抖处理，只有当状态稳定一段时间后才更新当前状态
   for (int i = 0; i < BUTTON_COUNT; i++) {
-    if (millis() - buttonStates[i].lastChangeTime > BUTTON_DEBOUNCE_TIME) {
+    if (platformGetMillis() - buttonStates[i].lastChangeTime > BUTTON_DEBOUNCE_TIME) {
       buttonStates[i].currentState = buttonStates[i].lastState;
     }
   }
@@ -96,18 +96,18 @@ void ButtonManager::processButtonEvents() {
     
     // 处理按键按下事件
     if (state.currentState && !state.lastState) {
-      state.pressStartTime = millis();
+      state.pressStartTime = platformGetMillis();
       state.lastState = true;
     }
     
     // 处理按键释放事件
     if (!state.currentState && state.lastState) {
-      unsigned long pressDuration = millis() - state.pressStartTime;
+      unsigned long pressDuration = platformGetMillis() - state.pressStartTime;
       
       if (pressDuration < BUTTON_LONG_PRESS_TIME) {
         // 短按，检查是否是双击
         state.clickCount++;
-        state.lastClickTime = millis();
+        state.lastClickTime = platformGetMillis();
         
         // 双击事件
         if (state.clickCount == 2) {
@@ -142,7 +142,7 @@ void ButtonManager::processButtonEvents() {
     }
     
     // 处理单击事件（延迟一段时间后，如果没有第二次点击）
-    if (state.clickCount == 1 && millis() - state.lastClickTime > 300) {
+    if (state.clickCount == 1 && platformGetMillis() - state.lastClickTime > 300) {
       if (callback != NULL) {
         callback(i, BUTTON_CLICK);
       }
@@ -151,7 +151,7 @@ void ButtonManager::processButtonEvents() {
     
     // 处理长按持续事件
     if (state.currentState && state.lastState) {
-      unsigned long pressDuration = millis() - state.pressStartTime;
+      unsigned long pressDuration = platformGetMillis() - state.pressStartTime;
       if (pressDuration >= BUTTON_LONG_PRESS_TIME) {
         // 长按持续事件
         // TODO: 实现长按持续事件处理

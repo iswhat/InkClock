@@ -78,5 +78,63 @@
 #define LIGHT_CHANGE_THRESHOLD 50
 #define NORMAL_REFRESH_INTERVAL 60000
 #define LOW_POWER_REFRESH_INTERVAL 300000
+// 新增：电量临界阈值和刷新间隔
+#define CRITICAL_BATTERY_THRESHOLD 10
+#define CRITICAL_LOW_POWER_REFRESH_INTERVAL 600000
+#define MIN_REFRESH_INTERVAL 10000
+#define MAX_REFRESH_INTERVAL 3600000
+
+// 电池电压定义
+#define FULL_BATTERY_VOLTAGE 4.2
+#define EMPTY_BATTERY_VOLTAGE 3.0
+#define LOW_BATTERY_THRESHOLD 20
+
+// 充电相关定义
+#define CHARGING_PROTECTION_ENABLED 1
+#define CHARGING_POWER_MIN 5.0
+#define CHARGING_POWER_MAX 18.0
+#define DC_POWER_SUPPORTED 0
+#define ONLY_USB_POWER_SUPPORTED 1
+
+// 充电状态引脚定义
+#define CHARGE_STATUS_PIN -1
+#define BATTERY_ADC_PIN 34
+
+// 人体感应传感器引脚定义
+#define PIR_SENSOR_PIN -1
+
+// 光照传感器引脚定义
+#define LIGHT_SENSOR_PIN -1
+
+// 气体传感器引脚定义
+#define GAS_SENSOR_PIN -1
+
+// 火焰传感器引脚定义
+#define FLAME_SENSOR_PIN -1
+
+// 充电接口类型
+#define ChargingInterfaceType enum {
+  USB_TYPE_A,
+  USB_TYPE_C,
+  USB_TYPE_B,
+  DC_JACK
+};
+
+// 充电接口类型
+#define ChargingInterfaceType enum {
+  USB_TYPE_A,
+  USB_TYPE_C,
+  USB_TYPE_B,
+  DC_JACK
+};
+
+// 充电保护电路状态
+#define ChargingProtectionStatus enum {
+  PROTECTION_OK,
+  PROTECTION_OVER_VOLTAGE,
+  PROTECTION_OVER_CURRENT,
+  PROTECTION_OVER_TEMPERATURE,
+  PROTECTION_SHORT_CIRCUIT
+};
 
 #endif // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H

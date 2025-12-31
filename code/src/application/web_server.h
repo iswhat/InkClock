@@ -36,12 +36,17 @@ private:
   void handleDisablePlugin();
   void handleNotFound();
   void handleCSS();
+  void handleFactoryReset();
   // 传感器数据接口
   void handleSensorData();
   void handleApi();
   // IPv6推送功能API（合并自IPv6Server）
   void handleMessagePush();
   void handleDeviceStatus();
+  // 远程控制API
+  void handleRemoteControl();
+  void handleDataSync();
+  void handleRefreshDisplay();
   // 辅助函数
   void sendJsonResponse(const String& json, int statusCode = 200);
   String getCurrentTime();
@@ -49,6 +54,7 @@ private:
   // 辅助函数
   String getIPAddress();
   String generateQRCodeURL();
+  void parseCommandAndParam(String& command, String& param);
   
 public:
   WebServerManager();

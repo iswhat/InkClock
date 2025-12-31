@@ -101,7 +101,7 @@ void EinkDisplay::updateDisplay() {
 void EinkDisplay::updateDisplayPartial() {
   DEBUG_PRINTLN("局部更新显示...");
   
-  unsigned long currentTime = millis();
+  unsigned long currentTime = platformGetMillis();
   bool isLowPowerMode = powerManager.getLowPowerMode();
   
   // 根据低功耗模式调整刷新间隔倍率
@@ -291,7 +291,7 @@ void EinkDisplay::showSplashScreen() {
   #endif
   
   displayFullRefresh();
-  delay(SPLASH_SCREEN_DURATION);
+  platformDelay(SPLASH_SCREEN_DURATION);
   
   DEBUG_PRINTLN("启动画面显示完成");
 }
@@ -984,7 +984,7 @@ void EinkDisplay::showMessage(String message, uint32_t duration) {
   displayFullRefresh();
   
   // 延时显示
-  delay(duration);
+  platformDelay(duration);
   
   // 恢复之前的显示内容
   // TODO: 实现显示内容恢复
@@ -1733,7 +1733,7 @@ bool EinkDisplay::drawAnimatedGIF(String gifPath, int x, int y, int width, int h
   this->gifLoopCount = loopCount;
   gifCurrentLoop = 0;
   gifCurrentFrame = 0;
-  gifLastFrameTime = millis();
+  gifLastFrameTime = platformGetMillis();
   currentGifPath = gifPath;
   
   // 实现动画GIF绘制

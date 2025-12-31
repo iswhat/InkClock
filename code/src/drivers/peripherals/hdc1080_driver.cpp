@@ -49,7 +49,7 @@ bool HDC1080Driver::readData(SensorData& data) {
   
   // 填充传感器数据
   data.valid = true;
-  data.timestamp = millis();
+  data.timestamp = platformGetMillis();
   data.temperature = t;
   data.humidity = h;
   data.motionDetected = false; // HDC1080不支持人体感应

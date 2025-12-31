@@ -60,7 +60,7 @@ bool HTU21DDriver::readData(SensorData& data) {
   
   // 设置传感器数据
   data.valid = true;
-  data.timestamp = millis();
+  data.timestamp = platformGetMillis();
   data.temperature = temperature;
   data.humidity = humidity;
   

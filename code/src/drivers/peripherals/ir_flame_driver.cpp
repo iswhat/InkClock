@@ -32,7 +32,7 @@ bool IRFlameDriver::readData(SensorData& data) {
   
   // 填充传感器数据
   data.valid = true;
-  data.timestamp = millis();
+  data.timestamp = platformGetMillis();
   data.temperature = 0.0; // IR火焰传感器不支持温度检测
   data.humidity = 0.0; // IR火焰传感器不支持湿度检测
   data.motionDetected = false; // IR火焰传感器不支持人体感应
@@ -95,7 +95,7 @@ bool IRFlameDriver::matchHardware() {
         }
         
         previousState = currentState;
-        delay(100); // 等待100ms再读取下一次
+        platformDelay(100); // 等待100ms再读取下一次
       }
       
       // 如果有稳定信号，认为硬件匹配

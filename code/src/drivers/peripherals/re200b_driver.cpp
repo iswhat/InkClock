@@ -54,7 +54,7 @@ bool RE200BDriver::readData(SensorData& data) {
   
   // 设置传感器数据
   data.valid = true;
-  data.timestamp = millis();
+  data.timestamp = platformGetMillis();
   data.motionDetected = motionDetected;
   data.lightLevel = analogValue;  // 将模拟值保存到lightLevel字段
   

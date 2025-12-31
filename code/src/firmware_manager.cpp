@@ -149,8 +149,8 @@ bool FirmwareManager::autoDetectHardware() {
 
 void FirmwareManager::rebootDevice() {
   logUpdateStatus("Rebooting device...");
-  delay(1000);
-  ESP.restart();
+  platformDelay(1000);
+  platformReset();
 }
 
 bool FirmwareManager::mountTF() {

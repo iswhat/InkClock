@@ -34,11 +34,14 @@ private:
   static CoreSystem* instance;
   
   // 私有构造函数
-  CoreSystem() {
+  CoreSystem() {    
+    // 初始化系统状态
     state = SYSTEM_STATE_UNINITIALIZED;
-    eventBus = EventBus::getInstance();
-    driverRegistry = DriverRegistry::getInstance();
-    nextTimerId = 0;
+    
+    // 初始化核心组件指针为nullptr
+    eventBus = nullptr;
+    driverRegistry = nullptr;
+    systemMutex = nullptr;
     
     // 初始化电源管理
     batteryVoltage = 0.0;
@@ -68,7 +71,20 @@ private:
     systemMutex = xSemaphoreCreateMutex();
     if (systemMutex == NULL) {
       Serial.println("Failed to create system mutex");
+      // 在构造函数中无法返回错误，所以我们设置一个标志
+      state = SYSTEM_STATE_ERROR;
     }
+    
+    // 初始化核心组件
+    try {
+      eventBus = EventBus::getInstance();
+      driverRegistry = DriverRegistry::getInstance();
+    } catch (const std::exception& e) {
+      Serial.printf("Failed to initialize core components: %s\n", e.what());
+      state = SYSTEM_STATE_ERROR;
+    }
+    
+    nextTimerId = 0;
   }
   
   // 系统状态
@@ -256,6 +272,19 @@ public:
   
   // 初始化核心系统
   bool init() {
+    // 检查构造函数是否成功
+    if (state == SYSTEM_STATE_ERROR) {
+      Serial.println("CoreSystem constructor failed, cannot initialize");
+      return false;
+    }
+    
+    // 检查核心组件是否初始化成功
+    if (eventBus == nullptr || driverRegistry == nullptr) {
+      Serial.println("Core components not initialized, cannot initialize");
+      state = SYSTEM_STATE_ERROR;
+      return false;
+    }
+    
     state = SYSTEM_STATE_INITIALIZING;
     startTime = millis();
     
@@ -265,8 +294,8 @@ public:
     
     // 1. 初始化SPIFFS文件系统
     if (!initSPIFFS()) {
-      state = SYSTEM_STATE_ERROR;
-      return false;
+      Serial.println("SPIFFS initialization failed, continuing with limited functionality");
+      // 不返回错误，因为SPIFFS可能不是所有设备都需要
     }
     
     // 2. 加载配置
@@ -280,11 +309,22 @@ public:
     
     // 4. 初始化驱动注册表
     Serial.println("Initializing Driver Registry...");
-    driverRegistry->init();
+    try {
+      driverRegistry->init();
+    } catch (const std::exception& e) {
+      Serial.printf("Driver Registry initialization failed: %s\n", e.what());
+      state = SYSTEM_STATE_ERROR;
+      return false;
+    }
     
     // 5. 扫描设备
     Serial.println("Scanning for devices...");
-    driverRegistry->scanDevices();
+    try {
+      driverRegistry->scanDevices();
+    } catch (const std::exception& e) {
+      Serial.printf("Device scanning failed: %s\n", e.what());
+      // 不返回错误，继续运行
+    }
     
     // 6. 系统自检：驱动与硬件匹配检测
     Serial.println("====================================");
@@ -292,26 +332,46 @@ public:
     Serial.println("====================================");
     
     // 6.1 执行驱动硬件匹配检测
-    bool hardwareMatch = driverRegistry->performHardwareMatch();
-    if (!hardwareMatch) {
-      Serial.println("Warning: Some drivers do not match hardware");
+    bool hardwareMatch = false;
+    try {
+      hardwareMatch = driverRegistry->performHardwareMatch();
+      if (!hardwareMatch) {
+        Serial.println("Warning: Some drivers do not match hardware");
+      }
+    } catch (const std::exception& e) {
+      Serial.printf("Hardware match detection failed: %s\n", e.what());
     }
     
     // 6.2 根据检测结果启用/禁用功能模块
-    driverRegistry->enableCompatibleModules();
-    
-    // 6.3 禁用不支持的功能模块
-    driverRegistry->disableIncompatibleModules();
-    
-    // 6.4 打印自检结果
-    driverRegistry->printSelfCheckResult();
+    try {
+      driverRegistry->enableCompatibleModules();
+      
+      // 6.3 禁用不支持的功能模块
+      driverRegistry->disableIncompatibleModules();
+      
+      // 6.4 打印自检结果
+      driverRegistry->printSelfCheckResult();
+    } catch (const std::exception& e) {
+      Serial.printf("Module configuration failed: %s\n", e.what());
+      // 不返回错误，继续运行
+    }
     
     // 7. 初始化电源管理
     Serial.println("Initializing Power Management...");
-    updatePowerState();
+    try {
+      updatePowerState();
+    } catch (const std::exception& e) {
+      Serial.printf("Power management initialization failed: %s\n", e.what());
+      // 不返回错误，继续运行
+    }
     
     // 8. 发布系统启动事件
-    eventBus->publish(EVENT_SYSTEM_STARTUP, nullptr);
+    try {
+      eventBus->publish(EVENT_SYSTEM_STARTUP, nullptr);
+    } catch (const std::exception& e) {
+      Serial.printf("Failed to publish system startup event: %s\n", e.what());
+      // 不返回错误，继续运行
+    }
     
     state = SYSTEM_STATE_RUNNING;
     
@@ -329,17 +389,46 @@ public:
       return;
     }
     
-    // 处理事件总线消息（如果需要）
-    // 事件总线采用发布-订阅模式，不需要主动轮询
+    // 检查核心组件是否可用
+    if (eventBus == nullptr || driverRegistry == nullptr) {
+      Serial.println("Core components not available, cannot run");
+      state = SYSTEM_STATE_ERROR;
+      return;
+    }
     
     // 运行驱动注册中心的循环
-    driverRegistry->loop();
+    try {
+      driverRegistry->loop();
+    } catch (const std::exception& e) {
+      sendError("Driver Registry loop failed", 2001, "CoreSystem");
+      // 继续运行，因为驱动注册中心可能只是部分功能失效
+    }
     
     // 处理定时器
-    processTimers();
+    try {
+      processTimers();
+    } catch (const std::exception& e) {
+      sendError("Timer processing failed", 2002, "CoreSystem");
+      // 继续运行，因为定时器可能只是部分功能失效
+    }
     
     // 更新电源状态
-    updatePowerState();
+    try {
+      updatePowerState();
+    } catch (const std::exception& e) {
+      sendError("Power state update failed", 2003, "CoreSystem");
+      // 继续运行，因为电源状态更新可能只是部分功能失效
+    }
+    
+    // 动态调整CPU频率
+    try {
+      if (dynamicCpuFreqEnabled) {
+        adjustCpuFreqBasedOnLoad();
+      }
+    } catch (const std::exception& e) {
+      sendError("CPU frequency adjustment failed", 2004, "CoreSystem");
+      // 继续运行，因为CPU频率调整可能只是部分功能失效
+    }
   }
   
   // 进入低功耗模式
@@ -763,24 +852,46 @@ public:
   // 优化功耗的周期性任务
   void optimizePowerConsumption() {
     // 根据电池电量调整功耗策略
-    if (batteryPercentage < 20) {
-      // 电量低于20%，进入深度低功耗模式
+    if (batteryPercentage <= CRITICAL_BATTERY_THRESHOLD) {
+      // 电量极低时，进入深度低功耗模式
       setLowPowerMode(true);
       // 延长传感器读取间隔
       // 减少WiFi/BLE活动
-    } else if (batteryPercentage < 50) {
-      // 电量低于50%，进入中度低功耗模式
+      // 降低CPU频率
+      setCpuFrequencyMhz(minCpuFreqMHz);
+    } else if (batteryPercentage < 20) {
+      // 电量低于20%，进入中度低功耗模式
       setLowPowerMode(true);
+      // 延长传感器读取间隔
+      // 减少WiFi/BLE活动
+      setCpuFrequencyMhz((minCpuFreqMHz + maxCpuFreqMHz) / 3);
+    } else if (batteryPercentage < 50) {
+      // 电量低于50%，进入轻度低功耗模式
+      setLowPowerMode(true);
+      setCpuFrequencyMhz((minCpuFreqMHz + maxCpuFreqMHz) / 2);
     } else {
       // 电量充足，使用正常模式
       setLowPowerMode(false);
+      // 动态调整CPU频率
+      adjustCpuFreqBasedOnLoad();
     }
     
     // 动态调整CPU频率
-    adjustCpuFreqBasedOnLoad();
+    if (dynamicCpuFreqEnabled && !isLowPowerMode) {
+      adjustCpuFreqBasedOnLoad();
+    }
     
     // 清理内存，减少内存占用
     cleanupMemory();
+    
+    // 根据当前状态调整系统任务优先级
+    if (isLowPowerMode) {
+      // 低功耗模式下，降低非关键任务的优先级
+      defaultTaskPriority = 3;
+    } else {
+      // 正常模式下，恢复正常优先级
+      defaultTaskPriority = 5;
+    }
   }
   
   // 获取芯片ID

@@ -56,7 +56,7 @@ bool TSL2561Driver::readData(SensorData& data) {
   if (event.light > 0) {
     // 设置传感器数据
     data.valid = true;
-    data.timestamp = millis();
+    data.timestamp = platformGetMillis();
     data.lightLevel = static_cast<int>(event.light);  // 将光照强度保存到lightLevel字段
     
     return true;

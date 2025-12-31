@@ -59,7 +59,7 @@ bool BMP388Driver::readData(SensorData& data) {
     
     // 设置传感器数据
     data.valid = true;
-    data.timestamp = millis();
+    data.timestamp = platformGetMillis();
     data.temperature = temperature;
     // BMP388没有湿度数据，所以保留默认值
     

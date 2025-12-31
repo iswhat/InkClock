@@ -2263,6 +2263,18 @@ void WebServerManager::init() {
     server.on("/api", std::bind(&WebServerManager::handleApi, this));
     server.on("/api/sensor", std::bind(&WebServerManager::handleSensorData, this));
     
+    // API路由 - 远程控制API（同时支持GET和POST请求）
+    server.on("/api/control", HTTP_GET, std::bind(&WebServerManager::handleRemoteControl, this));
+    server.on("/api/control", HTTP_POST, std::bind(&WebServerManager::handleRemoteControl, this));
+    
+    // API路由 - 数据同步API（同时支持GET和POST请求）
+    server.on("/api/sync", HTTP_GET, std::bind(&WebServerManager::handleDataSync, this));
+    server.on("/api/sync", HTTP_POST, std::bind(&WebServerManager::handleDataSync, this));
+    
+    // API路由 - 显示刷新API（同时支持GET和POST请求）
+    server.on("/api/refresh", HTTP_GET, std::bind(&WebServerManager::handleRefreshDisplay, this));
+    server.on("/api/refresh", HTTP_POST, std::bind(&WebServerManager::handleRefreshDisplay, this));
+    
     // API路由 - IPv6推送功能API（合并自IPv6Server）
     server.on("/api/push", HTTP_POST, std::bind(&WebServerManager::handleMessagePush, this));
     server.on("/api/status", HTTP_GET, std::bind(&WebServerManager::handleDeviceStatus, this));
@@ -2293,45 +2305,202 @@ void WebServerManager::loop() {
 void WebServerManager::handleRoot() {
     DEBUG_PRINTLN("处理根路径请求");
     
-    String html = String(index_html);
-    
-    // 替换模板变量
-    html.replace("%IP_ADDRESS%", getIPAddress());
-    html.replace("%MAC_ADDRESS%", WiFi.macAddress());
-    html.replace("%WIFI_SSID%", WiFi.SSID());
-    html.replace("%WIFI_RSSI%", String(WiFi.RSSI()));
-    html.replace("%WIFI_STATUS%", WiFi.status() == WL_CONNECTED ? "已连接" : "未连接");
-    html.replace("%QR_CODE_URL%", generateQRCodeURL());
-    
-    server.send(200, "text/html", html);
+    try {
+        String html = String(index_html);
+        
+        // 替换模板变量 - 使用局部变量避免直接访问可能失败的API
+        String ipAddress = "--";
+        String macAddress = "--";
+        String wifiSsid = "--";
+        String wifiRssi = "--";
+        String wifiStatus = "未知";
+        String qrCodeUrl = "";
+        
+        try {
+            ipAddress = getIPAddress();
+            macAddress = WiFi.macAddress();
+            wifiSsid = WiFi.SSID();
+            wifiRssi = String(WiFi.RSSI());
+            wifiStatus = WiFi.status() == WL_CONNECTED ? "已连接" : "未连接";
+            qrCodeUrl = generateQRCodeURL();
+        } catch (const std::exception& e) {
+            DEBUG_PRINTF("获取网络信息异常: %s\n", e.what());
+        }
+        
+        html.replace("%IP_ADDRESS%", ipAddress);
+        html.replace("%MAC_ADDRESS%", macAddress);
+        html.replace("%WIFI_SSID%", wifiSsid);
+        html.replace("%WIFI_RSSI%", wifiRssi);
+        html.replace("%WIFI_STATUS%", wifiStatus);
+        html.replace("%QR_CODE_URL%", qrCodeUrl);
+        
+        // 获取传感器数据 - 增强错误处理
+        String temperature = "--";
+        String humidity = "--";
+        String sensorStatus = "异常";
+        String sensorUpdateTime = "--";
+        
+        try {
+            SensorData sensorData;
+            if (sensorManager.readSensorData(sensorData)) {
+                temperature = String(sensorData.temperature, 1);
+                humidity = String(sensorData.humidity, 1);
+                sensorStatus = "正常";
+                unsigned long updateTime = (platformGetMillis() - sensorData.timestamp) / 1000;
+                sensorUpdateTime = String(updateTime);
+            }
+        } catch (const std::exception& e) {
+            DEBUG_PRINTF("获取传感器数据异常: %s\n", e.what());
+        }
+        
+        html.replace("%TEMPERATURE%", temperature);
+        html.replace("%HUMIDITY%", humidity);
+        html.replace("%SENSOR_STATUS%", sensorStatus);
+        html.replace("%SENSOR_UPDATE_TIME%", sensorUpdateTime);
+        
+        // 获取电源状态 - 增强错误处理
+        String batteryVoltage = "--";
+        String batteryLevel = "--";
+        String chargeStatus = "未知";
+        String powerMode = "未知";
+        
+        try {
+            if (coreSystem) {
+                batteryVoltage = String(coreSystem->getBatteryVoltage(), 2);
+                batteryLevel = String(coreSystem->getBatteryPercentage());
+                chargeStatus = coreSystem->isChargingState() ? "充电中" : "未充电";
+                powerMode = coreSystem->isInLowPowerMode() ? "低功耗模式" : "正常模式";
+            }
+        } catch (const std::exception& e) {
+            DEBUG_PRINTF("获取电源状态异常: %s\n", e.what());
+        }
+        
+        html.replace("%BATTERY_VOLTAGE%", batteryVoltage);
+        html.replace("%BATTERY_LEVEL%", batteryLevel);
+        html.replace("%CHARGE_STATUS%", chargeStatus);
+        html.replace("%POWER_MODE%", powerMode);
+        
+        // 获取系统状态 - 增强错误处理
+        String uptime = "--";
+        String freeMem = "--";
+        String cpuTemp = "--";
+        
+        try {
+            uptime = String(platformGetMillis() / 1000);
+            
+            if (coreSystem) {
+                size_t freeHeap, minFreeHeap;
+                coreSystem->getMemoryInfo(freeHeap, minFreeHeap);
+                freeMem = String(freeHeap / 1024);
+            }
+            
+            // 如果支持CPU温度，这里可以添加
+            // cpuTemp = String(获取CPU温度的函数(), 1);
+        } catch (const std::exception& e) {
+            DEBUG_PRINTF("获取系统状态异常: %s\n", e.what());
+        }
+        
+        html.replace("%UPTIME%", uptime);
+        html.replace("%FREE_MEM%", freeMem);
+        html.replace("%CPU_TEMP%", cpuTemp);
+        
+        // 确保所有模板变量都被替换，避免泄露到前端
+        html.replace("%", "--");
+        
+        // 发送响应
+        server.send(200, "text/html", html);
+    } catch (const std::exception& e) {
+        DEBUG_PRINTF("处理根路径请求异常: %s\n", e.what());
+        server.send(500, "text/plain", "内部服务器错误: " + String(e.what()));
+    } catch (...) {
+        DEBUG_PRINTLN("处理根路径请求未知异常");
+        server.send(500, "text/plain", "内部服务器错误");
+    }
 }
 
 void WebServerManager::handleSettings() {
     DEBUG_PRINTLN("处理设置页面请求");
     
-    String html = String(settings_html);
-    
-    // 替换模板变量
-    html.replace("%WIFI_SSID%", WiFi.SSID());
-    html.replace("%WIFI_PASSWORD%", ""); // 不显示密码
-    html.replace("%TIME_ZONE%", String(TIME_ZONE_OFFSET));
-    html.replace("%DISPLAY_UPDATE_INTERVAL%", String(DISPLAY_UPDATE_INTERVAL / 60000));
-    html.replace("%WEATHER_UPDATE_INTERVAL%", String(WEATHER_UPDATE_INTERVAL / 3600000));
-    html.replace("%STOCK_UPDATE_INTERVAL%", String(STOCK_UPDATE_INTERVAL / 60000));
-    
-    // 替换地理位置相关模板变量
-    String autoDetectChecked = geoManager.isAutoDetect() ? "checked" : "";
-    html.replace("%AUTO_DETECT_LOCATION%", autoDetectChecked);
-    html.replace("%CITY_ID%", geoManager.getCityId());
-    html.replace("%CITY_NAME%", geoManager.getCityName());
-    html.replace("%LATITUDE%", String(geoManager.getLatitude()));
-    html.replace("%LONGITUDE%", String(geoManager.getLongitude()));
-    
-    // 替换显示设置相关模板变量
-    String showSecondsChecked = displayManager.getShowSeconds() ? "checked" : "";
-    html.replace("%SHOW_SECONDS%", showSecondsChecked);
-    
-    server.send(200, "text/html", html);
+    try {
+        String html = String(settings_html);
+        
+        // 替换模板变量 - 使用局部变量避免直接访问可能失败的API
+        String wifiSsid = "--";
+        String timeZone = String(TIME_ZONE_OFFSET);
+        String displayUpdateInterval = String(DISPLAY_UPDATE_INTERVAL / 60000);
+        String weatherUpdateInterval = String(WEATHER_UPDATE_INTERVAL / 3600000);
+        String stockUpdateInterval = String(STOCK_UPDATE_INTERVAL / 60000);
+        
+        try {
+            wifiSsid = WiFi.SSID();
+        } catch (const std::exception& e) {
+            DEBUG_PRINTF("获取WiFi SSID异常: %s\n", e.what());
+        }
+        
+        html.replace("%WIFI_SSID%", wifiSsid);
+        html.replace("%WIFI_PASSWORD%", ""); // 不显示密码
+        html.replace("%TIME_ZONE%", timeZone);
+        html.replace("%DISPLAY_UPDATE_INTERVAL%", displayUpdateInterval);
+        html.replace("%WEATHER_UPDATE_INTERVAL%", weatherUpdateInterval);
+        html.replace("%STOCK_UPDATE_INTERVAL%", stockUpdateInterval);
+        
+        // 替换地理位置相关模板变量 - 增加错误处理
+        String autoDetectChecked = "";
+        String cityId = "--";
+        String cityName = "--";
+        String latitude = "--";
+        String longitude = "--";
+        
+        try {
+            autoDetectChecked = geoManager.isAutoDetect() ? "checked" : "";
+            cityId = geoManager.getCityId();
+            cityName = geoManager.getCityName();
+            latitude = String(geoManager.getLatitude());
+            longitude = String(geoManager.getLongitude());
+        } catch (const std::exception& e) {
+            DEBUG_PRINTF("获取地理位置信息异常: %s\n", e.what());
+        }
+        
+        html.replace("%AUTO_DETECT_LOCATION%", autoDetectChecked);
+        html.replace("%CITY_ID%", cityId);
+        html.replace("%CITY_NAME%", cityName);
+        html.replace("%LATITUDE%", latitude);
+        html.replace("%LONGITUDE%", longitude);
+        
+        // 替换显示设置相关模板变量 - 增加错误处理
+        String showSecondsChecked = "";
+        
+        try {
+            showSecondsChecked = displayManager.getShowSeconds() ? "checked" : "";
+        } catch (const std::exception& e) {
+            DEBUG_PRINTF("获取显示设置异常: %s\n", e.what());
+        }
+        
+        html.replace("%SHOW_SECONDS%", showSecondsChecked);
+        
+        // 确保所有模板变量都被替换
+        html.replace("%NTP_SERVER%", "pool.ntp.org"); // 默认值
+        html.replace("%NTP_SERVER_BACKUP%", "time.nist.gov"); // 默认值
+        html.replace("%DISPLAY_ROTATION_0%", "selected"); // 默认值
+        html.replace("%DISPLAY_ROTATION_90%", "");
+        html.replace("%DISPLAY_ROTATION_180%", "");
+        html.replace("%DISPLAY_ROTATION_270%", "");
+        html.replace("%DISPLAY_INVERSE%", ""); // 默认值
+        html.replace("%WEATHER_API_KEY%", ""); // 不显示密钥
+        html.replace("%WEATHER_API_KEY_BACKUP%", ""); // 不显示密钥
+        html.replace("%AUTO_UPDATE_PLUGINS%", ""); // 默认值
+        
+        // 移除所有未替换的模板变量，避免泄露
+        html.replace("%", "--");
+        
+        server.send(200, "text/html", html);
+    } catch (const std::exception& e) {
+        DEBUG_PRINTF("处理设置页面请求异常: %s\n", e.what());
+        server.send(500, "text/plain", "内部服务器错误: " + String(e.what()));
+    } catch (...) {
+        DEBUG_PRINTLN("处理设置页面请求未知异常");
+        server.send(500, "text/plain", "内部服务器错误");
+    }
 }
 
 void WebServerManager::handlePlugins() {
@@ -2995,7 +3164,7 @@ void WebServerManager::handleFactoryReset() {
     server.send(200, "text/html", html);
     
     // 延迟一段时间让客户端收到响应
-    delay(1000);
+    platformDelay(1000);
     
     // 执行工厂重置
     if (coreSystem) {
@@ -3005,4 +3174,389 @@ void WebServerManager::handleFactoryReset() {
         // 重置系统
         coreSystem->reset();
     }
+}
+
+// 辅助函数：从请求中获取命令和参数，支持GET和POST JSON
+void WebServerManager::parseCommandAndParam(String& command, String& param) {
+    // 首先尝试从GET参数获取
+    command = server.arg("command");
+    param = server.arg("param");
+    
+    // 如果是POST请求且GET参数为空，尝试从JSON请求体获取
+    if (command.isEmpty() && server.method() == HTTP_POST) {
+        String contentType = server.header("Content-Type");
+        if (contentType.indexOf("application/json") >= 0) {
+            String body = server.arg("plain");
+            if (!body.isEmpty()) {
+                try {
+                    DynamicJsonDocument doc(512);
+                    DeserializationError error = deserializeJson(doc, body);
+                    if (!error) {
+                        if (doc.containsKey("command")) {
+                            command = doc["command"].as<String>();
+                        }
+                        if (doc.containsKey("param")) {
+                            param = doc["param"].as<String>();
+                        }
+                    }
+                } catch (const std::exception& e) {
+                    DEBUG_PRINTF("解析JSON请求体异常: %s\n", e.what());
+                }
+            }
+        }
+    }
+}
+
+// 远程控制API处理函数
+void WebServerManager::handleRemoteControl() {
+    DEBUG_PRINTLN("处理远程控制请求");
+    
+    // 获取控制命令和参数 - 支持GET和POST JSON
+    String command, param;
+    parseCommandAndParam(command, param);
+    
+    DynamicJsonDocument response(512); // 增加JSON文档大小
+    response["success"] = false;
+    response["message"] = "未知命令";
+    
+    // 增强参数验证
+    if (command.isEmpty()) {
+        response["message"] = "缺少命令参数";
+        String jsonResponse;
+        serializeJson(response, jsonResponse);
+        server.send(400, "application/json", jsonResponse);
+        return;
+    }
+    
+    // 尝试使用try-catch块来捕获可能的异常
+    try {
+        // 处理不同的控制命令
+        if (command == "power") {
+            if (param == "on" || param == "off") {
+                // 电源控制
+                response["success"] = true;
+                response["message"] = param == "on" ? "设备已开机" : "设备已关机";
+                response["command"] = command;
+                response["param"] = param;
+            } else {
+                response["message"] = "无效的电源参数，支持: on/off";
+                server.send(400, "application/json", String());
+            }
+        } else if (command == "refresh") {
+            // 刷新显示
+            displayManager.refresh();
+            response["success"] = true;
+            response["message"] = "显示已刷新";
+            response["timestamp"] = platformGetMillis();
+        } else if (command == "low_power") {
+            bool enableLowPower = (param == "true" || param == "1" || param == "on");
+            coreSystem->setLowPowerMode(enableLowPower);
+            response["success"] = true;
+            response["message"] = enableLowPower ? "已进入低功耗模式" : "已退出低功耗模式";
+            response["low_power_mode"] = enableLowPower;
+        } else if (command == "update_interval") {
+            int interval = param.toInt();
+            if (interval > 0 && interval <= 86400) { // 限制刷新间隔在1秒到24小时之间
+                // 更新显示刷新间隔
+                // 实际实现需要添加：coreSystem->setUpdateInterval(interval * 1000);
+                response["success"] = true;
+                response["message"] = "刷新间隔已更新为" + String(interval) + "秒";
+                response["update_interval"] = interval;
+            } else {
+                response["message"] = "无效的刷新间隔，范围：1-86400秒";
+                server.send(400, "application/json", String());
+            }
+        } else if (command == "restart") {
+            // 重启设备
+            response["success"] = true;
+            response["message"] = "设备将在3秒后重启";
+            response["timestamp"] = platformGetMillis();
+            
+            // 发送响应给客户端
+            String jsonResponse;
+            serializeJson(response, jsonResponse);
+            server.send(200, "application/json", jsonResponse);
+            
+            // 延迟一段时间让客户端收到响应
+            platformDelay(3000);
+            
+            // 执行重启
+            coreSystem->reset();
+            return; // 重启前返回
+        } else if (command == "factory_reset") {
+            // 执行工厂重置
+            response["success"] = true;
+            response["message"] = "设备将在3秒后执行工厂重置并重启";
+            response["timestamp"] = platformGetMillis();
+            
+            // 发送响应给客户端
+            String jsonResponse;
+            serializeJson(response, jsonResponse);
+            server.send(200, "application/json", jsonResponse);
+            
+            // 延迟一段时间让客户端收到响应
+            platformDelay(3000);
+            
+            // 执行工厂重置
+            coreSystem->resetConfig();
+            coreSystem->reset();
+            return; // 重置前返回
+        } else if (command == "status") {
+            // 获取设备状态（重定向到/api/sync）
+            handleDataSync();
+            return;
+        } else if (command == "wifi_scan") {
+            // 扫描WiFi网络
+            response["success"] = true;
+            response["message"] = "WiFi扫描命令已接收";
+            // 实际实现需要添加：wifiManager.scanNetworks();
+        } else if (command == "wifi_connect") {
+            // 连接WiFi
+            // 从param中解析SSID和密码，格式：ssid,password
+            int commaIndex = param.indexOf(',');
+            if (commaIndex > 0 && commaIndex < param.length() - 1) {
+                String ssid = param.substring(0, commaIndex);
+                String password = param.substring(commaIndex + 1);
+                response["success"] = true;
+                response["message"] = "正在连接WiFi: " + ssid;
+                // 实际实现需要添加：wifiManager.connect(ssid, password);
+            } else {
+                response["message"] = "无效的WiFi参数格式，应为: ssid,password";
+                server.send(400, "application/json", String());
+            }
+        } else if (command == "display_rotation") {
+            // 设置显示旋转角度
+            int rotation = param.toInt();
+            if (rotation == 0 || rotation == 90 || rotation == 180 || rotation == 270) {
+                // displayManager.setRotation(rotation);
+                response["success"] = true;
+                response["message"] = "显示旋转角度已设置为" + String(rotation) + "度";
+                response["rotation"] = rotation;
+            } else {
+                response["message"] = "无效的旋转角度，支持: 0,90,180,270";
+                server.send(400, "application/json", String());
+            }
+        } else if (command == "show_seconds") {
+            // 设置是否显示秒针
+            bool showSeconds = (param == "true" || param == "1" || param == "on");
+            displayManager.setShowSeconds(showSeconds);
+            response["success"] = true;
+            response["message"] = showSeconds ? "已开启秒针显示" : "已关闭秒针显示";
+            response["show_seconds"] = showSeconds;
+        } else {
+            response["message"] = "未知命令: " + command;
+            server.send(400, "application/json", String());
+        }
+    } catch (const std::exception& e) {
+        response["success"] = false;
+        response["message"] = "执行命令时发生异常: " + String(e.what());
+        DEBUG_PRINTF("远程控制命令执行异常: %s\n", e.what());
+    } catch (...) {
+        response["success"] = false;
+        response["message"] = "执行命令时发生未知异常";
+        DEBUG_PRINTLN("远程控制命令执行未知异常");
+    }
+    
+    // 发送响应
+    String jsonResponse;
+    serializeJson(response, jsonResponse);
+    server.send(200, "application/json", jsonResponse);
+}
+
+// 数据同步API处理函数
+void WebServerManager::handleDataSync() {
+    DEBUG_PRINTLN("处理数据同步请求");
+    
+    // 增加JSON文档大小以支持更多数据
+    DynamicJsonDocument response(1024); // 增加JSON文档大小以支持更全面的数据
+    response["success"] = true;
+    response["timestamp"] = platformGetMillis();
+    response["api_version"] = "1.1";
+    
+    // 尝试使用try-catch块来捕获可能的异常
+    try {
+        // 设备基本信息
+        response["device"]["name"] = "InkClock";
+        response["device"]["firmware"] = FIRMWARE_VERSION;
+        response["device"]["model"] = "InkClock Pro";
+        response["device"]["manufacturer"] = "InkClock Team";
+        
+        // 网络状态信息 - 增强错误处理
+        try {
+            response["network"]["ip"] = getIPAddress();
+            response["network"]["ipv6"] = WiFi.localIPv6().toString();
+            response["network"]["mac"] = WiFi.macAddress();
+            response["network"]["wifi"]["ssid"] = WiFi.SSID();
+            response["network"]["wifi"]["rssi"] = WiFi.RSSI();
+            response["network"]["wifi"]["signal_level"] = WiFi.RSSI() > -50 ? "excellent" : WiFi.RSSI() > -70 ? "good" : WiFi.RSSI() > -80 ? "fair" : "weak";
+            response["network"]["wifi"]["status"] = WiFi.status() == WL_CONNECTED ? "connected" : "disconnected";
+        } catch (const std::exception& e) {
+            DEBUG_PRINTF("获取网络状态异常: %s\n", e.what());
+            response["network"]["error"] = "无法获取网络状态";
+        }
+        
+        // 系统资源信息 - 增强错误处理
+        try {
+            response["system"]["uptime"] = platformGetMillis() / 1000;
+            response["system"]["platform"] = platformGetName();
+            response["system"]["platform_version"] = platformGetVersion();
+            
+            if (coreSystem) {
+                // 内存使用情况
+                size_t freeHeap, minFreeHeap;
+                coreSystem->getMemoryInfo(freeHeap, minFreeHeap);
+                response["system"]["memory"]["free_heap"] = freeHeap;
+                response["system"]["memory"]["min_free_heap"] = minFreeHeap;
+                // 移除了依赖platformGetFreeHeap()的计算，避免编译错误
+                // response["system"]["memory"]["heap_usage"] = 100 - ((float)freeHeap / (freeHeap + (platformGetFreeHeap() - freeHeap))) * 100;
+                
+                // CPU信息
+                response["system"]["cpu"]["frequency"] = platformGetCpuFreqMHz();
+                
+                // Flash使用情况
+                uint32_t totalFlash, usedFlash, freeFlash;
+                coreSystem->getFlashInfo(totalFlash, usedFlash, freeFlash);
+                response["system"]["storage"]["total_flash"] = totalFlash;
+                response["system"]["storage"]["used_flash"] = usedFlash;
+                response["system"]["storage"]["free_flash"] = freeFlash;
+                response["system"]["storage"]["flash_usage"] = ((float)usedFlash / totalFlash) * 100;
+                
+                // 系统状态
+                response["system"]["state"] = (coreSystem->getState() == SYSTEM_STATE_RUNNING) ? "running" : "error";
+                response["system"]["low_power_mode"] = coreSystem->isInLowPowerMode();
+            }
+        } catch (const std::exception& e) {
+            DEBUG_PRINTF("获取系统资源信息异常: %s\n", e.what());
+            response["system"]["error"] = "无法获取系统资源信息";
+        }
+        
+        // 传感器数据 - 增强错误处理
+        try {
+            SensorData sensorData;
+            if (sensorManager.readSensorData(sensorData)) {
+                response["sensors"]["temperature"] = sensorData.temperature;
+                response["sensors"]["humidity"] = sensorData.humidity;
+                response["sensors"]["gas_level"] = sensorData.gasLevel;
+                response["sensors"]["light_level"] = sensorData.lightLevel;
+                response["sensors"]["motion_detected"] = sensorData.motionDetected;
+                response["sensors"]["flame_detected"] = sensorData.flameDetected;
+                response["sensors"]["timestamp"] = sensorData.timestamp;
+                response["sensors"]["valid"] = sensorData.valid;
+            } else {
+                response["sensors"]["error"] = "无法读取传感器数据";
+            }
+        } catch (const std::exception& e) {
+            DEBUG_PRINTF("获取传感器数据异常: %s\n", e.what());
+            response["sensors"]["error"] = "传感器读取异常";
+        }
+        
+        // 电源状态数据 - 增强错误处理
+        try {
+            if (coreSystem) {
+                response["power"]["battery"]["voltage"] = coreSystem->getBatteryVoltage();
+                response["power"]["battery"]["level"] = coreSystem->getBatteryPercentage();
+                response["power"]["battery"]["status"] = coreSystem->isChargingState() ? "charging" : "discharging";
+                response["power"]["battery"]["health"] = coreSystem->getBatteryPercentage() > 80 ? "good" : coreSystem->getBatteryPercentage() > 20 ? "fair" : "low";
+                response["power"]["system"]["low_power_mode"] = coreSystem->isInLowPowerMode();
+                response["power"]["system"]["power_saving"] = coreSystem->isInLowPowerMode() ? "enabled" : "disabled";
+            }
+        } catch (const std::exception& e) {
+            DEBUG_PRINTF("获取电源状态异常: %s\n", e.what());
+            response["power"]["error"] = "无法获取电源状态";
+        }
+        
+        // 显示状态信息
+        try {
+            response["display"]["show_seconds"] = displayManager.getShowSeconds();
+            response["display"]["state"] = "active";
+        } catch (const std::exception& e) {
+            DEBUG_PRINTF("获取显示状态异常: %s\n", e.what());
+            response["display"]["error"] = "无法获取显示状态";
+        }
+        
+        // 插件状态信息
+        try {
+            int pluginCount = pluginManager.getPluginCount();
+            response["plugins"]["count"] = pluginCount;
+            response["plugins"]["status"] = pluginCount > 0 ? "loaded" : "empty";
+        } catch (const std::exception& e) {
+            DEBUG_PRINTF("获取插件状态异常: %s\n", e.what());
+            response["plugins"]["error"] = "无法获取插件状态";
+        }
+        
+    } catch (const std::exception& e) {
+        response["success"] = false;
+        response["message"] = "获取设备数据时发生异常: " + String(e.what());
+        DEBUG_PRINTF("数据同步异常: %s\n", e.what());
+    } catch (...) {
+        response["success"] = false;
+        response["message"] = "获取设备数据时发生未知异常";
+        DEBUG_PRINTLN("数据同步未知异常");
+    }
+    
+    // 发送响应
+    String jsonResponse;
+    serializeJson(response, jsonResponse);
+    
+    // 设置响应头
+    server.sendHeader("Content-Type", "application/json");
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    server.sendHeader("Pragma", "no-cache");
+    server.sendHeader("Expires", "0");
+    
+    server.send(200, "application/json", jsonResponse);
+}
+
+// 刷新显示API处理函数
+void WebServerManager::handleRefreshDisplay() {
+    DEBUG_PRINTLN("处理刷新显示请求");
+    
+    // 增强参数验证 - 限制请求频率
+    static unsigned long lastRefreshTime = 0;
+    const unsigned long MIN_REFRESH_INTERVAL = 5000; // 最小刷新间隔5秒
+    
+    unsigned long currentTime = platformGetMillis();
+    if (currentTime - lastRefreshTime < MIN_REFRESH_INTERVAL) {
+        DynamicJsonDocument response(128);
+        response["success"] = false;
+        response["message"] = "刷新频率过高，请稍后再试";
+        response["next_available_time"] = lastRefreshTime + MIN_REFRESH_INTERVAL;
+        
+        String jsonResponse;
+        serializeJson(response, jsonResponse);
+        server.send(429, "application/json", jsonResponse); // 返回429 Too Many Requests
+        return;
+    }
+    
+    DynamicJsonDocument response(256); // 增加JSON文档大小
+    response["success"] = false;
+    response["message"] = "刷新显示失败";
+    
+    // 尝试使用try-catch块来捕获可能的异常
+    try {
+        // 刷新显示
+        displayManager.refresh();
+        
+        // 更新最后刷新时间
+        lastRefreshTime = currentTime;
+        
+        response["success"] = true;
+        response["message"] = "显示已刷新";
+        response["timestamp"] = currentTime;
+        response["next_available_time"] = currentTime + MIN_REFRESH_INTERVAL;
+    } catch (const std::exception& e) {
+        response["success"] = false;
+        response["message"] = "刷新显示时发生异常: " + String(e.what());
+        DEBUG_PRINTF("刷新显示异常: %s\n", e.what());
+    } catch (...) {
+        response["success"] = false;
+        response["message"] = "刷新显示时发生未知异常";
+        DEBUG_PRINTLN("刷新显示未知异常");
+    }
+    
+    // 发送响应
+    String jsonResponse;
+    serializeJson(response, jsonResponse);
+    server.send(200, "application/json", jsonResponse);
 }

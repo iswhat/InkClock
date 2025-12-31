@@ -57,7 +57,7 @@ bool LD2410Driver::readData(SensorData& data) {
   
   // 设置传感器数据
   data.valid = true;
-  data.timestamp = millis();
+  data.timestamp = platformGetMillis();
   data.motionDetected = motionDetected;
   data.lightLevel = detectionDistance;  // 将检测距离保存到lightLevel字段
   

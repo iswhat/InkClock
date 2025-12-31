@@ -3,11 +3,10 @@
 /**
  * @brief 构造函数
  * 
- * 初始化传感器类型名称和初始化状态。
+ * 初始化传感器类型名称。
  */
-SGP30Driver::SGP30Driver() {
+SGP30Driver::SGP30Driver() : BaseSensorDriver() {
   typeName = "SGP30";  // 设置传感器类型名称
-  initialized = false;  // 初始化为未初始化状态
 }
 
 /**
@@ -17,22 +16,23 @@ SGP30Driver::SGP30Driver() {
  * @return 初始化是否成功
  */
 bool SGP30Driver::init(const SensorConfig& config) {
-  // 保存配置
-  this->config = config;
+  // 调用基类初始化
+  if (!BaseSensorDriver::init(config)) {
+    return false;
+  }
   
   // 初始化SGP30传感器
   bool success = sgp30.begin();
-  initialized = success;
-  
   if (success) {
     Serial.println("SGP30传感器初始化成功");
     // 初始化SGP30的基线校准
     sgp30.iaqInit();
   } else {
     Serial.println("SGP30传感器初始化失败");
+    return false;
   }
   
-  return success;
+  return true;
 }
 
 /**
@@ -42,7 +42,8 @@ bool SGP30Driver::init(const SensorConfig& config) {
  * @return 读取是否成功
  */
 bool SGP30Driver::readData(SensorData& data) {
-  if (!initialized) {
+  if (!isInitialized()) {
+    recordError();
     return false;
   }
   
@@ -52,26 +53,16 @@ bool SGP30Driver::readData(SensorData& data) {
     uint16_t eco2 = sgp30.eCO2;
     uint16_t tvoc = sgp30.TVOC;
     
-    // 设置传感器数据
-    data.valid = true;
-    data.timestamp = millis();
-    data.gasLevel = eco2;  // 将CO2值保存到gasLevel字段
+    // 使用基类的fillSensorData方法填充数据
+    fillSensorData(data, 0.0, 0.0, false, eco2, false, 0);
     
+    recordSuccess();
     return true;
   } else {
     Serial.println("SGP30传感器数据读取失败");
+    recordError();
     return false;
   }
-}
-
-/**
- * @brief 校准传感器
- * 
- * @param tempOffset 温度偏移量
- * @param humOffset 湿度偏移量
- */
-void SGP30Driver::calibrate(float tempOffset, float humOffset) {
-  // SGP30传感器不需要温湿度校准，所以这里不做任何操作
 }
 
 /**
@@ -94,25 +85,10 @@ SensorType SGP30Driver::getType() const {
 }
 
 /**
- * @brief 设置传感器配置
+ * @brief 检测驱动与硬件是否匹配
  * 
- * @param config 传感器配置
+ * @return 硬件是否匹配
  */
-void SGP30Driver::setConfig(const SensorConfig& config) {
-  this->config = config;
-  // 重新初始化传感器
-  init(config);
-}
-
-/**
- * @brief 获取传感器配置
- * 
- * @return 传感器配置
- */
-SensorConfig SGP30Driver::getConfig() const {
-  return config;
-}
-
 bool SGP30Driver::matchHardware() {
   DEBUG_PRINTLN("检测SGP30硬件匹配...");
   

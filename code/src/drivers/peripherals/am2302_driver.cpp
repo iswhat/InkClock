@@ -48,7 +48,7 @@ bool AM2302Driver::readData(SensorData& data) {
   
   // 填充传感器数据
   data.valid = true;
-  data.timestamp = millis();
+  data.timestamp = platformGetMillis();
   data.temperature = t;
   data.humidity = h;
   data.motionDetected = false; // AM2302不支持人体感应
@@ -101,7 +101,7 @@ bool AM2302Driver::matchHardware() {
       tempDht->begin();
       
       // 等待传感器稳定
-      delay(2000);
+      platformDelay(2000);
       
       // 读取温湿度数据
       float h = tempDht->readHumidity();

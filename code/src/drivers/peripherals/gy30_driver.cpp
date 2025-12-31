@@ -53,7 +53,7 @@ bool GY30Driver::init(const SensorConfig& config) {
   
   // 开启传感器
   sendCommand(GY30_POWER_ON);
-  delay(100);
+  platformDelay(100);
   
   initialized = true;
   
@@ -75,7 +75,7 @@ bool GY30Driver::readData(SensorData& data) {
   
   // 发送单次高分辨率测量命令
   sendCommand(GY30_SINGLE_HRES);
-  delay(180);  // 等待测量完成（高分辨率模式需要180ms）
+  platformDelay(180);  // 等待测量完成（高分辨率模式需要180ms）
   
   // 读取2字节数据
   Wire.requestFrom(address, 2);
@@ -89,7 +89,7 @@ bool GY30Driver::readData(SensorData& data) {
     
     // 设置传感器数据
     data.valid = true;
-    data.timestamp = millis();
+    data.timestamp = platformGetMillis();
     data.lightLevel = static_cast<int>(lux);  // 将光照强度保存到lightLevel字段
     
     return true;
@@ -174,7 +174,7 @@ bool GY30Driver::matchHardware() {
         Wire.write(GY30_SINGLE_HRES);
         Wire.endTransmission();
         
-        delay(180); // 等待测量完成
+        platformDelay(180); // 等待测量完成
         
         Wire.requestFrom(testAddress, 2);
         if (Wire.available() == 2) {

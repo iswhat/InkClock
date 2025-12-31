@@ -1,7 +1,7 @@
 #ifndef SGP30_DRIVER_H
 #define SGP30_DRIVER_H
 
-#include "sensor_driver.h"
+#include "base_sensor_driver.h"
 #include <Adafruit_SGP30.h>
 
 /**
@@ -10,18 +10,16 @@
  * 该类实现了SGP30气体传感器的驱动，用于检测CO2和VOC气体。
  * SGP30是一种数字输出的空气质量传感器，采用I2C接口通信。
  */
-class SGP30Driver : public ISensorDriver {
+class SGP30Driver : public BaseSensorDriver {
 private:
   Adafruit_SGP30 sgp30;           ///< SGP30传感器实例
-  SensorConfig config;           ///< 传感器配置
-  bool initialized;              ///< 初始化状态标志
   String typeName;               ///< 传感器类型名称
 
 public:
   /**
    * @brief 构造函数
    * 
-   * 初始化传感器类型名称和初始化状态。
+   * 初始化传感器类型名称。
    */
   SGP30Driver();
 
@@ -42,14 +40,6 @@ public:
   bool readData(SensorData& data) override;
 
   /**
-   * @brief 校准传感器
-   * 
-   * @param tempOffset 温度偏移量
-   * @param humOffset 湿度偏移量
-   */
-  void calibrate(float tempOffset, float humOffset) override;
-
-  /**
    * @brief 获取传感器类型名称
    * 
    * @return 传感器类型名称
@@ -64,18 +54,11 @@ public:
   SensorType getType() const override;
 
   /**
-   * @brief 设置传感器配置
+   * @brief 检测驱动与硬件是否匹配
    * 
-   * @param config 传感器配置
+   * @return 硬件是否匹配
    */
-  void setConfig(const SensorConfig& config) override;
-
-  /**
-   * @brief 获取传感器配置
-   * 
-   * @return 传感器配置
-   */
-  SensorConfig getConfig() const override;
+  bool matchHardware() override;
 };
 
 #endif // SGP30_DRIVER_H

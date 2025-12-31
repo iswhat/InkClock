@@ -200,7 +200,7 @@ GeoManager geoManager;               // 地理位置管理模块
 void initSystem() {
   // 初始化串口通信，用于调试输出
   Serial.begin(115200);
-  delay(1000);
+  platformDelay(1000);
   
   // 打印启动信息
   Serial.println("===== 家用网络智能墨水屏万年历 ====");
@@ -619,7 +619,7 @@ void loop() {
   
   try {
     // 重置软件看门狗
-    lastWatchdogReset = millis();
+    lastWatchdogReset = platformGetMillis();
     
     // 运行核心系统（底层操作系统）
     coreSystem->run();
@@ -775,7 +775,7 @@ void loop() {
   static unsigned long lastSensorUpdate = 0;
   static unsigned long lastLunarUpdate = 0;
   
-  unsigned long now = millis();
+  unsigned long now = platformGetMillis();
   
   // 更新时间（根据time_manager的配置）
   try {
@@ -849,13 +849,13 @@ void loop() {
 }
   
   // 软件看门狗检查
-  if (millis() - lastWatchdogReset > WATCHDOG_TIMEOUT) {
+  if (platformGetMillis() - lastWatchdogReset > WATCHDOG_TIMEOUT) {
     Serial.println("软件看门狗超时，系统将重启");
     Serial.flush();
-    delay(1000);
+    platformDelay(1000);
     platformReset(); // 重启系统
   }
   
   // 短暂延迟，降低CPU占用
-  delay(10);
+  platformDelay(10);
 }

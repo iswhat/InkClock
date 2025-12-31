@@ -51,7 +51,7 @@ bool SI1145Driver::readData(SensorData& data) {
   
   // 设置传感器数据
   data.valid = true;
-  data.timestamp = millis();
+  data.timestamp = platformGetMillis();
   data.lightLevel = vis;  // 将可见光强度保存到lightLevel字段
   
   return true;

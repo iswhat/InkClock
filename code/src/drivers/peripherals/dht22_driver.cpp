@@ -48,7 +48,7 @@ bool DHT22Driver::readData(SensorData& data) {
   
   // 填充传感器数据
   data.valid = true;
-  data.timestamp = millis();
+  data.timestamp = platformGetMillis();
   data.temperature = t;
   data.humidity = h;
   data.motionDetected = false; // DHT22不支持人体感应
@@ -96,7 +96,7 @@ bool DHT22Driver::matchHardware() {
     tempDHT.begin();
     
     // 等待传感器稳定
-    delay(2000);
+    platformDelay(2000);
     
     // 尝试读取数据
     float h = tempDHT.readHumidity();

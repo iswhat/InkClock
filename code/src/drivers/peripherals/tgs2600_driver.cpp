@@ -51,7 +51,7 @@ bool TGS2600Driver::readData(SensorData& data) {
   
   // 设置传感器数据
   data.valid = true;
-  data.timestamp = millis();
+  data.timestamp = platformGetMillis();
   data.gasLevel = gasValue;
   
   return true;

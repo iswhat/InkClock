@@ -311,12 +311,15 @@ bool StockManager::fetchStockChartData(String code, String market, StockData &da
       if (priceIndex != -1) {
         priceIndex = kline.indexOf(',', priceIndex + 1); // 跳过开盘价，找到收盘价
         if (priceIndex != -1) {
-          float price = kline.substring(priceIndex + 1, kline.indexOf(',', priceIndex + 1)).toFloat();
+          int nextComma = kline.indexOf(',', priceIndex + 1);
+          if (nextComma != -1) {
+            float price = kline.substring(priceIndex + 1, nextComma).toFloat();
           
-          // 添加到曲线数据
-          data.chartData[data.chartDataCount].time = time;
-          data.chartData[data.chartDataCount].price = price;
-          data.chartDataCount++;
+            // 添加到曲线数据
+            data.chartData[data.chartDataCount].time = time;
+            data.chartData[data.chartDataCount].price = price;
+            data.chartDataCount++;
+          }
         }
       }
     }

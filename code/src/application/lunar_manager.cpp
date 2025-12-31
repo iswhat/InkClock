@@ -1,5 +1,6 @@
 #include "lunar_manager.h"
 #include <ArduinoJson.h>
+#include "../services/api_manager.h"
 
 // 外部全局对象
 extern WiFiManager wifiManager;

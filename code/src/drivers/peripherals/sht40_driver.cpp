@@ -47,7 +47,7 @@ bool SHT40Driver::readData(SensorData& data) {
   
   // 填充传感器数据
   data.valid = true;
-  data.timestamp = millis();
+  data.timestamp = platformGetMillis();
   data.temperature = t;
   data.humidity = h;
   data.motionDetected = false; // SHT40不支持人体感应

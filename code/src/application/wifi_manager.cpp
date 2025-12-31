@@ -1,21 +1,31 @@
 #include "wifi_manager.h"
+#include <Preferences.h>
+
+Preferences preferences;
 
 WiFiManager::WiFiManager() {
   connected = false;
+  apMode = false;
   lastReconnectAttempt = 0;
   connectionAttempts = 0;
   maxConnectionAttempts = 20;
   currentSSID = WIFI_SSID;
   currentPassword = WIFI_PASSWORD;
+  configuredSSID = "";
+  configuredPassword = "";
 }
 
 WiFiManager::~WiFiManager() {
   // 清理资源
   disconnect();
+  stopAP();
 }
 
 void WiFiManager::init() {
   DEBUG_PRINTLN("初始化WiFi管理器...");
+  
+  // 加载配置的WiFi信息
+  loadConfiguredWiFi();
   
   // 设置WiFi模式为STA
   WiFi.mode(WIFI_STA);
@@ -26,6 +36,17 @@ void WiFiManager::init() {
   // 禁用WiFi自动连接
   WiFi.setAutoConnect(false);
   WiFi.setAutoReconnect(false);
+  
+  // 如果有配置的WiFi信息，尝试连接
+  if (hasConfiguredWiFi()) {
+    DEBUG_PRINT("使用配置的WiFi信息连接: ");
+    DEBUG_PRINTLN(configuredSSID);
+    setupWiFi(configuredSSID, configuredPassword);
+  } else {
+    // 没有配置的WiFi信息，进入AP模式
+    DEBUG_PRINTLN("没有配置的WiFi信息，进入AP模式");
+    startAP();
+  }
   
   DEBUG_PRINTLN("WiFi管理器初始化完成");
 }
@@ -69,16 +90,31 @@ void WiFiManager::loop() {
     if (connectionAttempts < maxConnectionAttempts) {
       reconnect();
     } else {
-      // 超过最大尝试次数，暂停一段时间后再尝试
-      static unsigned long lastPauseTime = 0;
-      if (millis() - lastPauseTime > 60000) { // 暂停60秒
-        lastPauseTime = millis();
-        connectionAttempts = 0; // 重置尝试次数
-        DEBUG_PRINTLN("暂停重连，60秒后重试");
+      // 超过最大尝试次数，进入AP模式
+      if (!apMode) {
+        DEBUG_PRINTLN("超过最大尝试次数，进入AP模式");
+        startAP();
+      }
+      
+      // 定期尝试退出AP模式并重新连接
+      static unsigned long lastAPModeTime = 0;
+      if (millis() - lastAPModeTime > 300000) { // 5分钟后尝试重新连接
+        lastAPModeTime = millis();
+        DEBUG_PRINTLN("尝试退出AP模式，重新连接WiFi...");
+        stopAP();
+        connectionAttempts = 0;
+        if (hasConfiguredWiFi()) {
+          setupWiFi(configuredSSID, configuredPassword);
+        }
       }
     }
   } else {
     if (!connected) {
+      // 连接成功，退出AP模式
+      if (apMode) {
+        stopAP();
+      }
+      
       // 连接成功
       connected = true;
       connectionAttempts = 0;
@@ -88,13 +124,18 @@ void WiFiManager::loop() {
 }
 
 void WiFiManager::setupWiFi(String ssid, String password) {
+  // 确保不是在AP模式下
+  if (apMode) {
+    stopAP();
+  }
+  
   // 连接WiFi
   WiFi.begin(ssid.c_str(), password.c_str());
   
   // 等待连接
   DEBUG_PRINTLN("正在连接WiFi...");
   int attempts = 0;
-  const int maxAttempts = 10;
+  const int maxAttempts = 15; // 增加连接尝试次数
   
   while (WiFi.status() != WL_CONNECTED && attempts < maxAttempts) {
     delay(500);
@@ -104,10 +145,20 @@ void WiFiManager::setupWiFi(String ssid, String password) {
   
   if (WiFi.status() == WL_CONNECTED) {
     connected = true;
+    currentSSID = ssid;
+    currentPassword = password;
     printWiFiStatus();
+    // 保存配置的WiFi信息
+    saveConfiguredWiFi(ssid, password);
   } else {
     connected = false;
     DEBUG_PRINTLN("\nWiFi连接失败");
+    
+    // 如果连接失败，尝试进入AP模式
+    if (!apMode) {
+      DEBUG_PRINTLN("尝试进入AP模式...");
+      startAP();
+    }
   }
 }
 
@@ -118,15 +169,12 @@ void WiFiManager::reconnect() {
     
     DEBUG_PRINTLN("尝试重连WiFi...");
     // 使用当前连接的SSID和密码进行重连
-    // 如果当前没有连接，使用默认配置
-    String currentSSID = WiFi.SSID();
-    if (currentSSID == "") {
-      currentSSID = WIFI_SSID;
-    }
-    // 注意：由于WiFi库不存储密码，我们无法获取当前连接的密码
-    // 因此重连时使用默认密码或上次成功连接的密码
-    // 这里简化处理，使用默认密码
-    setupWiFi(currentSSID, WIFI_PASSWORD);
+    // 如果当前没有连接，使用配置的WiFi信息
+    String ssid = hasConfiguredWiFi() ? configuredSSID : WIFI_SSID;
+    String password = hasConfiguredWiFi() ? configuredPassword : WIFI_PASSWORD;
+    
+    setupWiFi(ssid, password);
+    connectionAttempts++;
   }
 }
 
@@ -144,4 +192,91 @@ void WiFiManager::printWiFiStatus() {
   DEBUG_PRINTLN(" dBm");
   DEBUG_PRINT("MAC地址: ");
   DEBUG_PRINTLN(WiFi.macAddress());
+}
+
+void WiFiManager::startAP() {
+  if (apMode) {
+    return; // 已经在AP模式
+  }
+  
+  DEBUG_PRINTLN("启动AP模式...");
+  
+  // 设置WiFi模式为AP
+  WiFi.mode(WIFI_AP);
+  
+  // 生成AP名称，包含设备MAC地址后4位
+  String mac = WiFi.macAddress();
+  String apName = "InkClock-" + mac.substring(mac.length() - 5, mac.length() - 1);
+  
+  // 启动AP
+  bool result = WiFi.softAP(apName.c_str(), "inkclock123");
+  
+  if (result) {
+    apMode = true;
+    DEBUG_PRINT("AP模式启动成功，名称: ");
+    DEBUG_PRINTLN(apName);
+    DEBUG_PRINT("AP IP地址: ");
+    DEBUG_PRINTLN(WiFi.softAPIP());
+    DEBUG_PRINTLN("请使用手机连接此WiFi，然后在浏览器中访问 192.168.4.1 进行配置");
+  } else {
+    DEBUG_PRINTLN("AP模式启动失败");
+  }
+}
+
+void WiFiManager::stopAP() {
+  if (!apMode) {
+    return; // 不在AP模式
+  }
+  
+  DEBUG_PRINTLN("停止AP模式...");
+  
+  WiFi.softAPdisconnect(true);
+  apMode = false;
+  
+  // 切换回STA模式
+  WiFi.mode(WIFI_STA);
+  
+  DEBUG_PRINTLN("AP模式已停止");
+}
+
+void WiFiManager::loadConfiguredWiFi() {
+  DEBUG_PRINTLN("加载配置的WiFi信息...");
+  
+  preferences.begin("wifi", true);
+  configuredSSID = preferences.getString("ssid", "");
+  configuredPassword = preferences.getString("password", "");
+  preferences.end();
+  
+  if (hasConfiguredWiFi()) {
+    DEBUG_PRINT("加载的WiFi配置: ");
+    DEBUG_PRINTLN(configuredSSID);
+  } else {
+    DEBUG_PRINTLN("没有找到配置的WiFi信息");
+  }
+}
+
+void WiFiManager::saveConfiguredWiFi(String ssid, String password) {
+  DEBUG_PRINT("保存WiFi配置: ");
+  DEBUG_PRINTLN(ssid);
+  
+  preferences.begin("wifi", false);
+  preferences.putString("ssid", ssid);
+  preferences.putString("password", password);
+  preferences.end();
+  
+  // 更新配置的WiFi信息
+  configuredSSID = ssid;
+  configuredPassword = password;
+}
+
+void WiFiManager::setConfiguredWiFi(String ssid, String password) {
+  // 设置配置的WiFi信息
+  configuredSSID = ssid;
+  configuredPassword = password;
+  
+  // 保存到存储
+  saveConfiguredWiFi(ssid, password);
+  
+  // 尝试使用新配置连接
+  setupWiFi(ssid, password);
 }
