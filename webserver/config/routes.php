@@ -12,6 +12,8 @@ return [
     'POST /api/user/bind' => 'UserController@bindDevice',
     'POST /api/user/unbind' => 'UserController@unbindDevice',
     'PUT /api/user/device' => 'UserController@updateDeviceNickname',
+    'GET /api/user/exist' => 'UserController@checkUsers',
+    'POST /api/user/first-admin' => 'UserController@createFirstAdmin',
     
     // 设备相关路由
     'POST /api/device' => 'DeviceController@registerDevice',

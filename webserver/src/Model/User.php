@@ -2,17 +2,23 @@
 /**
  * 用户模型
  */
-require_once __DIR__ . '/../utils/Database.php';
+
+namespace InkClock\Model;
 
 class User {
     private $db;
     
-    public function __construct() {
-        $this->db = Database::getInstance()->getConnection();
+    /**
+     * 构造函数
+     * @param \SQLite3 $db 数据库连接
+     */
+    public function __construct($db) {
+        $this->db = $db;
     }
     
     /**
      * 生成API密钥
+     * @return string 生成的API密钥
      */
     private function generateApiKey() {
         return bin2hex(random_bytes(32));
@@ -20,6 +26,8 @@ class User {
     
     /**
      * 用户注册
+     * @param array $userInfo 用户信息
+     * @return array 注册结果
      */
     public function register($userInfo) {
         $username = $userInfo['username'];
@@ -61,6 +69,9 @@ class User {
     
     /**
      * 用户登录
+     * @param string $username 用户名或邮箱
+     * @param string $password 密码
+     * @return array 登录结果
      */
     public function login($username, $password) {
         // 查找用户
@@ -102,6 +113,8 @@ class User {
     
     /**
      * 通过API密钥获取用户信息
+     * @param string $apiKey API密钥
+     * @return array|null 用户信息
      */
     public function getUserByApiKey($apiKey) {
         $stmt = $this->db->prepare("SELECT * FROM users WHERE api_key = :api_key AND status = 1");
@@ -112,6 +125,8 @@ class User {
     
     /**
      * 通过用户名获取用户信息
+     * @param string $username 用户名
+     * @return array|null 用户信息
      */
     public function getUserByUsername($username) {
         $stmt = $this->db->prepare("SELECT * FROM users WHERE username = :username");
@@ -122,6 +137,8 @@ class User {
     
     /**
      * 检查用户是否为管理员
+     * @param int $userId 用户ID
+     * @return bool 是否为管理员
      */
     public function isAdmin($userId) {
         $stmt = $this->db->prepare("SELECT is_admin FROM users WHERE id = :id");
@@ -133,6 +150,7 @@ class User {
     
     /**
      * 检查是否有用户存在
+     * @return bool 是否有用户
      */
     public function hasUsers() {
         $result = $this->db->query("SELECT COUNT(*) as count FROM users");
@@ -142,6 +160,8 @@ class User {
     
     /**
      * 创建第一个管理员用户
+     * @param array $adminInfo 管理员信息
+     * @return array 创建结果
      */
     public function createFirstAdmin($adminInfo) {
         // 检查是否已有用户
@@ -162,22 +182,3 @@ class User {
         $passwordHash = password_hash($password, PASSWORD_DEFAULT);
         $apiKey = $this->generateApiKey();
         $createdAt = date('Y-m-d H:i:s');
-        
-        // 插入管理员用户，is_admin设为1
-        $stmt = $this->db->prepare("INSERT INTO users (username, email, password_hash, api_key, created_at, is_admin) VALUES (:username, :email, :password_hash, :api_key, :created_at, 1)");
-        $stmt->bindValue(':username', $username, SQLITE3_TEXT);
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-        $stmt->bindValue(':password_hash', $passwordHash, SQLITE3_TEXT);
-        $stmt->bindValue(':api_key', $apiKey, SQLITE3_TEXT);
-        $stmt->bindValue(':created_at', $createdAt, SQLITE3_TEXT);
-        
-        $result = $stmt->execute();
-        
-        if ($result) {
-            $userId = $this->db->lastInsertRowID();
-            return ['success' => true, 'user_id' => $userId, 'api_key' => $apiKey];
-        } else {
-            return ['success' => false, 'error' => '管理员创建失败'];
-        }
-    }
-}

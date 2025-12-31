@@ -9,6 +9,11 @@ class BaseController {
     protected $response;
     protected $currentUser;
     
+    // 服务层实例
+    protected $authService;
+    protected $deviceService;
+    protected $messageService;
+    
     /**
      * 构造函数
      */
@@ -16,7 +21,28 @@ class BaseController {
         $this->db = Database::getInstance()->getConnection();
         $this->logger = Logger::getInstance();
         $this->response = Response::class;
+        
+        // 初始化服务层
+        $this->initServices();
+        
         $this->currentUser = $this->getCurrentUser();
+    }
+    
+    /**
+     * 初始化服务层
+     */
+    private function initServices() {
+        // 初始化认证服务
+        require_once __DIR__ . '/../services/AuthService.php';
+        $this->authService = new AuthService();
+        
+        // 初始化设备服务
+        require_once __DIR__ . '/../services/DeviceService.php';
+        $this->deviceService = new DeviceService();
+        
+        // 初始化消息服务
+        require_once __DIR__ . '/../services/MessageService.php';
+        $this->messageService = new MessageService();
     }
     
     /**
@@ -30,10 +56,9 @@ class BaseController {
             return null;
         }
         
-        // 验证API密钥并获取用户信息
-        require_once __DIR__ . '/../models/User.php';
-        $userModel = new User();
-        return $userModel->getUserByApiKey($apiKey);
+        // 使用服务层验证API密钥
+        $result = $this->authService->validateApiKey($apiKey);
+        return $result['success'] ? $result['user'] : null;
     }
     
     /**
@@ -84,13 +109,13 @@ class BaseController {
      * 检查设备所有权
      */
     protected function validateDeviceOwnership($deviceId) {
-        require_once __DIR__ . '/../models/User.php';
-        $userModel = new User();
-        
         if (!$this->currentUser) {
             return false;
         }
         
+        // 使用服务层检查设备所有权
+        require_once __DIR__ . '/../models/User.php';
+        $userModel = new User();
         return $userModel->isDeviceOwnedByUser($this->currentUser['id'], $deviceId);
     }
     
@@ -118,6 +143,13 @@ class BaseController {
         }
         
         return true;
+    }
+    
+    /**
+     * 检查是否为管理员
+     */
+    protected function isAdmin() {
+        return $this->authService->isAdmin($this->currentUser);
     }
 }
 ?>

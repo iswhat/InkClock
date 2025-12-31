@@ -3,6 +3,8 @@
  * 数据库连接工具类
  */
 
+namespace InkClock\Utils;
+
 class Database {
     private static $instance = null;
     private $db;
@@ -20,8 +22,7 @@ class Database {
      * 加载配置
      */
     private function loadConfig() {
-        require_once __DIR__ . '/../config/config.php';
-        global $config;
+        $config = require __DIR__ . '/../../config/config.php';
         $this->config = $config['db'];
     }
 
@@ -30,14 +31,14 @@ class Database {
      */
     private function connect() {
         // 确保数据库目录存在
-        $dbDir = __DIR__ . '/../db';
+        $dbDir = __DIR__ . '/../../db';
         if (!file_exists($dbDir)) {
             mkdir($dbDir, 0755, true);
         }
         
         // 创建SQLite数据库连接
         $dbPath = $dbDir . '/inkclock.db';
-        $this->db = new SQLite3($dbPath);
+        $this->db = new \SQLite3($dbPath);
         
         // 创建表如果不存在
         $this->createTables();
@@ -83,7 +84,8 @@ class Database {
                 model TEXT,
                 firmware_version TEXT,
                 status TEXT DEFAULT 'offline',
-                last_active DATETIME
+                last_active DATETIME,
+                ip_address TEXT
             )
         ");
 
@@ -107,7 +109,7 @@ class Database {
      */
     public static function getInstance() {
         if (self::$instance === null) {
-            self::$instance = new Database();
+            self::$instance = new self();
         }
         return self::$instance;
     }
@@ -119,4 +121,3 @@ class Database {
         return $this->db;
     }
 }
-?>
