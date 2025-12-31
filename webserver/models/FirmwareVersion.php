@@ -2,51 +2,35 @@
 /**
  * 固件版本模型类
  */
+require_once __DIR__ . '/../utils/Database.php';
+
 class FirmwareVersion {
     private $db;
     
     public function __construct() {
-        $this->db = getDbConnection();
+        $this->db = Database::getInstance()->getConnection();
     }
     
     /**
      * 添加固件版本
-     * @param array $data 固件版本数据
      * @return array 操作结果
      */
-    public function addVersion($data) {
-        if (!isset($data['version']) || !isset($data['device_model']) || !isset($data['filename']) || !isset($data['file_path']) || !isset($data['file_size']) || !isset($data['sha256'])) {
-            return array('error' => '缺少必要的固件信息');
-        }
-        
-        $sql = "INSERT INTO firmware_versions (version, device_model, filename, file_path, file_size, sha256, signature, public_key, release_notes, is_active, is_forced, created_at, published_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+    public function addVersion($model, $version, $file_path, $description = '', $changelog = '', $user_id = 0) {
+        // 简化实现，只保存必要字段
+        $sql = "INSERT INTO firmware_versions (version, device_model, file_path, release_notes, is_active, created_at) 
+                VALUES (?, ?, ?, ?, 0, NOW())";
         
         $stmt = $this->db->prepare($sql);
         if (!$stmt) {
-            return array('error' => 'SQL准备失败: ' . $this->db->error);
+            return array('success' => false, 'error' => 'SQL准备失败: ' . $this->db->error);
         }
         
-        $isActive = isset($data['is_active']) ? (int)$data['is_active'] : 0;
-        $isForced = isset($data['is_forced']) ? (int)$data['is_forced'] : 0;
-        $publishedAt = isset($data['published_at']) ? $data['published_at'] : NULL;
-        $signature = isset($data['signature']) ? $data['signature'] : NULL;
-        $publicKey = isset($data['public_key']) ? $data['public_key'] : NULL;
-        $releaseNotes = isset($data['release_notes']) ? $data['release_notes'] : NULL;
-        
-        $stmt->bind_param('ssssissssiiis', 
-            $data['version'], $data['device_model'], $data['filename'], $data['file_path'], $data['file_size'], 
-            $data['sha256'], $signature, $publicKey, $releaseNotes, $isActive, $isForced, $publishedAt);
+        $stmt->bind_param('ssss', $version, $model, $file_path, $description);
         
         if ($stmt->execute()) {
-            // 如果是活跃版本，将其他版本设为非活跃
-            if ($isActive) {
-                $this->setOnlyActiveVersion($data['device_model'], $this->db->insert_id);
-            }
-            
-            return array('success' => true, 'version_id' => $this->db->insert_id);
+            return array('success' => true, 'firmware_id' => $this->db->insert_id);
         } else {
-            return array('error' => '添加固件版本失败: ' . $stmt->error);
+            return array('success' => false, 'error' => '添加固件版本失败: ' . $stmt->error);
         }
     }
     

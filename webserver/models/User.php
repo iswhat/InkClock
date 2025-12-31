@@ -2,13 +2,13 @@
 /**
  * 用户模型
  */
-require_once '../config.php';
+require_once __DIR__ . '/../utils/Database.php';
 
 class User {
     private $db;
     
     public function __construct() {
-        $this->db = getDbConnection();
+        $this->db = Database::getInstance()->getConnection();
     }
     
     /**

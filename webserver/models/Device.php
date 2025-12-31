@@ -2,30 +2,27 @@
 /**
  * 设备模型
  */
-require_once '../config.php';
+require_once __DIR__ . '/../utils/Database.php';
 
 class Device {
     private $db;
     
     public function __construct() {
-        $this->db = getDbConnection();
+        $this->db = Database::getInstance()->getConnection();
     }
     
     /**
      * 注册或更新设备信息
      */
-    public function registerDevice($deviceInfo) {
-        $deviceId = isset($deviceInfo['device_id']) ? $deviceInfo['device_id'] : generateDeviceId();
-        $macAddress = isset($deviceInfo['mac_address']) ? $deviceInfo['mac_address'] : '';
+    public function registerDevice($deviceId, $model = '', $firmwareVersion = 'unknown') {
+        $macAddress = ''; // 暂时为空，可在后续扩展中添加
         $ipAddress = $_SERVER['REMOTE_ADDR'];
         $ipv6Address = isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? $_SERVER['HTTP_X_FORWARDED_FOR'] : '';
-        $model = isset($deviceInfo['model']) ? $deviceInfo['model'] : '';
-        $firmwareVersion = isset($deviceInfo['firmware_version']) ? $deviceInfo['firmware_version'] : 'unknown';
         $lastActive = date('Y-m-d H:i:s');
         
         // 检查设备是否已存在
-        $stmt = $this->db->prepare("SELECT id FROM devices WHERE device_id = ? OR mac_address = ?");
-        $stmt->bind_param("ss", $deviceId, $macAddress);
+        $stmt = $this->db->prepare("SELECT id FROM devices WHERE device_id = ?");
+        $stmt->bind_param("s", $deviceId);
         $stmt->execute();
         $result = $stmt->get_result();
         

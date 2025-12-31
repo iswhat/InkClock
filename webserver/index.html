@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InkClock 管理系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        /* 侧边栏 */
+        .sidebar {
+            width: 250px;
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px 0;
+        }
+        
+        .sidebar h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 18px;
+        }
+        
+        .nav-menu {
+            list-style: none;
+        }
+        
+        .nav-menu li {
+            margin-bottom: 10px;
+        }
+        
+        .nav-menu a {
+            display: block;
+            padding: 15px 20px;
+            color: white;
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+        
+        .nav-menu a:hover, .nav-menu a.active {
+            background-color: #34495e;
+        }
+        
+        /* 主内容 */
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+        }
+        
+        .user-info span {
+            margin-right: 10px;
+        }
+        
+        /* 页面内容 */
+        .page-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        /* 表格样式 */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .data-table th,
+        .data-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .data-table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        
+        /* 按钮样式 */
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-success {
+            background-color: #27ae60;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #229954;
+        }
+        
+        .btn-danger {
+            background-color: #e74c3c;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+        
+        /* 表单样式 */
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 50%;
+            border-radius: 8px;
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        
+        /* 状态指示器 */
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .status-online {
+            background-color: #27ae60;
+        }
+        
+        .status-offline {
+            background-color: #e74c3c;
+        }
+        
+        /* 统计卡片 */
+        .stats-container {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            flex: 1;
+            background-color: white;
+            padding: 20px;
+            margin-right: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card:last-child {
+            margin-right: 0;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <h2>InkClock 管理系统</h2>
+            <ul class="nav-menu">
+                <li><a href="#dashboard" onclick="showPage('dashboard')" class="active">仪表盘</a></li>
+                <li><a href="#users" onclick="showPage('users')">用户管理</a></li>
+                <li><a href="#devices" onclick="showPage('devices')">设备管理</a></li>
+                <li><a href="#messages" onclick="showPage('messages')">消息管理</a></li>
+                <li><a href="#firmware" onclick="showPage('firmware')">固件管理</a></li>
+                <li><a href="#plugins" onclick="showPage('plugins')">插件管理</a></li>
+                <li><a href="#settings" onclick="showPage('settings')">系统设置</a></li>
+            </ul>
+        </aside>
+        
+        <!-- 主内容 -->
+        <main class="main-content">
+            <header class="header">
+                <h1 id="page-title">仪表盘</h1>
+                <div class="user-info">
+                    <span id="current-user">admin</span>
+                    <button class="btn btn-danger" onclick="logout()">退出登录</button>
+                </div>
+            </header>
+            
+            <div class="page-content" id="page-content">
+                <!-- 仪表盘页面 -->
+                <div id="dashboard-page">
+                    <h2>系统概览</h2>
+                    
+                    <div class="stats-container">
+                        <div class="stat-card">
+                            <div class="stat-number" id="total-devices">0</div>
+                            <div class="stat-label">设备总数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="online-devices">0</div>
+                            <div class="stat-label">在线设备</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="total-users">0</div>
+                            <div class="stat-label">用户总数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="pending-messages">0</div>
+                            <div class="stat-label">待处理消息</div>
+                        </div>
+                    </div>
+                    
+                    <h3>最近活动</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>类型</th>
+                                <th>详情</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-activities">
+                            <!-- 动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- 用户管理页面 -->
+                <div id="users-page" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2>用户管理</h2>
+                        <button class="btn btn-primary" onclick="showAddUserModal()">添加用户</button>
+                    </div>
+                    
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>用户名</th>
+                                <th>邮箱</th>
+                                <th>API密钥</th>
+                                <th>创建时间</th>
+                                <th>最后登录</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-body">
+                            <!-- 动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- 设备管理页面 -->
+                <div id="devices-page" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2>设备管理</h2>
+                        <div>
+                            <button class="btn btn-primary" onclick="showBindDeviceModal()">绑定设备</button>
+                            <button class="btn btn-primary" onclick="showCreateGroupModal()">创建分组</button>
+                        </div>
+                    </div>
+                    
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>设备ID</th>
+                                <th>昵称</th>
+                                <th>型号</th>
+                                <th>固件版本</th>
+                                <th>状态</th>
+                                <th>最后活跃</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="devices-table-body">
+                            <!-- 动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- 消息管理页面 -->
+                <div id="messages-page" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2>消息管理</h2>
+                        <button class="btn btn-primary" onclick="showSendMessageModal()">发送消息</button>
+                    </div>
+                    
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>消息ID</th>
+                                <th>设备ID</th>
+                                <th>发送者</th>
+                                <th>内容</th>
+                                <th>类型</th>
+                                <th>状态</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="messages-table-body">
+                            <!-- 动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- 固件管理页面 -->
+                <div id="firmware-page" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2>固件管理</h2>
+                        <button class="btn btn-primary" onclick="showAddFirmwareModal()">添加固件</button>
+                    </div>
+                    
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>版本号</th>
+                                <th>设备型号</th>
+                                <th>文件大小</th>
+                                <th>是否活跃</th>
+                                <th>发布时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="firmware-table-body">
+                            <!-- 动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- 插件管理页面 -->
+                <div id="plugins-page" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2>插件管理</h2>
+                        <button class="btn btn-primary" onclick="showUploadPluginModal()">上传插件</button>
+                    </div>
+                    
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>名称</th>
+                                <th>版本</th>
+                                <th>描述</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="plugins-table-body">
+                            <!-- 动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- 系统设置页面 -->
+                <div id="settings-page" style="display: none;">
+                    <h2>系统设置</h2>
+                    
+                    <form id="settings-form">
+                        <div class="form-group">
+                            <label for="api_key">API密钥</label>
+                            <input type="text" id="api_key" name="api_key" placeholder="系统API密钥">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="max_messages">设备最大消息数</label>
+                            <input type="number" id="max_messages" name="max_messages" placeholder="设备最大消息数">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="message_expire_days">消息过期天数</label>
+                            <input type="number" id="message_expire_days" name="message_expire_days" placeholder="消息过期天数">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="firmware_storage_path">固件存储路径</label>
+                            <input type="text" id="firmware_storage_path" name="firmware_storage_path" placeholder="固件存储路径">
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">保存设置</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- 模态框 -->
+    <div id="add-user-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('add-user-modal')">&times;</span>
+            <h3>添加用户</h3>
+            <form id="add-user-form">
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">邮箱</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">添加</button>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // 当前显示的页面
+        let currentPage = 'dashboard';
+        
+        // API基础URL
+        const API_BASE_URL = '/api';
+        
+        // API密钥（实际应用中应从登录后获取）
+        let apiKey = localStorage.getItem('api_key') || 'your_api_key_here';
+        
+        // 显示加载状态
+        function showLoading(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.innerHTML = '<tr><td colspan="100%"><div style="text-align: center; padding: 20px;">加载中...</div></td></tr>';
+            }
+        }
+        
+        // 显示错误信息
+        function showError(message) {
+            alert('错误: ' + message);
+        }
+        
+        // API请求函数
+        async function apiRequest(endpoint, method = 'GET', data = null) {
+            try {
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': apiKey
+                };
+                
+                const options = {
+                    method,
+                    headers
+                };
+                
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+                
+                const url = `${API_BASE_URL}${endpoint}`;
+                const response = await fetch(url, options);
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.message || 'API请求失败');
+                }
+                
+                return result;
+            } catch (error) {
+                showError(error.message);
+                throw error;
+            }
+        }
+        
+        // 成功提示
+        function showSuccess(message) {
+            alert('成功: ' + message);
+        }
+        
+        // 显示页面
+        function showPage(pageName) {
+            // 隐藏所有页面
+            document.querySelectorAll('.page-content > div').forEach(page => {
+                page.style.display = 'none';
+            });
+            
+            // 显示选中的页面
+            document.getElementById(pageName + '-page').style.display = 'block';
+            
+            // 更新页面标题
+            document.getElementById('page-title').textContent = getPageTitle(pageName);
+            
+            // 更新导航菜单
+            document.querySelectorAll('.nav-menu a').forEach(link => {
+                link.classList.remove('active');
+            });
+            // 修复导航菜单激活状态处理
+            document.querySelector(`.nav-menu a[href="#${pageName}"]`).classList.add('active');
+            
+            // 更新当前页面
+            currentPage = pageName;
+            
+            // 加载页面数据
+            loadPageData(pageName);
+        }
+        
+        // 获取页面标题
+        function getPageTitle(pageName) {
+            const titles = {
+                'dashboard': '仪表盘',
+                'users': '用户管理',
+                'devices': '设备管理',
+                'messages': '消息管理',
+                'firmware': '固件管理',
+                'plugins': '插件管理',
+                'settings': '系统设置'
+            };
+            return titles[pageName] || pageName;
+        }
+        
+        // 加载页面数据
+        function loadPageData(pageName) {
+            switch(pageName) {
+                case 'dashboard':
+                    loadDashboardData();
+                    break;
+                case 'users':
+                    loadUsersData();
+                    break;
+                case 'devices':
+                    loadDevicesData();
+                    break;
+                case 'messages':
+                    loadMessagesData();
+                    break;
+                case 'firmware':
+                    loadFirmwareData();
+                    break;
+                case 'plugins':
+                    loadPluginsData();
+                    break;
+                case 'settings':
+                    loadSettingsData();
+                    break;
+            }
+        }
+        
+        // 加载仪表盘数据
+        async function loadDashboardData() {
+            try {
+                // 获取系统状态
+                const statusResponse = await apiRequest('/status');
+                
+                // 更新统计数据
+                document.getElementById('total-devices').textContent = statusResponse.data.total_devices || 0;
+                document.getElementById('online-devices').textContent = statusResponse.data.online_devices || 0;
+                document.getElementById('total-users').textContent = statusResponse.data.total_users || 0;
+                document.getElementById('pending-messages').textContent = statusResponse.data.pending_messages || 0;
+                
+                // 更新最近活动
+                const activities = statusResponse.data.recent_activities || [];
+                const activitiesTable = document.getElementById('recent-activities');
+                
+                if (activities.length === 0) {
+                    activitiesTable.innerHTML = '<tr><td colspan="4"><div style="text-align: center; padding: 20px;">暂无活动记录</div></td></tr>';
+                } else {
+                    activitiesTable.innerHTML = activities.map(activity => `
+                        <tr>
+                            <td>${activity.time}</td>
+                            <td>${activity.type}</td>
+                            <td>${activity.details}</td>
+                            <td><span class="status-indicator status-${activity.status === 'success' ? 'online' : 'offline'}"></span>${activity.status}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('加载仪表盘数据失败:', error);
+            }
+        }
+        
+        // 加载用户数据
+        async function loadUsersData() {
+            try {
+                showLoading('users-table-body');
+                
+                // 获取用户列表
+                const usersResponse = await apiRequest('/user');
+                const users = usersResponse.data || [];
+                
+                const usersTable = document.getElementById('users-table-body');
+                
+                if (users.length === 0) {
+                    usersTable.innerHTML = '<tr><td colspan="8"><div style="text-align: center; padding: 20px;">暂无用户数据</div></td></tr>';
+                } else {
+                    usersTable.innerHTML = users.map(user => `
+                        <tr>
+                            <td>${user.id}</td>
+                            <td>${user.username}</td>
+                            <td>${user.email}</td>
+                            <td>${user.api_key}</td>
+                            <td>${user.created_at}</td>
+                            <td>${user.last_login || '从未登录'}</td>
+                            <td><span class="status-indicator status-${user.status === 1 ? 'online' : 'offline'}"></span>${user.status === 1 ? '活跃' : '禁用'}</td>
+                            <td>
+                                <button class="btn btn-primary" onclick="editUser(${user.id})">编辑</button>
+                                <button class="btn btn-danger" onclick="deleteUser(${user.id})"><i class="fas fa-trash"></i> 删除</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('加载用户数据失败:', error);
+            }
+        }
+        
+        // 加载设备数据
+        async function loadDevicesData() {
+            try {
+                showLoading('devices-table-body');
+                
+                // 获取设备列表
+                const devicesResponse = await apiRequest('/device');
+                const devices = devicesResponse.data || [];
+                
+                const devicesTable = document.getElementById('devices-table-body');
+                
+                if (devices.length === 0) {
+                    devicesTable.innerHTML = '<tr><td colspan="8"><div style="text-align: center; padding: 20px;">暂无设备数据</div></td></tr>';
+                } else {
+                    devicesTable.innerHTML = devices.map(device => `
+                        <tr>
+                            <td>${device.id}</td>
+                            <td>${device.device_id}</td>
+                            <td>${device.nickname || device.device_id}</td>
+                            <td>${device.model}</td>
+                            <td>${device.firmware_version}</td>
+                            <td><span class="status-indicator status-${device.status === 'online' ? 'online' : 'offline'}"></span>${device.status}</td>
+                            <td>${device.last_active}</td>
+                            <td>
+                                <button class="btn btn-primary" onclick="editDevice('${device.device_id}')">编辑</button>
+                                <button class="btn btn-success" onclick="sendMessageToDevice('${device.device_id}')">发送消息</button>
+                                <button class="btn btn-danger" onclick="unbindDevice('${device.device_id}')">解绑</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('加载设备数据失败:', error);
+            }
+        }
+        
+        // 加载消息数据
+        async function loadMessagesData() {
+            try {
+                showLoading('messages-table-body');
+                
+                // 获取消息列表
+                const messagesResponse = await apiRequest('/message');
+                const messages = messagesResponse.data || [];
+                
+                const messagesTable = document.getElementById('messages-table-body');
+                
+                if (messages.length === 0) {
+                    messagesTable.innerHTML = '<tr><td colspan="9"><div style="text-align: center; padding: 20px;">暂无消息数据</div></td></tr>';
+                } else {
+                    messagesTable.innerHTML = messages.map(message => `
+                        <tr>
+                            <td>${message.id}</td>
+                            <td>${message.message_id}</td>
+                            <td>${message.device_id}</td>
+                            <td>${message.sender_id}</td>
+                            <td>${message.content}</td>
+                            <td>${message.type}</td>
+                            <td><span class="status-indicator status-${message.is_read ? 'online' : 'offline'}"></span>${message.is_read ? '已读' : '未读'}</td>
+                            <td>${message.created_at}</td>
+                            <td>
+                                <button class="btn btn-primary" onclick="viewMessage(${message.id})"><i class="fas fa-eye"></i> 查看</button>
+                                <button class="btn btn-danger" onclick="deleteMessage(${message.id})"><i class="fas fa-trash"></i> 删除</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('加载消息数据失败:', error);
+            }
+        }
+        
+        // 加载固件数据
+        async function loadFirmwareData() {
+            try {
+                showLoading('firmware-table-body');
+                
+                // 获取固件列表
+                const firmwareResponse = await apiRequest('/firmware');
+                const firmwareList = firmwareResponse.data || [];
+                
+                const firmwareTable = document.getElementById('firmware-table-body');
+                
+                if (firmwareList.length === 0) {
+                    firmwareTable.innerHTML = '<tr><td colspan="7"><div style="text-align: center; padding: 20px;">暂无固件数据</div></td></tr>';
+                } else {
+                    firmwareTable.innerHTML = firmwareList.map(firmware => `
+                        <tr>
+                            <td>${firmware.id}</td>
+                            <td>${firmware.version}</td>
+                            <td>${firmware.device_model}</td>
+                            <td>${firmware.file_size || 'N/A'}</td>
+                            <td><span class="status-indicator status-${firmware.is_active ? 'online' : 'offline'}"></span>${firmware.is_active ? '活跃' : '不活跃'}</td>
+                            <td>${firmware.published_at || '未发布'}</td>
+                            <td>
+                                <button class="btn btn-primary" onclick="viewFirmware(${firmware.id})"><i class="fas fa-eye"></i> 查看</button>
+                                <button class="btn btn-success" onclick="publishFirmware(${firmware.id})"><i class="fas fa-upload"></i> 发布</button>
+                                <button class="btn btn-danger" onclick="deleteFirmware(${firmware.id})"><i class="fas fa-trash"></i> 删除</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('加载固件数据失败:', error);
+            }
+        }
+        
+        // 加载插件数据
+        async function loadPluginsData() {
+            try {
+                showLoading('plugins-table-body');
+                
+                // 获取插件列表
+                const pluginsResponse = await apiRequest('/plugin');
+                const plugins = pluginsResponse.data || [];
+                
+                const pluginsTable = document.getElementById('plugins-table-body');
+                
+                if (plugins.length === 0) {
+                    pluginsTable.innerHTML = '<tr><td colspan="6"><div style="text-align: center; padding: 20px;">暂无插件数据</div></td></tr>';
+                } else {
+                    pluginsTable.innerHTML = plugins.map(plugin => `
+                        <tr>
+                            <td>${plugin.id}</td>
+                            <td>${plugin.name}</td>
+                            <td>${plugin.version}</td>
+                            <td>${plugin.description}</td>
+                            <td>${plugin.created_at}</td>
+                            <td>
+                                <button class="btn btn-primary" onclick="editPlugin(${plugin.id})"><i class="fas fa-edit"></i> 编辑</button>
+                                <button class="btn btn-danger" onclick="deletePlugin(${plugin.id})"><i class="fas fa-trash"></i> 删除</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('加载插件数据失败:', error);
+            }
+        }
+        
+        // 加载设置数据
+        async function loadSettingsData() {
+            try {
+                // 获取当前设置
+                const settingsResponse = await apiRequest('/settings');
+                const settings = settingsResponse.data || {};
+                
+                // 填充表单
+                document.getElementById('api_key').value = settings.api_key || '';
+                document.getElementById('max_messages').value = settings.max_messages || '';
+                document.getElementById('message_expire_days').value = settings.message_expire_days || '';
+                document.getElementById('firmware_storage_path').value = settings.firmware_storage_path || '';
+            } catch (error) {
+                console.error('加载设置数据失败:', error);
+            }
+        }
+        
+        // 显示添加用户模态框
+        function showAddUserModal() {
+            document.getElementById('add-user-modal').style.display = 'block';
+        }
+        
+        // 显示绑定设备模态框
+        function showBindDeviceModal() {
+            // TODO: 实现显示绑定设备模态框的逻辑
+            console.log('显示绑定设备模态框');
+        }
+        
+        // 显示创建分组模态框
+        function showCreateGroupModal() {
+            // TODO: 实现显示创建分组模态框的逻辑
+            console.log('显示创建分组模态框');
+        }
+        
+        // 显示发送消息模态框
+        function showSendMessageModal() {
+            // TODO: 实现显示发送消息模态框的逻辑
+            console.log('显示发送消息模态框');
+        }
+        
+        // 显示添加固件模态框
+        function showAddFirmwareModal() {
+            // TODO: 实现显示添加固件模态框的逻辑
+            console.log('显示添加固件模态框');
+        }
+        
+        // 显示上传插件模态框
+        function showUploadPluginModal() {
+            // TODO: 实现显示上传插件模态框的逻辑
+            console.log('显示上传插件模态框');
+        }
+        
+        // 关闭模态框
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        
+        // 退出登录
+        function logout() {
+            // TODO: 实现退出登录的逻辑
+            console.log('退出登录');
+        }
+        
+        // 添加用户表单提交
+        document.getElementById('add-user-form')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            try {
+                const formData = {
+                    username: document.getElementById('username').value,
+                    email: document.getElementById('email').value,
+                    password: document.getElementById('password').value
+                };
+                
+                const response = await apiRequest('/user/register', 'POST', formData);
+                showSuccess('用户添加成功');
+                
+                // 关闭模态框并清空表单
+                closeModal('add-user-modal');
+                this.reset();
+                
+                // 刷新用户列表
+                loadUsersData();
+            } catch (error) {
+                console.error('添加用户失败:', error);
+            }
+        });
+        
+        // 设置表单提交
+        document.getElementById('settings-form')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            try {
+                const formData = {
+                    api_key: document.getElementById('api_key').value,
+                    max_messages: parseInt(document.getElementById('max_messages').value),
+                    message_expire_days: parseInt(document.getElementById('message_expire_days').value),
+                    firmware_storage_path: document.getElementById('firmware_storage_path').value
+                };
+                
+                const response = await apiRequest('/settings', 'PUT', formData);
+                showSuccess('设置保存成功');
+            } catch (error) {
+                console.error('保存设置失败:', error);
+            }
+        });
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 加载初始页面数据
+            loadPageData('dashboard');
+            
+            // 点击模态框外部关闭模态框
+            window.onclick = function(event) {
+                if (event.target.className === 'modal') {
+                    event.target.style.display = 'none';
+                }
+            }
+        });
+        
+        // 编辑用户
+        function editUser(userId) {
+            console.log('编辑用户:', userId);
+            // TODO: 实现编辑用户逻辑
+        }
+        
+        // 删除用户
+        function deleteUser(userId) {
+            if (confirm('确定要删除该用户吗？')) {
+                console.log('删除用户:', userId);
+                // TODO: 实现删除用户逻辑
+            }
+        }
+        
+        // 编辑设备
+        function editDevice(deviceId) {
+            console.log('编辑设备:', deviceId);
+            // TODO: 实现编辑设备逻辑
+        }
+        
+        // 发送消息到设备
+        function sendMessageToDevice(deviceId) {
+            console.log('发送消息到设备:', deviceId);
+            // TODO: 实现发送消息逻辑
+        }
+        
+        // 解绑设备
+        function unbindDevice(deviceId) {
+            if (confirm('确定要解绑该设备吗？')) {
+                console.log('解绑设备:', deviceId);
+                // TODO: 实现解绑设备逻辑
+            }
+        }
+        
+        // 查看消息
+        function viewMessage(messageId) {
+            console.log('查看消息:', messageId);
+            // TODO: 实现查看消息逻辑
+        }
+        
+        // 删除消息
+        function deleteMessage(messageId) {
+            if (confirm('确定要删除该消息吗？')) {
+                console.log('删除消息:', messageId);
+                // TODO: 实现删除消息逻辑
+            }
+        }
+        
+        // 查看固件
+        function viewFirmware(firmwareId) {
+            console.log('查看固件:', firmwareId);
+            // TODO: 实现查看固件逻辑
+        }
+        
+        // 发布固件
+        function publishFirmware(firmwareId) {
+            if (confirm('确定要发布该固件吗？')) {
+                console.log('发布固件:', firmwareId);
+                // TODO: 实现发布固件逻辑
+            }
+        }
+        
+        // 删除固件
+        function deleteFirmware(firmwareId) {
+            if (confirm('确定要删除该固件吗？')) {
+                console.log('删除固件:', firmwareId);
+                // TODO: 实现删除固件逻辑
+            }
+        }
+        
+        // 编辑插件
+        function editPlugin(pluginId) {
+            console.log('编辑插件:', pluginId);
+            // TODO: 实现编辑插件逻辑
+        }
+        
+        // 删除插件
+        function deletePlugin(pluginId) {
+            if (confirm('确定要删除该插件吗？')) {
+                console.log('删除插件:', pluginId);
+                // TODO: 实现删除插件逻辑
+            }
+        }
+    </script>
+</body>
+</html>

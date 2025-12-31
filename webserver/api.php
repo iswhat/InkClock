@@ -7,6 +7,12 @@ require_once 'models/Device.php';
 require_once 'models/Message.php';
 require_once 'models/FirmwareVersion.php';
 require_once 'models/User.php';
+require_once 'models/DeviceGroup.php';
+require_once 'models/DeviceTag.php';
+require_once 'models/FirmwarePushTask.php';
+require_once 'models/MessageTemplate.php';
+require_once 'models/SystemLog.php';
+require_once 'models/Notification.php';
 
 // 处理CORS
 handleCORS();
@@ -22,6 +28,12 @@ $deviceModel = new Device();
 $messageModel = new Message();
 $firmwareModel = new FirmwareVersion();
 $userModel = new User();
+$deviceGroupModel = new DeviceGroup();
+$deviceTagModel = new DeviceTag();
+$firmwarePushTaskModel = new FirmwarePushTask();
+$messageTemplateModel = new MessageTemplate();
+$systemLogModel = new SystemLog();
+$notificationModel = new Notification();
 
 // 解析API密钥
 $apiKey = isset($_GET['api_key']) ? $_GET['api_key'] : (isset($_SERVER['HTTP_X_API_KEY']) ? $_SERVER['HTTP_X_API_KEY'] : '');
@@ -55,6 +67,27 @@ switch ($parts[0]) {
         break;
     case 'firmware':
         handleFirmwareApi($method, $parts);
+        break;
+    case 'group':
+        handleDeviceGroupApi($method, $parts);
+        break;
+    case 'tag':
+        handleDeviceTagApi($method, $parts);
+        break;
+    case 'push_task':
+        handleFirmwarePushTaskApi($method, $parts);
+        break;
+    case 'template':
+        handleMessageTemplateApi($method, $parts);
+        break;
+    case 'log':
+        handleSystemLogApi($method, $parts);
+        break;
+    case 'notification':
+        handleNotificationApi($method, $parts);
+        break;
+    case 'plugin':
+        handlePluginApi($method, $parts);
         break;
     default:
         sendJsonResponse(array(
@@ -121,6 +154,319 @@ function handleDeviceApi($method, $parts) {
                 sendJsonResponse(array('success' => $result));
             } else {
                 sendJsonResponse(array('error' => '缺少设备ID'), 400);
+            }
+            break;
+        default:
+            sendJsonResponse(array('error' => '不支持的请求方法'), 405);
+            break;
+        }
+    }
+}
+
+/**
+ * 处理插件管理相关API
+ */
+function handlePluginApi($method, $parts) {
+    global $currentUser;
+    
+    // 插件JSON文件路径
+    $pluginJsonPath = __DIR__ . '/plugin/plugin.json';
+    
+    // 读取现有插件数据
+    $plugins = array();
+    if (file_exists($pluginJsonPath)) {
+        $plugins = json_decode(file_get_contents($pluginJsonPath), true) ?? array();
+    }
+    
+    switch ($method) {
+        case 'GET':
+            // 获取插件列表
+            sendJsonResponse(array('plugins' => $plugins));
+            break;
+        case 'POST':
+            // 添加新插件
+            $user = checkApiPermission(true);
+            $data = json_decode(file_get_contents('php://input'), true);
+            
+            if (!$data || !isset($data['name']) || !isset($data['url'])) {
+                sendJsonResponse(array('error' => '无效的请求数据'), 400);
+            }
+            
+            $newPlugin = array(
+                'name' => $data['name'],
+                'url' => $data['url'],
+                'description' => $data['description'] ?? '',
+                'refresh_interval' => $data['refresh_interval'] ?? '',
+                'settings_url' => $data['settings_url'] ?? ''
+            );
+            
+            $plugins[] = $newPlugin;
+            file_put_contents($pluginJsonPath, json_encode($plugins, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            sendJsonResponse(array('success' => true, 'plugin' => $newPlugin));
+            break;
+        case 'DELETE':
+            // 删除插件
+            $user = checkApiPermission(true);
+            
+            if (!isset($parts[1])) {
+                sendJsonResponse(array('error' => '缺少插件索引'), 400);
+            }
+            
+            $index = intval($parts[1]);
+            if (isset($plugins[$index])) {
+                $deletedPlugin = $plugins[$index];
+                array_splice($plugins, $index, 1);
+                file_put_contents($pluginJsonPath, json_encode($plugins, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                sendJsonResponse(array('success' => true, 'deleted_plugin' => $deletedPlugin));
+            } else {
+                sendJsonResponse(array('error' => '插件不存在'), 404);
+            }
+            break;
+        case 'PUT':
+            // 更新插件
+            $user = checkApiPermission(true);
+            
+            if (!isset($parts[1])) {
+                sendJsonResponse(array('error' => '缺少插件索引'), 400);
+            }
+            
+            $index = intval($parts[1]);
+            $data = json_decode(file_get_contents('php://input'), true);
+            
+            if (!isset($plugins[$index])) {
+                sendJsonResponse(array('error' => '插件不存在'), 404);
+            }
+            
+            if (!$data) {
+                sendJsonResponse(array('error' => '无效的请求数据'), 400);
+            }
+            
+            // 更新插件数据
+            $plugins[$index] = array_merge($plugins[$index], $data);
+            file_put_contents($pluginJsonPath, json_encode($plugins, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            sendJsonResponse(array('success' => true, 'plugin' => $plugins[$index]));
+            break;
+        default:
+            sendJsonResponse(array('error' => '不支持的请求方法'), 405);
+            break;
+    }
+}
+
+/**
+ * 处理通知相关API
+ */
+function handleNotificationApi($method, $parts) {
+    global $notificationModel, $currentUser;
+    
+    $user = checkApiPermission(true);
+    
+    switch ($method) {
+        case 'GET':
+            if (!isset($parts[1])) {
+                // 获取通知列表
+                $status = isset($_GET['status']) ? $_GET['status'] : null;
+                $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 50;
+                $offset = isset($_GET['offset']) ? intval($_GET['offset']) : 0;
+                
+                $notifications = $notificationModel->getNotifications($user['id'], $status, $limit, $offset);
+                $unreadCount = $notificationModel->getUnreadCount($user['id']);
+                
+                sendJsonResponse(array(
+                    'notifications' => $notifications,
+                    'unread_count' => $unreadCount
+                ));
+            } elseif (is_numeric($parts[1])) {
+                // 获取单个通知详情
+                $notificationId = intval($parts[1]);
+                $notification = $notificationModel->getNotificationById($notificationId, $user['id']);
+                if ($notification) {
+                    // 自动标记为已读
+                    $notificationModel->markAsRead($notificationId, $user['id']);
+                    sendJsonResponse(array('notification' => $notification));
+                } else {
+                    sendJsonResponse(array('error' => '通知不存在'), 404);
+                }
+            } elseif ($parts[1] == 'unread-count') {
+                // 获取未读通知数量
+                $unreadCount = $notificationModel->getUnreadCount($user['id']);
+                sendJsonResponse(array('unread_count' => $unreadCount));
+            } else {
+                sendJsonResponse(array('error' => '无效的API路径'), 404);
+            }
+            break;
+        case 'PUT':
+            if (!isset($parts[1])) {
+                // 标记所有通知为已读
+                $result = $notificationModel->markAllAsRead($user['id']);
+                sendJsonResponse($result);
+            } elseif (is_numeric($parts[1])) {
+                // 标记单个通知为已读
+                $notificationId = intval($parts[1]);
+                $result = $notificationModel->markAsRead($notificationId, $user['id']);
+                sendJsonResponse($result);
+            } else {
+                sendJsonResponse(array('error' => '无效的API路径'), 404);
+            }
+            break;
+        case 'DELETE':
+            if (is_numeric($parts[1])) {
+                // 删除单个通知
+                $notificationId = intval($parts[1]);
+                $result = $notificationModel->deleteNotification($notificationId, $user['id']);
+                sendJsonResponse($result);
+            } else {
+                sendJsonResponse(array('error' => '无效的API路径'), 404);
+            }
+            break;
+        default:
+            sendJsonResponse(array('error' => '不支持的请求方法'), 405);
+            break;
+    }
+}
+
+/**
+ * 处理系统日志相关API
+ */
+function handleSystemLogApi($method, $parts) {
+    global $systemLogModel, $currentUser;
+    
+    $user = checkApiPermission(true);
+    
+    switch ($method) {
+        case 'GET':
+            // 获取日志列表
+            $filters = array();
+            
+            // 解析过滤参数
+            if (isset($_GET['level'])) {
+                $filters['level'] = $_GET['level'];
+            }
+            if (isset($_GET['category'])) {
+                $filters['category'] = $_GET['category'];
+            }
+            if (isset($_GET['user_id'])) {
+                $filters['user_id'] = $_GET['user_id'];
+            }
+            if (isset($_GET['device_id'])) {
+                $filters['device_id'] = $_GET['device_id'];
+            }
+            if (isset($_GET['start_time'])) {
+                $filters['start_time'] = $_GET['start_time'];
+            }
+            if (isset($_GET['end_time'])) {
+                $filters['end_time'] = $_GET['end_time'];
+            }
+            
+            $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 50;
+            $offset = isset($_GET['offset']) ? intval($_GET['offset']) : 0;
+            
+            $logs = $systemLogModel->getLogs($filters, $limit, $offset);
+            $count = $systemLogModel->getLogCount($filters);
+            
+            sendJsonResponse(array(
+                'logs' => $logs,
+                'total' => $count,
+                'limit' => $limit,
+                'offset' => $offset
+            ));
+            break;
+        case 'DELETE':
+            if (isset($parts[1]) && $parts[1] == 'old') {
+                // 删除旧日志
+                $days = isset($_GET['days']) ? intval($_GET['days']) : 30;
+                $result = $systemLogModel->deleteOldLogs($days);
+                sendJsonResponse($result);
+            } else {
+                sendJsonResponse(array('error' => '无效的API路径'), 404);
+            }
+            break;
+        case 'POST':
+            // 手动记录日志（可选功能）
+            $data = json_decode(file_get_contents('php://input'), true);
+            if (!$data || !isset($data['message'])) {
+                sendJsonResponse(array('error' => '无效的请求数据'), 400);
+            }
+            
+            $level = isset($data['level']) ? $data['level'] : 'info';
+            $category = isset($data['category']) ? $data['category'] : 'manual';
+            $message = $data['message'];
+            $deviceId = isset($data['device_id']) ? $data['device_id'] : null;
+            
+            $result = $systemLogModel->log($level, $category, $message, $user['id'], $deviceId);
+            sendJsonResponse($result);
+            break;
+        default:
+            sendJsonResponse(array('error' => '不支持的请求方法'), 405);
+            break;
+    }
+}
+
+/**
+ * 处理消息模板相关API
+ */
+function handleMessageTemplateApi($method, $parts) {
+    global $messageTemplateModel, $currentUser;
+    
+    $user = checkApiPermission(true);
+    
+    switch ($method) {
+        case 'POST':
+            // 创建消息模板
+            $data = json_decode(file_get_contents('php://input'), true);
+            if (!$data || !isset($data['name']) || !isset($data['content'])) {
+                sendJsonResponse(array('error' => '无效的请求数据'), 400);
+            }
+            $name = $data['name'];
+            $content = $data['content'];
+            $type = isset($data['type']) ? $data['type'] : 'text';
+            $result = $messageTemplateModel->createTemplate($user['id'], $name, $content, $type);
+            sendJsonResponse($result);
+            break;
+        case 'GET':
+            if (!isset($parts[1])) {
+                // 获取模板列表
+                $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 50;
+                $offset = isset($_GET['offset']) ? intval($_GET['offset']) : 0;
+                $templates = $messageTemplateModel->getTemplatesByUserId($user['id'], $limit, $offset);
+                sendJsonResponse(array('templates' => $templates));
+            } elseif (is_numeric($parts[1])) {
+                // 获取模板详情
+                $templateId = intval($parts[1]);
+                $template = $messageTemplateModel->getTemplateById($templateId, $user['id']);
+                if ($template) {
+                    sendJsonResponse(array('template' => $template));
+                } else {
+                    sendJsonResponse(array('error' => '模板不存在'), 404);
+                }
+            } else {
+                sendJsonResponse(array('error' => '无效的API路径'), 404);
+            }
+            break;
+        case 'PUT':
+            if (is_numeric($parts[1])) {
+                // 更新模板
+                $templateId = intval($parts[1]);
+                $data = json_decode(file_get_contents('php://input'), true);
+                if (!$data || !isset($data['name']) || !isset($data['content'])) {
+                    sendJsonResponse(array('error' => '无效的请求数据'), 400);
+                }
+                $name = $data['name'];
+                $content = $data['content'];
+                $type = isset($data['type']) ? $data['type'] : 'text';
+                $result = $messageTemplateModel->updateTemplate($templateId, $user['id'], $name, $content, $type);
+                sendJsonResponse($result);
+            } else {
+                sendJsonResponse(array('error' => '无效的API路径'), 404);
+            }
+            break;
+        case 'DELETE':
+            if (is_numeric($parts[1])) {
+                // 删除模板
+                $templateId = intval($parts[1]);
+                $result = $messageTemplateModel->deleteTemplate($templateId, $user['id']);
+                sendJsonResponse($result);
+            } else {
+                sendJsonResponse(array('error' => '无效的API路径'), 404);
             }
             break;
         default:
@@ -458,7 +804,7 @@ function validateDeviceOwnership($deviceId) {
  * 检查设备访问权限
  */
 function checkDevicePermission($deviceId) {
-    global $currentUser, $userModel;
+    global $currentUser, $userModel, $deviceModel;
     
     // 设备可以自己访问自己的资源，不需要验证用户
     $ip = $_SERVER['REMOTE_ADDR'];
@@ -479,5 +825,329 @@ function checkDevicePermission($deviceId) {
     }
     
     return true;
+}
+
+/**
+ * 处理设备分组相关API
+ */
+function handleDeviceGroupApi($method, $parts) {
+    global $deviceGroupModel, $currentUser;
+    
+    $user = checkApiPermission(true);
+    
+    switch ($method) {
+        case 'POST':
+            if (!isset($parts[1])) {
+                // 创建分组
+                $data = json_decode(file_get_contents('php://input'), true);
+                if (!$data || !isset($data['name'])) {
+                    sendJsonResponse(array('error' => '无效的请求数据'), 400);
+                }
+                $name = $data['name'];
+                $description = isset($data['description']) ? $data['description'] : '';
+                $result = $deviceGroupModel->createGroup($user['id'], $name, $description);
+                sendJsonResponse($result);
+            } elseif ($parts[1] == 'add_device') {
+                // 添加设备到分组
+                $data = json_decode(file_get_contents('php://input'), true);
+                if (!$data || !isset($data['group_id']) || !isset($data['device_id'])) {
+                    sendJsonResponse(array('error' => '无效的请求数据'), 400);
+                }
+                $result = $deviceGroupModel->addDeviceToGroup($data['group_id'], $data['device_id']);
+                sendJsonResponse($result);
+            } elseif ($parts[1] == 'remove_device') {
+                // 从分组中移除设备
+                $data = json_decode(file_get_contents('php://input'), true);
+                if (!$data || !isset($data['group_id']) || !isset($data['device_id'])) {
+                    sendJsonResponse(array('error' => '无效的请求数据'), 400);
+                }
+                $result = $deviceGroupModel->removeDeviceFromGroup($data['group_id'], $data['device_id']);
+                sendJsonResponse($result);
+            } else {
+                sendJsonResponse(array('error' => '无效的API路径'), 404);
+            }
+            break;
+        case 'GET':
+            if (!isset($parts[1])) {
+                // 获取分组列表
+                $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 50;
+                $offset = isset($_GET['offset']) ? intval($_GET['offset']) : 0;
+                $groups = $deviceGroupModel->getGroupsByUserId($user['id'], $limit, $offset);
+                sendJsonResponse(array('groups' => $groups));
+            } elseif (is_numeric($parts[1])) {
+                // 获取分组详情
+                $groupId = intval($parts[1]);
+                $group = $deviceGroupModel->getGroupById($groupId, $user['id']);
+                if ($group) {
+                    sendJsonResponse(array('group' => $group));
+                } else {
+                    sendJsonResponse(array('error' => '分组不存在'), 404);
+                }
+            } elseif ($parts[1] == 'devices') {
+                // 获取分组的设备列表
+                if (!isset($parts[2]) || !is_numeric($parts[2])) {
+                    sendJsonResponse(array('error' => '缺少分组ID'), 400);
+                }
+                $groupId = intval($parts[2]);
+                $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 50;
+                $offset = isset($_GET['offset']) ? intval($_GET['offset']) : 0;
+                $devices = $deviceGroupModel->getDevicesByGroupId($groupId, $limit, $offset);
+                sendJsonResponse(array('devices' => $devices));
+            } else {
+                sendJsonResponse(array('error' => '无效的API路径'), 404);
+            }
+            break;
+        case 'PUT':
+            if (is_numeric($parts[1])) {
+                // 更新分组信息
+                $groupId = intval($parts[1]);
+                $data = json_decode(file_get_contents('php://input'), true);
+                if (!$data || !isset($data['name'])) {
+                    sendJsonResponse(array('error' => '无效的请求数据'), 400);
+                }
+                $name = $data['name'];
+                $description = isset($data['description']) ? $data['description'] : '';
+                $result = $deviceGroupModel->updateGroup($groupId, $user['id'], $name, $description);
+                sendJsonResponse($result);
+            } else {
+                sendJsonResponse(array('error' => '无效的API路径'), 404);
+            }
+            break;
+        case 'DELETE':
+            if (is_numeric($parts[1])) {
+                // 删除分组
+                $groupId = intval($parts[1]);
+                $result = $deviceGroupModel->deleteGroup($groupId, $user['id']);
+                sendJsonResponse($result);
+            } else {
+                sendJsonResponse(array('error' => '无效的API路径'), 404);
+            }
+            break;
+        default:
+            sendJsonResponse(array('error' => '不支持的请求方法'), 405);
+            break;
+    }
+}
+
+/**
+ * 处理设备标签相关API
+ */
+function handleDeviceTagApi($method, $parts) {
+    global $deviceTagModel, $currentUser;
+    
+    $user = checkApiPermission(true);
+    
+    switch ($method) {
+        case 'POST':
+            if (!isset($parts[1])) {
+                // 创建标签
+                $data = json_decode(file_get_contents('php://input'), true);
+                if (!$data || !isset($data['name'])) {
+                    sendJsonResponse(array('error' => '无效的请求数据'), 400);
+                }
+                $name = $data['name'];
+                $color = isset($data['color']) ? $data['color'] : '#3498db';
+                $result = $deviceTagModel->createTag($user['id'], $name, $color);
+                sendJsonResponse($result);
+            } elseif ($parts[1] == 'add_device') {
+                // 给设备添加标签
+                $data = json_decode(file_get_contents('php://input'), true);
+                if (!$data || !isset($data['tag_id']) || !isset($data['device_id'])) {
+                    sendJsonResponse(array('error' => '无效的请求数据'), 400);
+                }
+                $result = $deviceTagModel->addTagToDevice($data['tag_id'], $data['device_id']);
+                sendJsonResponse($result);
+            } elseif ($parts[1] == 'remove_device') {
+                // 从设备移除标签
+                $data = json_decode(file_get_contents('php://input'), true);
+                if (!$data || !isset($data['tag_id']) || !isset($data['device_id'])) {
+                    sendJsonResponse(array('error' => '无效的请求数据'), 400);
+                }
+                $result = $deviceTagModel->removeTagFromDevice($data['tag_id'], $data['device_id']);
+                sendJsonResponse($result);
+            } elseif ($parts[1] == 'batch_add') {
+                // 批量给设备添加标签
+                $data = json_decode(file_get_contents('php://input'), true);
+                if (!$data || !isset($data['tag_id']) || !isset($data['device_ids'])) {
+                    sendJsonResponse(array('error' => '无效的请求数据'), 400);
+                }
+                $result = $deviceTagModel->batchAddTagsToDevices($data['tag_id'], $data['device_ids']);
+                sendJsonResponse($result);
+            } elseif ($parts[1] == 'batch_remove') {
+                // 批量从设备移除标签
+                $data = json_decode(file_get_contents('php://input'), true);
+                if (!$data || !isset($data['tag_id']) || !isset($data['device_ids'])) {
+                    sendJsonResponse(array('error' => '无效的请求数据'), 400);
+                }
+                $result = $deviceTagModel->batchRemoveTagsFromDevices($data['tag_id'], $data['device_ids']);
+                sendJsonResponse($result);
+            } else {
+                sendJsonResponse(array('error' => '无效的API路径'), 404);
+            }
+            break;
+        case 'GET':
+            if (!isset($parts[1])) {
+                // 获取标签列表
+                $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 50;
+                $offset = isset($_GET['offset']) ? intval($_GET['offset']) : 0;
+                $tags = $deviceTagModel->getTagsByUserId($user['id'], $limit, $offset);
+                sendJsonResponse(array('tags' => $tags));
+            } elseif (is_numeric($parts[1])) {
+                // 获取标签详情
+                $tagId = intval($parts[1]);
+                $tag = $deviceTagModel->getTagById($tagId, $user['id']);
+                if ($tag) {
+                    sendJsonResponse(array('tag' => $tag));
+                } else {
+                    sendJsonResponse(array('error' => '标签不存在'), 404);
+                }
+            } elseif ($parts[1] == 'devices') {
+                // 获取标签的设备列表
+                if (!isset($parts[2]) || !is_numeric($parts[2])) {
+                    sendJsonResponse(array('error' => '缺少标签ID'), 400);
+                }
+                $tagId = intval($parts[2]);
+                $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 50;
+                $offset = isset($_GET['offset']) ? intval($_GET['offset']) : 0;
+                $devices = $deviceTagModel->getDevicesByTagId($tagId, $limit, $offset);
+                sendJsonResponse(array('devices' => $devices));
+            } elseif ($parts[1] == 'device_tags') {
+                // 获取设备的标签列表
+                if (!isset($parts[2])) {
+                    sendJsonResponse(array('error' => '缺少设备ID'), 400);
+                }
+                $deviceId = $parts[2];
+                $tags = $deviceTagModel->getTagsByDeviceId($deviceId);
+                sendJsonResponse(array('tags' => $tags));
+            } else {
+                sendJsonResponse(array('error' => '无效的API路径'), 404);
+            }
+            break;
+        case 'PUT':
+            if (is_numeric($parts[1])) {
+                // 更新标签信息
+                $tagId = intval($parts[1]);
+                $data = json_decode(file_get_contents('php://input'), true);
+                if (!$data || !isset($data['name'])) {
+                    sendJsonResponse(array('error' => '无效的请求数据'), 400);
+                }
+                $name = $data['name'];
+                $color = isset($data['color']) ? $data['color'] : '#3498db';
+                $result = $deviceTagModel->updateTag($tagId, $user['id'], $name, $color);
+                sendJsonResponse($result);
+            } else {
+                sendJsonResponse(array('error' => '无效的API路径'), 404);
+            }
+            break;
+        case 'DELETE':
+            if (is_numeric($parts[1])) {
+                // 删除标签
+                $tagId = intval($parts[1]);
+                $result = $deviceTagModel->deleteTag($tagId, $user['id']);
+                sendJsonResponse($result);
+            } else {
+                sendJsonResponse(array('error' => '无效的API路径'), 404);
+            }
+            break;
+        default:
+            sendJsonResponse(array('error' => '不支持的请求方法'), 405);
+            break;
+    }
+}
+
+/**
+ * 处理固件推送任务相关API
+ */
+function handleFirmwarePushTaskApi($method, $parts) {
+    global $firmwarePushTaskModel, $currentUser;
+    
+    $user = checkApiPermission(true);
+    
+    switch ($method) {
+        case 'POST':
+            if (!isset($parts[1])) {
+                // 创建推送任务
+                $data = json_decode(file_get_contents('php://input'), true);
+                if (!$data || !isset($data['firmware_id']) || !isset($data['target_type'])) {
+                    sendJsonResponse(array('error' => '无效的请求数据'), 400);
+                }
+                $firmwareId = $data['firmware_id'];
+                $targetType = $data['target_type'];
+                $targetIds = isset($data['target_ids']) ? json_encode($data['target_ids']) : null;
+                $result = $firmwarePushTaskModel->createPushTask($user['id'], $firmwareId, $targetType, $targetIds);
+                sendJsonResponse($result);
+            } elseif ($parts[1] == 'add_log') {
+                // 添加推送日志
+                $data = json_decode(file_get_contents('php://input'), true);
+                if (!$data || !isset($data['task_id']) || !isset($data['device_id']) || !isset($data['status'])) {
+                    sendJsonResponse(array('error' => '无效的请求数据'), 400);
+                }
+                $errorMessage = isset($data['error_message']) ? $data['error_message'] : null;
+                $result = $firmwarePushTaskModel->addPushLog($data['task_id'], $data['device_id'], $data['status'], $errorMessage);
+                sendJsonResponse($result);
+            } elseif ($parts[1] == 'batch_log') {
+                // 批量添加推送日志
+                $data = json_decode(file_get_contents('php://input'), true);
+                if (!$data || !isset($data['task_id']) || !isset($data['logs'])) {
+                    sendJsonResponse(array('error' => '无效的请求数据'), 400);
+                }
+                $result = $firmwarePushTaskModel->batchAddPushLogs($data['task_id'], $data['logs']);
+                sendJsonResponse($result);
+            } else {
+                sendJsonResponse(array('error' => '无效的API路径'), 404);
+            }
+            break;
+        case 'GET':
+            if (!isset($parts[1])) {
+                // 获取推送任务列表
+                $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 50;
+                $offset = isset($_GET['offset']) ? intval($_GET['offset']) : 0;
+                $tasks = $firmwarePushTaskModel->getPushTasksByUserId($user['id'], $limit, $offset);
+                sendJsonResponse(array('tasks' => $tasks));
+            } elseif (is_numeric($parts[1])) {
+                // 获取推送任务详情
+                $taskId = intval($parts[1]);
+                $task = $firmwarePushTaskModel->getPushTaskById($taskId, $user['id']);
+                if ($task) {
+                    sendJsonResponse(array('task' => $task));
+                } else {
+                    sendJsonResponse(array('error' => '推送任务不存在'), 404);
+                }
+            } else {
+                sendJsonResponse(array('error' => '无效的API路径'), 404);
+            }
+            break;
+        case 'PUT':
+            if (is_numeric($parts[1])) {
+                // 更新推送任务状态
+                $taskId = intval($parts[1]);
+                $data = json_decode(file_get_contents('php://input'), true);
+                if (!$data || !isset($data['status'])) {
+                    sendJsonResponse(array('error' => '无效的请求数据'), 400);
+                }
+                $status = $data['status'];
+                $progress = isset($data['progress']) ? $data['progress'] : null;
+                $successCount = isset($data['success_count']) ? $data['success_count'] : null;
+                $failedCount = isset($data['failed_count']) ? $data['failed_count'] : null;
+                $result = $firmwarePushTaskModel->updatePushTaskStatus($taskId, $status, $progress, $successCount, $failedCount);
+                sendJsonResponse($result);
+            } else {
+                sendJsonResponse(array('error' => '无效的API路径'), 404);
+            }
+            break;
+        case 'DELETE':
+            if (is_numeric($parts[1])) {
+                // 删除推送任务
+                $taskId = intval($parts[1]);
+                $result = $firmwarePushTaskModel->deletePushTask($taskId, $user['id']);
+                sendJsonResponse($result);
+            } else {
+                sendJsonResponse(array('error' => '无效的API路径'), 404);
+            }
+            break;
+        default:
+            sendJsonResponse(array('error' => '不支持的请求方法'), 405);
+            break;
+    }
 }
 ?>
