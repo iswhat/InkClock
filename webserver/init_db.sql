@@ -35,3 +35,26 @@ CREATE TABLE IF NOT EXISTS `messages` (
   KEY `created_at` (`created_at`),
   CONSTRAINT `messages_ibfk_1` FOREIGN KEY (`device_id`) REFERENCES `devices` (`device_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='消息表';
+
+-- 创建固件版本表
+CREATE TABLE IF NOT EXISTS `firmware_versions` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `version` varchar(32) NOT NULL COMMENT '固件版本号',
+  `device_model` varchar(64) NOT NULL COMMENT '设备型号',
+  `filename` varchar(255) NOT NULL COMMENT '固件文件名',
+  `file_path` varchar(255) NOT NULL COMMENT '固件文件路径',
+  `file_size` bigint(20) NOT NULL COMMENT '固件文件大小',
+  `sha256` varchar(64) NOT NULL COMMENT '固件文件SHA-256哈希',
+  `signature` text COMMENT '固件签名',
+  `public_key` text COMMENT '签名公钥',
+  `release_notes` text COMMENT '发布说明',
+  `is_active` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否为活跃版本',
+  `is_forced` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否强制更新',
+  `created_at` datetime NOT NULL COMMENT '创建时间',
+  `published_at` datetime DEFAULT NULL COMMENT '发布时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `version_model` (`version`,`device_model`),
+  KEY `device_model` (`device_model`),
+  KEY `is_active` (`is_active`),
+  KEY `published_at` (`published_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='固件版本表';

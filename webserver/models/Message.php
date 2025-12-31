@@ -19,13 +19,14 @@ class Message {
         $sender = isset($messageInfo['sender']) ? $messageInfo['sender'] : 'Unknown';
         $content = $messageInfo['content'];
         $type = isset($messageInfo['type']) ? $messageInfo['type'] : 'text'; // text, image, audio
+        $userId = isset($messageInfo['user_id']) ? $messageInfo['user_id'] : null;
         $messageId = generateMessageId();
         $status = 'unread';
         $createdAt = date('Y-m-d H:i:s');
         
         // 插入消息
-        $stmt = $this->db->prepare("INSERT INTO messages (message_id, device_id, sender, content, type, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("sssssss", $messageId, $deviceId, $sender, $content, $type, $status, $createdAt);
+        $stmt = $this->db->prepare("INSERT INTO messages (message_id, device_id, user_id, sender, content, type, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssssss", $messageId, $deviceId, $userId, $sender, $content, $type, $status, $createdAt);
         $stmt->execute();
         $affectedRows = $stmt->affected_rows;
         $stmt->close();
