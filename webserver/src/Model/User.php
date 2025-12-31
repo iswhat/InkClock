@@ -182,3 +182,22 @@ class User {
         $passwordHash = password_hash($password, PASSWORD_DEFAULT);
         $apiKey = $this->generateApiKey();
         $createdAt = date('Y-m-d H:i:s');
+        
+        // 插入管理员用户，is_admin设为1
+        $stmt = $this->db->prepare("INSERT INTO users (username, email, password_hash, api_key, created_at, is_admin) VALUES (:username, :email, :password_hash, :api_key, :created_at, 1)");
+        $stmt->bindValue(':username', $username, SQLITE3_TEXT);
+        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+        $stmt->bindValue(':password_hash', $passwordHash, SQLITE3_TEXT);
+        $stmt->bindValue(':api_key', $apiKey, SQLITE3_TEXT);
+        $stmt->bindValue(':created_at', $createdAt, SQLITE3_TEXT);
+        
+        $result = $stmt->execute();
+        
+        if ($result) {
+            $userId = $this->db->lastInsertRowID();
+            return ['success' => true, 'user_id' => $userId, 'api_key' => $apiKey];
+        } else {
+            return ['success' => false, 'error' => '管理员创建失败'];
+        }
+    }
+}
