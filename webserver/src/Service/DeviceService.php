@@ -3,13 +3,13 @@
  * 设备服务类
  */
 
-namespace App\Service;
+namespace InkClock\Service;
 
-use App\Utils\Logger;
-use App\Utils\Cache;
-use App\Model\Device;
-use App\Model\User;
-use App\Interface\DeviceServiceInterface;
+use InkClock\Utils\Logger;
+use InkClock\Utils\Cache;
+use InkClock\Model\Device;
+use InkClock\Model\User;
+use InkClock\Interface\DeviceServiceInterface;
 
 class DeviceService implements DeviceServiceInterface {
     private $db;

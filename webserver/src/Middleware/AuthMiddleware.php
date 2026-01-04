@@ -3,11 +3,11 @@
  * 认证中间件 - 处理API密钥验证
  */
 
-namespace App\Middleware;
+namespace InkClock\Middleware;
 
-use App\Service\AuthService;
-use App\Utils\Logger;
-use App\Utils\Response;
+use InkClock\Service\AuthService;
+use InkClock\Utils\Logger;
+use InkClock\Utils\Response;
 
 class AuthMiddleware implements MiddlewareInterface {
     private $authService;

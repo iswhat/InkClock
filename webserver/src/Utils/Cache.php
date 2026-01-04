@@ -3,7 +3,7 @@
  * 缓存工具类
  */
 
-namespace App\Utils;
+namespace InkClock\Utils;
 
 class Cache {
     private static $instance = null;

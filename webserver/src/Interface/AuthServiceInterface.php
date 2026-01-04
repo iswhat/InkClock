@@ -3,7 +3,7 @@
  * 认证服务接口
  */
 
-namespace App\Interface;
+namespace InkClock\Interface;
 
 interface AuthServiceInterface {
     /**

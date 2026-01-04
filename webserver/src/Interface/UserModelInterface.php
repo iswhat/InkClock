@@ -3,7 +3,7 @@
  * 用户模型接口
  */
 
-namespace App\Interface;
+namespace InkClock\Interface;
 
 interface UserModelInterface {
     /**

@@ -3,9 +3,9 @@
  * 通知控制器
  */
 
-namespace App\Controller;
+namespace InkClock\Controller;
 
-use App\Model\Notification as NotificationModel;
+use InkClock\Model\Notification as NotificationModel;
 
 class NotificationController extends BaseController {
     /**

@@ -3,9 +3,9 @@
  * 消息模板控制器
  */
 
-namespace App\Controller;
+namespace InkClock\Controller;
 
-use App\Model\MessageTemplate;
+use InkClock\Model\MessageTemplate;
 
 class MessageTemplateController extends BaseController {
     /**

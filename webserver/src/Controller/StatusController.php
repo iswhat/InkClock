@@ -3,7 +3,7 @@
  * 状态控制器
  */
 
-namespace App\Controller;
+namespace InkClock\Controller;
 
 class StatusController extends BaseController {
     /**

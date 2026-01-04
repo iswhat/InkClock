@@ -3,9 +3,9 @@
  * 固件推送任务控制器
  */
 
-namespace App\Controller;
+namespace InkClock\Controller;
 
-use App\Model\FirmwarePushTask;
+use InkClock\Model\FirmwarePushTask;
 
 class FirmwarePushTaskController extends BaseController {
     /**

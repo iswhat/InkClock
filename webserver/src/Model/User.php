@@ -3,7 +3,7 @@
  * 用户模型
  */
 
-namespace App\Model;
+namespace InkClock\Model;
 
 class User {
     private $db;

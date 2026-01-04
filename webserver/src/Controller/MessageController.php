@@ -3,9 +3,9 @@
  * 消息控制器
  */
 
-namespace App\Controller;
+namespace InkClock\Controller;
 
-use App\Model\Message;
+use InkClock\Model\Message;
 
 class MessageController extends BaseController {
     /**

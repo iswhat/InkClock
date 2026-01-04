@@ -2,9 +2,9 @@
 /**
  * 固件版本模型类
  */
-namespace App\Model;
+namespace InkClock\Model;
 
-use App\Utils\Database;
+use InkClock\Utils\Database;
 
 class FirmwareVersion {
     private $db;

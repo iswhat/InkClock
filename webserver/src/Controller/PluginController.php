@@ -3,7 +3,7 @@
  * 插件控制器
  */
 
-namespace App\Controller;
+namespace InkClock\Controller;
 
 class PluginController extends BaseController {
     /**

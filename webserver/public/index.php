@@ -24,8 +24,8 @@ spl_autoload_register(function ($className) {
 $config = require __DIR__ . '/../config/config.php';
 
 // 初始化依赖注入容器
-use App\Utils\DIContainer;
-use App\Config\Services;
+use InkClock\Utils\DIContainer;
+use InkClock\Config\Services;
 
 // 创建依赖注入容器实例
 $container = DIContainer::getInstance();
@@ -34,9 +34,9 @@ $container = DIContainer::getInstance();
 Services::register($container);
 
 // 初始化中间件管理器
-use App\Middleware\MiddlewareManager;
-use App\Middleware\CorsMiddleware;
-use App\Middleware\LoggingMiddleware;
+use InkClock\Middleware\MiddlewareManager;
+use InkClock\Middleware\CorsMiddleware;
+use InkClock\Middleware\LoggingMiddleware;
 
 $middlewareManager = new MiddlewareManager();
 
@@ -145,7 +145,7 @@ $requestHandler = function($request) use ($matchedRoute, $params, $container, $l
     list($controllerName, $actionName) = explode('@', $matchedRoute);
     
     // 使用新的控制器命名空间
-    $fullControllerName = 'App\\Controller\\' . $controllerName;
+    $fullControllerName = 'InkClock\\Controller\\' . $controllerName;
     
     try {
         // 创建控制器实例，使用依赖注入

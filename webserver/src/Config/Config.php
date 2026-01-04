@@ -3,7 +3,7 @@
  * 配置管理类
  */
 
-namespace App\Config;
+namespace InkClock\Config;
 
 class Config {
     private static $config = [];

@@ -3,9 +3,9 @@
  * 系统日志控制器
  */
 
-namespace App\Controller;
+namespace InkClock\Controller;
 
-use App\Model\SystemLog;
+use InkClock\Model\SystemLog;
 
 class SystemLogController extends BaseController {
     /**

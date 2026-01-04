@@ -3,12 +3,12 @@
  * 速率限制中间件
  */
 
-namespace App\Middleware;
+namespace InkClock\Middleware;
 
-use App\Utils\Logger;
-use App\Utils\Response;
-use App\Utils\Cache;
-use App\Config\Config;
+use InkClock\Utils\Logger;
+use InkClock\Utils\Response;
+use InkClock\Utils\Cache;
+use InkClock\Config\Config;
 
 class RateLimitMiddleware implements MiddlewareInterface {
     private $logger;
@@ -18,9 +18,9 @@ class RateLimitMiddleware implements MiddlewareInterface {
     
     /**
      * 构造函数
-     * @param \App\Utils\Logger $logger 日志服务
-     * @param \App\Utils\Response $response 响应服务
-     * @param \App\Utils\Cache $cache 缓存服务
+     * @param \InkClock\Utils\Logger $logger 日志服务
+     * @param \InkClock\Utils\Response $response 响应服务
+     * @param \InkClock\Utils\Cache $cache 缓存服务
      */
     public function __construct($logger = null, $response = null, $cache = null) {
         if ($logger === null) {

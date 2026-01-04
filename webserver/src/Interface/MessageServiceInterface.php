@@ -3,7 +3,7 @@
  * 消息服务接口
  */
 
-namespace App\Interface;
+namespace InkClock\Interface;
 
 interface MessageServiceInterface {
     /**

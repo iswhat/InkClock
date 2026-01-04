@@ -3,17 +3,17 @@
  * 服务注册配置
  */
 
-namespace App\Config;
+namespace InkClock\Config;
 
-use App\Utils\DIContainer;
-use App\Utils\Database;
-use App\Utils\Logger;
-use App\Utils\Cache;
-use App\Utils\Response;
-use App\Config\Config;
-use App\Service\AuthService;
-use App\Service\DeviceService;
-use App\Service\MessageService;
+use InkClock\Utils\DIContainer;
+use InkClock\Utils\Database;
+use InkClock\Utils\Logger;
+use InkClock\Utils\Cache;
+use InkClock\Utils\Response;
+use InkClock\Config\Config;
+use InkClock\Service\AuthService;
+use InkClock\Service\DeviceService;
+use InkClock\Service\MessageService;
 
 class Services {
     /**

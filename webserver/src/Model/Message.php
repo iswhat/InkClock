@@ -3,7 +3,7 @@
  * 消息模型
  */
 
-namespace App\Model;
+namespace InkClock\Model;
 
 class Message {
     private $db;

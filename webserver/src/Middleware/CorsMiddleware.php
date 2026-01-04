@@ -3,9 +3,9 @@
  * CORS中间件 - 处理跨域请求
  */
 
-namespace App\Middleware;
+namespace InkClock\Middleware;
 
-use App\Utils\Response;
+use InkClock\Utils\Response;
 
 class CorsMiddleware implements MiddlewareInterface {
     private $response;

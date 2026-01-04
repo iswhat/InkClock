@@ -3,9 +3,9 @@
  * 固件控制器
  */
 
-namespace App\Controller;
+namespace InkClock\Controller;
 
-use App\Model\FirmwareVersion;
+use InkClock\Model\FirmwareVersion;
 
 class FirmwareController extends BaseController {
     /**

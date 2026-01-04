@@ -2,9 +2,9 @@
 /**
  * 固件推送任务模型
  */
-namespace App\Model;
+namespace InkClock\Model;
 
-use App\Utils\Database;
+use InkClock\Utils\Database;
 
 class FirmwarePushTask {
     private $db;

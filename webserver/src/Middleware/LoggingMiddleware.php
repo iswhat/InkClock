@@ -3,9 +3,9 @@
  * 日志中间件 - 记录所有传入请求
  */
 
-namespace App\Middleware;
+namespace InkClock\Middleware;
 
-use App\Utils\Logger;
+use InkClock\Utils\Logger;
 
 class LoggingMiddleware implements MiddlewareInterface {
     private $logger;

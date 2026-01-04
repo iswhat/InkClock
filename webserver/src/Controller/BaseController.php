@@ -3,7 +3,7 @@
  * 基础控制器类
  */
 
-namespace App\Controller;
+namespace InkClock\Controller;
 
 
 
@@ -22,7 +22,7 @@ class BaseController {
     
     /**
      * 构造函数 - 使用依赖注入
-     * @param \App\Utils\DIContainer $container 依赖注入容器
+     * @param \InkClock\Utils\DIContainer $container 依赖注入容器
      */
     public function __construct($container = null) {
         $this->container = $container;
@@ -35,7 +35,7 @@ class BaseController {
             $this->cache = $container->get('cache');
         } else {
             // 直接使用依赖注入容器
-            $this->container = \App\Utils\DIContainer::getInstance();
+            $this->container = \InkClock\Utils\DIContainer::getInstance();
             $this->db = $this->container->get('db');
             $this->logger = $this->container->get('logger');
             $this->response = $this->container->get('response');
@@ -138,7 +138,7 @@ class BaseController {
      */
     protected function checkDevicePermission($deviceId) {
         // 使用设备模型
-        $deviceModel = new \App\Model\Device($this->db);
+        $deviceModel = new \InkClock\Model\Device($this->db);
         
         // 设备可以自己访问自己的资源，不需要验证用户
         $ip = $_SERVER['REMOTE_ADDR'];

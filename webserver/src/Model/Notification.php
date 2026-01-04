@@ -2,9 +2,9 @@
 /**
  * 通知模型
  */
-namespace App\Model;
+namespace InkClock\Model;
 
-use App\Utils\Database;
+use InkClock\Utils\Database;
 
 class Notification {
     private $db;

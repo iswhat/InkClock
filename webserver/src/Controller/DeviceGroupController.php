@@ -3,9 +3,9 @@
  * 设备分组控制器
  */
 
-namespace App\Controller;
+namespace InkClock\Controller;
 
-use App\Model\DeviceGroup;
+use InkClock\Model\DeviceGroup;
 
 class DeviceGroupController extends BaseController {
     /**

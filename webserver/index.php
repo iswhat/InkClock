@@ -109,7 +109,7 @@ if ($matchedRoute) {
     list($controllerName, $actionName) = explode('@', $matchedRoute);
     
     // 完整类名
-    $fullClassName = "\InkClock\Api\$controllerName";
+    $fullClassName = "\InkClock\Controller\$controllerName";
     
     // 定义控制器处理函数
     $controllerHandler = function($request) use ($fullClassName, $actionName, $container, $logger, $response) {

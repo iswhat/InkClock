@@ -3,10 +3,10 @@
  * 设备控制器
  */
 
-namespace App\Controller;
+namespace InkClock\Controller;
 
-use App\Model\Device;
-use App\Model\User;
+use InkClock\Model\Device;
+use InkClock\Model\User;
 
 class DeviceController extends BaseController {
     /**

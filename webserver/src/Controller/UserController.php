@@ -3,7 +3,7 @@
  * 用户控制器
  */
 
-namespace App\Controller;
+namespace InkClock\Controller;
 
 class UserController extends BaseController {
     /**

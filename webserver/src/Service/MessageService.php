@@ -3,12 +3,12 @@
  * 消息服务类
  */
 
-namespace App\Service;
+namespace InkClock\Service;
 
-use App\Utils\Logger;
-use App\Model\User;
-use App\Model\Message;
-use App\Interface\MessageServiceInterface;
+use InkClock\Utils\Logger;
+use InkClock\Model\User;
+use InkClock\Model\Message;
+use InkClock\Interface\MessageServiceInterface;
 
 class MessageService implements MessageServiceInterface {
     private $db;
@@ -19,7 +19,7 @@ class MessageService implements MessageServiceInterface {
      * 构造函数
      * @param \SQLite3 $db 数据库连接
      * @param Logger $logger 日志服务
-     * @param \App\Utils\Cache $cache 缓存服务
+     * @param \InkClock\Utils\Cache $cache 缓存服务
      */
     public function __construct($db, Logger $logger, $cache = null) {
         $this->db = $db;

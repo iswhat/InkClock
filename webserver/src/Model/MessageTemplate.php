@@ -2,9 +2,9 @@
 /**
  * 消息模板模型
  */
-namespace App\Model;
+namespace InkClock\Model;
 
-use App\Utils\Database;
+use InkClock\Utils\Database;
 
 class MessageTemplate {
     private $db;

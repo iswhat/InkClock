@@ -3,9 +3,9 @@
  * 设备标签控制器
  */
 
-namespace App\Controller;
+namespace InkClock\Controller;
 
-use App\Model\DeviceTag;
+use InkClock\Model\DeviceTag;
 
 class DeviceTagController extends BaseController {
     /**

@@ -3,7 +3,7 @@
  * 系统日志模型
  */
 
-namespace App\Model;
+namespace InkClock\Model;
 
 class SystemLog {
     private $db;
