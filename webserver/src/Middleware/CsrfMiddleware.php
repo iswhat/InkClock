@@ -14,10 +14,18 @@ class CsrfMiddleware implements MiddlewareInterface {
     
     /**
      * 构造函数
+     * @param \InkClock\Utils\Logger $logger 日志服务
+     * @param \InkClock\Utils\Response $response 响应服务
      */
-    public function __construct() {
-        $this->logger = Logger::getInstance();
-        $this->response = new Response();
+    public function __construct($logger = null, $response = null) {
+        if ($logger === null) {
+            $logger = \InkClock\Utils\Logger::getInstance();
+        }
+        if ($response === null) {
+            $response = \InkClock\Utils\Response::getInstance();
+        }
+        $this->logger = $logger;
+        $this->response = $response;
     }
     
     /**

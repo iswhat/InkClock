@@ -3,7 +3,7 @@
  * 依赖注入容器
  */
 
-namespace InkClock\Utils;
+namespace App\Utils;
 
 class DIContainer {
     private $services = [];

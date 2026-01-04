@@ -3,14 +3,17 @@
  * 服务注册配置
  */
 
-namespace InkClock\Config;
+namespace App\Config;
 
-use InkClock\Utils\DIContainer;
-use InkClock\Utils\Database;
-use InkClock\Utils\Logger;
-use InkClock\Service\AuthService;
-use InkClock\Service\DeviceService;
-use InkClock\Service\MessageService;
+use App\Utils\DIContainer;
+use App\Utils\Database;
+use App\Utils\Logger;
+use App\Utils\Cache;
+use App\Utils\Response;
+use App\Config\Config;
+use App\Service\AuthService;
+use App\Service\DeviceService;
+use App\Service\MessageService;
 
 class Services {
     /**
@@ -21,7 +24,7 @@ class Services {
     public static function register(DIContainer $container) {
         // 注册配置服务
         $container->register('config', function() {
-            return Config::class;
+            return Config::getInstance();
         });
 
         // 注册数据库服务
@@ -37,19 +40,31 @@ class Services {
             return $logger;
         });
 
+        // 注册缓存服务
+        $container->register('cache', function() {
+            $cache = new Cache();
+            return $cache;
+        });
+
+        // 注册响应服务
+        $container->register('response', function() {
+            $response = Response::getInstance();
+            return $response;
+        });
+
         // 注册认证服务
         $container->register('authService', function($container) {
-            return new AuthService($container->get('db'), $container->get('logger'));
+            return new AuthService($container->get('db'), $container->get('logger'), $container->get('cache'));
         });
 
         // 注册设备服务
         $container->register('deviceService', function($container) {
-            return new DeviceService($container->get('db'), $container->get('logger'));
+            return new DeviceService($container->get('db'), $container->get('logger'), $container->get('cache'));
         });
 
         // 注册消息服务
         $container->register('messageService', function($container) {
-            return new MessageService($container->get('db'), $container->get('logger'));
+            return new MessageService($container->get('db'), $container->get('logger'), $container->get('cache'));
         });
     }
 }

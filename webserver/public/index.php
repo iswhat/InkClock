@@ -10,52 +10,43 @@ date_default_timezone_set('Asia/Shanghai');
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// 加载Composer自动加载器
-require_once __DIR__ . '/../vendor/autoload.php';
+// 自定义自动加载函数
+spl_autoload_register(function ($className) {
+    // 转换命名空间为文件路径
+    $filePath = __DIR__ . '/../src/' . str_replace('\\', '/', $className) . '.php';
+    
+    if (file_exists($filePath)) {
+        require_once $filePath;
+    }
+});
 
 // 初始化配置
 $config = require __DIR__ . '/../config/config.php';
 
 // 初始化依赖注入容器
-use InkClock\Utils\DIContainer;
-use InkClock\Utils\Database;
-use InkClock\Utils\Logger;
-use InkClock\Utils\Response;
-use InkClock\Service\AuthService;
-use InkClock\Middleware\MiddlewareManager;
-use InkClock\Middleware\CorsMiddleware;
-use InkClock\Middleware\LoggingMiddleware;
-use InkClock\Middleware\AuthMiddleware;
+use App\Utils\DIContainer;
+use App\Config\Services;
 
 // 创建依赖注入容器实例
 $container = DIContainer::getInstance();
 
-// 注册服务到容器
+// 注册所有服务
+Services::register($container);
 
-// 1. 日志服务
-$logger = new Logger();
-$logger->setLevel($config['log']['level']);
-$logger->setLogFile($config['log']['file_path']);
-$container->set('logger', $logger);
+// 初始化中间件管理器
+use App\Middleware\MiddlewareManager;
+use App\Middleware\CorsMiddleware;
+use App\Middleware\LoggingMiddleware;
 
-// 2. 数据库服务
-$db = Database::getInstance($config['database']['path']);
-$container->set('db', $db->getConnection());
-
-// 3. 响应服务
-$response = new Response();
-$container->set('response', $response);
-
-// 4. 认证服务
-$authService = new AuthService($container->get('db'), $container->get('logger'));
-$container->set('authService', $authService);
-
-// 5. 初始化中间件管理器
 $middlewareManager = new MiddlewareManager();
 
-// 6. 添加全局中间件
+// 获取服务实例
+$logger = $container->get('logger');
+$response = $container->get('response');
+
+// 添加全局中间件
 $middlewareManager
-    ->add(new CorsMiddleware($response))
+    ->add(new CorsMiddleware($logger, $response))
     ->add(new LoggingMiddleware($logger));
 
 // 7. 获取请求信息
@@ -71,6 +62,48 @@ $request = array(
 
 // 移除查询字符串并规范化路径
 $request['path'] = rtrim($request['path'], '/');
+
+// 处理静态资源请求
+$staticExtensions = array('.html', '.css', '.js', '.json', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', '.pdf', '.txt');
+$pathInfo = pathinfo($request['path']);
+$extension = isset($pathInfo['extension']) ? '.' . $pathInfo['extension'] : '';
+
+// 静态资源目录
+$staticDir = __DIR__;
+
+// 如果是静态资源请求，直接返回文件
+if (in_array($extension, $staticExtensions)) {
+    $filePath = $staticDir . $request['path'];
+    
+    // 确保文件存在且在允许的目录内
+    if (file_exists($filePath) && strpos(realpath($filePath), realpath($staticDir)) === 0) {
+        // 设置适当的Content-Type
+        $mimeTypes = array(
+            '.html' => 'text/html',
+            '.css' => 'text/css',
+            '.js' => 'application/javascript',
+            '.json' => 'application/json',
+            '.png' => 'image/png',
+            '.jpg' => 'image/jpeg',
+            '.jpeg' => 'image/jpeg',
+            '.gif' => 'image/gif',
+            '.ico' => 'image/x-icon',
+            '.svg' => 'image/svg+xml',
+            '.pdf' => 'application/pdf',
+            '.txt' => 'text/plain'
+        );
+        
+        header('Content-Type: ' . ($mimeTypes[$extension] ?? 'application/octet-stream'));
+        header('Cache-Control: max-age=3600');
+        readfile($filePath);
+        exit;
+    } else {
+        // 文件不存在，返回404
+        header('HTTP/1.1 404 Not Found');
+        echo '404 Not Found';
+        exit;
+    }
+}
 
 // 8. 加载路由配置
 $routes = require __DIR__ . '/../config/routes.php';
@@ -111,23 +144,12 @@ $requestHandler = function($request) use ($matchedRoute, $params, $container, $l
     
     list($controllerName, $actionName) = explode('@', $matchedRoute);
     
-    // 控制器文件路径
-    $controllerFile = __DIR__ . '/../api/' . $controllerName . '.php';
-    
-    if (!file_exists($controllerFile)) {
-        $logger->warning('控制器文件不存在', [
-            'controller' => $controllerName,
-            'file' => $controllerFile
-        ]);
-        $response->notFound('控制器不存在');
-        return ['status_code' => 404];
-    }
-    
-    require_once $controllerFile;
+    // 使用新的控制器命名空间
+    $fullControllerName = 'App\\Controller\\' . $controllerName;
     
     try {
         // 创建控制器实例，使用依赖注入
-        $controller = new $controllerName($container);
+        $controller = new $fullControllerName($container);
         
         // 调用动作方法
         $controller->$actionName($params);
@@ -137,7 +159,7 @@ $requestHandler = function($request) use ($matchedRoute, $params, $container, $l
         $logger->error('控制器执行错误', [
             'exception' => $e->getMessage(),
             'trace' => $e->getTraceAsString(),
-            'controller' => $controllerName,
+            'controller' => $fullControllerName,
             'action' => $actionName,
             'path' => $request['path']
         ]);

@@ -2,20 +2,20 @@
   "openapi": "3.0.0",
   "info": {
     "title": "InkClock API",
-    "description": "API documentation for InkClock web server",
+    "description": "InkClock 服务器完整API文档",
     "version": "1.0.0"
   },
   "servers": [
     {
       "url": "/",
-      "description": "Local server"
+      "description": "本地服务器"
     }
   ],
   "paths": {
     "/api/user/register": {
       "post": {
-        "summary": "Register a new user",
-        "tags": ["User"],
+        "summary": "注册新用户",
+        "tags": ["用户"],
         "requestBody": {
           "required": true,
           "content": {
@@ -25,15 +25,15 @@
                 "properties": {
                   "username": {
                     "type": "string",
-                    "description": "Username for the new user"
+                    "description": "新用户的用户名"
                   },
                   "password": {
                     "type": "string",
-                    "description": "Password for the new user"
+                    "description": "新用户的密码"
                   },
                   "email": {
                     "type": "string",
-                    "description": "Email for the new user"
+                    "description": "新用户的邮箱"
                   }
                 },
                 "required": ["username", "password", "email"]
@@ -43,15 +43,18 @@
         },
         "responses": {
           "200": {
-            "description": "User registered successfully"
+            "description": "用户注册成功"
+          },
+          "400": {
+            "description": "无效的请求数据"
           }
         }
       }
     },
     "/api/user/login": {
       "post": {
-        "summary": "Login a user",
-        "tags": ["User"],
+        "summary": "用户登录",
+        "tags": ["用户"],
         "requestBody": {
           "required": true,
           "content": {
@@ -61,11 +64,11 @@
                 "properties": {
                   "username": {
                     "type": "string",
-                    "description": "Username"
+                    "description": "用户名或邮箱"
                   },
                   "password": {
                     "type": "string",
-                    "description": "Password"
+                    "description": "密码"
                   }
                 },
                 "required": ["username", "password"]
@@ -75,15 +78,46 @@
         },
         "responses": {
           "200": {
-            "description": "User logged in successfully"
+            "description": "用户登录成功"
+          },
+          "401": {
+            "description": "无效的凭证"
+          }
+        }
+      }
+    },
+    "/api/user/info": {
+      "get": {
+        "summary": "获取当前用户信息",
+        "tags": ["用户"],
+        "responses": {
+          "200": {
+            "description": "成功获取用户信息"
+          },
+          "401": {
+            "description": "未授权"
+          }
+        }
+      }
+    },
+    "/api/user/devices": {
+      "get": {
+        "summary": "获取用户设备列表",
+        "tags": ["用户"],
+        "responses": {
+          "200": {
+            "description": "成功获取用户设备列表"
+          },
+          "401": {
+            "description": "未授权"
           }
         }
       }
     },
     "/api/device": {
       "post": {
-        "summary": "Register a new device",
-        "tags": ["Device"],
+        "summary": "注册新设备",
+        "tags": ["设备"],
         "requestBody": {
           "required": true,
           "content": {
@@ -93,19 +127,19 @@
                 "properties": {
                   "device_id": {
                     "type": "string",
-                    "description": "Device ID"
+                    "description": "设备ID"
                   },
                   "device_name": {
                     "type": "string",
-                    "description": "Device name"
+                    "description": "设备名称"
                   },
                   "device_type": {
                     "type": "string",
-                    "description": "Device type"
+                    "description": "设备类型"
                   },
                   "device_info": {
                     "type": "object",
-                    "description": "Additional device information"
+                    "description": "设备附加信息"
                   }
                 },
                 "required": ["device_id", "device_name", "device_type"]
@@ -115,24 +149,84 @@
         },
         "responses": {
           "200": {
-            "description": "Device registered successfully"
+            "description": "设备注册成功"
+          },
+          "400": {
+            "description": "无效的请求数据"
           }
         }
       },
       "get": {
-        "summary": "Get all devices",
-        "tags": ["Device"],
+        "summary": "获取所有设备",
+        "tags": ["设备"],
         "responses": {
           "200": {
-            "description": "List of devices"
+            "description": "设备列表"
+          },
+          "401": {
+            "description": "未授权"
+          }
+        }
+      }
+    },
+    "/api/device/{id}": {
+      "get": {
+        "summary": "获取设备详情",
+        "tags": ["设备"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "设备ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功获取设备详情"
+          },
+          "401": {
+            "description": "未授权"
+          },
+          "404": {
+            "description": "设备未找到"
+          }
+        }
+      },
+      "delete": {
+        "summary": "删除设备",
+        "tags": ["设备"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "设备ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "设备删除成功"
+          },
+          "401": {
+            "description": "未授权"
+          },
+          "404": {
+            "description": "设备未找到"
           }
         }
       }
     },
     "/api/message": {
       "post": {
-        "summary": "Send a message to a device",
-        "tags": ["Message"],
+        "summary": "发送消息到设备",
+        "tags": ["消息"],
         "requestBody": {
           "required": true,
           "content": {
@@ -142,15 +236,15 @@
                 "properties": {
                   "device_id": {
                     "type": "string",
-                    "description": "Device ID"
+                    "description": "设备ID"
                   },
                   "content": {
                     "type": "string",
-                    "description": "Message content"
+                    "description": "消息内容"
                   },
                   "type": {
                     "type": "string",
-                    "description": "Message type",
+                    "description": "消息类型",
                     "enum": ["text", "image", "audio"]
                   }
                 },
@@ -161,7 +255,464 @@
         },
         "responses": {
           "200": {
-            "description": "Message sent successfully"
+            "description": "消息发送成功"
+          },
+          "400": {
+            "description": "无效的请求数据"
+          },
+          "401": {
+            "description": "未授权"
+          }
+        }
+      }
+    },
+    "/api/message/{deviceId}": {
+      "get": {
+        "summary": "获取设备消息",
+        "tags": ["消息"],
+        "parameters": [
+          {
+            "name": "deviceId",
+            "in": "path",
+            "description": "设备ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功获取消息"
+          },
+          "401": {
+            "description": "未授权"
+          }
+        }
+      }
+    },
+    "/api/firmware": {
+      "post": {
+        "summary": "添加固件版本",
+        "tags": ["固件"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "model": {
+                    "type": "string",
+                    "description": "设备型号"
+                  },
+                  "version": {
+                    "type": "string",
+                    "description": "固件版本"
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "固件下载URL"
+                  },
+                  "md5": {
+                    "type": "string",
+                    "description": "固件MD5校验和"
+                  },
+                  "changelog": {
+                    "type": "string",
+                    "description": "固件更新日志"
+                  }
+                },
+                "required": ["model", "version", "url", "md5"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "固件版本添加成功"
+          },
+          "400": {
+            "description": "无效的请求数据"
+          },
+          "401": {
+            "description": "未授权"
+          }
+        }
+      },
+      "get": {
+        "summary": "获取所有固件版本",
+        "tags": ["固件"],
+        "responses": {
+          "200": {
+            "description": "成功获取固件版本列表"
+          },
+          "401": {
+            "description": "未授权"
+          }
+        }
+      }
+    },
+    "/api/firmware/active/{model}": {
+      "get": {
+        "summary": "获取型号的活跃固件版本",
+        "tags": ["固件"],
+        "parameters": [
+          {
+            "name": "model",
+            "in": "path",
+            "description": "设备型号",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功获取活跃固件版本"
+          },
+          "404": {
+            "description": "未找到该型号的活跃固件"
+          }
+        }
+      }
+    },
+    "/api/group": {
+      "post": {
+        "summary": "创建设备分组",
+        "tags": ["设备分组"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "分组名称"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "分组描述"
+                  }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "设备分组创建成功"
+          },
+          "400": {
+            "description": "无效的请求数据"
+          },
+          "401": {
+            "description": "未授权"
+          }
+        }
+      },
+      "get": {
+        "summary": "获取所有设备分组",
+        "tags": ["设备分组"],
+        "responses": {
+          "200": {
+            "description": "成功获取设备分组列表"
+          },
+          "401": {
+            "description": "未授权"
+          }
+        }
+      }
+    },
+    "/api/tag": {
+      "post": {
+        "summary": "创建设备标签",
+        "tags": ["设备标签"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "标签名称"
+                  },
+                  "color": {
+                    "type": "string",
+                    "description": "标签颜色"
+                  }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "设备标签创建成功"
+          },
+          "400": {
+            "description": "无效的请求数据"
+          },
+          "401": {
+            "description": "未授权"
+          }
+        }
+      },
+      "get": {
+        "summary": "获取所有设备标签",
+        "tags": ["设备标签"],
+        "responses": {
+          "200": {
+            "description": "成功获取设备标签列表"
+          },
+          "401": {
+            "description": "未授权"
+          }
+        }
+      }
+    },
+    "/api/push_task": {
+      "post": {
+        "summary": "创建固件推送任务",
+        "tags": ["固件推送"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "firmware_id": {
+                    "type": "integer",
+                    "description": "固件ID"
+                  },
+                  "device_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "设备ID列表"
+                  },
+                  "group_id": {
+                    "type": "integer",
+                    "description": "分组ID（可选）"
+                  }
+                },
+                "required": ["firmware_id"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "固件推送任务创建成功"
+          },
+          "400": {
+            "description": "无效的请求数据"
+          },
+          "401": {
+            "description": "未授权"
+          }
+        }
+      },
+      "get": {
+        "summary": "获取所有固件推送任务",
+        "tags": ["固件推送"],
+        "responses": {
+          "200": {
+            "description": "成功获取固件推送任务列表"
+          },
+          "401": {
+            "description": "未授权"
+          }
+        }
+      }
+    },
+    "/api/template": {
+      "post": {
+        "summary": "创建消息模板",
+        "tags": ["消息模板"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "模板名称"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "模板内容"
+                  },
+                  "type": {
+                    "type": "string",
+                    "description": "模板类型",
+                    "enum": ["text", "image", "audio"]
+                  }
+                },
+                "required": ["name", "content", "type"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "消息模板创建成功"
+          },
+          "400": {
+            "description": "无效的请求数据"
+          },
+          "401": {
+            "description": "未授权"
+          }
+        }
+      },
+      "get": {
+        "summary": "获取所有消息模板",
+        "tags": ["消息模板"],
+        "responses": {
+          "200": {
+            "description": "成功获取消息模板列表"
+          },
+          "401": {
+            "description": "未授权"
+          }
+        }
+      }
+    },
+    "/api/log": {
+      "get": {
+        "summary": "获取系统日志",
+        "tags": ["系统"],
+        "parameters": [
+          {
+            "name": "level",
+            "in": "query",
+            "description": "日志级别",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["debug", "info", "warning", "error", "critical"]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "限制数量",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "偏移量",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功获取系统日志"
+          },
+          "401": {
+            "description": "未授权"
+          }
+        }
+      }
+    },
+    "/api/notification": {
+      "get": {
+        "summary": "获取通知",
+        "tags": ["通知"],
+        "responses": {
+          "200": {
+            "description": "成功获取通知列表"
+          },
+          "401": {
+            "description": "未授权"
+          }
+        }
+      }
+    },
+    "/api/plugin": {
+      "get": {
+        "summary": "获取所有插件",
+        "tags": ["插件"],
+        "responses": {
+          "200": {
+            "description": "成功获取插件列表"
+          },
+          "401": {
+            "description": "未授权"
+          }
+        }
+      },
+      "post": {
+        "summary": "添加插件",
+        "tags": ["插件"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "插件名称"
+                  },
+                  "version": {
+                    "type": "string",
+                    "description": "插件版本"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "插件描述"
+                  },
+                  "enabled": {
+                    "type": "boolean",
+                    "description": "插件是否启用"
+                  }
+                },
+                "required": ["name", "version"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "插件添加成功"
+          },
+          "400": {
+            "description": "无效的请求数据"
+          },
+          "401": {
+            "description": "未授权"
+          }
+        }
+      }
+    },
+    "/api/status": {
+      "get": {
+        "summary": "获取系统状态",
+        "tags": ["系统"],
+        "responses": {
+          "200": {
+            "description": "成功获取系统状态"
           }
         }
       }

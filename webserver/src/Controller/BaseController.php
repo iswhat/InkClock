@@ -3,12 +3,12 @@
  * 基础控制器类
  */
 
-namespace InkClock\Api;
+namespace App\Controller;
 
-use InkClock\Service\AuthService;
-use InkClock\Service\DeviceService;
-use InkClock\Service\MessageService;
-use InkClock\Model\Device as DeviceModel;
+use App\Service\AuthService;
+use App\Service\DeviceService;
+use App\Service\MessageService;
+use App\Model\Device as DeviceModel;
 
 class BaseController {
     protected $container;
@@ -25,7 +25,7 @@ class BaseController {
     
     /**
      * 构造函数 - 使用依赖注入
-     * @param \InkClock\Utils\DIContainer $container 依赖注入容器
+     * @param \App\Utils\DIContainer $container 依赖注入容器
      */
     public function __construct($container = null) {
         $this->container = $container;
@@ -38,17 +38,17 @@ class BaseController {
             $this->cache = $container->get('cache');
         } else {
             // 直接使用依赖注入容器
-            $this->container = \InkClock\Utils\DIContainer::getInstance();
+            $this->container = \App\Utils\DIContainer::getInstance();
             $this->db = $this->container->get('db');
             $this->logger = $this->container->get('logger');
             $this->response = $this->container->get('response');
             $this->cache = $this->container->get('cache');
         }
         
-        // 初始化服务层
-        $this->authService = new AuthService($this->db, $this->logger, $this->cache);
-        $this->deviceService = new DeviceService($this->db, $this->logger, $this->cache);
-        $this->messageService = new MessageService($this->db, $this->logger, $this->cache);
+        // 从容器中获取服务实例
+        $this->authService = $this->container->get('authService');
+        $this->deviceService = $this->container->get('deviceService');
+        $this->messageService = $this->container->get('messageService');
         
         $this->currentUser = $this->getCurrentUser();
     }

@@ -3,22 +3,27 @@
  * 认证服务类
  */
 
-namespace InkClock\Service;
+namespace App\Service;
 
-use InkClock\Utils\Logger;
+use App\Utils\Logger;
+use App\Model\User;
+use App\Interface\AuthServiceInterface;
 
-class AuthService {
+class AuthService implements AuthServiceInterface {
     private $db;
     private $logger;
+    private $cache;
     
     /**
      * 构造函数
      * @param \SQLite3 $db 数据库连接
      * @param Logger $logger 日志服务
+     * @param \App\Utils\Cache $cache 缓存服务
      */
-    public function __construct($db, Logger $logger) {
+    public function __construct($db, Logger $logger, $cache = null) {
         $this->db = $db;
         $this->logger = $logger;
+        $this->cache = $cache;
     }
     
     /**
@@ -36,8 +41,7 @@ class AuthService {
         }
         
         // 调用模型进行注册
-        require_once __DIR__ . '/../Model/User.php';
-        $userModel = new \InkClock\Model\User($this->db);
+        $userModel = new User($this->db);
         $result = $userModel->register($userInfo);
         
         if ($result['success']) {
@@ -59,8 +63,7 @@ class AuthService {
         $this->logger->info('用户登录请求', ['username' => $username]);
         
         // 调用模型进行登录
-        require_once __DIR__ . '/../Model/User.php';
-        $userModel = new \InkClock\Model\User($this->db);
+        $userModel = new User($this->db);
         $result = $userModel->login($username, $password);
         
         if ($result['success']) {
@@ -81,8 +84,7 @@ class AuthService {
     public function validateApiKey($apiKey, $ipAddress = '') {
         $this->logger->info('API密钥验证请求', ['ip' => $ipAddress]);
         
-        require_once __DIR__ . '/../Model/User.php';
-        $userModel = new \InkClock\Model\User($this->db);
+        $userModel = new User($this->db);
         $user = $userModel->getUserByApiKey($apiKey, $ipAddress);
         
         if ($user) {
@@ -123,8 +125,7 @@ class AuthService {
      * @return bool 是否有用户
      */
     public function hasUsers() {
-        require_once __DIR__ . '/../Model/User.php';
-        $userModel = new \InkClock\Model\User($this->db);
+        $userModel = new User($this->db);
         return $userModel->hasUsers();
     }
     
@@ -136,8 +137,7 @@ class AuthService {
     public function createFirstAdmin($adminInfo) {
         $this->logger->info('创建第一个管理员用户请求', $adminInfo);
         
-        require_once __DIR__ . '/../Model/User.php';
-        $userModel = new \InkClock\Model\User($this->db);
+        $userModel = new User($this->db);
         $result = $userModel->createFirstAdmin($adminInfo);
         
         if ($result['success']) {
@@ -155,8 +155,7 @@ class AuthService {
      * @return bool 是否为管理员
      */
     public function isAdmin($user) {
-        require_once __DIR__ . '/../Model/User.php';
-        $userModel = new \InkClock\Model\User($this->db);
+        $userModel = new User($this->db);
         
         if (is_string($user)) {
             // 兼容旧接口，通过用户名获取用户信息

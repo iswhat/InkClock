@@ -3,32 +3,37 @@
  * 消息服务类
  */
 
-namespace InkClock\Service;
+namespace App\Service;
 
-use InkClock\Utils\Logger;
+use App\Utils\Logger;
+use App\Model\User;
+use App\Model\Message;
+use App\Interface\MessageServiceInterface;
 
-class MessageService {
+class MessageService implements MessageServiceInterface {
     private $db;
     private $logger;
+    private $cache;
     
     /**
      * 构造函数
      * @param \SQLite3 $db 数据库连接
      * @param Logger $logger 日志服务
+     * @param \App\Utils\Cache $cache 缓存服务
      */
-    public function __construct($db, Logger $logger) {
+    public function __construct($db, Logger $logger, $cache = null) {
         $this->db = $db;
         $this->logger = $logger;
+        $this->cache = $cache;
     }
     
     /**
      * 发送消息到设备
-     * @param int $userId 用户ID
      * @param array $messageInfo 消息信息
      * @return array 发送结果
      */
-    public function sendMessage($userId, $messageInfo) {
-        $this->logger->info('发送消息请求', ['user_id' => $userId, 'message' => $messageInfo]);
+    public function sendMessage($messageInfo) {
+        $this->logger->info('发送消息请求', ['message' => $messageInfo]);
         
         // 验证消息信息
         if (!$this->validateMessageInfo($messageInfo)) {
@@ -36,20 +41,11 @@ class MessageService {
             return ['success' => false, 'error' => '无效的消息信息'];
         }
         
-        // 验证设备所有权
-        require_once __DIR__ . '/../Model/User.php';
-        $userModel = new \InkClock\Model\User($this->db);
-        if (!$userModel->isDeviceOwnedByUser($userId, $messageInfo['device_id'])) {
-            $this->logger->warning('设备所有权验证失败', ['user_id' => $userId, 'device_id' => $messageInfo['device_id']]);
-            return ['success' => false, 'error' => '无权向该设备发送消息'];
-        }
-        
         // 添加发送者信息
-        $messageInfo['sender'] = 'user_' . $userId;
+        $messageInfo['sender'] = 'system';
         
         // 调用模型发送消息
-        require_once __DIR__ . '/../Model/Message.php';
-        $messageModel = new \InkClock\Model\Message($this->db);
+        $messageModel = new Message($this->db);
         $result = $messageModel->sendMessage($messageInfo);
         
         if ($result['success']) {
@@ -71,8 +67,7 @@ class MessageService {
         $this->logger->info('获取消息列表请求', ['user_id' => $userId, 'filters' => $filters]);
         
         // 普通用户只能查看自己设备的消息
-        require_once __DIR__ . '/../Model/User.php';
-        $userModel = new \InkClock\Model\User($this->db);
+        $userModel = new User($this->db);
         $userDevices = $userModel->getUserDevices($userId);
         $deviceIds = array_column($userDevices, 'device_id');
         
@@ -81,8 +76,7 @@ class MessageService {
         }
         
         // 获取用户设备的消息
-        require_once __DIR__ . '/../Model/Message.php';
-        $messageModel = new \InkClock\Model\Message($this->db);
+        $messageModel = new Message($this->db);
         $messages = $messageModel->getMessagesByDeviceIds($deviceIds);
         
         $this->logger->info('获取消息列表成功', ['count' => count($messages)]);
@@ -100,16 +94,14 @@ class MessageService {
         $this->logger->info('获取设备消息请求', ['user_id' => $userId, 'device_id' => $deviceId]);
         
         // 验证设备所有权
-        require_once __DIR__ . '/../Model/User.php';
-        $userModel = new \InkClock\Model\User($this->db);
+        $userModel = new User($this->db);
         if (!$userModel->isDeviceOwnedByUser($userId, $deviceId)) {
             $this->logger->warning('设备所有权验证失败', ['user_id' => $userId, 'device_id' => $deviceId]);
             return ['success' => false, 'error' => '无权访问该设备的消息'];
         }
         
         // 获取设备消息
-        require_once __DIR__ . '/../Model/Message.php';
-        $messageModel = new \InkClock\Model\Message($this->db);
+        $messageModel = new Message($this->db);
         $messages = $messageModel->getMessagesByDeviceId($deviceId);
         
         $this->logger->info('获取设备消息成功', ['count' => count($messages)]);
@@ -125,8 +117,7 @@ class MessageService {
     public function markMessageAsRead($messageId) {
         $this->logger->info('标记消息为已读请求', ['message_id' => $messageId]);
         
-        require_once __DIR__ . '/../Model/Message.php';
-        $messageModel = new \InkClock\Model\Message($this->db);
+        $messageModel = new Message($this->db);
         $result = $messageModel->markAsRead($messageId);
         
         if ($result['success']) {
@@ -148,8 +139,7 @@ class MessageService {
         $this->logger->info('删除消息请求', ['user_id' => $userId, 'message_id' => $messageId]);
         
         // 获取消息详情，验证所有权
-        require_once __DIR__ . '/../Model/Message.php';
-        $messageModel = new \InkClock\Model\Message($this->db);
+        $messageModel = new Message($this->db);
         $message = $messageModel->getMessageById($messageId);
         
         if (!$message) {
@@ -157,8 +147,7 @@ class MessageService {
         }
         
         // 验证设备所有权
-        require_once __DIR__ . '/../Model/User.php';
-        $userModel = new \InkClock\Model\User($this->db);
+        $userModel = new User($this->db);
         if (!$userModel->isDeviceOwnedByUser($userId, $message['device_id'])) {
             $this->logger->warning('设备所有权验证失败', ['user_id' => $userId, 'device_id' => $message['device_id']]);
             return ['success' => false, 'error' => '无权删除该消息'];
@@ -192,8 +181,7 @@ class MessageService {
         }
         
         // 验证每个设备的所有权
-        require_once __DIR__ . '/../Model/User.php';
-        $userModel = new \InkClock\Model\User($this->db);
+        $userModel = new User($this->db);
         foreach ($batchInfo['device_ids'] as $deviceId) {
             if (!$userModel->isDeviceOwnedByUser($userId, $deviceId)) {
                 return ['success' => false, 'error' => "无权向设备 {$deviceId} 发送消息"];
@@ -201,8 +189,7 @@ class MessageService {
         }
         
         // 批量发送消息
-        require_once __DIR__ . '/../Model/Message.php';
-        $messageModel = new \InkClock\Model\Message($this->db);
+        $messageModel = new Message($this->db);
         foreach ($batchInfo['device_ids'] as $deviceId) {
             $messageInfo = [
                 'device_id' => $deviceId,

@@ -3,12 +3,31 @@
  * 配置管理类
  */
 
-namespace InkClock\Config;
+namespace App\Config;
 
 class Config {
     private static $config = [];
     private static $loaded = false;
     private static $envLoaded = false;
+    private static $instance = null;
+
+    /**
+     * 私有构造函数，防止直接实例化
+     */
+    private function __construct() {
+        // 私有构造函数
+    }
+
+    /**
+     * 获取单例实例
+     * @return Config
+     */
+    public static function getInstance() {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
 
     /**
      * 加载配置文件

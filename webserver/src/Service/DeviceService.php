@@ -3,12 +3,15 @@
  * 设备服务类
  */
 
-namespace InkClock\Service;
+namespace App\Service;
 
-use InkClock\Utils\Logger;
-use InkClock\Utils\Cache;
+use App\Utils\Logger;
+use App\Utils\Cache;
+use App\Model\Device;
+use App\Model\User;
+use App\Interface\DeviceServiceInterface;
 
-class DeviceService {
+class DeviceService implements DeviceServiceInterface {
     private $db;
     private $logger;
     private $cache;
@@ -17,11 +20,12 @@ class DeviceService {
      * 构造函数
      * @param \SQLite3 $db 数据库连接
      * @param Logger $logger 日志服务
+     * @param Cache $cache 缓存服务
      */
-    public function __construct($db, Logger $logger) {
+    public function __construct($db, Logger $logger, Cache $cache = null) {
         $this->db = $db;
         $this->logger = $logger;
-        $this->cache = Cache::getInstance();
+        $this->cache = $cache;
     }
     
     /**
@@ -39,8 +43,7 @@ class DeviceService {
         }
         
         // 调用模型进行注册
-        require_once __DIR__ . '/../Model/Device.php';
-        $deviceModel = new \InkClock\Model\Device($this->db);
+        $deviceModel = new Device($this->db);
         $result = $deviceModel->registerDevice($deviceInfo);
         
         if ($result['success']) {
@@ -72,8 +75,7 @@ class DeviceService {
         }
         
         // 普通用户只能查看自己的设备
-        require_once __DIR__ . '/../Model/User.php';
-        $userModel = new \InkClock\Model\User($this->db);
+        $userModel = new User($this->db);
         $devices = $userModel->getUserDevices($userId);
         
         $this->logger->info('获取设备列表成功', ['count' => count($devices)]);
@@ -94,8 +96,7 @@ class DeviceService {
         $this->logger->info('获取设备详情请求', ['user_id' => $userId, 'device_id' => $deviceId]);
         
         // 验证设备所有权
-        require_once __DIR__ . '/../Model/User.php';
-        $userModel = new \InkClock\Model\User($this->db);
+        $userModel = new User($this->db);
         if (!$userModel->isDeviceOwnedByUser($userId, $deviceId)) {
             $this->logger->warning('设备所有权验证失败', ['user_id' => $userId, 'device_id' => $deviceId]);
             return ['success' => false, 'error' => '无权访问该设备'];
@@ -111,8 +112,7 @@ class DeviceService {
             return ['success' => true, 'device' => $cachedDevice];
         }
         
-        require_once __DIR__ . '/../Model/Device.php';
-        $deviceModel = new \InkClock\Model\Device($this->db);
+        $deviceModel = new Device($this->db);
         $device = $deviceModel->getDevice($deviceId);
         
         if ($device) {
@@ -138,8 +138,7 @@ class DeviceService {
     public function bindDevice($userId, $deviceId, $nickname = '') {
         $this->logger->info('绑定设备请求', ['user_id' => $userId, 'device_id' => $deviceId, 'nickname' => $nickname]);
         
-        require_once __DIR__ . '/../Model/User.php';
-        $userModel = new \InkClock\Model\User($this->db);
+        $userModel = new User($this->db);
         $result = $userModel->bindDevice($userId, $deviceId, $nickname);
         
         if ($result['success']) {
@@ -160,8 +159,7 @@ class DeviceService {
     public function unbindDevice($userId, $deviceId) {
         $this->logger->info('解绑设备请求', ['user_id' => $userId, 'device_id' => $deviceId]);
         
-        require_once __DIR__ . '/../Model/User.php';
-        $userModel = new \InkClock\Model\User($this->db);
+        $userModel = new User($this->db);
         $result = $userModel->unbindDevice($userId, $deviceId);
         
         if ($result['success']) {
@@ -183,8 +181,7 @@ class DeviceService {
     public function updateDevice($userId, $deviceId, $deviceInfo) {
         $this->logger->info('更新设备信息请求', ['user_id' => $userId, 'device_id' => $deviceId, 'info' => $deviceInfo]);
         
-        require_once __DIR__ . '/../Model/User.php';
-        $userModel = new \InkClock\Model\User($this->db);
+        $userModel = new User($this->db);
         
         // 验证设备所有权
         if (!$userModel->isDeviceOwnedByUser($userId, $deviceId)) {
@@ -198,8 +195,7 @@ class DeviceService {
             $result = $userModel->updateDeviceNickname($userId, $deviceId, $deviceInfo['nickname']);
         } else {
             // 更新设备其他信息
-            require_once __DIR__ . '/../Model/Device.php';
-            $deviceModel = new \InkClock\Model\Device($this->db);
+            $deviceModel = new Device($this->db);
             $result = $deviceModel->updateDevice($deviceId, $deviceInfo);
         }
         
@@ -249,8 +245,7 @@ class DeviceService {
             return ['success' => true, 'status' => $cachedStatus];
         }
         
-        require_once __DIR__ . '/../Model/Device.php';
-        $deviceModel = new \InkClock\Model\Device($this->db);
+        $deviceModel = new Device($this->db);
         $device = $deviceModel->getDevice($deviceId);
         
         if (!$device) {

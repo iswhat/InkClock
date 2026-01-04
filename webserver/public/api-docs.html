@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InkClock API Documentation</title>
+    <title>InkClock API 文档</title>
     <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@4.15.5/swagger-ui.css">
     <style>
         body {
@@ -13,29 +13,48 @@
             background-color: #f5f5f5;
         }
         .header {
-            background-color: #3f51b5;
+            background-color: #2c3e50;
             color: white;
-            padding: 1rem;
+            padding: 1.5rem;
             text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
         .header h1 {
             margin: 0;
-            font-size: 1.5rem;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+        .header p {
+            margin: 0.5rem 0 0 0;
+            font-size: 1rem;
+            opacity: 0.9;
         }
         .swagger-container {
-            margin: 2rem;
+            margin: 2rem auto;
+            max-width: 1400px;
             background-color: white;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
             overflow: hidden;
+        }
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .swagger-container {
+                margin: 1rem;
+            }
+            .header {
+                padding: 1rem;
+            }
+            .header h1 {
+                font-size: 1.5rem;
+            }
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>InkClock API Documentation</h1>
-        <p>Interactive API documentation for InkClock web server</p>
+        <h1>InkClock API 文档</h1>
+        <p>InkClock 服务器交互式API文档</p>
     </div>
     <div class="swagger-container">
         <div id="swagger-ui"></div>
@@ -55,7 +74,23 @@
                 ],
                 layout: "StandaloneLayout",
                 deepLinking: true,
-                persistAuthorization: true
+                persistAuthorization: true,
+                requestInterceptor: (request) => {
+                    // 添加API密钥到请求头（示例）
+                    const apiKey = localStorage.getItem('api_key');
+                    if (apiKey) {
+                        request.headers['X-API-Key'] = apiKey;
+                    }
+                    return request;
+                },
+                // 中文配置
+                configUrl: null,
+                validatorUrl: null,
+                displayOperationId: true,
+                defaultModelsExpandDepth: 1,
+                defaultModelExpandDepth: 1,
+                defaultModelRendering: 'example',
+                displayRequestDuration: true
             });
 
             window.ui = ui;

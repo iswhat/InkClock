@@ -15,10 +15,18 @@ class RequestValidationMiddleware implements MiddlewareInterface {
     
     /**
      * 构造函数
+     * @param \InkClock\Utils\Logger $logger 日志服务
+     * @param \InkClock\Utils\Response $response 响应服务
      */
-    public function __construct() {
-        $this->logger = Logger::getInstance();
-        $this->response = new Response();
+    public function __construct($logger = null, $response = null) {
+        if ($logger === null) {
+            $logger = \InkClock\Utils\Logger::getInstance();
+        }
+        if ($response === null) {
+            $response = \InkClock\Utils\Response::getInstance();
+        }
+        $this->logger = $logger;
+        $this->response = $response;
         
         // 初始化验证规则
         $this->initValidationRules();
@@ -81,7 +89,10 @@ class RequestValidationMiddleware implements MiddlewareInterface {
      * @return mixed 响应结果
      */
     public function handle($request, callable $next) {
-        $this->logger->info('请求验证中间件执行', ['request' => $request]);
+        $this->logger->info('请求验证中间件执行', [
+            'path' => $request['path'] ?? '',
+            'method' => $request['method'] ?? ''
+        ]);
         
         // 获取请求路径和方法
         $path = $request['path'] ?? '';
@@ -104,7 +115,19 @@ class RequestValidationMiddleware implements MiddlewareInterface {
         // 如果验证失败，返回错误响应
         if (!empty($errors)) {
             $this->logger->warning('请求验证失败', ['errors' => $errors, 'data' => $requestData]);
-            return $this->response->error(400, 'Invalid request data', ['errors' => $errors]);
+            
+            // 格式化错误信息为字符串
+            $errorMessages = [];
+            foreach ($errors as $fieldErrors) {
+                $errorMessages = array_merge($errorMessages, $fieldErrors);
+            }
+            
+            return $this->response->error(
+                '请求参数验证失败',
+                400,
+                'VALIDATION_ERROR',
+                $errorMessages
+            );
         }
         
         // 验证通过，继续执行下一个中间件
@@ -147,6 +170,9 @@ class RequestValidationMiddleware implements MiddlewareInterface {
         $errors = [];
         
         foreach ($rules as $field => $fieldRules) {
+            // 支持嵌套字段（如 user.name）
+            $value = $this->getNestedValue($data, $field);
+            
             foreach ($fieldRules as $rule) {
                 // 解析规则（支持带参数的规则，如max:100）
                 $ruleName = $rule;
@@ -158,7 +184,7 @@ class RequestValidationMiddleware implements MiddlewareInterface {
                 }
                 
                 // 执行验证
-                $error = $this->validateField($data, $field, $ruleName, $ruleParams);
+                $error = $this->validateField($field, $value, $ruleName, $ruleParams);
                 if ($error) {
                     $errors[$field][] = $error;
                     // 对于同一个字段，只需记录第一个错误
@@ -171,17 +197,34 @@ class RequestValidationMiddleware implements MiddlewareInterface {
     }
     
     /**
+     * 获取嵌套字段的值
+     * @param array $data 数据数组
+     * @param string $field 字段名（支持嵌套，如 user.name）
+     * @return mixed 字段值
+     */
+    private function getNestedValue($data, $field) {
+        $keys = explode('.', $field);
+        $value = $data;
+        
+        foreach ($keys as $key) {
+            if (!is_array($value) || !isset($value[$key])) {
+                return null;
+            }
+            $value = $value[$key];
+        }
+        
+        return $value;
+    }
+    
+    /**
      * 验证单个字段
-     * @param array $data 请求数据
      * @param string $field 字段名
+     * @param mixed $value 字段值
      * @param string $rule 规则名
      * @param array $params 规则参数
      * @return string|null 错误信息
      */
-    private function validateField($data, $field, $rule, $params) {
-        // 检查字段是否存在
-        $value = $data[$field] ?? null;
-        
+    private function validateField($field, $value, $rule, $params) {
         // 可选字段处理
         if ($rule === 'optional' && $value === null) {
             return null;
@@ -189,7 +232,7 @@ class RequestValidationMiddleware implements MiddlewareInterface {
         
         // 必填字段检查
         if ($rule === 'required' && ($value === null || $value === '')) {
-            return "{$field} is required";
+            return "{$field} 不能为空";
         }
         
         // 如果字段值为null或空字符串，且不是必填字段，跳过后续验证
@@ -199,22 +242,40 @@ class RequestValidationMiddleware implements MiddlewareInterface {
         
         // 字符串类型检查
         if ($rule === 'string' && !is_string($value)) {
-            return "{$field} must be a string";
+            return "{$field} 必须是字符串";
         }
         
         // 数组类型检查
         if ($rule === 'array' && !is_array($value)) {
-            return "{$field} must be an array";
+            return "{$field} 必须是数组";
+        }
+        
+        // 数值类型检查
+        if ($rule === 'numeric' && !is_numeric($value)) {
+            return "{$field} 必须是数值";
+        }
+        
+        // 整数类型检查
+        if ($rule === 'integer' && !filter_var($value, FILTER_VALIDATE_INT)) {
+            return "{$field} 必须是整数";
+        }
+        
+        // 布尔类型检查
+        if ($rule === 'boolean' && !is_bool($value) && !in_array($value, [0, 1, '0', '1'], true)) {
+            return "{$field} 必须是布尔值";
         }
         
         // 最小长度检查
         if ($rule === 'min' && isset($params[0])) {
             $min = (int)$params[0];
             if (is_string($value) && strlen($value) < $min) {
-                return "{$field} must be at least {$min} characters long";
+                return "{$field} 长度不能少于 {$min} 个字符";
             }
             if (is_array($value) && count($value) < $min) {
-                return "{$field} must have at least {$min} items";
+                return "{$field} 至少需要包含 {$min} 个元素";
+            }
+            if (is_numeric($value) && $value < $min) {
+                return "{$field} 不能小于 {$min}";
             }
         }
         
@@ -222,20 +283,39 @@ class RequestValidationMiddleware implements MiddlewareInterface {
         if ($rule === 'max' && isset($params[0])) {
             $max = (int)$params[0];
             if (is_string($value) && strlen($value) > $max) {
-                return "{$field} must not exceed {$max} characters";
+                return "{$field} 长度不能超过 {$max} 个字符";
+            }
+            if (is_array($value) && count($value) > $max) {
+                return "{$field} 最多只能包含 {$max} 个元素";
+            }
+            if (is_numeric($value) && $value > $max) {
+                return "{$field} 不能大于 {$max}";
             }
         }
         
         // 枚举值检查
         if ($rule === 'in' && !empty($params)) {
             if (!in_array($value, $params)) {
-                return "{$field} must be one of: " . implode(', ', $params);
+                return "{$field} 必须是以下值之一: " . implode(', ', $params);
             }
         }
         
         // 邮箱格式检查
         if ($rule === 'email' && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
-            return "{$field} must be a valid email address";
+            return "{$field} 必须是有效的邮箱地址";
+        }
+        
+        // URL格式检查
+        if ($rule === 'url' && !filter_var($value, FILTER_VALIDATE_URL)) {
+            return "{$field} 必须是有效的URL";
+        }
+        
+        // 正则表达式检查
+        if ($rule === 'regex' && isset($params[0])) {
+            $pattern = $params[0];
+            if (!preg_match($pattern, $value)) {
+                return "{$field} 格式不符合要求";
+            }
         }
         
         return null;

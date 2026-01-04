@@ -12,13 +12,28 @@ class RateLimitMiddleware implements MiddlewareInterface {
     private $logger;
     private $response;
     private $rateLimits = [];
+    private $cache;
     
     /**
      * 构造函数
+     * @param \InkClock\Utils\Logger $logger 日志服务
+     * @param \InkClock\Utils\Response $response 响应服务
+     * @param \InkClock\Utils\Cache $cache 缓存服务
      */
-    public function __construct() {
-        $this->logger = Logger::getInstance();
-        $this->response = new Response();
+    public function __construct($logger = null, $response = null, $cache = null) {
+        if ($logger === null) {
+            $logger = \InkClock\Utils\Logger::getInstance();
+        }
+        if ($response === null) {
+            $response = \InkClock\Utils\Response::getInstance();
+        }
+        if ($cache === null) {
+            $config = require __DIR__ . '/../../config/config.php';
+            $cache = new \InkClock\Utils\Cache($config['cache']['dir'], $config['cache']['expire']);
+        }
+        $this->logger = $logger;
+        $this->response = $response;
+        $this->cache = $cache;
         
         // 初始化速率限制配置
         $this->initRateLimits();

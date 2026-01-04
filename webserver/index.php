@@ -7,21 +7,57 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// 加载核心工具类
-require_once __DIR__ . '/utils/Database.php';
-require_once __DIR__ . '/utils/Response.php';
-require_once __DIR__ . '/utils/Logger.php';
+// 自定义自动加载函数
+spl_autoload_register(function ($className) {
+    // 转换命名空间为文件路径
+    $filePath = __DIR__ . '/src/' . str_replace('\\', '/', $className) . '.php';
+    
+    // 特殊处理：检查是否在api目录下
+    if (!file_exists($filePath)) {
+        $filePath = __DIR__ . '/' . str_replace('\\', '/', $className) . '.php';
+    }
+    
+    if (file_exists($filePath)) {
+        require_once $filePath;
+    }
+});
 
 // 加载配置文件
 require_once __DIR__ . '/config/config.php';
 
+// 初始化依赖注入容器
+use InkClock\Utils\DIContainer;
+use InkClock\Utils\Database;
+use InkClock\Utils\Response;
+use InkClock\Utils\Logger;
+use InkClock\Utils\Cache;
+
+// 创建DI容器实例
+$container = DIContainer::getInstance();
+
+// 注册配置
+$container->set('config', $config);
+
 // 初始化日志
 $logger = Logger::getInstance();
 $logger->setLevel($config['log']['level']);
-$logger->setLogFile($config['log']['file_path']);
+$container->set('logger', $logger);
+
+// 初始化数据库
+$db = new Database($config['database'], $logger);
+$container->set('db', $db);
+
+// 初始化缓存
+$cache = new Cache($config['cache']['dir'], $config['cache']['expire']);
+$container->set('cache', $cache);
+
+// 初始化响应
+$response = Response::getInstance();
+$response->setLogger($logger);
+$container->set('response', $response);
 
 // 处理CORS
-Response::handleCORS();
+$response->handleCORS();
 
 // 获取请求信息
 $method = $_SERVER['REQUEST_METHOD'];
@@ -57,42 +93,86 @@ foreach ($routes as $routePattern => $handler) {
     }
 }
 
+// 构建请求对象
+$request = array(
+    'method' => $method,
+    'path' => $path,
+    'params' => $params,
+    'headers' => getallheaders(),
+    'query' => $_GET,
+    'body' => json_decode(file_get_contents('php://input'), true),
+    'ip' => $_SERVER['REMOTE_ADDR']
+);
+
 // 处理请求
 if ($matchedRoute) {
     list($controllerName, $actionName) = explode('@', $matchedRoute);
     
-    // 加载控制器文件
-    $controllerFile = __DIR__ . '/api/' . $controllerName . '.php';
-    if (file_exists($controllerFile)) {
-        require_once $controllerFile;
-        
+    // 完整类名
+    $fullClassName = "\InkClock\Api\$controllerName";
+    
+    // 定义控制器处理函数
+    $controllerHandler = function($request) use ($fullClassName, $actionName, $container, $logger, $response) {
         try {
-            // 创建控制器实例
-            $controller = new $controllerName();
+            // 创建控制器实例，传入DI容器
+            $controller = new $fullClassName($container);
             
             // 调用动作方法
-            $controller->$actionName($params);
+            $controller->$actionName($request['params']);
+            return true;
         } catch (Exception $e) {
             $logger->error('控制器执行错误', array(
                 'exception' => $e->getMessage(),
-                'controller' => $controllerName,
+                'exception_trace' => $e->getTraceAsString(),
+                'controller' => $fullClassName,
                 'action' => $actionName,
-                'path' => $path
+                'path' => $request['path']
             ));
-            Response::serverError('服务器内部错误');
+            $response->serverError('服务器内部错误');
+            return false;
         }
-    } else {
-        $logger->warning('控制器文件不存在', array(
-            'controller' => $controllerName,
-            'file' => $controllerFile
-        ));
-        Response::notFound('控制器不存在');
+    };
+    
+    // 设置中间件堆栈
+    $middlewareStack = array(
+        '\InkClock\Middleware\CsrfMiddleware',
+        '\InkClock\Middleware\RateLimitMiddleware',
+        '\InkClock\Middleware\RequestValidationMiddleware'
+    );
+    
+    // 构建中间件管道
+    $pipeline = $controllerHandler;
+    
+    // 从后往前构建中间件链
+    foreach (array_reverse($middlewareStack) as $middlewareClass) {
+        $currentPipeline = $pipeline;
+        $pipeline = function($request) use ($middlewareClass, $currentPipeline, $container) {
+            // 根据中间件类型注入不同的依赖
+            if ($middlewareClass === '\InkClock\Middleware\RateLimitMiddleware') {
+                // RateLimitMiddleware 需要额外的 cache 依赖
+                $middleware = new $middlewareClass(
+                    $container->get('logger'),
+                    $container->get('response'),
+                    $container->get('cache')
+                );
+            } else {
+                // 其他中间件使用基本依赖
+                $middleware = new $middlewareClass(
+                    $container->get('logger'),
+                    $container->get('response')
+                );
+            }
+            return $middleware->handle($request, $currentPipeline);
+        };
     }
+    
+    // 执行中间件管道
+    $pipeline($request);
 } else {
     $logger->info('未匹配到路由', array(
         'method' => $method,
         'path' => $path
     ));
-    Response::notFound('API路径不存在');
+    $response->notFound('API路径不存在');
 }
 ?>
