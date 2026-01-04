@@ -3,7 +3,7 @@
  * HTTP响应工具类
  */
 
-namespace InkClock\Utils;
+namespace App\Utils;
 
 class Response {
     /**

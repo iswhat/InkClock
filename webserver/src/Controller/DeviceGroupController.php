@@ -11,7 +11,7 @@ class DeviceGroupController extends BaseController {
     /**
      * 获取设备分组列表
      */
-    public function getGroups($params) {
+    public function getGroups() {
         $user = $this->checkApiPermission(true);
         $this->logAction('device_group_get_list', array('user_id' => $user['id']));
         
@@ -24,7 +24,7 @@ class DeviceGroupController extends BaseController {
     /**
      * 创建设备分组
      */
-    public function createGroup($params) {
+    public function createGroup() {
         $user = $this->checkApiPermission(true);
         $this->logAction('device_group_create', array('user_id' => $user['id']));
         

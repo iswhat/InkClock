@@ -3,7 +3,7 @@
  * 设备标签模型
  */
 
-namespace InkClock\Model;
+namespace App\Model;
 
 class DeviceTag {
     private $db;

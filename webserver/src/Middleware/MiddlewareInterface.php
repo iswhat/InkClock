@@ -3,7 +3,7 @@
  * 中间件接口定义
  */
 
-namespace InkClock\Middleware;
+namespace App\Middleware;
 
 interface MiddlewareInterface {
     /**

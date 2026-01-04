@@ -3,10 +3,10 @@
  * 请求验证中间件
  */
 
-namespace InkClock\Middleware;
+namespace App\Middleware;
 
-use InkClock\Utils\Logger;
-use InkClock\Utils\Response;
+use App\Utils\Logger;
+use App\Utils\Response;
 
 class RequestValidationMiddleware implements MiddlewareInterface {
     private $logger;
@@ -15,15 +15,15 @@ class RequestValidationMiddleware implements MiddlewareInterface {
     
     /**
      * 构造函数
-     * @param \InkClock\Utils\Logger $logger 日志服务
-     * @param \InkClock\Utils\Response $response 响应服务
+     * @param \App\Utils\Logger $logger 日志服务
+     * @param \App\Utils\Response $response 响应服务
      */
     public function __construct($logger = null, $response = null) {
         if ($logger === null) {
-            $logger = \InkClock\Utils\Logger::getInstance();
+            $logger = Logger::getInstance();
         }
         if ($response === null) {
-            $response = \InkClock\Utils\Response::getInstance();
+            $response = Response::getInstance();
         }
         $this->logger = $logger;
         $this->response = $response;

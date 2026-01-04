@@ -3,7 +3,7 @@
  * 设备模型
  */
 
-namespace InkClock\Model;
+namespace App\Model;
 
 class Device {
     private $db;

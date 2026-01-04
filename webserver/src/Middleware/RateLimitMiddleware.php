@@ -3,10 +3,12 @@
  * 速率限制中间件
  */
 
-namespace InkClock\Middleware;
+namespace App\Middleware;
 
-use InkClock\Utils\Logger;
-use InkClock\Utils\Response;
+use App\Utils\Logger;
+use App\Utils\Response;
+use App\Utils\Cache;
+use App\Config\Config;
 
 class RateLimitMiddleware implements MiddlewareInterface {
     private $logger;
@@ -16,20 +18,19 @@ class RateLimitMiddleware implements MiddlewareInterface {
     
     /**
      * 构造函数
-     * @param \InkClock\Utils\Logger $logger 日志服务
-     * @param \InkClock\Utils\Response $response 响应服务
-     * @param \InkClock\Utils\Cache $cache 缓存服务
+     * @param \App\Utils\Logger $logger 日志服务
+     * @param \App\Utils\Response $response 响应服务
+     * @param \App\Utils\Cache $cache 缓存服务
      */
     public function __construct($logger = null, $response = null, $cache = null) {
         if ($logger === null) {
-            $logger = \InkClock\Utils\Logger::getInstance();
+            $logger = Logger::getInstance();
         }
         if ($response === null) {
-            $response = \InkClock\Utils\Response::getInstance();
+            $response = Response::getInstance();
         }
         if ($cache === null) {
-            $config = require __DIR__ . '/../../config/config.php';
-            $cache = new \InkClock\Utils\Cache($config['cache']['dir'], $config['cache']['expire']);
+            $cache = Cache::getInstance();
         }
         $this->logger = $logger;
         $this->response = $response;
@@ -96,14 +97,7 @@ class RateLimitMiddleware implements MiddlewareInterface {
             ]);
             
             // 返回429 Too Many Requests
-            $response = $this->response->error(429, 'Too many requests');
-            
-            // 添加速率限制响应头
-            $response['headers']['X-RateLimit-Limit'] = $maxRequests;
-            $response['headers']['X-RateLimit-Remaining'] = 0;
-            $response['headers']['X-RateLimit-Reset'] = time() + $timeWindow;
-            
-            return $response;
+            $this->response->error('Too many requests', 429, 'RATE_LIMIT_EXCEEDED');
         }
         
         // 速率限制通过，继续执行下一个中间件

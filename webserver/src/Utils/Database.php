@@ -3,7 +3,7 @@
  * 数据库连接工具类
  */
 
-namespace InkClock\Utils;
+namespace App\Utils;
 
 class Database {
     private static $instance = null;

@@ -3,7 +3,7 @@
  * 设备分组模型
  */
 
-namespace InkClock\Model;
+namespace App\Model;
 
 class DeviceGroup {
     private $db;

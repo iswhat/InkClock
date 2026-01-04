@@ -46,7 +46,7 @@ $response = $container->get('response');
 
 // 添加全局中间件
 $middlewareManager
-    ->add(new CorsMiddleware($logger, $response))
+    ->add(new CorsMiddleware($response))
     ->add(new LoggingMiddleware($logger));
 
 // 7. 获取请求信息

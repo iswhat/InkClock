@@ -3,7 +3,7 @@
  * 中间件管理器 - 管理和执行中间件链
  */
 
-namespace InkClock\Middleware;
+namespace App\Middleware;
 
 class MiddlewareManager {
     private $middlewares = [];

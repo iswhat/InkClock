@@ -36,7 +36,6 @@ class Services {
         $container->register('logger', function() {
             $logger = Logger::getInstance();
             $logger->setLevel(Config::get('log.level', 'info'));
-            $logger->setLogFile(Config::get('log.file_path', __DIR__ . '/../../logs/app.log'));
             return $logger;
         });
 

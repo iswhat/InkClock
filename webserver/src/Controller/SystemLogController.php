@@ -11,7 +11,7 @@ class SystemLogController extends BaseController {
     /**
      * 获取系统日志列表
      */
-    public function getLogs($params) {
+    public function getLogs() {
         $user = $this->checkApiPermission(true);
         $this->logAction('system_log_get_list', array('user_id' => $user['id']));
         
@@ -48,7 +48,7 @@ class SystemLogController extends BaseController {
     /**
      * 清除日志
      */
-    public function clearLogs($params) {
+    public function clearLogs() {
         $user = $this->checkApiPermission(true);
         $this->logAction('system_log_clear', array('user_id' => $user['id']));
         

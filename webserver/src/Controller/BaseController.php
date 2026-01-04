@@ -5,10 +5,7 @@
 
 namespace App\Controller;
 
-use App\Service\AuthService;
-use App\Service\DeviceService;
-use App\Service\MessageService;
-use App\Model\Device as DeviceModel;
+
 
 class BaseController {
     protected $container;
@@ -140,8 +137,8 @@ class BaseController {
      * 检查设备访问权限
      */
     protected function checkDevicePermission($deviceId) {
-        // 使用重构后的设备模型
-        $deviceModel = new DeviceModel($this->db);
+        // 使用设备模型
+        $deviceModel = new \App\Model\Device($this->db);
         
         // 设备可以自己访问自己的资源，不需要验证用户
         $ip = $_SERVER['REMOTE_ADDR'];

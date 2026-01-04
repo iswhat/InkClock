@@ -3,10 +3,10 @@
  * CSRF防护中间件
  */
 
-namespace InkClock\Middleware;
+namespace App\Middleware;
 
-use InkClock\Utils\Logger;
-use InkClock\Utils\Response;
+use App\Utils\Logger;
+use App\Utils\Response;
 
 class CsrfMiddleware implements MiddlewareInterface {
     private $logger;
@@ -14,15 +14,15 @@ class CsrfMiddleware implements MiddlewareInterface {
     
     /**
      * 构造函数
-     * @param \InkClock\Utils\Logger $logger 日志服务
-     * @param \InkClock\Utils\Response $response 响应服务
+     * @param \App\Utils\Logger $logger 日志服务
+     * @param \App\Utils\Response $response 响应服务
      */
     public function __construct($logger = null, $response = null) {
         if ($logger === null) {
-            $logger = \InkClock\Utils\Logger::getInstance();
+            $logger = Logger::getInstance();
         }
         if ($response === null) {
-            $response = \InkClock\Utils\Response::getInstance();
+            $response = Response::getInstance();
         }
         $this->logger = $logger;
         $this->response = $response;
@@ -54,7 +54,7 @@ class CsrfMiddleware implements MiddlewareInterface {
         // 验证CSRF令牌
         if (!$this->validateCsrfToken($csrfToken, $request)) {
             $this->logger->warning('CSRF令牌验证失败', ['token' => $csrfToken]);
-            return $this->response->error(403, 'Invalid or missing CSRF token');
+            $this->response->error('Invalid or missing CSRF token', 403, 'CSRF_TOKEN_INVALID');
         }
         
         // CSRT验证通过，继续执行下一个中间件

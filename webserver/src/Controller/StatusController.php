@@ -9,7 +9,7 @@ class StatusController extends BaseController {
     /**
      * 获取系统状态
      */
-    public function getStatus($params) {
+    public function getStatus() {
         $this->logAction('status_get');
         
         $status = array(
@@ -34,7 +34,7 @@ class StatusController extends BaseController {
             // 使用现有的数据库连接进行简单查询
             $result = $this->db->query("SELECT 1");
             return $result !== false ? 'ok' : 'error';
-        } catch (Exception $e) {
+        } catch (\Exception) {
             return 'error';
         }
     }

@@ -3,7 +3,7 @@
  * 系统日志模型
  */
 
-namespace InkClock\Model;
+namespace App\Model;
 
 class SystemLog {
     private $db;
@@ -40,40 +40,25 @@ class SystemLog {
     /**
      * 获取系统日志列表
      */
-    public function getLogs($filters = array(), $limit = 50, $offset = 0) {
+    public function getLogs($limit = 50, $offset = 0, $level = null, $startTime = null, $endTime = null) {
         $query = "SELECT * FROM system_logs WHERE 1=1";
         $params = array();
         $conditions = array();
         
         // 应用过滤条件
-        if (isset($filters['level'])) {
+        if ($level) {
             $conditions[] = "level = :level";
-            $params[':level'] = $filters['level'];
+            $params[':level'] = $level;
         }
         
-        if (isset($filters['category'])) {
-            $conditions[] = "category = :category";
-            $params[':category'] = $filters['category'];
-        }
-        
-        if (isset($filters['user_id'])) {
-            $conditions[] = "user_id = :userId";
-            $params[':userId'] = $filters['user_id'];
-        }
-        
-        if (isset($filters['device_id'])) {
-            $conditions[] = "device_id = :deviceId";
-            $params[':deviceId'] = $filters['device_id'];
-        }
-        
-        if (isset($filters['start_time'])) {
+        if ($startTime) {
             $conditions[] = "created_at >= :startTime";
-            $params[':startTime'] = $filters['start_time'];
+            $params[':startTime'] = $startTime;
         }
         
-        if (isset($filters['end_time'])) {
+        if ($endTime) {
             $conditions[] = "created_at <= :endTime";
-            $params[':endTime'] = $filters['end_time'];
+            $params[':endTime'] = $endTime;
         }
         
         // 添加条件
@@ -106,6 +91,25 @@ class SystemLog {
         }
         
         return $logs;
+    }
+    
+    /**
+     * 获取单个日志详情
+     */
+    public function getLog($logId) {
+        $stmt = $this->db->prepare("SELECT * FROM system_logs WHERE id = :logId");
+        $stmt->bindValue(':logId', $logId, SQLITE3_INTEGER);
+        $result = $stmt->execute();
+        
+        return $result->fetchArray(SQLITE3_ASSOC);
+    }
+    
+    /**
+     * 清除日志
+     */
+    public function clearLogs() {
+        $result = $this->db->exec("DELETE FROM system_logs");
+        return array('success' => $result !== false);
     }
     
     /**

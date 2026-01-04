@@ -64,6 +64,125 @@ class TestCase {
     }
     
     /**
+     * 断言为空
+     */
+    protected function assertNull($value, $message = '') {
+        $this->total++;
+        if ($value === null) {
+            $this->passed++;
+            echo "✓ {$message}\n";
+            return true;
+        } else {
+            $this->failed++;
+            echo "✗ {$message}\n";
+            echo "  期望null，实际: " . print_r($value, true) . "\n";
+            return false;
+        }
+    }
+    
+    /**
+     * 断言是数组
+     */
+    protected function assertIsArray($value, $message = '') {
+        $this->total++;
+        if (is_array($value)) {
+            $this->passed++;
+            echo "✓ {$message}\n";
+            return true;
+        } else {
+            $this->failed++;
+            echo "✗ {$message}\n";
+            echo "  期望数组，实际类型: " . gettype($value) . "\n";
+            return false;
+        }
+    }
+    
+    /**
+     * 断言是空数组
+     */
+    protected function assertEmpty($value, $message = '') {
+        $this->total++;
+        if (empty($value)) {
+            $this->passed++;
+            echo "✓ {$message}\n";
+            return true;
+        } else {
+            $this->failed++;
+            echo "✗ {$message}\n";
+            echo "  期望为空，实际: " . print_r($value, true) . "\n";
+            return false;
+        }
+    }
+    
+    /**
+     * 断言是整数
+     */
+    protected function assertIsInt($value, $message = '') {
+        $this->total++;
+        if (is_int($value)) {
+            $this->passed++;
+            echo "✓ {$message}\n";
+            return true;
+        } else {
+            $this->failed++;
+            echo "✗ {$message}\n";
+            echo "  期望整数，实际类型: " . gettype($value) . "\n";
+            return false;
+        }
+    }
+    
+    /**
+     * 断言大于
+     */
+    protected function assertGreaterThan($expected, $actual, $message = '') {
+        $this->total++;
+        if ($actual > $expected) {
+            $this->passed++;
+            echo "✓ {$message}\n";
+            return true;
+        } else {
+            $this->failed++;
+            echo "✗ {$message}\n";
+            echo "  期望大于 {$expected}，实际: {$actual}\n";
+            return false;
+        }
+    }
+    
+    /**
+     * 断言大于等于
+     */
+    protected function assertGreaterThanOrEqual($expected, $actual, $message = '') {
+        $this->total++;
+        if ($actual >= $expected) {
+            $this->passed++;
+            echo "✓ {$message}\n";
+            return true;
+        } else {
+            $this->failed++;
+            echo "✗ {$message}\n";
+            echo "  期望大于等于 {$expected}，实际: {$actual}\n";
+            return false;
+        }
+    }
+    
+    /**
+     * 断言数组有指定键
+     */
+    protected function assertArrayHasKey($key, $array, $message = '') {
+        $this->total++;
+        if (isset($array[$key])) {
+            $this->passed++;
+            echo "✓ {$message}\n";
+            return true;
+        } else {
+            $this->failed++;
+            echo "✗ {$message}\n";
+            echo "  期望数组有键 '{$key}'，实际: " . print_r($array, true) . "\n";
+            return false;
+        }
+    }
+    
+    /**
      * 运行测试
      */
     public function run() {

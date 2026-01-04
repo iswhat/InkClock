@@ -9,7 +9,7 @@ class PluginController extends BaseController {
     /**
      * 获取插件列表
      */
-    public function getPlugins($params) {
+    public function getPlugins() {
         $user = $this->checkApiPermission(true);
         $this->logAction('plugin_get_list', array('user_id' => $user['id']));
         
@@ -22,7 +22,7 @@ class PluginController extends BaseController {
     /**
      * 添加插件
      */
-    public function addPlugin($params) {
+    public function addPlugin() {
         $user = $this->checkApiPermission(true);
         $this->logAction('plugin_add', array('user_id' => $user['id']));
         

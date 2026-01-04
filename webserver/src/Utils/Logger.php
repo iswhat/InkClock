@@ -3,7 +3,7 @@
  * 日志工具类
  */
 
-namespace InkClock\Utils;
+namespace App\Utils;
 
 class Logger {
     private static $instance = null;
