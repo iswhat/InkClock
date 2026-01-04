@@ -1,0 +1,184 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "InkClock API",
+    "description": "API documentation for InkClock web server",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Local server"
+    }
+  ],
+  "paths": {
+    "/api/user/register": {
+      "post": {
+        "summary": "Register a new user",
+        "tags": ["User"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "description": "Username for the new user"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "Password for the new user"
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "Email for the new user"
+                  }
+                },
+                "required": ["username", "password", "email"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User registered successfully"
+          }
+        }
+      }
+    },
+    "/api/user/login": {
+      "post": {
+        "summary": "Login a user",
+        "tags": ["User"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "description": "Username"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "Password"
+                  }
+                },
+                "required": ["username", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User logged in successfully"
+          }
+        }
+      }
+    },
+    "/api/device": {
+      "post": {
+        "summary": "Register a new device",
+        "tags": ["Device"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "device_id": {
+                    "type": "string",
+                    "description": "Device ID"
+                  },
+                  "device_name": {
+                    "type": "string",
+                    "description": "Device name"
+                  },
+                  "device_type": {
+                    "type": "string",
+                    "description": "Device type"
+                  },
+                  "device_info": {
+                    "type": "object",
+                    "description": "Additional device information"
+                  }
+                },
+                "required": ["device_id", "device_name", "device_type"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Device registered successfully"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get all devices",
+        "tags": ["Device"],
+        "responses": {
+          "200": {
+            "description": "List of devices"
+          }
+        }
+      }
+    },
+    "/api/message": {
+      "post": {
+        "summary": "Send a message to a device",
+        "tags": ["Message"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "device_id": {
+                    "type": "string",
+                    "description": "Device ID"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "Message content"
+                  },
+                  "type": {
+                    "type": "string",
+                    "description": "Message type",
+                    "enum": ["text", "image", "audio"]
+                  }
+                },
+                "required": ["device_id", "content", "type"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Message sent successfully"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "apiKey": {
+        "type": "apiKey",
+        "name": "X-API-Key",
+        "in": "header"
+      }
+    }
+  },
+  "security": [
+    {
+      "apiKey": []
+    }
+  ]
+}

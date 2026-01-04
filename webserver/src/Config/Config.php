@@ -8,6 +8,7 @@ namespace InkClock\Config;
 class Config {
     private static $config = [];
     private static $loaded = false;
+    private static $envLoaded = false;
 
     /**
      * 加载配置文件
@@ -19,6 +20,9 @@ class Config {
             return;
         }
 
+        // 加载环境变量
+        self::loadEnv();
+
         // 默认配置文件路径
         if ($filePath === null) {
             $filePath = __DIR__ . '/../../config/config.php';
@@ -27,7 +31,120 @@ class Config {
         // 加载配置文件
         $config = require $filePath;
         self::$config = $config;
+        
+        // 从环境变量覆盖配置
+        self::overrideConfigFromEnv();
+        
         self::$loaded = true;
+    }
+    
+    /**
+     * 加载环境变量
+     * @param string $envPath .env文件路径
+     * @return void
+     */
+    private static function loadEnv($envPath = null) {
+        if (self::$envLoaded) {
+            return;
+        }
+        
+        // 默认.env文件路径
+        if ($envPath === null) {
+            $envPath = __DIR__ . '/../../.env';
+        }
+        
+        // 如果.env文件存在，加载它
+        if (file_exists($envPath)) {
+            $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($lines as $line) {
+                // 跳过注释
+                if (strpos(trim($line), '#') === 0) {
+                    continue;
+                }
+                
+                // 解析环境变量
+                list($key, $value) = explode('=', $line, 2);
+                $key = trim($key);
+                $value = trim($value, "'\" ");
+                
+                // 设置环境变量
+                putenv("$key=$value");
+                $_ENV[$key] = $value;
+            }
+        }
+        
+        self::$envLoaded = true;
+    }
+    
+    /**
+     * 从环境变量覆盖配置
+     * @return void
+     */
+    private static function overrideConfigFromEnv() {
+        // 遍历配置，检查是否有对应的环境变量
+        self::overrideConfigRecursive(self::$config, '');
+    }
+    
+    /**
+     * 递归覆盖配置
+     * @param array $config 配置数组
+     * @param string $prefix 环境变量前缀
+     * @return void
+     */
+    private static function overrideConfigRecursive(&$config, $prefix) {
+        foreach ($config as $key => &$value) {
+            $currentKey = $prefix ? $prefix . '.' . $key : $key;
+            $envKey = strtoupper(str_replace('.', '_', "INKCLOCK_$currentKey"));
+            
+            // 检查环境变量
+            $envValue = getenv($envKey);
+            if ($envValue !== false) {
+                // 转换环境变量类型
+                $config[$key] = self::convertEnvValue($envValue);
+            } elseif (is_array($value)) {
+                // 递归处理数组
+                self::overrideConfigRecursive($value, $currentKey);
+            }
+        }
+    }
+    
+    /**
+     * 转换环境变量值的类型
+     * @param string $value 环境变量值
+     * @return mixed 转换后的值
+     */
+    private static function convertEnvValue($value) {
+        // 转换布尔值
+        if (strtolower($value) === 'true') {
+            return true;
+        }
+        if (strtolower($value) === 'false') {
+            return false;
+        }
+        
+        // 转换整数
+        if (is_numeric($value) && strpos($value, '.') === false) {
+            return (int)$value;
+        }
+        
+        // 转换浮点数
+        if (is_numeric($value)) {
+            return (float)$value;
+        }
+        
+        // 转换JSON
+        $jsonValue = json_decode($value, true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            return $jsonValue;
+        }
+        
+        // 转换数组（逗号分隔）
+        if (strpos($value, ',') !== false) {
+            return array_map('trim', explode(',', $value));
+        }
+        
+        // 默认返回字符串
+        return $value;
     }
 
     /**

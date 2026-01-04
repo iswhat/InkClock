@@ -13,6 +13,9 @@ $config = array(
         'database' => 'inkclock',
         'charset' => 'utf8mb4'
     ),
+    'database' => array(
+        'path' => __DIR__ . '/../db/inkclock.db'
+    ),
     'api' => array(
         'secret_key' => 'your_secret_key_here',
         'version' => 'v1',

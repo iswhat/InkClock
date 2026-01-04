@@ -8,6 +8,25 @@ namespace InkClock\Utils;
 class DIContainer {
     private $services = [];
     private $instances = [];
+    private static $instance = null;
+    
+    /**
+     * 私有构造函数，防止直接实例化
+     */
+    private function __construct() {
+        // 私有构造函数
+    }
+    
+    /**
+     * 获取单例实例
+     * @return DIContainer
+     */
+    public static function getInstance() {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
 
     /**
      * 注册服务
@@ -17,6 +36,16 @@ class DIContainer {
      */
     public function register($name, callable $callback) {
         $this->services[$name] = $callback;
+    }
+    
+    /**
+     * 直接设置服务实例
+     * @param string $name 服务名称
+     * @param mixed $instance 服务实例
+     * @return void
+     */
+    public function set($name, $instance) {
+        $this->instances[$name] = $instance;
     }
 
     /**

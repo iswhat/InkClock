@@ -75,20 +75,21 @@ class AuthService {
     /**
      * 通过API密钥验证用户
      * @param string $apiKey API密钥
+     * @param string $ipAddress 请求IP地址
      * @return array 验证结果
      */
-    public function validateApiKey($apiKey) {
-        $this->logger->info('API密钥验证请求');
+    public function validateApiKey($apiKey, $ipAddress = '') {
+        $this->logger->info('API密钥验证请求', ['ip' => $ipAddress]);
         
         require_once __DIR__ . '/../Model/User.php';
         $userModel = new \InkClock\Model\User($this->db);
-        $user = $userModel->getUserByApiKey($apiKey);
+        $user = $userModel->getUserByApiKey($apiKey, $ipAddress);
         
         if ($user) {
-            $this->logger->info('API密钥验证成功', ['username' => $user['username']]);
+            $this->logger->info('API密钥验证成功', ['username' => $user['username'], 'ip' => $ipAddress]);
             return ['success' => true, 'user' => $user];
         } else {
-            $this->logger->warning('API密钥验证失败', ['api_key' => substr($apiKey, 0, 10) . '...']);
+            $this->logger->warning('API密钥验证失败', ['api_key' => substr($apiKey, 0, 10) . '...', 'ip' => $ipAddress]);
             return ['success' => false, 'error' => '无效的API密钥'];
         }
     }

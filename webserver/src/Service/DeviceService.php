@@ -2,23 +2,32 @@
 /**
  * 设备服务类
  */
-require_once __DIR__ . '/../models/Device.php';
-require_once __DIR__ . '/../models/User.php';
-require_once __DIR__ . '/../utils/Logger.php';
+
+namespace InkClock\Service;
+
+use InkClock\Utils\Logger;
+use InkClock\Utils\Cache;
 
 class DeviceService {
-    private $deviceModel;
-    private $userModel;
+    private $db;
     private $logger;
+    private $cache;
     
-    public function __construct() {
-        $this->deviceModel = new Device();
-        $this->userModel = new User();
-        $this->logger = Logger::getInstance();
+    /**
+     * 构造函数
+     * @param \SQLite3 $db 数据库连接
+     * @param Logger $logger 日志服务
+     */
+    public function __construct($db, Logger $logger) {
+        $this->db = $db;
+        $this->logger = $logger;
+        $this->cache = Cache::getInstance();
     }
     
     /**
      * 注册新设备
+     * @param array $deviceInfo 设备信息
+     * @return array 注册结果
      */
     public function registerDevice($deviceInfo) {
         $this->logger->info('设备注册请求', $deviceInfo);
@@ -30,7 +39,9 @@ class DeviceService {
         }
         
         // 调用模型进行注册
-        $result = $this->deviceModel->registerDevice($deviceInfo);
+        require_once __DIR__ . '/../Model/Device.php';
+        $deviceModel = new \InkClock\Model\Device($this->db);
+        $result = $deviceModel->registerDevice($deviceInfo);
         
         if ($result['success']) {
             $this->logger->info('设备注册成功', ['device_id' => $deviceInfo['device_id']]);
@@ -43,34 +54,73 @@ class DeviceService {
     
     /**
      * 获取设备列表
+     * @param int $userId 用户ID
+     * @param array $filters 过滤条件
+     * @return array 设备列表
      */
     public function getDeviceList($userId, $filters = []) {
         $this->logger->info('获取设备列表请求', ['user_id' => $userId, 'filters' => $filters]);
         
+        // 生成缓存键
+        $cacheKey = "device_list:user:{$userId}:".json_encode($filters);
+        
+        // 尝试从缓存获取
+        $cachedDevices = $this->cache->get($cacheKey);
+        if ($cachedDevices) {
+            $this->logger->info('从缓存获取设备列表', ['user_id' => $userId, 'count' => count($cachedDevices)]);
+            return ['success' => true, 'devices' => $cachedDevices];
+        }
+        
         // 普通用户只能查看自己的设备
-        $devices = $this->userModel->getUserDevices($userId);
+        require_once __DIR__ . '/../Model/User.php';
+        $userModel = new \InkClock\Model\User($this->db);
+        $devices = $userModel->getUserDevices($userId);
         
         $this->logger->info('获取设备列表成功', ['count' => count($devices)]);
+        
+        // 缓存设备列表，有效期10分钟
+        $this->cache->set($cacheKey, $devices, 600);
         
         return ['success' => true, 'devices' => $devices];
     }
     
     /**
      * 获取设备详情
+     * @param int $userId 用户ID
+     * @param string $deviceId 设备ID
+     * @return array 设备详情
      */
     public function getDeviceDetail($userId, $deviceId) {
         $this->logger->info('获取设备详情请求', ['user_id' => $userId, 'device_id' => $deviceId]);
         
         // 验证设备所有权
-        if (!$this->userModel->isDeviceOwnedByUser($userId, $deviceId)) {
+        require_once __DIR__ . '/../Model/User.php';
+        $userModel = new \InkClock\Model\User($this->db);
+        if (!$userModel->isDeviceOwnedByUser($userId, $deviceId)) {
             $this->logger->warning('设备所有权验证失败', ['user_id' => $userId, 'device_id' => $deviceId]);
             return ['success' => false, 'error' => '无权访问该设备'];
         }
         
-        $device = $this->deviceModel->getDevice($deviceId);
+        // 生成缓存键
+        $cacheKey = "device_detail:{$deviceId}";
+        
+        // 尝试从缓存获取
+        $cachedDevice = $this->cache->get($cacheKey);
+        if ($cachedDevice) {
+            $this->logger->info('从缓存获取设备详情', ['device_id' => $deviceId]);
+            return ['success' => true, 'device' => $cachedDevice];
+        }
+        
+        require_once __DIR__ . '/../Model/Device.php';
+        $deviceModel = new \InkClock\Model\Device($this->db);
+        $device = $deviceModel->getDevice($deviceId);
         
         if ($device) {
             $this->logger->info('获取设备详情成功', ['device_id' => $deviceId]);
+            
+            // 缓存设备详情，有效期5分钟
+            $this->cache->set($cacheKey, $device, 300);
+            
             return ['success' => true, 'device' => $device];
         } else {
             $this->logger->warning('设备不存在', ['device_id' => $deviceId]);
@@ -80,11 +130,17 @@ class DeviceService {
     
     /**
      * 绑定设备到用户
+     * @param int $userId 用户ID
+     * @param string $deviceId 设备ID
+     * @param string $nickname 设备昵称
+     * @return array 绑定结果
      */
     public function bindDevice($userId, $deviceId, $nickname = '') {
         $this->logger->info('绑定设备请求', ['user_id' => $userId, 'device_id' => $deviceId, 'nickname' => $nickname]);
         
-        $result = $this->userModel->bindDevice($userId, $deviceId, $nickname);
+        require_once __DIR__ . '/../Model/User.php';
+        $userModel = new \InkClock\Model\User($this->db);
+        $result = $userModel->bindDevice($userId, $deviceId, $nickname);
         
         if ($result['success']) {
             $this->logger->info('设备绑定成功', ['user_id' => $userId, 'device_id' => $deviceId]);
@@ -97,11 +153,16 @@ class DeviceService {
     
     /**
      * 解绑设备
+     * @param int $userId 用户ID
+     * @param string $deviceId 设备ID
+     * @return array 解绑结果
      */
     public function unbindDevice($userId, $deviceId) {
         $this->logger->info('解绑设备请求', ['user_id' => $userId, 'device_id' => $deviceId]);
         
-        $result = $this->userModel->unbindDevice($userId, $deviceId);
+        require_once __DIR__ . '/../Model/User.php';
+        $userModel = new \InkClock\Model\User($this->db);
+        $result = $userModel->unbindDevice($userId, $deviceId);
         
         if ($result['success']) {
             $this->logger->info('设备解绑成功', ['user_id' => $userId, 'device_id' => $deviceId]);
@@ -114,22 +175,32 @@ class DeviceService {
     
     /**
      * 更新设备信息
+     * @param int $userId 用户ID
+     * @param string $deviceId 设备ID
+     * @param array $deviceInfo 设备信息
+     * @return array 更新结果
      */
     public function updateDevice($userId, $deviceId, $deviceInfo) {
         $this->logger->info('更新设备信息请求', ['user_id' => $userId, 'device_id' => $deviceId, 'info' => $deviceInfo]);
         
+        require_once __DIR__ . '/../Model/User.php';
+        $userModel = new \InkClock\Model\User($this->db);
+        
         // 验证设备所有权
-        if (!$this->userModel->isDeviceOwnedByUser($userId, $deviceId)) {
+        if (!$userModel->isDeviceOwnedByUser($userId, $deviceId)) {
             $this->logger->warning('设备所有权验证失败', ['user_id' => $userId, 'device_id' => $deviceId]);
             return ['success' => false, 'error' => '无权修改该设备'];
         }
         
-        // 更新设备昵称
+        // 更新设备信息
         if (isset($deviceInfo['nickname'])) {
-            $result = $this->userModel->updateDeviceNickname($userId, $deviceId, $deviceInfo['nickname']);
+            // 更新设备昵称
+            $result = $userModel->updateDeviceNickname($userId, $deviceId, $deviceInfo['nickname']);
         } else {
             // 更新设备其他信息
-            $result = $this->deviceModel->updateDevice($deviceId, $deviceInfo);
+            require_once __DIR__ . '/../Model/Device.php';
+            $deviceModel = new \InkClock\Model\Device($this->db);
+            $result = $deviceModel->updateDevice($deviceId, $deviceInfo);
         }
         
         if ($result['success']) {
@@ -143,6 +214,8 @@ class DeviceService {
     
     /**
      * 验证设备信息
+     * @param array $deviceInfo 设备信息
+     * @return bool 验证结果
      */
     private function validateDeviceInfo($deviceInfo) {
         // 验证设备ID
@@ -160,11 +233,25 @@ class DeviceService {
     
     /**
      * 获取设备在线状态
+     * @param string $deviceId 设备ID
+     * @return array 设备状态
      */
     public function getDeviceStatus($deviceId) {
         $this->logger->info('获取设备在线状态请求', ['device_id' => $deviceId]);
         
-        $device = $this->deviceModel->getDevice($deviceId);
+        // 生成缓存键
+        $cacheKey = "device_status:{$deviceId}";
+        
+        // 尝试从缓存获取
+        $cachedStatus = $this->cache->get($cacheKey);
+        if ($cachedStatus) {
+            $this->logger->info('从缓存获取设备状态', ['device_id' => $deviceId]);
+            return ['success' => true, 'status' => $cachedStatus];
+        }
+        
+        require_once __DIR__ . '/../Model/Device.php';
+        $deviceModel = new \InkClock\Model\Device($this->db);
+        $device = $deviceModel->getDevice($deviceId);
         
         if (!$device) {
             return ['success' => false, 'error' => '设备不存在'];
@@ -184,7 +271,9 @@ class DeviceService {
         
         $this->logger->info('获取设备在线状态成功', $status);
         
+        // 缓存设备状态，有效期1分钟
+        $this->cache->set($cacheKey, $status, 60);
+        
         return ['success' => true, 'status' => $status];
     }
 }
-?>

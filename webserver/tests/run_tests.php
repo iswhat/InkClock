@@ -11,12 +11,13 @@ ini_set('display_errors', 1);
 require_once __DIR__ . '/TestCase.php';
 
 // 加载项目核心文件
-require_once __DIR__ . '/../utils/Database.php';
-require_once __DIR__ . '/../utils/Logger.php';
-require_once __DIR__ . '/../utils/Response.php';
+require_once __DIR__ . '/../src/Utils/Database.php';
+require_once __DIR__ . '/../src/Utils/Logger.php';
+require_once __DIR__ . '/../src/Utils/Response.php';
 
 // 加载配置
-require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../src/Config/Config.php';
+require_once __DIR__ . '/../src/Config/Services.php';
 
 // 初始化日志
 $logger = Logger::getInstance();

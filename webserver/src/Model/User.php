@@ -49,13 +49,18 @@ class User {
         $apiKey = $this->generateApiKey();
         $createdAt = date('Y-m-d H:i:s');
         
+        // 设置API密钥过期时间（默认365天）
+        $apiKeyExpiresAt = date('Y-m-d H:i:s', strtotime('+365 days'));
+        
         // 插入用户
-        $stmt = $this->db->prepare("INSERT INTO users (username, email, password_hash, api_key, created_at) VALUES (:username, :email, :password_hash, :api_key, :created_at)");
+        $stmt = $this->db->prepare("INSERT INTO users (username, email, password_hash, api_key, api_key_created_at, api_key_expires_at, created_at) VALUES (:username, :email, :password_hash, :api_key, :apiKeyCreatedAt, :apiKeyExpiresAt, :createdAt)");
         $stmt->bindValue(':username', $username, SQLITE3_TEXT);
         $stmt->bindValue(':email', $email, SQLITE3_TEXT);
         $stmt->bindValue(':password_hash', $passwordHash, SQLITE3_TEXT);
         $stmt->bindValue(':api_key', $apiKey, SQLITE3_TEXT);
-        $stmt->bindValue(':created_at', $createdAt, SQLITE3_TEXT);
+        $stmt->bindValue(':apiKeyCreatedAt', $createdAt, SQLITE3_TEXT);
+        $stmt->bindValue(':apiKeyExpiresAt', $apiKeyExpiresAt, SQLITE3_TEXT);
+        $stmt->bindValue(':createdAt', $createdAt, SQLITE3_TEXT);
         
         $result = $stmt->execute();
         
@@ -75,7 +80,7 @@ class User {
      */
     public function login($username, $password) {
         // 查找用户
-        $stmt = $this->db->prepare("SELECT id, password_hash, api_key, status, is_admin FROM users WHERE username = :username OR email = :email");
+        $stmt = $this->db->prepare("SELECT id, password_hash, api_key, api_key_expires_at, status, is_admin FROM users WHERE username = :username OR email = :email");
         $stmt->bindValue(':username', $username, SQLITE3_TEXT);
         $stmt->bindValue(':email', $username, SQLITE3_TEXT);
         $result = $stmt->execute();
@@ -96,6 +101,27 @@ class User {
             return array('success' => false, 'error' => '用户名或密码错误');
         }
         
+        // 检查API密钥是否即将过期（30天内），如果是则生成新密钥
+        $now = time();
+        $expiresAt = strtotime($user['api_key_expires_at']);
+        $daysUntilExpiry = ($expiresAt - $now) / (60 * 60 * 24);
+        
+        $apiKey = $user['api_key'];
+        if ($daysUntilExpiry < 30) {
+            // 生成新的API密钥
+            $apiKey = $this->generateApiKey();
+            $apiKeyCreatedAt = date('Y-m-d H:i:s');
+            $apiKeyExpiresAt = date('Y-m-d H:i:s', strtotime('+365 days'));
+            
+            // 更新API密钥信息
+            $stmt = $this->db->prepare("UPDATE users SET api_key = :apiKey, api_key_created_at = :apiKeyCreatedAt, api_key_expires_at = :apiKeyExpiresAt WHERE id = :id");
+            $stmt->bindValue(':apiKey', $apiKey, SQLITE3_TEXT);
+            $stmt->bindValue(':apiKeyCreatedAt', $apiKeyCreatedAt, SQLITE3_TEXT);
+            $stmt->bindValue(':apiKeyExpiresAt', $apiKeyExpiresAt, SQLITE3_TEXT);
+            $stmt->bindValue(':id', $user['id'], SQLITE3_INTEGER);
+            $stmt->execute();
+        }
+        
         // 更新最后登录时间
         $lastLogin = date('Y-m-d H:i:s');
         $stmt = $this->db->prepare("UPDATE users SET last_login = :last_login WHERE id = :id");
@@ -106,21 +132,102 @@ class User {
         return array(
             'success' => true, 
             'user_id' => $user['id'], 
-            'api_key' => $user['api_key'],
+            'api_key' => $apiKey,
             'is_admin' => $user['is_admin']
         );
     }
     
     /**
-     * 通过API密钥获取用户信息
+     * 通过API密钥获取用户信息，带安全性检查
      * @param string $apiKey API密钥
+     * @param string $ipAddress 请求IP地址
      * @return array|null 用户信息
      */
-    public function getUserByApiKey($apiKey) {
+    public function getUserByApiKey($apiKey, $ipAddress = '') {
         $stmt = $this->db->prepare("SELECT * FROM users WHERE api_key = :api_key AND status = 1");
         $stmt->bindValue(':api_key', $apiKey, SQLITE3_TEXT);
         $result = $stmt->execute();
-        return $result->fetchArray(SQLITE3_ASSOC);
+        $user = $result->fetchArray(SQLITE3_ASSOC);
+        
+        if (!$user) {
+            return null;
+        }
+        
+        // 检查API密钥是否过期
+        $now = date('Y-m-d H:i:s');
+        if ($user['api_key_expires_at'] && $user['api_key_expires_at'] < $now) {
+            return null;
+        }
+        
+        // 检查IP白名单
+        if ($user['api_key_ip_whitelist']) {
+            $whitelist = explode(',', $user['api_key_ip_whitelist']);
+            $whitelist = array_map('trim', $whitelist);
+            if (!in_array($ipAddress, $whitelist)) {
+                return null;
+            }
+        }
+        
+        return $user;
+    }
+    
+    /**
+     * 轮换API密钥
+     * @param int $userId 用户ID
+     * @return array 轮换结果
+     */
+    public function rotateApiKey($userId) {
+        $newApiKey = $this->generateApiKey();
+        $now = date('Y-m-d H:i:s');
+        $expiresAt = date('Y-m-d H:i:s', strtotime('+365 days'));
+        
+        $stmt = $this->db->prepare("UPDATE users SET api_key = :apiKey, api_key_created_at = :createdAt, api_key_expires_at = :expiresAt WHERE id = :userId");
+        $stmt->bindValue(':apiKey', $newApiKey, SQLITE3_TEXT);
+        $stmt->bindValue(':createdAt', $now, SQLITE3_TEXT);
+        $stmt->bindValue(':expiresAt', $expiresAt, SQLITE3_TEXT);
+        $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+        
+        $result = $stmt->execute();
+        
+        if ($result) {
+            return array('success' => true, 'api_key' => $newApiKey);
+        } else {
+            return array('success' => false, 'error' => 'API密钥轮换失败');
+        }
+    }
+    
+    /**
+     * 更新API密钥过期时间
+     * @param int $userId 用户ID
+     * @param string $expiresAt 过期时间
+     * @return array 更新结果
+     */
+    public function updateApiKeyExpiration($userId, $expiresAt) {
+        $stmt = $this->db->prepare("UPDATE users SET api_key_expires_at = :expiresAt WHERE id = :userId");
+        $stmt->bindValue(':expiresAt', $expiresAt, SQLITE3_TEXT);
+        $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+        
+        $result = $stmt->execute();
+        
+        return array('success' => $result !== false);
+    }
+    
+    /**
+     * 更新API密钥IP白名单
+     * @param int $userId 用户ID
+     * @param array $ipList IP地址列表
+     * @return array 更新结果
+     */
+    public function updateApiKeyIpWhitelist($userId, $ipList) {
+        $whitelist = implode(',', $ipList);
+        
+        $stmt = $this->db->prepare("UPDATE users SET api_key_ip_whitelist = :whitelist WHERE id = :userId");
+        $stmt->bindValue(':whitelist', $whitelist, SQLITE3_TEXT);
+        $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+        
+        $result = $stmt->execute();
+        
+        return array('success' => $result !== false);
     }
     
     /**

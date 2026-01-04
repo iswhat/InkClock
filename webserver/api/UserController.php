@@ -3,6 +3,8 @@
  * 用户控制器
  */
 
+namespace InkClock\Api;
+
 class UserController extends BaseController {
     /**
      * 用户注册
@@ -15,9 +17,9 @@ class UserController extends BaseController {
         $result = $this->authService->registerUser($data);
         
         if ($result['success']) {
-            $this->response::success('注册成功', array('user_id' => $result['user_id'], 'api_key' => $result['api_key']));
+            $this->response->success('注册成功', array('user_id' => $result['user_id'], 'api_key' => $result['api_key']));
         } else {
-            $this->response::error($result['error'], 400);
+            $this->response->error($result['error'], 400);
         }
     }
     
@@ -32,9 +34,9 @@ class UserController extends BaseController {
         $result = $this->authService->loginUser($data['username'], $data['password']);
         
         if ($result['success']) {
-            $this->response::success('登录成功', array('user_id' => $result['user_id'], 'api_key' => $result['api_key']));
+            $this->response->success('登录成功', array('user_id' => $result['user_id'], 'api_key' => $result['api_key']));
         } else {
-            $this->response::error($result['error'], 401);
+            $this->response->error($result['error'], 401);
         }
     }
     
@@ -49,7 +51,7 @@ class UserController extends BaseController {
         unset($user['password_hash']);
         unset($user['api_key']);
         
-        $this->response::success('获取成功', $user);
+        $this->response->success('获取成功', $user);
     }
     
     /**
@@ -63,9 +65,9 @@ class UserController extends BaseController {
         $result = $this->deviceService->getDeviceList($user['id']);
         
         if ($result['success']) {
-            $this->response::success('获取成功', $result['devices']);
+            $this->response->success('获取成功', $result['devices']);
         } else {
-            $this->response::error($result['error'], 400);
+            $this->response->error($result['error'], 400);
         }
     }
     
@@ -82,9 +84,9 @@ class UserController extends BaseController {
         $result = $this->deviceService->bindDevice($user['id'], $data['device_id'], $data['nickname'] ?? '');
         
         if ($result['success']) {
-            $this->response::success('绑定成功');
+            $this->response->success('绑定成功');
         } else {
-            $this->response::error($result['error'], 400);
+            $this->response->error($result['error'], 400);
         }
     }
     
@@ -101,9 +103,9 @@ class UserController extends BaseController {
         $result = $this->deviceService->unbindDevice($user['id'], $data['device_id']);
         
         if ($result['success']) {
-            $this->response::success('解绑成功');
+            $this->response->success('解绑成功');
         } else {
-            $this->response::error('解绑失败', 400);
+            $this->response->error('解绑失败', 400);
         }
     }
     
@@ -120,9 +122,9 @@ class UserController extends BaseController {
         $result = $this->deviceService->updateDevice($user['id'], $data['device_id'], array('nickname' => $data['nickname']));
         
         if ($result['success']) {
-            $this->response::success('更新成功');
+            $this->response->success('更新成功');
         } else {
-            $this->response::error('更新失败', 400);
+            $this->response->error('更新失败', 400);
         }
     }
     
@@ -131,7 +133,7 @@ class UserController extends BaseController {
      */
     public function checkUsers($params) {
         $hasUsers = $this->authService->hasUsers();
-        $this->response::success('检查成功', array('has_users' => $hasUsers));
+        $this->response->success('检查成功', array('has_users' => $hasUsers));
     }
     
     /**
@@ -145,7 +147,7 @@ class UserController extends BaseController {
         $result = $this->authService->createFirstAdmin($data);
         
         if ($result['success']) {
-            $this->response::success('管理员创建成功', array('user_id' => $result['user_id'], 'api_key' => $result['api_key']));
+            $this->response->success('管理员创建成功', array('user_id' => $result['user_id'], 'api_key' => $result['api_key']));
         } else {
             $this->response::error($result['error'], 400);
         }

@@ -3,7 +3,15 @@
  * 基础控制器类
  */
 
+namespace InkClock\Api;
+
+use InkClock\Service\AuthService;
+use InkClock\Service\DeviceService;
+use InkClock\Service\MessageService;
+use InkClock\Model\Device as DeviceModel;
+
 class BaseController {
+    protected $container;
     protected $db;
     protected $logger;
     protected $response;
@@ -15,34 +23,31 @@ class BaseController {
     protected $messageService;
     
     /**
-     * 构造函数
+     * 构造函数 - 使用依赖注入
+     * @param \InkClock\Utils\DIContainer $container 依赖注入容器
      */
-    public function __construct() {
-        $this->db = Database::getInstance()->getConnection();
-        $this->logger = Logger::getInstance();
-        $this->response = Response::class;
+    public function __construct($container = null) {
+        $this->container = $container;
+        
+        // 从容器中获取依赖
+        if ($container) {
+            $this->db = $container->get('db');
+            $this->logger = $container->get('logger');
+            $this->response = $container->get('response');
+        } else {
+            // 直接使用依赖注入容器
+            $this->container = \InkClock\Utils\DIContainer::getInstance();
+            $this->db = $this->container->get('db');
+            $this->logger = $this->container->get('logger');
+            $this->response = $this->container->get('response');
+        }
         
         // 初始化服务层
-        $this->initServices();
+        $this->authService = new AuthService($this->db, $this->logger);
+        $this->deviceService = new DeviceService($this->db, $this->logger);
+        $this->messageService = new MessageService($this->db, $this->logger);
         
         $this->currentUser = $this->getCurrentUser();
-    }
-    
-    /**
-     * 初始化服务层
-     */
-    private function initServices() {
-        // 初始化认证服务
-        require_once __DIR__ . '/../services/AuthService.php';
-        $this->authService = new AuthService();
-        
-        // 初始化设备服务
-        require_once __DIR__ . '/../services/DeviceService.php';
-        $this->deviceService = new DeviceService();
-        
-        // 初始化消息服务
-        require_once __DIR__ . '/../services/MessageService.php';
-        $this->messageService = new MessageService();
     }
     
     /**
@@ -56,8 +61,11 @@ class BaseController {
             return null;
         }
         
+        // 获取客户端IP地址
+        $ipAddress = $_SERVER['REMOTE_ADDR'];
+        
         // 使用服务层验证API密钥
-        $result = $this->authService->validateApiKey($apiKey);
+        $result = $this->authService->validateApiKey($apiKey, $ipAddress);
         return $result['success'] ? $result['user'] : null;
     }
     
@@ -66,7 +74,7 @@ class BaseController {
      */
     protected function checkApiPermission($required = false) {
         if ($required && !$this->currentUser) {
-            $this->response::unauthorized();
+            $this->response->unauthorized();
         }
         
         return $this->currentUser;
@@ -78,7 +86,7 @@ class BaseController {
     protected function parseRequestBody() {
         $data = json_decode(file_get_contents('php://input'), true);
         if (json_last_error() !== JSON_ERROR_NONE) {
-            $this->response::error('无效的JSON数据', 400);
+            $this->response->error('无效的JSON数据', 400);
         }
         return $data;
     }
@@ -114,17 +122,23 @@ class BaseController {
         }
         
         // 使用服务层检查设备所有权
-        require_once __DIR__ . '/../models/User.php';
-        $userModel = new User();
-        return $userModel->isDeviceOwnedByUser($this->currentUser['id'], $deviceId);
+        $deviceList = $this->deviceService->getDeviceList($this->currentUser['id']);
+        if ($deviceList['success']) {
+            foreach ($deviceList['devices'] as $device) {
+                if ($device['device_id'] == $deviceId) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
     
     /**
      * 检查设备访问权限
      */
     protected function checkDevicePermission($deviceId) {
-        require_once __DIR__ . '/../models/Device.php';
-        $deviceModel = new Device();
+        // 使用重构后的设备模型
+        $deviceModel = new DeviceModel($this->db);
         
         // 设备可以自己访问自己的资源，不需要验证用户
         $ip = $_SERVER['REMOTE_ADDR'];
@@ -135,11 +149,11 @@ class BaseController {
         
         // 其他情况需要验证用户权限
         if (!$this->currentUser) {
-            $this->response::unauthorized();
+            $this->response->unauthorized();
         }
         
         if (!$this->validateDeviceOwnership($deviceId)) {
-            $this->response::forbidden();
+            $this->response->forbidden();
         }
         
         return true;
