@@ -163,9 +163,15 @@ class Database {
                 content TEXT NOT NULL,
                 type TEXT DEFAULT 'text',
                 is_read INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'pending',
+                scheduled_time DATETIME,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (device_id) REFERENCES devices(device_id) ON DELETE CASCADE
             )");
+        
+        // 添加scheduled_time字段（如果不存在）
+        $this->execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS scheduled_time DATETIME");
+        $this->execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'");
         
         // 为消息表添加索引
         $this->execute("CREATE INDEX IF NOT EXISTS idx_messages_device_id ON messages (device_id)");

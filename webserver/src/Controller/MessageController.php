@@ -17,6 +17,10 @@ class MessageController extends BaseController {
         
         $data = $this->parseRequestBody();
         
+        // 添加发送者信息
+        $data['sender'] = 'user_' . $user['id'];
+        $data['user_id'] = $user['id'];
+        
         // 使用服务层发送消息
         $result = $this->messageService->sendMessage($data);
         

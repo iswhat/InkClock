@@ -27,19 +27,21 @@ class Message {
         $content = $messageInfo['content'];
         $type = isset($messageInfo['type']) ? $messageInfo['type'] : 'text';
         $userId = isset($messageInfo['user_id']) ? $messageInfo['user_id'] : null;
+        $scheduledTime = isset($messageInfo['scheduled_time']) ? $messageInfo['scheduled_time'] : null;
         $messageId = $this->generateMessageId();
-        $status = 'unread';
+        $status = $scheduledTime ? 'pending' : 'unread';
         $createdAt = date('Y-m-d H:i:s');
         
         // 插入消息
-        $stmt = $this->db->prepare("INSERT INTO messages (message_id, device_id, user_id, sender, content, type, status, created_at) VALUES (:messageId, :deviceId, :userId, :sender, :content, :type, :status, :createdAt)");
+        $stmt = $this->db->prepare("INSERT INTO messages (message_id, device_id, sender, content, type, is_read, status, scheduled_time, created_at) VALUES (:messageId, :deviceId, :sender, :content, :type, :isRead, :status, :scheduledTime, :createdAt)");
         $stmt->bindValue(':messageId', $messageId, SQLITE3_TEXT);
         $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
-        $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
         $stmt->bindValue(':sender', $sender, SQLITE3_TEXT);
         $stmt->bindValue(':content', $content, SQLITE3_TEXT);
         $stmt->bindValue(':type', $type, SQLITE3_TEXT);
+        $stmt->bindValue(':isRead', 0, SQLITE3_INTEGER);
         $stmt->bindValue(':status', $status, SQLITE3_TEXT);
+        $stmt->bindValue(':scheduledTime', $scheduledTime, SQLITE3_TEXT);
         $stmt->bindValue(':createdAt', $createdAt, SQLITE3_TEXT);
         
         $result = $stmt->execute();

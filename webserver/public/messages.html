@@ -260,12 +260,7 @@
                                 </li>
                             </ul>
                         </li>
-                        <li class="nav-item">
-                            <a href="templates.html" class="nav-link">
-                                <i class="nav-icon fas fa-file-alt"></i>
-                                <p>消息模板</p>
-                            </a>
-                        </li>
+
                         <li class="nav-item admin-only" style="display: none;">
                             <a href="notifications.html" class="nav-link">
                                 <i class="nav-icon fas fa-bell"></i>
@@ -900,15 +895,205 @@
             });
 
             // 退出登录
-            $('#logout-link').click(function(e) {
-                e.preventDefault();
-                // 清除本地存储
-                localStorage.removeItem('user');
-                localStorage.removeItem('token');
-                // 跳转到登录页面
-                window.location.href = 'login.html';
-            });
+        $('#logout-link').click(function(e) {
+            e.preventDefault();
+            // 清除本地存储
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+            // 跳转到登录页面
+            window.location.href = 'login.html';
+        });
+
+        // 新建消息按钮
+        $('#new-message-btn').click(function() {
+            loadDevicesForMessage();
+            $('#new-message-modal').modal('show');
+        });
+
+        // 加载设备列表用于消息发送
+        async function loadDevicesForMessage() {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch('/api/user/devices?api_key=' + apiKey);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const devices = data.data;
+                        const deviceSelect = $('#message-device');
+                        deviceSelect.empty().append('<option value="">请选择设备</option>');
+                        
+                        devices.forEach(device => {
+                            deviceSelect.append(`<option value="${device.device_id}">${device.device_name || device.device_id}</option>`);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('加载设备列表失败:', error);
+            }
         }
+
+        // 消息类型切换
+        $(document).on('click', '.btn-group button', function() {
+            const type = $(this).data('type');
+            
+            // 更新按钮状态
+            $(this).addClass('active').removeClass('btn-secondary').addClass('btn-primary');
+            $(this).siblings().removeClass('active').addClass('btn-secondary').removeClass('btn-primary');
+            
+            // 显示对应的内容区域
+            $('.message-type-content').hide();
+            $(`.message-type-content[data-type="${type}"]`).show();
+        });
+
+        // 推送时间类型切换
+        $('#send-time-type').change(function() {
+            const type = $(this).val();
+            $('.send-time-content').hide();
+            $(`.send-time-content[data-type="${type}"]`).show();
+        });
+
+        // 音频录音功能
+        let mediaRecorder;
+        let audioChunks = [];
+
+        // 开始录音
+        $('#start-record-btn').click(function() {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    
+                    mediaRecorder.ondataavailable = event => {
+                        audioChunks.push(event.data);
+                    };
+                    
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        $('#audio-preview').attr('src', audioUrl).show();
+                        
+                        // 转换为base64
+                        const reader = new FileReader();
+                        reader.readAsDataURL(audioBlob);
+                        reader.onloadend = () => {
+                            $('#audio-data').val(reader.result);
+                        };
+                        
+                        $('#recording-status').text('录音完成');
+                        $('#stop-record-btn').prop('disabled', true);
+                        $('#play-audio-btn').prop('disabled', false);
+                        $('#reset-audio-btn').prop('disabled', false);
+                        $('#start-record-btn').prop('disabled', true);
+                    };
+                    
+                    mediaRecorder.start();
+                    $('#recording-status').text('正在录音...');
+                    $(this).prop('disabled', true);
+                    $('#stop-record-btn').prop('disabled', false);
+                })
+                .catch(error => {
+                    console.error('获取麦克风失败:', error);
+                    alert('无法访问麦克风，请检查权限设置');
+                });
+        });
+
+        // 停止录音
+        $('#stop-record-btn').click(function() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+        });
+
+        // 播放录音
+        $('#play-audio-btn').click(function() {
+            $('#audio-preview')[0].play();
+        });
+
+        // 重新录音
+        $('#reset-audio-btn').click(function() {
+            $('#audio-preview').hide().attr('src', '');
+            $('#audio-data').val('');
+            $('#recording-status').text('');
+            $('#start-record-btn').prop('disabled', false);
+            $('#play-audio-btn').prop('disabled', true);
+            $('#reset-audio-btn').prop('disabled', true);
+        });
+
+        // 发送消息
+        $('#send-message-btn').click(async function() {
+            const deviceId = $('#message-device').val();
+            if (!deviceId) {
+                alert('请选择设备');
+                return;
+            }
+
+            const activeTypeBtn = $('.btn-group button.active');
+            const messageType = activeTypeBtn.data('type');
+            let content;
+
+            if (messageType === 'text') {
+                content = $('#message-content').val().trim();
+                if (!content) {
+                    alert('请输入消息内容');
+                    return;
+                }
+            } else if (messageType === 'audio') {
+                content = $('#audio-data').val();
+                if (!content) {
+                    alert('请先录制音频');
+                    return;
+                }
+            }
+
+            const sendTimeType = $('#send-time-type').val();
+            let scheduledTime = null;
+            
+            if (sendTimeType === 'scheduled') {
+                scheduledTime = $('#scheduled-time').val();
+                if (!scheduledTime) {
+                    alert('请选择定时发送时间');
+                    return;
+                }
+            }
+
+            const apiKey = localStorage.getItem('token');
+            const userStr = localStorage.getItem('user');
+            const user = JSON.parse(userStr);
+
+            try {
+                const response = await fetch('/api/message/send?api_key=' + apiKey, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        device_id: deviceId,
+                        content: content,
+                        type: messageType,
+                        scheduled_time: scheduledTime
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('消息发送成功');
+                        $('#new-message-modal').modal('hide');
+                        loadMessages();
+                        loadStats();
+                    } else {
+                        alert('发送失败: ' + data.message);
+                    }
+                } else {
+                    alert('发送失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('发送消息失败:', error);
+                alert('发送失败: 网络错误');
+            }
+        });
+    }
 
         // 搜索消息
         async function searchMessages(searchTerm) {
