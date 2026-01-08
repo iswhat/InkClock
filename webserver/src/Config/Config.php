@@ -10,6 +10,8 @@ class Config {
     private static $loaded = false;
     private static $envLoaded = false;
     private static $instance = null;
+    private static $environment = 'development';
+    private static $configDir = __DIR__ . '/../../config';
 
     /**
      * 私有构造函数，防止直接实例化
@@ -30,8 +32,38 @@ class Config {
     }
 
     /**
+     * 设置当前环境
+     * @param string $environment 环境名称（development, production, testing等）
+     * @return void
+     */
+    public static function setEnvironment($environment) {
+        self::$environment = $environment;
+        // 环境改变时重新加载配置
+        self::$loaded = false;
+    }
+
+    /**
+     * 获取当前环境
+     * @return string
+     */
+    public static function getEnvironment() {
+        return self::$environment;
+    }
+
+    /**
+     * 设置配置目录
+     * @param string $configDir 配置目录路径
+     * @return void
+     */
+    public static function setConfigDir($configDir) {
+        self::$configDir = $configDir;
+        // 配置目录改变时重新加载配置
+        self::$loaded = false;
+    }
+
+    /**
      * 加载配置文件
-     * @param string $filePath 配置文件路径
+     * @param string $filePath 配置文件路径（可选）
      * @return void
      */
     public static function load($filePath = null) {
@@ -42,14 +74,20 @@ class Config {
         // 加载环境变量
         self::loadEnv();
 
-        // 默认配置文件路径
-        if ($filePath === null) {
-            $filePath = __DIR__ . '/../../config/config.php';
-        }
+        // 获取当前环境
+        $env = getenv('APP_ENV') ?: self::$environment;
+        self::$environment = $env;
 
-        // 加载配置文件
-        $config = require $filePath;
-        self::$config = $config;
+        // 加载基础配置
+        $baseConfigFile = $filePath ?: self::$configDir . '/config.php';
+        $baseConfig = require_once $baseConfigFile;
+        
+        // 加载环境特定配置
+        $envConfigFile = self::$configDir . '/config.' . $env . '.php';
+        $envConfig = file_exists($envConfigFile) ? require_once $envConfigFile : [];
+        
+        // 合并配置，环境配置覆盖基础配置
+        self::$config = array_replace_recursive($baseConfig, $envConfig);
         
         // 从环境变量覆盖配置
         self::overrideConfigFromEnv();
@@ -59,7 +97,7 @@ class Config {
     
     /**
      * 加载环境变量
-     * @param string $envPath .env文件路径
+     * @param string $envPath .env文件路径（可选）
      * @return void
      */
     private static function loadEnv($envPath = null) {
@@ -67,17 +105,39 @@ class Config {
             return;
         }
         
-        // 默认.env文件路径
-        if ($envPath === null) {
-            $envPath = __DIR__ . '/../../.env';
-        }
+        // 获取环境特定的.env文件
+        $baseEnvPath = $envPath ?: __DIR__ . '/../../.env';
+        $env = getenv('APP_ENV') ?: self::$environment;
+        $envSpecificPath = __DIR__ . '/../../.env.' . $env;
         
-        // 如果.env文件存在，加载它
-        if (file_exists($envPath)) {
-            $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        // 优先加载基础.env文件
+        self::loadEnvFile($baseEnvPath);
+        
+        // 然后加载环境特定的.env文件（会覆盖基础配置）
+        self::loadEnvFile($envSpecificPath);
+        
+        // 最后加载.env.local文件（用于本地开发，会覆盖所有配置）
+        self::loadEnvFile(__DIR__ . '/../../.env.local');
+        
+        self::$envLoaded = true;
+    }
+    
+    /**
+     * 加载单个环境变量文件
+     * @param string $filePath .env文件路径
+     * @return void
+     */
+    private static function loadEnvFile($filePath) {
+        if (file_exists($filePath)) {
+            $lines = file($filePath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
             foreach ($lines as $line) {
                 // 跳过注释
                 if (strpos(trim($line), '#') === 0) {
+                    continue;
+                }
+                
+                // 跳过没有等号的行
+                if (strpos($line, '=') === false) {
                     continue;
                 }
                 
@@ -89,10 +149,9 @@ class Config {
                 // 设置环境变量
                 putenv("$key=$value");
                 $_ENV[$key] = $value;
+                $_SERVER[$key] = $value;
             }
         }
-        
-        self::$envLoaded = true;
     }
     
     /**

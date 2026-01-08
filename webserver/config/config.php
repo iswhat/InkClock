@@ -4,20 +4,22 @@
  */
 
 // 加载环境变量
-function loadEnvironmentVariables() {
-    $envFile = __DIR__ . '/../.env';
-    if (file_exists($envFile)) {
-        $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        foreach ($lines as $line) {
-            // 跳过注释
-            if (strpos($line, '#') === 0) {
-                continue;
+if (!function_exists('loadEnvironmentVariables')) {
+    function loadEnvironmentVariables() {
+        $envFile = __DIR__ . '/../.env';
+        if (file_exists($envFile)) {
+            $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($lines as $line) {
+                // 跳过注释
+                if (strpos($line, '#') === 0) {
+                    continue;
+                }
+                list($name, $value) = explode('=', $line, 2);
+                $name = trim($name);
+                $value = trim($value, "'\"");
+                putenv("$name=$value");
+                $_ENV[$name] = $value;
             }
-            list($name, $value) = explode('=', $line, 2);
-            $name = trim($name);
-            $value = trim($value, "'\"");
-            putenv("$name=$value");
-            $_ENV[$name] = $value;
         }
     }
 }
@@ -26,8 +28,10 @@ function loadEnvironmentVariables() {
 loadEnvironmentVariables();
 
 // 获取环境变量，带默认值
-function env($name, $default = null) {
-    return getenv($name) !== false ? getenv($name) : $default;
+if (!function_exists('env')) {
+    function env($name, $default = null) {
+        return getenv($name) !== false ? getenv($name) : $default;
+    }
 }
 
 // 数据库配置
@@ -70,12 +74,19 @@ $config = array(
 );
 
 // 生成设备唯一标识
-function generateDeviceId() {
-    return md5(uniqid(rand(), true));
+if (!function_exists('generateDeviceId')) {
+    function generateDeviceId() {
+        return md5(uniqid(rand(), true));
+    }
 }
 
 // 生成消息唯一标识
-function generateMessageId() {
-    return md5(uniqid(rand(), true));
+if (!function_exists('generateMessageId')) {
+    function generateMessageId() {
+        return md5(uniqid(rand(), true));
+    }
 }
+
+// 返回配置数组
+return $config;
 ?>

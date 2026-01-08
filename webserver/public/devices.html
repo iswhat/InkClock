@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InkClock 设备管理</title>
+    <!-- AdminLTE CSS -->
+    <link rel="stylesheet" href="adminlte/css/adminlte.min.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 自定义CSS -->
+    <style>
+        .content-wrapper {
+            min-height: calc(100vh - 70px);
+        }
+        .info-box {
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .info-box-icon {
+            border-radius: 4px 0 0 4px;
+        }
+        .info-box-content {
+            padding: 15px;
+        }
+        .info-box-text {
+            font-size: 14px;
+        }
+        .info-box-number {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .card {
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .table-responsive {
+            overflow-x: auto;
+        }
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        .text-success {
+            color: #28a745 !important;
+        }
+        .text-danger {
+            color: #dc3545 !important;
+        }
+        .text-warning {
+            color: #ffc107 !important;
+        }
+        .text-info {
+            color: #17a2b8 !important;
+        }
+        .btn {
+            margin-right: 5px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .modal-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .modal-title {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .modal-footer {
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
+    </style>
+</head>
+<body class="hold-transition sidebar-mini">
+    <div class="wrapper">
+        <!-- Navbar -->
+        <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+            <!-- Left navbar links -->
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
+                </li>
+                <li class="nav-item d-none d-sm-inline-block">
+                    <a href="dashboard.html" class="nav-link">仪表盘</a>
+                </li>
+                <li class="nav-item d-none d-sm-inline-block">
+                    <a href="devices.html" class="nav-link active">设备管理</a>
+                </li>
+            </ul>
+
+            <!-- Right navbar links -->
+            <ul class="navbar-nav ml-auto">
+                <!-- Messages Dropdown Menu -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <i class="far fa-comments"></i>
+                        <span class="badge badge-danger navbar-badge">3</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+                        <a href="#" class="dropdown-item">
+                            <!-- Message Start -->
+                            <div class="media">
+                                <img src="adminlte/img/user1-128x128.jpg" alt="User Avatar" class="img-size-50 mr-3 img-circle">
+                                <div class="media-body">
+                                    <h3 class="dropdown-item-title">
+                                        设备 1
+                                        <span class="float-right text-sm text-danger"><i class="fas fa-hourglass-half"></i></span>
+                                    </h3>
+                                    <p class="text-sm">需要更新固件</p>
+                                    <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 1小时前</p>
+                                </div>
+                            </div>
+                            <!-- Message End -->
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" class="dropdown-item">
+                            <!-- Message Start -->
+                            <div class="media">
+                                <img src="adminlte/img/user2-160x160.jpg" alt="User Avatar" class="img-size-50 mr-3 img-circle">
+                                <div class="media-body">
+                                    <h3 class="dropdown-item-title">
+                                        设备 2
+                                        <span class="float-right text-sm text-success"><i class="fas fa-check"></i></span>
+                                    </h3>
+                                    <p class="text-sm">已连接</p>
+                                    <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 2小时前</p>
+                                </div>
+                            </div>
+                            <!-- Message End -->
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="messages.html" class="dropdown-item dropdown-footer">查看所有消息</a>
+                    </div>
+                </li>
+                <!-- Notifications Dropdown Menu -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <i class="far fa-bell"></i>
+                        <span class="badge badge-warning navbar-badge">1</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+                        <span class="dropdown-item dropdown-header">1 个通知</span>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" class="dropdown-item">
+                            <i class="fas fa-exclamation-triangle mr-2"></i> 系统需要更新
+                            <span class="float-right text-sm text-muted">30分钟前</span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="notifications.html" class="dropdown-item dropdown-footer">查看所有通知</a>
+                    </div>
+                </li>
+                <!-- User Dropdown Menu -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <img src="adminlte/img/avatar.png" alt="User Avatar" class="img-size-32 img-circle">
+                        <span class="ml-2 d-none d-lg-inline-block" id="user-name">用户名</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-right">
+                        <a href="profile.html" class="dropdown-item">
+                            <i class="fas fa-user mr-2"></i> 个人资料
+                        </a>
+                        <a href="settings.html" class="dropdown-item">
+                            <i class="fas fa-cog mr-2"></i> 设置
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" class="dropdown-item" id="logout-link">
+                            <i class="fas fa-sign-out-alt mr-2"></i> 退出登录
+                        </a>
+                    </div>
+                </li>
+            </ul>
+        </nav>
+        <!-- /.navbar -->
+
+        <!-- Main Sidebar Container -->
+        <aside class="main-sidebar sidebar-dark-primary elevation-4">
+            <!-- Brand Logo -->
+            <a href="dashboard.html" class="brand-link">
+                <img src="adminlte/img/AdminLTELogo.png" alt="AdminLTE Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
+                <span class="brand-text font-weight-light">InkClock</span>
+            </a>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Sidebar user panel (optional) -->
+                <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+                    <div class="image">
+                        <img src="adminlte/img/avatar.png" class="img-circle elevation-2" alt="User Image">
+                    </div>
+                    <div class="info">
+                        <a href="profile.html" class="d-block" id="sidebar-user-name">用户名</a>
+                        <span class="text-xs text-gray-light" id="user-role">角色: 用户</span>
+                    </div>
+                </div>
+
+                <!-- Sidebar Menu -->
+                <nav class="mt-2">
+                    <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+                        <!-- Add icons to the links using the .nav-icon class
+                             with font-awesome or any other icon font library -->
+                        <li class="nav-item">
+                            <a href="dashboard.html" class="nav-link">
+                                <i class="nav-icon fas fa-tachometer-alt"></i>
+                                <p>仪表盘</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="devices.html" class="nav-link active">
+                                <i class="nav-icon fas fa-microchip"></i>
+                                <p>设备管理</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="messages.html" class="nav-link">
+                                <i class="nav-icon fas fa-envelope"></i>
+                                <p>消息管理</p>
+                            </a>
+                        </li>
+                        <li class="nav-item admin-only" style="display: none;">
+                            <a href="firmware.html" class="nav-link">
+                                <i class="nav-icon fas fa-download"></i>
+                                <p>固件管理</p>
+                            </a>
+                        </li>
+                        <li class="nav-item has-treeview">
+                            <a href="#" class="nav-link">
+                                <i class="nav-icon fas fa-sitemap"></i>
+                                <p>
+                                    设备分组
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <a href="groups.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>分组管理</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="tags.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>标签管理</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <a href="templates.html" class="nav-link">
+                                <i class="nav-icon fas fa-file-alt"></i>
+                                <p>消息模板</p>
+                            </a>
+                        </li>
+                        <li class="nav-item admin-only" style="display: none;">
+                            <a href="notifications.html" class="nav-link">
+                                <i class="nav-icon fas fa-bell"></i>
+                                <p>通知管理</p>
+                            </a>
+                        </li>
+                        <li class="nav-item admin-only" style="display: none;">
+                            <a href="plugins.html" class="nav-link">
+                                <i class="nav-icon fas fa-puzzle-piece"></i>
+                                <p>插件管理</p>
+                            </a>
+                        </li>
+                        <!-- Admin only menu items -->
+                        <li class="nav-item has-treeview admin-only" style="display: none;">
+                            <a href="#" class="nav-link">
+                                <i class="nav-icon fas fa-user-shield"></i>
+                                <p>
+                                    管理员
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <a href="users.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>用户管理</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="system.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>系统设置</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="logs.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>系统日志</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </nav>
+                <!-- /.sidebar-menu -->
+            </div>
+            <!-- /.sidebar -->
+        </aside>
+
+        <!-- Content Wrapper. Contains page content -->
+        <div class="content-wrapper">
+            <!-- Content Header (Page header) -->
+            <div class="content-header">
+                <div class="container-fluid">
+                    <div class="row mb-2">
+                        <div class="col-sm-6">
+                            <h1 class="m-0 text-dark">设备管理</h1>
+                        </div><!-- /.col -->
+                        <div class="col-sm-6">
+                            <ol class="breadcrumb float-sm-right">
+                                <li class="breadcrumb-item"><a href="dashboard.html">首页</a></li>
+                                <li class="breadcrumb-item active">设备管理</li>
+                            </ol>
+                        </div><!-- /.col -->
+                    </div><!-- /.row -->
+                </div><!-- /.container-fluid -->
+            </div>
+            <!-- /.content-header -->
+
+            <!-- Main content -->
+            <div class="content">
+                <div class="container-fluid">
+                    <!-- Info boxes -->
+                    <div class="row">
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-success"><i class="fas fa-microchip"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">设备总数</span>
+                                    <span class="info-box-number" id="total-devices">0</span>
+                                </div>
+                                <!-- /.info-box-content -->
+                            </div>
+                            <!-- /.info-box -->
+                        </div>
+                        <!-- /.col -->
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-info"><i class="fas fa-signal"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">在线设备</span>
+                                    <span class="info-box-number" id="online-devices">0</span>
+                                </div>
+                                <!-- /.info-box-content -->
+                            </div>
+                            <!-- /.info-box -->
+                        </div>
+                        <!-- /.col -->
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-danger"><i class="fas fa-signal-slash"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">离线设备</span>
+                                    <span class="info-box-number" id="offline-devices">0</span>
+                                </div>
+                                <!-- /.info-box-content -->
+                            </div>
+                            <!-- /.info-box -->
+                        </div>
+                        <!-- /.col -->
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-warning"><i class="fas fa-exclamation-triangle"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">需要更新</span>
+                                    <span class="info-box-number" id="update-devices">0</span>
+                                </div>
+                                <!-- /.info-box-content -->
+                            </div>
+                            <!-- /.info-box -->
+                        </div>
+                        <!-- /.col -->
+                    </div>
+                    <!-- /.row -->
+
+                    <!-- Action Bar -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input type="text" class="form-control" placeholder="搜索设备..." id="search-input">
+                                                <div class="input-group-append">
+                                                    <button class="btn btn-outline-secondary" type="button" id="search-btn">
+                                                        <i class="fas fa-search"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <select class="form-control" id="status-filter">
+                                                    <option value="all">所有状态</option>
+                                                    <option value="online">在线</option>
+                                                    <option value="offline">离线</option>
+                                                </select>
+                                                <div class="input-group-append">
+                                                    <button class="btn btn-outline-secondary" type="button" id="filter-btn">
+                                                        <i class="fas fa-filter"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 text-right">
+                                            <button type="button" class="btn btn-primary" id="add-device-btn">
+                                                <i class="fas fa-plus"></i> 添加设备
+                                            </button>
+                                            <button type="button" class="btn btn-secondary" id="refresh-btn">
+                                                <i class="fas fa-sync-alt"></i> 刷新
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Devices Table -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 class="card-title">设备列表</h3>
+                                    <div class="card-tools">
+                                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                                            <i class="fas fa-minus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- /.card-header -->
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>设备ID</th>
+                                                    <th>设备名称</th>
+                                                    <th>状态</th>
+                                                    <th>IP地址</th>
+                                                    <th>固件版本</th>
+                                                    <th>最后活跃</th>
+                                                    <th>操作</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="devices-table-body">
+                                                <!-- 动态填充 -->
+                                                <tr>
+                                                    <td colspan="7" class="text-center">加载中...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <!-- /.card-body -->
+                                <div class="card-footer">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p class="text-muted">显示 <span id="showing-count">0</span> 条，共 <span id="total-count">0</span> 条</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <nav aria-label="Page navigation example" class="float-right">
+                                                <ul class="pagination">
+                                                    <li class="page-item disabled">
+                                                        <a class="page-link" href="#" tabindex="-1">上一页</a>
+                                                    </li>
+                                                    <li class="page-item active">
+                                                        <a class="page-link" href="#">1</a>
+                                                    </li>
+                                                    <li class="page-item disabled">
+                                                        <a class="page-link" href="#">下一页</a>
+                                                    </li>
+                                                </ul>
+                                            </nav>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- /.card -->
+                        </div>
+                    </div>
+                </div>
+                <!-- /.container-fluid -->
+            </div>
+            <!-- /.content -->
+        </div>
+        <!-- /.content-wrapper -->
+
+        <!-- Footer -->
+        <footer class="main-footer">
+            <div class="float-right d-none d-sm-inline">
+                <b>版本</b> 1.0.0
+            </div>
+            <strong>Copyright &copy; 2026 <a href="#">InkClock</a>.</strong> All rights reserved.
+        </footer>
+    </div>
+    <!-- ./wrapper -->
+
+    <!-- Add Device Modal -->
+    <div class="modal fade" id="add-device-modal" tabindex="-1" role="dialog" aria-labelledby="add-device-modal-label" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="add-device-modal-label">添加设备</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-device-form">
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label for="device-id">设备ID</label>
+                                <input type="text" class="form-control" id="device-id" placeholder="输入设备ID" required>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="device-name">设备名称</label>
+                                <input type="text" class="form-control" id="device-name" placeholder="输入设备名称" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-12">
+                                <label for="device-group">设备分组</label>
+                                <select class="form-control" id="device-group">
+                                    <option value="">选择分组</option>
+                                    <!-- 动态填充分组 -->
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="device-description">设备描述</label>
+                            <textarea class="form-control" id="device-description" rows="3" placeholder="输入设备描述"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="save-device-btn">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Device Detail Modal -->
+    <div class="modal fade" id="device-detail-modal" tabindex="-1" role="dialog" aria-labelledby="device-detail-modal-label" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="device-detail-modal-label">设备详情</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>设备ID</label>
+                                <p class="form-control-plaintext" id="detail-device-id"></p>
+                            </div>
+                            <div class="form-group">
+                                <label>设备名称</label>
+                                <p class="form-control-plaintext" id="detail-device-name"></p>
+                            </div>
+                            <div class="form-group">
+                                <label>IP地址</label>
+                                <p class="form-control-plaintext" id="detail-device-ip"></p>
+                            </div>
+                            <div class="form-group">
+                                <label>固件版本</label>
+                                <p class="form-control-plaintext" id="detail-device-firmware"></p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>状态</label>
+                                <p class="form-control-plaintext" id="detail-device-status"></p>
+                            </div>
+                            <div class="form-group">
+                                <label>设备分组</label>
+                                <p class="form-control-plaintext" id="detail-device-group"></p>
+                            </div>
+                            <div class="form-group">
+                                <label>最后活跃</label>
+                                <p class="form-control-plaintext" id="detail-device-last-active"></p>
+                            </div>
+                            <div class="form-group">
+                                <label>创建时间</label>
+                                <p class="form-control-plaintext" id="detail-device-created"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>设备描述</label>
+                        <p class="form-control-plaintext" id="detail-device-description"></p>
+                    </div>
+                    <div class="form-group">
+                        <label>最近消息</label>
+                        <div class="card">
+                            <div class="card-body" id="detail-device-messages">
+                                <!-- 动态填充最近消息 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-primary" id="edit-device-btn">编辑</button>
+                    <button type="button" class="btn btn-danger" id="delete-device-btn">删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- jQuery -->
+    <script src="adminlte/plugins/jquery/jquery.min.js"></script>
+    <!-- Bootstrap 4 -->
+    <script src="adminlte/plugins/bootstrap/js/bootstrap.min.js"></script>
+    <!-- AdminLTE App -->
+    <script src="adminlte/js/adminlte.min.js"></script>
+    <!-- Devices Script -->
+    <script>
+        // 页面加载完成后执行
+        $(document).ready(function() {
+            // 检查登录状态
+            checkLoginStatus();
+            // 加载设备数据
+            loadDevices();
+            // 加载统计数据
+            loadStats();
+            // 绑定事件
+            bindEvents();
+        });
+
+        // 检查登录状态
+        function checkLoginStatus() {
+            const userStr = localStorage.getItem('user');
+            if (!userStr) {
+                // 未登录，跳转到登录页面
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            const user = JSON.parse(userStr);
+            // 更新用户名
+            $('#user-name').text(user.username);
+            $('#sidebar-user-name').text(user.username);
+            // 更新用户角色
+            $('#user-role').text('角色: ' + (user.role || '用户'));
+            // 显示管理员菜单
+            if (user.role === 'admin') {
+                $('.admin-only').show();
+            }
+        }
+
+        // 加载设备数据
+        async function loadDevices() {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch('/api/device?api_key=' + apiKey);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const devices = data.data;
+                        renderDevicesTable(devices);
+                        $('#total-count').text(devices.length);
+                        $('#showing-count').text(devices.length);
+                    }
+                }
+            } catch (error) {
+                console.error('加载设备数据错误:', error);
+                $('#devices-table-body').html('<tr><td colspan="7" class="text-center">加载失败</td></tr>');
+            }
+        }
+
+        // 渲染设备表格
+        function renderDevicesTable(devices) {
+            let html = '';
+            if (devices.length > 0) {
+                devices.forEach(device => {
+                    const statusClass = device.connection_status === 'online' ? 'text-success' : 'text-danger';
+                    const statusText = device.connection_status === 'online' ? '在线' : '离线';
+                    const statusIcon = device.connection_status === 'online' ? 'fas fa-check-circle' : 'fas fa-times-circle';
+                    
+                    html += `
+                        <tr data-device-id="${device.device_id}">
+                            <td>${device.device_id}</td>
+                            <td>${device.device_name || '未命名'}</td>
+                            <td><span class="${statusClass}"><i class="${statusIcon}"></i> ${statusText}</span></td>
+                            <td>${device.ip_address || '-'}</td>
+                            <td>${device.firmware_version || '-'}</td>
+                            <td>${device.last_active || '从未'}</td>
+                            <td>
+                                <button class="btn btn-sm btn-info view-device-btn" data-device-id="${device.device_id}">
+                                    <i class="fas fa-eye"></i> 查看
+                                </button>
+                                <button class="btn btn-sm btn-primary edit-device-btn" data-device-id="${device.device_id}">
+                                    <i class="fas fa-edit"></i> 编辑
+                                </button>
+                                <button class="btn btn-sm btn-danger delete-device-btn" data-device-id="${device.device_id}">
+                                    <i class="fas fa-trash"></i> 删除
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } else {
+                html = '<tr><td colspan="7" class="text-center">暂无设备</td></tr>';
+            }
+            $('#devices-table-body').html(html);
+        }
+
+        // 加载统计数据
+        async function loadStats() {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch('/api/device?api_key=' + apiKey);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const devices = data.data;
+                        const total = devices.length;
+                        const online = devices.filter(d => d.connection_status === 'online').length;
+                        const offline = total - online;
+                        const update = devices.filter(d => d.needs_update).length;
+                        
+                        $('#total-devices').text(total);
+                        $('#online-devices').text(online);
+                        $('#offline-devices').text(offline);
+                        $('#update-devices').text(update);
+                    }
+                }
+            } catch (error) {
+                console.error('加载统计数据错误:', error);
+            }
+        }
+
+        // 绑定事件
+        function bindEvents() {
+            // 刷新按钮
+            $('#refresh-btn').click(function() {
+                loadDevices();
+                loadStats();
+            });
+
+            // 搜索按钮
+            $('#search-btn').click(function() {
+                const searchTerm = $('#search-input').val();
+                searchDevices(searchTerm);
+            });
+
+            // 搜索输入框回车
+            $('#search-input').keypress(function(e) {
+                if (e.which === 13) {
+                    const searchTerm = $(this).val();
+                    searchDevices(searchTerm);
+                }
+            });
+
+            // 过滤按钮
+            $('#filter-btn').click(function() {
+                const status = $('#status-filter').val();
+                filterDevices(status);
+            });
+
+            // 添加设备按钮
+            $('#add-device-btn').click(function() {
+                $('#add-device-modal').modal('show');
+                // 加载设备分组
+                loadDeviceGroups();
+            });
+
+            // 保存设备按钮
+            $('#save-device-btn').click(function() {
+                saveDevice();
+            });
+
+            // 查看设备按钮
+            $(document).on('click', '.view-device-btn', function() {
+                const deviceId = $(this).data('device-id');
+                viewDevice(deviceId);
+            });
+
+            // 编辑设备按钮
+            $(document).on('click', '.edit-device-btn', function() {
+                const deviceId = $(this).data('device-id');
+                editDevice(deviceId);
+            });
+
+            // 删除设备按钮
+            $(document).on('click', '.delete-device-btn', function() {
+                const deviceId = $(this).data('device-id');
+                deleteDevice(deviceId);
+            });
+
+            // 模态框中的编辑按钮
+            $('#edit-device-btn').click(function() {
+                const deviceId = $('#detail-device-id').text();
+                editDevice(deviceId);
+            });
+
+            // 模态框中的删除按钮
+            $('#delete-device-btn').click(function() {
+                const deviceId = $('#detail-device-id').text();
+                deleteDevice(deviceId);
+            });
+
+            // 退出登录
+            $('#logout-link').click(function(e) {
+                e.preventDefault();
+                // 清除本地存储
+                localStorage.removeItem('user');
+                localStorage.removeItem('token');
+                // 跳转到登录页面
+                window.location.href = 'login.html';
+            });
+        }
+
+        // 搜索设备
+        async function searchDevices(searchTerm) {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch('/api/device?api_key=' + apiKey);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        let devices = data.data;
+                        if (searchTerm) {
+                            devices = devices.filter(d => 
+                                d.device_id.includes(searchTerm) ||
+                                (d.device_name && d.device_name.includes(searchTerm)) ||
+                                (d.ip_address && d.ip_address.includes(searchTerm))
+                            );
+                        }
+                        renderDevicesTable(devices);
+                        $('#showing-count').text(devices.length);
+                    }
+                }
+            } catch (error) {
+                console.error('搜索设备错误:', error);
+            }
+        }
+
+        // 过滤设备
+        async function filterDevices(status) {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch('/api/device?api_key=' + apiKey);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        let devices = data.data;
+                        if (status !== 'all') {
+                            devices = devices.filter(d => d.connection_status === status);
+                        }
+                        renderDevicesTable(devices);
+                        $('#showing-count').text(devices.length);
+                    }
+                }
+            } catch (error) {
+                console.error('过滤设备错误:', error);
+            }
+        }
+
+        // 加载设备分组
+        async function loadDeviceGroups() {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch('/api/group?api_key=' + apiKey);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const groups = data.data;
+                        let html = '<option value="">选择分组</option>';
+                        groups.forEach(group => {
+                            html += `<option value="${group.group_id}">${group.group_name}</option>`;
+                        });
+                        $('#device-group').html(html);
+                    }
+                }
+            } catch (error) {
+                console.error('加载设备分组错误:', error);
+            }
+        }
+
+        // 保存设备
+        async function saveDevice() {
+            const apiKey = localStorage.getItem('token');
+            const deviceId = $('#device-id').val();
+            const deviceName = $('#device-name').val();
+            const deviceGroup = $('#device-group').val();
+            const deviceDescription = $('#device-description').val();
+            
+            const deviceData = {
+                device_id: deviceId,
+                device_name: deviceName,
+                group_id: deviceGroup,
+                description: deviceDescription
+            };
+            
+            try {
+                const response = await fetch('/api/device?api_key=' + apiKey, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(deviceData)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        $('#add-device-modal').modal('hide');
+                        $('#add-device-form')[0].reset();
+                        loadDevices();
+                        loadStats();
+                        alert('设备添加成功！');
+                    } else {
+                        alert('设备添加失败: ' + data.message);
+                    }
+                } else {
+                    alert('设备添加失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('保存设备错误:', error);
+                alert('设备添加失败: 网络错误');
+            }
+        }
+
+        // 查看设备
+        async function viewDevice(deviceId) {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch(`/api/device/${deviceId}?api_key=${apiKey}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const device = data.data;
+                        $('#detail-device-id').text(device.device_id);
+                        $('#detail-device-name').text(device.device_name || '未命名');
+                        $('#detail-device-ip').text(device.ip_address || '-');
+                        $('#detail-device-firmware').text(device.firmware_version || '-');
+                        
+                        const statusClass = device.connection_status === 'online' ? 'text-success' : 'text-danger';
+                        const statusText = device.connection_status === 'online' ? '在线' : '离线';
+                        $('#detail-device-status').html(`<span class="${statusClass}">${statusText}</span>`);
+                        
+                        $('#detail-device-group').text(device.group_name || '-');
+                        $('#detail-device-last-active').text(device.last_active || '从未');
+                        $('#detail-device-created').text(device.created_at || '-');
+                        $('#detail-device-description').text(device.description || '-');
+                        
+                        // 加载最近消息
+                        loadDeviceMessages(deviceId);
+                        
+                        $('#device-detail-modal').modal('show');
+                    } else {
+                        alert('获取设备信息失败: ' + data.message);
+                    }
+                } else {
+                    alert('获取设备信息失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('查看设备错误:', error);
+                alert('获取设备信息失败: 网络错误');
+            }
+        }
+
+        // 加载设备消息
+        async function loadDeviceMessages(deviceId) {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch(`/api/message/${deviceId}?api_key=${apiKey}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const messages = data.data;
+                        let html = '';
+                        if (messages.length > 0) {
+                            // 只显示最近5条消息
+                            const recentMessages = messages.slice(0, 5);
+                            recentMessages.forEach(msg => {
+                                html += `
+                                    <div class="mb-2">
+                                        <p class="font-weight-bold">${msg.created_at}</p>
+                                        <p>${msg.content}</p>
+                                    </div>
+                                    <hr class="my-1">
+                                `;
+                            });
+                        } else {
+                            html = '<p class="text-muted">暂无消息</p>';
+                        }
+                        $('#detail-device-messages').html(html);
+                    }
+                }
+            } catch (error) {
+                console.error('加载设备消息错误:', error);
+                $('#detail-device-messages').html('<p class="text-muted">加载消息失败</p>');
+            }
+        }
+
+        // 编辑设备
+        async function editDevice(deviceId) {
+            // 这里可以实现编辑设备的逻辑
+            alert('编辑设备功能待实现: ' + deviceId);
+        }
+
+        // 删除设备
+        async function deleteDevice(deviceId) {
+            if (!confirm('确定要删除设备 ' + deviceId + ' 吗？')) {
+                return;
+            }
+            
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch(`/api/device/${deviceId}?api_key=${apiKey}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        $('#device-detail-modal').modal('hide');
+                        loadDevices();
+                        loadStats();
+                        alert('设备删除成功！');
+                    } else {
+                        alert('设备删除失败: ' + data.message);
+                    }
+                } else {
+                    alert('设备删除失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('删除设备错误:', error);
+                alert('设备删除失败: 网络错误');
+            }
+        }
+    </script>
+</body>
+</html>

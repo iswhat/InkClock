@@ -59,12 +59,12 @@ class RateLimitMiddleware implements MiddlewareInterface {
     }
     
     /**
-     * 处理中间件
+     * 处理请求
      * @param array $request 请求信息
-     * @param callable $next 下一个中间件
+     * @param mixed $next 下一个中间件或处理函数
      * @return mixed 响应结果
      */
-    public function handle($request, callable $next) {
+    public function handle($request, $next) {
         $this->logger->info('速率限制中间件执行', ['request' => $request]);
         
         // 获取客户端IP
@@ -111,11 +111,34 @@ class RateLimitMiddleware implements MiddlewareInterface {
      */
     private function findMatchingLimitRule($path) {
         foreach ($this->rateLimits as $pattern => $limit) {
-            // 将模式转换为正则表达式
-            $regex = str_replace('*', '.*', $pattern);
-            $regex = '/^' . $regex . '$/';
+            // 简单的路径匹配，不使用正则表达式
+            $patternParts = explode('/', trim($pattern, '/'));
+            $pathParts = explode('/', trim($path, '/'));
             
-            if (preg_match($regex, $path)) {
+            // 检查路径深度
+            if (count($patternParts) !== count($pathParts)) {
+                continue;
+            }
+            
+            // 检查每个部分是否匹配
+            $matched = true;
+            for ($i = 0; $i < count($patternParts); $i++) {
+                $patternPart = $patternParts[$i];
+                $pathPart = $pathParts[$i];
+                
+                // 如果是通配符，跳过检查
+                if ($patternPart === '*') {
+                    continue;
+                }
+                
+                // 如果不匹配，标记为不匹配
+                if ($patternPart !== $pathPart) {
+                    $matched = false;
+                    break;
+                }
+            }
+            
+            if ($matched) {
                 return $limit;
             }
         }

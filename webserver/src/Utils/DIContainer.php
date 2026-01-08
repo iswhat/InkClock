@@ -1,6 +1,6 @@
 <?php
 /**
- * 依赖注入容器
+ * 依赖注入容器 - 支持构造函数自动注入和服务别名
  */
 
 namespace InkClock\Utils;
@@ -8,6 +8,7 @@ namespace InkClock\Utils;
 class DIContainer {
     private $services = [];
     private $instances = [];
+    private $aliases = [];
     private static $instance = null;
     
     /**
@@ -39,6 +40,18 @@ class DIContainer {
     }
     
     /**
+     * 注册服务类（支持自动注入）
+     * @param string $name 服务名称
+     * @param string $className 类名
+     * @return void
+     */
+    public function registerClass($name, $className) {
+        $this->services[$name] = function($container) use ($className) {
+            return $container->createInstance($className);
+        };
+    }
+    
+    /**
      * 直接设置服务实例
      * @param string $name 服务名称
      * @param mixed $instance 服务实例
@@ -47,22 +60,98 @@ class DIContainer {
     public function set($name, $instance) {
         $this->instances[$name] = $instance;
     }
+    
+    /**
+     * 创建类实例，自动注入构造函数依赖
+     * @param string $className 类名
+     * @return mixed 类实例
+     * @throws \Exception 如果依赖注入失败
+     */
+    public function createInstance($className) {
+        // 获取类的反射
+        $reflection = new \ReflectionClass($className);
+        
+        // 检查类是否可实例化
+        if (!$reflection->isInstantiable()) {
+            throw new \Exception("Class {$className} is not instantiable");
+        }
+        
+        // 获取构造函数
+        $constructor = $reflection->getConstructor();
+        
+        // 如果没有构造函数，直接创建实例
+        if (!$constructor) {
+            return new $className();
+        }
+        
+        // 获取构造函数参数
+        $parameters = $constructor->getParameters();
+        $dependencies = [];
+        
+        // 解析每个参数的依赖
+        foreach ($parameters as $parameter) {
+            $parameterType = $parameter->getType();
+            
+            // 如果参数没有类型提示，无法自动注入
+            if (!$parameterType || $parameterType instanceof \ReflectionNamedType === false) {
+                throw new \Exception("Cannot resolve dependency for parameter {$parameter->getName()} in {$className}");
+            }
+            
+            $dependencyClass = $parameterType->getName();
+            
+            // 检查是否可以从容器中获取依赖
+            try {
+                $dependencies[] = $this->get($dependencyClass);
+            } catch (\Exception $e) {
+                // 如果直接获取失败，尝试创建实例
+                $dependencies[] = $this->createInstance($dependencyClass);
+            }
+        }
+        
+        // 创建实例并注入依赖
+        return $reflection->newInstanceArgs($dependencies);
+    }
 
     /**
      * 获取服务实例
-     * @param string $name 服务名称
+     * @param string $name 服务名称或类名
      * @return mixed
      * @throws \Exception 如果服务不存在
      */
     public function get($name) {
-        if (!isset($this->instances[$name])) {
-            if (isset($this->services[$name])) {
-                $this->instances[$name] = $this->services[$name]($this);
-            } else {
-                throw new \Exception("Service {$name} not found");
-            }
+        // 检查是否是别名
+        if (isset($this->aliases[$name])) {
+            $name = $this->aliases[$name];
         }
-        return $this->instances[$name];
+        
+        // 如果实例已存在，直接返回
+        if (isset($this->instances[$name])) {
+            return $this->instances[$name];
+        }
+        
+        // 如果有服务工厂，调用工厂创建实例
+        if (isset($this->services[$name])) {
+            $this->instances[$name] = $this->services[$name]($this);
+            return $this->instances[$name];
+        }
+        
+        // 尝试直接创建类实例
+        if (class_exists($name)) {
+            $this->instances[$name] = $this->createInstance($name);
+            return $this->instances[$name];
+        }
+        
+        throw new \Exception("Service {$name} not found");
+    }
+    
+    /**
+     * 添加服务别名
+     * @param string $alias 别名
+     * @param string $name 服务名称
+     * @return void
+     */
+    public function alias($alias, $name) {
+        $this->aliases[$alias] = $name;
     }
 
     /**
@@ -71,7 +160,12 @@ class DIContainer {
      * @return bool
      */
     public function has($name) {
-        return isset($this->services[$name]) || isset($this->instances[$name]);
+        // 检查是否是别名
+        if (isset($this->aliases[$name])) {
+            $name = $this->aliases[$name];
+        }
+        
+        return isset($this->services[$name]) || isset($this->instances[$name]) || class_exists($name);
     }
 
     /**

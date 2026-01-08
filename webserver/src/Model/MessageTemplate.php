@@ -4,13 +4,11 @@
  */
 namespace InkClock\Model;
 
-use InkClock\Utils\Database;
-
 class MessageTemplate {
     private $db;
     
-    public function __construct(Database $database) {
-        $this->db = $database->getConnection();
+    public function __construct($db) {
+        $this->db = $db;
     }
     
     /**

@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InkClock 分组管理</title>
+    <!-- AdminLTE CSS -->
+    <link rel="stylesheet" href="adminlte/css/adminlte.min.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 自定义CSS -->
+    <style>
+        .content-wrapper {
+            min-height: calc(100vh - 70px);
+        }
+        .info-box {
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .info-box-icon {
+            border-radius: 4px 0 0 4px;
+        }
+        .info-box-content {
+            padding: 15px;
+        }
+        .info-box-text {
+            font-size: 14px;
+        }
+        .info-box-number {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .card {
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .table-responsive {
+            overflow-x: auto;
+        }
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        .text-success {
+            color: #28a745 !important;
+        }
+        .text-danger {
+            color: #dc3545 !important;
+        }
+        .text-warning {
+            color: #ffc107 !important;
+        }
+        .text-info {
+            color: #17a2b8 !important;
+        }
+        .btn {
+            margin-right: 5px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .modal-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .modal-title {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .modal-footer {
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
+        .group-card {
+            transition: all 0.3s ease;
+        }
+        .group-card:hover {
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="hold-transition sidebar-mini">
+    <div class="wrapper">
+        <!-- Navbar -->
+        <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+            <!-- Left navbar links -->
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
+                </li>
+                <li class="nav-item d-none d-sm-inline-block">
+                    <a href="dashboard.html" class="nav-link">仪表盘</a>
+                </li>
+                <li class="nav-item d-none d-sm-inline-block">
+                    <a href="groups.html" class="nav-link active">分组管理</a>
+                </li>
+            </ul>
+
+            <!-- Right navbar links -->
+            <ul class="navbar-nav ml-auto">
+                <!-- Messages Dropdown Menu -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <i class="far fa-comments"></i>
+                        <span class="badge badge-danger navbar-badge">3</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+                        <a href="#" class="dropdown-item">
+                            <!-- Message Start -->
+                            <div class="media">
+                                <img src="adminlte/img/user1-128x128.jpg" alt="User Avatar" class="img-size-50 mr-3 img-circle">
+                                <div class="media-body">
+                                    <h3 class="dropdown-item-title">
+                                        设备 1
+                                        <span class="float-right text-sm text-danger"><i class="fas fa-hourglass-half"></i></span>
+                                    </h3>
+                                    <p class="text-sm">需要更新固件</p>
+                                    <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 1小时前</p>
+                                </div>
+                            </div>
+                            <!-- Message End -->
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" class="dropdown-item">
+                            <!-- Message Start -->
+                            <div class="media">
+                                <img src="adminlte/img/user2-160x160.jpg" alt="User Avatar" class="img-size-50 mr-3 img-circle">
+                                <div class="media-body">
+                                    <h3 class="dropdown-item-title">
+                                        设备 2
+                                        <span class="float-right text-sm text-success"><i class="fas fa-check"></i></span>
+                                    </h3>
+                                    <p class="text-sm">已连接</p>
+                                    <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 2小时前</p>
+                                </div>
+                            </div>
+                            <!-- Message End -->
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="messages.html" class="dropdown-item dropdown-footer">查看所有消息</a>
+                    </div>
+                </li>
+                <!-- Notifications Dropdown Menu -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <i class="far fa-bell"></i>
+                        <span class="badge badge-warning navbar-badge">1</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+                        <span class="dropdown-item dropdown-header">1 个通知</span>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" class="dropdown-item">
+                            <i class="fas fa-exclamation-triangle mr-2"></i> 系统需要更新
+                            <span class="float-right text-sm text-muted">30分钟前</span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="notifications.html" class="dropdown-item dropdown-footer">查看所有通知</a>
+                    </div>
+                </li>
+                <!-- User Dropdown Menu -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <img src="adminlte/img/avatar.png" alt="User Avatar" class="img-size-32 img-circle">
+                        <span class="ml-2 d-none d-lg-inline-block" id="user-name">用户名</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-right">
+                        <a href="profile.html" class="dropdown-item">
+                            <i class="fas fa-user mr-2"></i> 个人资料
+                        </a>
+                        <a href="settings.html" class="dropdown-item">
+                            <i class="fas fa-cog mr-2"></i> 设置
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" class="dropdown-item" id="logout-link">
+                            <i class="fas fa-sign-out-alt mr-2"></i> 退出登录
+                        </a>
+                    </div>
+                </li>
+            </ul>
+        </nav>
+        <!-- /.navbar -->
+
+        <!-- Main Sidebar Container -->
+        <aside class="main-sidebar sidebar-dark-primary elevation-4">
+            <!-- Brand Logo -->
+            <a href="dashboard.html" class="brand-link">
+                <img src="adminlte/img/AdminLTELogo.png" alt="AdminLTE Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
+                <span class="brand-text font-weight-light">InkClock</span>
+            </a>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Sidebar user panel (optional) -->
+                <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+                    <div class="image">
+                        <img src="adminlte/img/avatar.png" class="img-circle elevation-2" alt="User Image">
+                    </div>
+                    <div class="info">
+                        <a href="profile.html" class="d-block" id="sidebar-user-name">用户名</a>
+                        <span class="text-xs text-gray-light" id="user-role">角色: 用户</span>
+                    </div>
+                </div>
+
+                <!-- Sidebar Menu -->
+                <nav class="mt-2">
+                    <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+                        <!-- Add icons to the links using the .nav-icon class
+                             with font-awesome or any other icon font library -->
+                        <li class="nav-item">
+                            <a href="dashboard.html" class="nav-link">
+                                <i class="nav-icon fas fa-tachometer-alt"></i>
+                                <p>仪表盘</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="devices.html" class="nav-link">
+                                <i class="nav-icon fas fa-microchip"></i>
+                                <p>设备管理</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="messages.html" class="nav-link">
+                                <i class="nav-icon fas fa-envelope"></i>
+                                <p>消息管理</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="firmware.html" class="nav-link">
+                                <i class="nav-icon fas fa-download"></i>
+                                <p>固件管理</p>
+                            </a>
+                        </li>
+                        <li class="nav-item has-treeview menu-open">
+                            <a href="#" class="nav-link active">
+                                <i class="nav-icon fas fa-sitemap"></i>
+                                <p>
+                                    设备分组
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <a href="groups.html" class="nav-link active">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>分组管理</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="tags.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>标签管理</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <a href="templates.html" class="nav-link">
+                                <i class="nav-icon fas fa-file-alt"></i>
+                                <p>消息模板</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="notifications.html" class="nav-link">
+                                <i class="nav-icon fas fa-bell"></i>
+                                <p>通知管理</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="plugins.html" class="nav-link">
+                                <i class="nav-icon fas fa-puzzle-piece"></i>
+                                <p>插件管理</p>
+                            </a>
+                        </li>
+                        <!-- Admin only menu items -->
+                        <li class="nav-item has-treeview admin-only" style="display: none;">
+                            <a href="#" class="nav-link">
+                                <i class="nav-icon fas fa-user-shield"></i>
+                                <p>
+                                    管理员
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <a href="users.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>用户管理</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="system.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>系统设置</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="logs.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>系统日志</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </nav>
+                <!-- /.sidebar-menu -->
+            </div>
+            <!-- /.sidebar -->
+        </aside>
+
+        <!-- Content Wrapper. Contains page content -->
+        <div class="content-wrapper">
+            <!-- Content Header (Page header) -->
+            <div class="content-header">
+                <div class="container-fluid">
+                    <div class="row mb-2">
+                        <div class="col-sm-6">
+                            <h1 class="m-0 text-dark">分组管理</h1>
+                        </div><!-- /.col -->
+                        <div class="col-sm-6">
+                            <ol class="breadcrumb float-sm-right">
+                                <li class="breadcrumb-item"><a href="dashboard.html">首页</a></li>
+                                <li class="breadcrumb-item active">分组管理</li>
+                            </ol>
+                        </div><!-- /.col -->
+                    </div><!-- /.row -->
+                </div><!-- /.container-fluid -->
+            </div>
+            <!-- /.content-header -->
+
+            <!-- Main content -->
+            <div class="content">
+                <div class="container-fluid">
+                    <!-- Info boxes -->
+                    <div class="row">
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-success"><i class="fas fa-sitemap"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">分组总数</span>
+                                    <span class="info-box-number" id="total-groups">0</span>
+                                </div>
+                                <!-- /.info-box-content -->
+                            </div>
+                            <!-- /.info-box -->
+                        </div>
+                        <!-- /.col -->
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-info"><i class="fas fa-microchip"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">设备总数</span>
+                                    <span class="info-box-number" id="total-devices">0</span>
+                                </div>
+                                <!-- /.info-box-content -->
+                            </div>
+                            <!-- /.info-box -->
+                        </div>
+                        <!-- /.col -->
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-warning"><i class="fas fa-users"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">平均设备数/分组</span>
+                                    <span class="info-box-number" id="avg-devices-per-group">0</span>
+                                </div>
+                                <!-- /.info-box-content -->
+                            </div>
+                            <!-- /.info-box -->
+                        </div>
+                        <!-- /.col -->
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-danger"><i class="fas fa-exclamation-circle"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">未分组设备</span>
+                                    <span class="info-box-number" id="ungrouped-devices">0</span>
+                                </div>
+                                <!-- /.info-box-content -->
+                            </div>
+                            <!-- /.info-box -->
+                        </div>
+                        <!-- /.col -->
+                    </div>
+                    <!-- /.row -->
+
+                    <!-- Action Bar -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input type="text" class="form-control" placeholder="搜索分组..." id="search-input">
+                                                <div class="input-group-append">
+                                                    <button class="btn btn-outline-secondary" type="button" id="search-btn">
+                                                        <i class="fas fa-search"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-8 text-right">
+                                            <button type="button" class="btn btn-primary" id="add-group-btn">
+                                                <i class="fas fa-plus"></i> 添加分组
+                                            </button>
+                                            <button type="button" class="btn btn-secondary" id="refresh-btn">
+                                                <i class="fas fa-sync-alt"></i> 刷新
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Groups List -->
+                    <div class="row" id="groups-container">
+                        <!-- 动态填充分组卡片 -->
+                        <div class="col-12 text-center py-5">
+                            <i class="fas fa-spinner fa-spin fa-3x text-muted"></i>
+                            <p class="mt-3 text-muted">加载中...</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- /.container-fluid -->
+            </div>
+            <!-- /.content -->
+        </div>
+        <!-- /.content-wrapper -->
+
+        <!-- Footer -->
+        <footer class="main-footer">
+            <div class="float-right d-none d-sm-inline">
+                <b>版本</b> 1.0.0
+            </div>
+            <strong>Copyright &copy; 2026 <a href="#">InkClock</a>.</strong> All rights reserved.
+        </footer>
+    </div>
+    <!-- ./wrapper -->
+
+    <!-- Add Group Modal -->
+    <div class="modal fade" id="add-group-modal" tabindex="-1" role="dialog" aria-labelledby="add-group-modal-label" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="add-group-modal-label">添加分组</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-group-form">
+                        <div class="form-group">
+                            <label for="group-name">分组名称</label>
+                            <input type="text" class="form-control" id="group-name" placeholder="输入分组名称" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="group-description">分组描述</label>
+                            <textarea class="form-control" id="group-description" rows="3" placeholder="输入分组描述"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="group-color">分组颜色</label>
+                            <select class="form-control" id="group-color">
+                                <option value="primary">蓝色</option>
+                                <option value="success">绿色</option>
+                                <option value="warning">黄色</option>
+                                <option value="danger">红色</option>
+                                <option value="info">青色</option>
+                                <option value="secondary">灰色</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="save-group-btn">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Group Modal -->
+    <div class="modal fade" id="edit-group-modal" tabindex="-1" role="dialog" aria-labelledby="edit-group-modal-label" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="edit-group-modal-label">编辑分组</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="edit-group-form">
+                        <input type="hidden" id="edit-group-id">
+                        <div class="form-group">
+                            <label for="edit-group-name">分组名称</label>
+                            <input type="text" class="form-control" id="edit-group-name" placeholder="输入分组名称" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-group-description">分组描述</label>
+                            <textarea class="form-control" id="edit-group-description" rows="3" placeholder="输入分组描述"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-group-color">分组颜色</label>
+                            <select class="form-control" id="edit-group-color">
+                                <option value="primary">蓝色</option>
+                                <option value="success">绿色</option>
+                                <option value="warning">黄色</option>
+                                <option value="danger">红色</option>
+                                <option value="info">青色</option>
+                                <option value="secondary">灰色</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="update-group-btn">更新</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Devices Modal -->
+    <div class="modal fade" id="manage-devices-modal" tabindex="-1" role="dialog" aria-labelledby="manage-devices-modal-label" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="manage-devices-modal-label">管理分组设备</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="manage-group-id">
+                    <div class="form-group">
+                        <label>选择设备</label>
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="form-check" id="manage-devices-list">
+                                    <!-- 动态填充设备列表 -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="save-devices-btn">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- jQuery -->
+    <script src="adminlte/plugins/jquery/jquery.min.js"></script>
+    <!-- Bootstrap 4 -->
+    <script src="adminlte/plugins/bootstrap/js/bootstrap.min.js"></script>
+    <!-- AdminLTE App -->
+    <script src="adminlte/js/adminlte.min.js"></script>
+    <!-- Groups Script -->
+    <script>
+        // 页面加载完成后执行
+        $(document).ready(function() {
+            // 检查登录状态
+            checkLoginStatus();
+            // 加载分组数据
+            loadGroups();
+            // 加载统计数据
+            loadStats();
+            // 绑定事件
+            bindEvents();
+        });
+
+        // 检查登录状态
+        function checkLoginStatus() {
+            const userStr = localStorage.getItem('user');
+            if (!userStr) {
+                // 未登录，跳转到登录页面
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            const user = JSON.parse(userStr);
+            // 更新用户名
+            $('#user-name').text(user.username);
+            $('#sidebar-user-name').text(user.username);
+            // 更新用户角色
+            $('#user-role').text('角色: ' + (user.role || '用户'));
+            // 显示管理员菜单
+            if (user.role === 'admin') {
+                $('.admin-only').show();
+            }
+        }
+
+        // 加载分组数据
+        async function loadGroups() {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch('/api/group?api_key=' + apiKey);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const groups = data.data;
+                        renderGroups(groups);
+                    }
+                }
+            } catch (error) {
+                console.error('加载分组数据错误:', error);
+                $('#groups-container').html('<div class="col-12 text-center py-5"><p class="text-danger">加载失败</p></div>');
+            }
+        }
+
+        // 渲染分组
+        function renderGroups(groups) {
+            let html = '';
+            if (groups.length > 0) {
+                groups.forEach(group => {
+                    const colorClass = {
+                        'primary': 'bg-primary',
+                        'success': 'bg-success',
+                        'warning': 'bg-warning',
+                        'danger': 'bg-danger',
+                        'info': 'bg-info',
+                        'secondary': 'bg-secondary'
+                    }[group.color] || 'bg-primary';
+                    
+                    html += `
+                        <div class="col-md-4 col-sm-6">
+                            <div class="card group-card">
+                                <div class="card-header ${colorClass} text-white">
+                                    <div class="row">
+                                        <div class="col-8">
+                                            <h3 class="card-title">${group.group_name}</h3>
+                                        </div>
+                                        <div class="col-4 text-right">
+                                            <span class="badge bg-white text-dark">${group.device_count || 0} 设备</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">${group.description || '无描述'}</p>
+                                    <div class="mt-4">
+                                        <h5>设备列表</h5>
+                                        <ul class="list-group mb-3">
+                                            ${renderGroupDevices(group.devices || [])}
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <button class="btn btn-sm btn-info manage-devices-btn" data-group-id="${group.group_id}" data-group-name="${group.group_name}">
+                                                <i class="fas fa-cog"></i> 管理设备
+                                            </button>
+                                            <button class="btn btn-sm btn-primary edit-group-btn" data-group-id="${group.group_id}">
+                                                <i class="fas fa-edit"></i> 编辑
+                                            </button>
+                                            <button class="btn btn-sm btn-danger delete-group-btn" data-group-id="${group.group_id}">
+                                                <i class="fas fa-trash"></i> 删除
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                html = `
+                    <div class="col-12 text-center py-5">
+                        <i class="fas fa-sitemap fa-3x text-muted"></i>
+                        <p class="mt-3 text-muted">暂无分组</p>
+                        <button type="button" class="btn btn-primary mt-2" id="add-first-group-btn">
+                            <i class="fas fa-plus"></i> 添加第一个分组
+                        </button>
+                    </div>
+                `;
+            }
+            $('#groups-container').html(html);
+        }
+
+        // 渲染分组设备
+        function renderGroupDevices(devices) {
+            if (devices.length === 0) {
+                return '<li class="list-group-item text-muted">暂无设备</li>';
+            }
+            
+            let html = '';
+            devices.forEach(device => {
+                html += `
+                    <li class="list-group-item">
+                        <div class="row">
+                            <div class="col-8">
+                                ${device.device_name || device.device_id}
+                            </div>
+                            <div class="col-4 text-right">
+                                <span class="badge ${device.connection_status === 'online' ? 'bg-success' : 'bg-danger'}">
+                                    ${device.connection_status === 'online' ? '在线' : '离线'}
+                                </span>
+                            </div>
+                        </div>
+                    </li>
+                `;
+            });
+            return html;
+        }
+
+        // 加载统计数据
+        async function loadStats() {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                // 获取分组数据
+                const groupsResponse = await fetch('/api/group?api_key=' + apiKey);
+                if (groupsResponse.ok) {
+                    const groupsData = await groupsResponse.json();
+                    if (groupsData.success) {
+                        const groups = groupsData.data;
+                        const totalGroups = groups.length;
+                        
+                        // 计算设备总数
+                        let totalDevices = 0;
+                        groups.forEach(group => {
+                            totalDevices += group.device_count || 0;
+                        });
+                        
+                        // 计算平均设备数/分组
+                        const avgDevicesPerGroup = totalGroups > 0 ? (totalDevices / totalGroups).toFixed(1) : '0';
+                        
+                        // 获取未分组设备数
+                        let ungroupedDevices = 0;
+                        const allDevicesResponse = await fetch('/api/device?api_key=' + apiKey);
+                        if (allDevicesResponse.ok) {
+                            const allDevicesData = await allDevicesResponse.json();
+                            if (allDevicesData.success) {
+                                const allDevices = allDevicesData.data;
+                                ungroupedDevices = allDevices.filter(device => !device.group_id).length;
+                            }
+                        }
+                        
+                        $('#total-groups').text(totalGroups);
+                        $('#total-devices').text(totalDevices);
+                        $('#avg-devices-per-group').text(avgDevicesPerGroup);
+                        $('#ungrouped-devices').text(ungroupedDevices);
+                    }
+                }
+            } catch (error) {
+                console.error('加载统计数据错误:', error);
+            }
+        }
+
+        // 绑定事件
+        function bindEvents() {
+            // 刷新按钮
+            $('#refresh-btn').click(function() {
+                loadGroups();
+                loadStats();
+            });
+
+            // 搜索按钮
+            $('#search-btn').click(function() {
+                const searchTerm = $('#search-input').val();
+                searchGroups(searchTerm);
+            });
+
+            // 搜索输入框回车
+            $('#search-input').keypress(function(e) {
+                if (e.which === 13) {
+                    const searchTerm = $(this).val();
+                    searchGroups(searchTerm);
+                }
+            });
+
+            // 添加分组按钮
+            $('#add-group-btn').click(function() {
+                $('#add-group-modal').modal('show');
+            });
+
+            // 添加第一个分组按钮
+            $(document).on('click', '#add-first-group-btn', function() {
+                $('#add-group-modal').modal('show');
+            });
+
+            // 保存分组按钮
+            $('#save-group-btn').click(function() {
+                saveGroup();
+            });
+
+            // 编辑分组按钮
+            $(document).on('click', '.edit-group-btn', function() {
+                const groupId = $(this).data('group-id');
+                editGroup(groupId);
+            });
+
+            // 更新分组按钮
+            $('#update-group-btn').click(function() {
+                updateGroup();
+            });
+
+            // 删除分组按钮
+            $(document).on('click', '.delete-group-btn', function() {
+                const groupId = $(this).data('group-id');
+                deleteGroup(groupId);
+            });
+
+            // 管理设备按钮
+            $(document).on('click', '.manage-devices-btn', function() {
+                const groupId = $(this).data('group-id');
+                const groupName = $(this).data('group-name');
+                manageDevices(groupId, groupName);
+            });
+
+            // 保存设备按钮
+            $('#save-devices-btn').click(function() {
+                saveDevices();
+            });
+
+            // 退出登录
+            $('#logout-link').click(function(e) {
+                e.preventDefault();
+                // 清除本地存储
+                localStorage.removeItem('user');
+                localStorage.removeItem('token');
+                // 跳转到登录页面
+                window.location.href = 'login.html';
+            });
+        }
+
+        // 搜索分组
+        async function searchGroups(searchTerm) {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch('/api/group?api_key=' + apiKey);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        let groups = data.data;
+                        if (searchTerm) {
+                            groups = groups.filter(group => 
+                                group.group_name.includes(searchTerm) ||
+                                (group.description && group.description.includes(searchTerm))
+                            );
+                        }
+                        renderGroups(groups);
+                    }
+                }
+            } catch (error) {
+                console.error('搜索分组错误:', error);
+            }
+        }
+
+        // 保存分组
+        async function saveGroup() {
+            const apiKey = localStorage.getItem('token');
+            const groupName = $('#group-name').val();
+            const groupDescription = $('#group-description').val();
+            const groupColor = $('#group-color').val();
+            
+            const groupData = {
+                group_name: groupName,
+                description: groupDescription,
+                color: groupColor
+            };
+            
+            try {
+                const response = await fetch('/api/group?api_key=' + apiKey, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(groupData)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        $('#add-group-modal').modal('hide');
+                        $('#add-group-form')[0].reset();
+                        loadGroups();
+                        loadStats();
+                        alert('分组添加成功！');
+                    } else {
+                        alert('分组添加失败: ' + data.message);
+                    }
+                } else {
+                    alert('分组添加失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('保存分组错误:', error);
+                alert('分组添加失败: 网络错误');
+            }
+        }
+
+        // 编辑分组
+        async function editGroup(groupId) {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch(`/api/group/${groupId}?api_key=${apiKey}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const group = data.data;
+                        $('#edit-group-id').val(group.group_id);
+                        $('#edit-group-name').val(group.group_name);
+                        $('#edit-group-description').val(group.description);
+                        $('#edit-group-color').val(group.color);
+                        $('#edit-group-modal').modal('show');
+                    } else {
+                        alert('获取分组信息失败: ' + data.message);
+                    }
+                } else {
+                    alert('获取分组信息失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('编辑分组错误:', error);
+                alert('获取分组信息失败: 网络错误');
+            }
+        }
+
+        // 更新分组
+        async function updateGroup() {
+            const apiKey = localStorage.getItem('token');
+            const groupId = $('#edit-group-id').val();
+            const groupName = $('#edit-group-name').val();
+            const groupDescription = $('#edit-group-description').val();
+            const groupColor = $('#edit-group-color').val();
+            
+            const groupData = {
+                group_name: groupName,
+                description: groupDescription,
+                color: groupColor
+            };
+            
+            try {
+                const response = await fetch(`/api/group/${groupId}?api_key=${apiKey}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(groupData)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        $('#edit-group-modal').modal('hide');
+                        loadGroups();
+                        loadStats();
+                        alert('分组更新成功！');
+                    } else {
+                        alert('分组更新失败: ' + data.message);
+                    }
+                } else {
+                    alert('分组更新失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('更新分组错误:', error);
+                alert('分组更新失败: 网络错误');
+            }
+        }
+
+        // 删除分组
+        async function deleteGroup(groupId) {
+            if (!confirm('确定要删除这个分组吗？')) {
+                return;
+            }
+            
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch(`/api/group/${groupId}?api_key=${apiKey}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        loadGroups();
+                        loadStats();
+                        alert('分组删除成功！');
+                    } else {
+                        alert('分组删除失败: ' + data.message);
+                    }
+                } else {
+                    alert('分组删除失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('删除分组错误:', error);
+                alert('分组删除失败: 网络错误');
+            }
+        }
+
+        // 管理设备
+        async function manageDevices(groupId, groupName) {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                // 获取所有设备
+                const devicesResponse = await fetch('/api/device?api_key=' + apiKey);
+                if (devicesResponse.ok) {
+                    const devicesData = await devicesResponse.json();
+                    if (devicesData.success) {
+                        const devices = devicesData.data;
+                        
+                        // 获取分组设备
+                        let groupDevices = [];
+                        const groupResponse = await fetch(`/api/group/${groupId}?api_key=${apiKey}`);
+                        if (groupResponse.ok) {
+                            const groupData = await groupResponse.json();
+                            if (groupData.success) {
+                                groupDevices = groupData.data.devices || [];
+                            }
+                        }
+                        
+                        // 渲染设备列表
+                        let devicesHtml = '';
+                        devices.forEach(device => {
+                            const isInGroup = groupDevices.some(d => d.device_id === device.device_id);
+                            devicesHtml += `
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="device-${device.device_id}" value="${device.device_id}" ${isInGroup ? 'checked' : ''}>
+                                    <label class="form-check-label" for="device-${device.device_id}">
+                                        ${device.device_name || device.device_id} 
+                                        <span class="badge ${device.connection_status === 'online' ? 'bg-success' : 'bg-danger'}">
+                                            ${device.connection_status === 'online' ? '在线' : '离线'}
+                                        </span>
+                                    </label>
+                                </div>
+                            `;
+                        });
+                        
+                        $('#manage-devices-list').html(devicesHtml);
+                        $('#manage-devices-modal-label').text(`管理 ${groupName} 的设备`);
+                        $('#manage-group-id').val(groupId);
+                        $('#manage-devices-modal').modal('show');
+                    } else {
+                        alert('获取设备列表失败: ' + devicesData.message);
+                    }
+                } else {
+                    alert('获取设备列表失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('管理设备错误:', error);
+                alert('获取设备列表失败: 网络错误');
+            }
+        }
+
+        // 保存设备
+        async function saveDevices() {
+            const apiKey = localStorage.getItem('token');
+            const groupId = $('#manage-group-id').val();
+            const selectedDevices = [];
+            
+            // 收集选中的设备
+            $('#manage-devices-list input:checked').each(function() {
+                selectedDevices.push($(this).val());
+            });
+            
+            try {
+                const response = await fetch(`/api/group/${groupId}/devices?api_key=${apiKey}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ devices: selectedDevices })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        $('#manage-devices-modal').modal('hide');
+                        loadGroups();
+                        loadStats();
+                        alert('设备管理成功！');
+                    } else {
+                        alert('设备管理失败: ' + data.message);
+                    }
+                } else {
+                    alert('设备管理失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('保存设备错误:', error);
+                alert('设备管理失败: 网络错误');
+            }
+        }
+    </script>
+</body>
+</html>

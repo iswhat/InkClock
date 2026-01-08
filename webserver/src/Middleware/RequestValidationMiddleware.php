@@ -39,56 +39,131 @@ class RequestValidationMiddleware implements MiddlewareInterface {
         // 配置请求验证规则
         // 格式：[路径模式 => [方法 => [字段规则]]]
         $this->validationRules = [
-            // 设备注册API
-            'api/devices/register' => [
-                'POST' => [
-                    'device_id' => ['required', 'string', 'min:10'],
-                    'device_name' => ['required', 'string', 'max:100'],
-                    'device_type' => ['required', 'string', 'in:inkclock,other'],
-                    'device_info' => ['optional', 'array']
-                ]
-            ],
-            // 发送消息API
-            'api/messages/send' => [
-                'POST' => [
-                    'device_id' => ['required', 'string'],
-                    'content' => ['required', 'string', 'max:1000'],
-                    'type' => ['required', 'string', 'in:text,image,audio']
-                ]
-            ],
-            // 批量发送消息API
-            'api/messages/batch' => [
-                'POST' => [
-                    'device_ids' => ['required', 'array', 'min:1'],
-                    'content' => ['required', 'string', 'max:1000'],
-                    'type' => ['required', 'string', 'in:text,image,audio']
-                ]
-            ],
-            // 用户注册API
-            'api/auth/register' => [
+            // 用户相关API
+            'api/user/register' => [
                 'POST' => [
                     'username' => ['required', 'string', 'min:3', 'max:50'],
                     'email' => ['required', 'email'],
                     'password' => ['required', 'string', 'min:6']
                 ]
             ],
-            // 用户登录API
-            'api/auth/login' => [
+            'api/user/login' => [
                 'POST' => [
                     'username' => ['required', 'string'],
                     'password' => ['required', 'string']
+                ]
+            ],
+            'api/user/bind' => [
+                'POST' => [
+                    'device_id' => ['required', 'string'],
+                    'nickname' => ['optional', 'string', 'max:100']
+                ]
+            ],
+            'api/user/unbind' => [
+                'POST' => [
+                    'device_id' => ['required', 'string']
+                ]
+            ],
+            'api/user/device' => [
+                'PUT' => [
+                    'device_id' => ['required', 'string'],
+                    'nickname' => ['required', 'string', 'max:100']
+                ]
+            ],
+            
+            // 设备相关API
+            'api/device' => [
+                'POST' => [
+                    'device_id' => ['required', 'string'],
+                    'nickname' => ['optional', 'string', 'max:100'],
+                    'model' => ['optional', 'string', 'max:50'],
+                    'firmware_version' => ['optional', 'string', 'max:20']
+                ],
+                'GET' => [
+                    'id' => ['optional', 'integer']
+                ]
+            ],
+            
+            // 消息相关API
+            'api/message' => [
+                'POST' => [
+                    'device_id' => ['required', 'string'],
+                    'content' => ['required', 'string', 'max:2000'],
+                    'type' => ['optional', 'string', 'in:text,image,audio'],
+                    'sender' => ['optional', 'string', 'max:50']
+                ]
+            ],
+            'api/message/\{deviceId\}' => [
+                'GET' => [
+                    'page' => ['optional', 'integer', 'min:1'],
+                    'limit' => ['optional', 'integer', 'min:1', 'max:100']
+                ]
+            ],
+            'api/message/\{deviceId\}/read' => [
+                'PUT' => [
+                    'message_ids' => ['optional', 'array']
+                ]
+            ],
+            
+            // 固件相关API
+            'api/firmware' => [
+                'POST' => [
+                    'model' => ['required', 'string', 'max:50'],
+                    'version' => ['required', 'string', 'max:20'],
+                    'description' => ['optional', 'string', 'max:500'],
+                    'is_active' => ['optional', 'boolean']
+                ]
+            ],
+            
+            // 设备分组相关API
+            'api/group' => [
+                'POST' => [
+                    'name' => ['required', 'string', 'max:50'],
+                    'description' => ['optional', 'string', 'max:200']
+                ]
+            ],
+            'api/group/add_device' => [
+                'POST' => [
+                    'group_id' => ['required', 'integer'],
+                    'device_id' => ['required', 'string']
+                ]
+            ],
+            
+            // 设备标签相关API
+            'api/tag' => [
+                'POST' => [
+                    'name' => ['required', 'string', 'max:50'],
+                    'color' => ['optional', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/']
+                ]
+            ],
+            
+            // 固件推送任务相关API
+            'api/push_task' => [
+                'POST' => [
+                    'firmware_id' => ['required', 'integer'],
+                    'device_ids' => ['required', 'array'],
+                    'scheduled_time' => ['optional', 'datetime']
+                ]
+            ],
+            
+            // 消息模板相关API
+            'api/template' => [
+                'POST' => [
+                    'name' => ['required', 'string', 'max:50'],
+                    'content' => ['required', 'string', 'max:1000'],
+                    'type' => ['required', 'string', 'in:text,image,audio']
                 ]
             ]
         ];
     }
     
     /**
-     * 处理中间件
+     * 处理请求
      * @param array $request 请求信息
-     * @param callable $next 下一个中间件
+     * @param mixed $next 下一个中间件或处理函数
      * @return mixed 响应结果
      */
-    public function handle($request, callable $next) {
+    public function handle($request, $next) {
         $this->logger->info('请求验证中间件执行', [
             'path' => $request['path'] ?? '',
             'method' => $request['method'] ?? ''
@@ -315,6 +390,14 @@ class RequestValidationMiddleware implements MiddlewareInterface {
             $pattern = $params[0];
             if (!preg_match($pattern, $value)) {
                 return "{$field} 格式不符合要求";
+            }
+        }
+        
+        // 日期时间格式检查
+        if ($rule === 'datetime') {
+            $dateTime = new \DateTime($value);
+            if (!$dateTime) {
+                return "{$field} 必须是有效的日期时间格式";
             }
         }
         

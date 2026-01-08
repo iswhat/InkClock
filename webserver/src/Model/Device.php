@@ -88,12 +88,56 @@ class Device {
      * 获取设备列表
      * @param int $limit 限制数量
      * @param int $offset 偏移量
+     * @param array $filters 过滤条件
+     * @param string $sortBy 排序字段
+     * @param string $sortOrder 排序方向
      * @return array 设备列表
      */
-    public function getDevices($limit = 50, $offset = 0) {
-        $stmt = $this->db->prepare("SELECT * FROM devices ORDER BY created_at DESC LIMIT :limit OFFSET :offset");
+    public function getDevices($limit = 50, $offset = 0, $filters = [], $sortBy = 'created_at', $sortOrder = 'DESC') {
+        // 构建查询条件
+        $whereClause = '';
+        $params = [];
+        
+        if (!empty($filters)) {
+            $conditions = [];
+            if (isset($filters['model'])) {
+                $conditions[] = 'model = :model';
+                $params[':model'] = $filters['model'];
+            }
+            if (isset($filters['connection_status'])) {
+                $conditions[] = 'connection_status = :connection_status';
+                $params[':connection_status'] = $filters['connection_status'];
+            }
+            if (isset($filters['search'])) {
+                $conditions[] = '(device_id LIKE :search OR model LIKE :search OR nickname LIKE :search)';
+                $params[':search'] = '%' . $filters['search'] . '%';
+            }
+            if (!empty($conditions)) {
+                $whereClause = 'WHERE ' . implode(' AND ', $conditions);
+            }
+        }
+        
+        // 验证排序字段
+        $validSortFields = ['created_at', 'last_active', 'device_id', 'model', 'connection_status'];
+        if (!in_array($sortBy, $validSortFields)) {
+            $sortBy = 'created_at';
+        }
+        
+        // 验证排序方向
+        $sortOrder = strtoupper($sortOrder) === 'ASC' ? 'ASC' : 'DESC';
+        
+        // 构建SQL查询
+        $sql = "SELECT * FROM devices {$whereClause} ORDER BY {$sortBy} {$sortOrder} LIMIT :limit OFFSET :offset";
+        $stmt = $this->db->prepare($sql);
+        
+        // 绑定参数
         $stmt->bindValue(':limit', $limit, SQLITE3_INTEGER);
         $stmt->bindValue(':offset', $offset, SQLITE3_INTEGER);
+        
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value, SQLITE3_TEXT);
+        }
+        
         $result = $stmt->execute();
         
         $devices = [];
@@ -102,7 +146,54 @@ class Device {
         }
         $result->finalize();
         $stmt->close();
+        
         return $devices;
+    }
+    
+    /**
+     * 获取设备总数
+     * @param array $filters 过滤条件
+     * @return int 设备总数
+     */
+    public function getDevicesCount($filters = []) {
+        // 构建查询条件
+        $whereClause = '';
+        $params = [];
+        
+        if (!empty($filters)) {
+            $conditions = [];
+            if (isset($filters['model'])) {
+                $conditions[] = 'model = :model';
+                $params[':model'] = $filters['model'];
+            }
+            if (isset($filters['connection_status'])) {
+                $conditions[] = 'connection_status = :connection_status';
+                $params[':connection_status'] = $filters['connection_status'];
+            }
+            if (isset($filters['search'])) {
+                $conditions[] = '(device_id LIKE :search OR model LIKE :search OR nickname LIKE :search)';
+                $params[':search'] = '%' . $filters['search'] . '%';
+            }
+            if (!empty($conditions)) {
+                $whereClause = 'WHERE ' . implode(' AND ', $conditions);
+            }
+        }
+        
+        // 构建SQL查询
+        $sql = "SELECT COUNT(*) as count FROM devices {$whereClause}";
+        $stmt = $this->db->prepare($sql);
+        
+        // 绑定参数
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value, SQLITE3_TEXT);
+        }
+        
+        $result = $stmt->execute();
+        $count = $result->fetchArray(SQLITE3_ASSOC)['count'];
+        $result->finalize();
+        $stmt->close();
+        
+        return $count;
     }
     
     /**

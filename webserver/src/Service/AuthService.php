@@ -7,7 +7,7 @@ namespace InkClock\Service;
 
 use InkClock\Utils\Logger;
 use InkClock\Model\User;
-use InkClock\Interface\AuthServiceInterface;
+use InkClock\Interfaces\AuthServiceInterface;
 
 class AuthService implements AuthServiceInterface {
     private $db;

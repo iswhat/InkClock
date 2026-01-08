@@ -18,7 +18,11 @@ class Logger {
     ];
     private $consoleOutput = false;
     private $logRotation = true;
+    private $rotationStrategy = 'size'; // size, daily, hourly
     private $maxFileSize = 10485760; // 10MB
+    private $maxBackupFiles = 7; // 最大备份文件数
+    private $logFormat = 'text'; // text, json
+    private $dateFormat = 'Y-m-d H:i:s.u'; // 日志日期格式
 
     /**
      * 私有构造函数，防止直接实例化
@@ -97,6 +101,42 @@ class Logger {
      */
     public function setMaxFileSize($size) {
         $this->maxFileSize = $size;
+    }
+    
+    /**
+     * 设置日志轮转策略
+     * @param string $strategy 轮转策略 (size, daily, hourly)
+     */
+    public function setRotationStrategy($strategy) {
+        if (in_array($strategy, ['size', 'daily', 'hourly'])) {
+            $this->rotationStrategy = $strategy;
+        }
+    }
+    
+    /**
+     * 设置最大备份文件数
+     * @param int $count 最大备份文件数
+     */
+    public function setMaxBackupFiles($count) {
+        $this->maxBackupFiles = $count;
+    }
+    
+    /**
+     * 设置日志格式
+     * @param string $format 日志格式 (text, json)
+     */
+    public function setLogFormat($format) {
+        if (in_array($format, ['text', 'json'])) {
+            $this->logFormat = $format;
+        }
+    }
+    
+    /**
+     * 设置日期格式
+     * @param string $format 日期格式
+     */
+    public function setDateFormat($format) {
+        $this->dateFormat = $format;
     }
 
     /**
@@ -204,15 +244,11 @@ class Logger {
         // 获取日志文件路径
         $logFile = $this->logFiles[$logType] ?? $this->logFiles['app'];
         
-        // 检查日志文件大小，进行轮转
+        // 检查日志文件，进行轮转
         $this->checkLogRotation($logFile);
 
-        // 格式化上下文信息
-        $contextStr = !empty($context) ? ' ' . json_encode($context, JSON_UNESCAPED_UNICODE) : '';
-        
         // 格式化日志消息
-        $timestamp = date('Y-m-d H:i:s.u');
-        $logMessage = sprintf("[%s] %s: %s%s\n", $timestamp, strtoupper($level), $message, $contextStr);
+        $logMessage = $this->formatLogMessage($level, $message, $context);
         
         // 写入日志文件
         file_put_contents($logFile, $logMessage, FILE_APPEND);
@@ -224,7 +260,7 @@ class Logger {
     }
 
     /**
-     * 检查日志文件大小，进行轮转
+     * 检查日志文件，进行轮转
      * @param string $logFile 日志文件路径
      */
     private function checkLogRotation($logFile) {
@@ -232,9 +268,116 @@ class Logger {
             return;
         }
         
-        if (filesize($logFile) >= $this->maxFileSize) {
-            $backupFile = $logFile . '.' . date('Y-m-d_H-i-s') . '.bak';
+        $shouldRotate = false;
+        $rotationSuffix = '';
+        
+        switch ($this->rotationStrategy) {
+            case 'size':
+                // 按大小轮转
+                if (filesize($logFile) >= $this->maxFileSize) {
+                    $shouldRotate = true;
+                    $rotationSuffix = date('Y-m-d_H-i-s');
+                }
+                break;
+            case 'daily':
+                // 按天轮转
+                $currentDate = date('Y-m-d');
+                $lastRotationDate = $this->getLastRotationDate($logFile);
+                if ($currentDate !== $lastRotationDate) {
+                    $shouldRotate = true;
+                    $rotationSuffix = $lastRotationDate;
+                }
+                break;
+            case 'hourly':
+                // 按小时轮转
+                $currentHour = date('Y-m-d_H');
+                $lastRotationHour = $this->getLastRotationHour($logFile);
+                if ($currentHour !== $lastRotationHour) {
+                    $shouldRotate = true;
+                    $rotationSuffix = $lastRotationHour;
+                }
+                break;
+        }
+        
+        if ($shouldRotate) {
+            $backupFile = $logFile . '.' . $rotationSuffix . '.bak';
             rename($logFile, $backupFile);
+            $this->cleanupOldBackups($logFile);
+        }
+    }
+    
+    /**
+     * 获取日志文件的最后轮转日期
+     * @param string $logFile 日志文件路径
+     * @return string 最后轮转日期
+     */
+    private function getLastRotationDate($logFile) {
+        if (!file_exists($logFile)) {
+            return date('Y-m-d');
+        }
+        
+        $mtime = filemtime($logFile);
+        return date('Y-m-d', $mtime);
+    }
+    
+    /**
+     * 获取日志文件的最后轮转小时
+     * @param string $logFile 日志文件路径
+     * @return string 最后轮转小时
+     */
+    private function getLastRotationHour($logFile) {
+        if (!file_exists($logFile)) {
+            return date('Y-m-d_H');
+        }
+        
+        $mtime = filemtime($logFile);
+        return date('Y-m-d_H', $mtime);
+    }
+    
+    /**
+     * 清理旧的备份文件
+     * @param string $logFile 日志文件路径
+     */
+    private function cleanupOldBackups($logFile) {
+        $backupPattern = $logFile . '.*.bak';
+        $backupFiles = glob($backupPattern);
+        
+        if (count($backupFiles) > $this->maxBackupFiles) {
+            // 按修改时间排序，保留最新的文件
+            usort($backupFiles, function($a, $b) {
+                return filemtime($b) - filemtime($a);
+            });
+            
+            // 删除多余的备份文件
+            $filesToDelete = array_slice($backupFiles, $this->maxBackupFiles);
+            foreach ($filesToDelete as $file) {
+                unlink($file);
+            }
+        }
+    }
+
+    /**
+     * 格式化日志消息
+     * @param string $level 日志级别
+     * @param string $message 日志消息
+     * @param array $context 上下文信息
+     * @return string 格式化后的日志消息
+     */
+    private function formatLogMessage($level, $message, $context) {
+        $timestamp = date($this->dateFormat);
+        
+        if ($this->logFormat === 'json') {
+            $logData = array_merge([
+                'timestamp' => $timestamp,
+                'level' => strtoupper($level),
+                'message' => $message
+            ], $context);
+            
+            return json_encode($logData, JSON_UNESCAPED_UNICODE) . "\n";
+        } else {
+            // 文本格式
+            $contextStr = !empty($context) ? ' ' . json_encode($context, JSON_UNESCAPED_UNICODE) : '';
+            return sprintf("[%s] %s: %s%s\n", $timestamp, strtoupper($level), $message, $contextStr);
         }
     }
 

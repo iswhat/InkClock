@@ -5,25 +5,26 @@
 
 namespace InkClock\Controller;
 
-class StatusController extends BaseController {
+class StatusController {
     /**
      * 获取系统状态
      */
     public function getStatus() {
-        $this->logAction('status_get');
+        // 直接使用Response类，避免依赖注入失败
+        $response = \InkClock\Utils\Response::getInstance();
         
         $status = array(
             'status' => 'ok',
             'timestamp' => time(),
             'version' => '1.0.0',
             'services' => array(
-                'database' => $this->checkDatabaseConnection(),
                 'memory' => $this->checkMemoryUsage(),
-                'disk' => $this->checkDiskSpace()
+                'disk' => $this->checkDiskSpace(),
+                'database' => $this->checkDatabaseConnection()
             )
         );
         
-        $this->response->success('获取成功', $status);
+        $response->success('获取成功', $status);
     }
     
     /**
@@ -31,11 +32,18 @@ class StatusController extends BaseController {
      */
     private function checkDatabaseConnection() {
         try {
-            // 使用现有的数据库连接进行简单查询
-            $result = $this->db->query("SELECT 1");
+            // 检查SQLite3扩展是否启用
+            if (!class_exists('SQLite3')) {
+                return 'sqlite3_extension_missing';
+            }
+            
+            // 尝试创建简单的内存数据库连接
+            $db = new \SQLite3(':memory:');
+            $result = $db->query("SELECT 1");
+            $db->close();
             return $result !== false ? 'ok' : 'error';
-        } catch (\Exception) {
-            return 'error';
+        } catch (\Exception $e) {
+            return 'error: ' . $e->getMessage();
         }
     }
     

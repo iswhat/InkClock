@@ -16,6 +16,20 @@ class DeviceController extends BaseController {
         $this->logAction('device_register');
         $data = $this->parseRequestBody();
         
+        // 验证输入
+        if (!isset($data['device_id']) || !isset($data['model']) || !isset($data['firmware_version'])) {
+            $this->response->error('缺少必要参数', 400);
+        }
+        
+        if (empty($data['device_id']) || empty($data['model']) || empty($data['firmware_version'])) {
+            $this->response->error('参数不能为空', 400);
+        }
+        
+        // 验证设备ID格式（假设设备ID是字母数字组合）
+        if (!preg_match('/^[a-zA-Z0-9_-]+$/', $data['device_id'])) {
+            $this->response->error('设备ID格式无效', 400);
+        }
+        
         $deviceModel = new Device($this->db);
         $result = $deviceModel->registerDevice($data['device_id'], $data['model'], $data['firmware_version']);
         

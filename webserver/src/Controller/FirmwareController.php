@@ -11,7 +11,7 @@ class FirmwareController extends BaseController {
     /**
      * 获取固件版本列表
      */
-    public function getVersions($params) {
+    public function getAllVersions($params) {
         $user = $this->checkApiPermission(true);
         $this->logAction('firmware_get_versions', array('user_id' => $user['id']));
         
@@ -70,8 +70,27 @@ class FirmwareController extends BaseController {
         
         $data = $this->parseRequestBody();
         
+        // 验证输入
+        if (!isset($data['model']) || !isset($data['version']) || !isset($data['file_path'])) {
+            $this->response->error('缺少必要参数', 400);
+        }
+        
+        if (empty($data['model']) || empty($data['version']) || empty($data['file_path'])) {
+            $this->response->error('参数不能为空', 400);
+        }
+        
+        // 验证版本号格式（简单的语义化版本号验证）
+        if (!preg_match('/^\d+\.\d+\.\d+$/', $data['version'])) {
+            $this->response->error('版本号格式无效，请使用语义化版本号（如1.0.0）', 400);
+        }
+        
+        // 验证文件路径
+        if (!file_exists($data['file_path'])) {
+            $this->response->error('固件文件不存在', 400);
+        }
+        
         $firmwareModel = new FirmwareVersion($this->db);
-        $result = $firmwareModel->addVersion($data['model'], $data['version'], $data['file_path'], $data['description'], $data['changelog'], $user['id']);
+        $result = $firmwareModel->addVersion($data['model'], $data['version'], $data['file_path'], $data['description'] ?? '', $data['changelog'] ?? '', $user['id']);
         
         if ($result['success']) {
             $this->response->success('添加成功', array('firmware_id' => $result['firmware_id']));

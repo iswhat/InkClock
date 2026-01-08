@@ -13,7 +13,7 @@ class PluginController extends BaseController {
         $user = $this->checkApiPermission(true);
         $this->logAction('plugin_get_list', array('user_id' => $user['id']));
         
-        require_once __DIR__ . '/../../plugin/manage.php';
+        require_once __DIR__ . '/../../plugin/api.php';
         $plugins = get_plugins();
         
         $this->response->success('获取成功', $plugins);
@@ -28,7 +28,7 @@ class PluginController extends BaseController {
         
         $data = $this->parseRequestBody();
         
-        require_once __DIR__ . '/../../plugin/manage.php';
+        require_once __DIR__ . '/../../plugin/api.php';
         $result = add_plugin($data);
         
         if ($result['success']) {
@@ -48,7 +48,7 @@ class PluginController extends BaseController {
         
         $data = $this->parseRequestBody();
         
-        require_once __DIR__ . '/../../plugin/manage.php';
+        require_once __DIR__ . '/../../plugin/api.php';
         $result = update_plugin($index, $data);
         
         if ($result['success']) {
@@ -66,7 +66,7 @@ class PluginController extends BaseController {
         $user = $this->checkApiPermission(true);
         $this->logAction('plugin_delete', array('plugin_index' => $index, 'user_id' => $user['id']));
         
-        require_once __DIR__ . '/../../plugin/manage.php';
+        require_once __DIR__ . '/../../plugin/api.php';
         $result = delete_plugin($index);
         
         if ($result['success']) {

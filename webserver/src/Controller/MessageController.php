@@ -32,14 +32,15 @@ class MessageController extends BaseController {
      */
     public function getMessages($params) {
         $user = $this->checkApiPermission(true);
-        $this->logAction('message_get_list', array('user_id' => $user['id']));
+        $deviceId = $params['deviceId'];
+        $this->logAction('message_get_list', array('user_id' => $user['id'], 'device_id' => $deviceId));
         
         $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 50;
         $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
         $status = isset($_GET['status']) ? $_GET['status'] : null;
         
         $messageModel = new Message($this->db);
-        $messages = $messageModel->getMessagesByUserId($user['id'], $limit, $offset, $status);
+        $messages = $messageModel->getMessagesByDeviceId($deviceId, $limit, $offset, $status);
         
         $this->response->success('获取成功', $messages);
     }
@@ -72,8 +73,8 @@ class MessageController extends BaseController {
         
         $data = $this->parseRequestBody();
         
-        $messageModel = new Message($this->db);
-        $result = $messageModel->updateMessageStatus($messageId, $data['status']);
+        // 使用服务层更新消息状态
+        $result = $this->messageService->updateMessageStatus($messageId, $data['status']);
         
         if ($result['success']) {
             $this->response->success('更新成功');
@@ -91,7 +92,7 @@ class MessageController extends BaseController {
         $this->logAction('message_delete', array('user_id' => $user['id'], 'message_id' => $messageId));
         
         $messageModel = new Message($this->db);
-        $result = $messageModel->deleteMessage($messageId, $user['id']);
+        $result = $messageModel->deleteMessage($messageId);
         
         if ($result['success']) {
             $this->response->success('删除成功');

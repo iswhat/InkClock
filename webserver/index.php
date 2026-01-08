@@ -7,18 +7,29 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// 自定义自动加载函数
+// 自定义自动加载函数 - PSR-4标准实现
 spl_autoload_register(function ($className) {
-    // 转换命名空间为文件路径
-    $filePath = __DIR__ . '/src/' . str_replace('\\', '/', $className) . '.php';
+    // 定义命名空间映射
+    $namespaceMap = [
+        'InkClock\\' => __DIR__ . '/src/'
+    ];
     
-    // 特殊处理：检查是否在api目录下
-    if (!file_exists($filePath)) {
-        $filePath = __DIR__ . '/' . str_replace('\\', '/', $className) . '.php';
-    }
-    
-    if (file_exists($filePath)) {
-        require_once $filePath;
+    // 遍历命名空间映射
+    foreach ($namespaceMap as $prefix => $baseDir) {
+        // 检查类是否使用了该命名空间前缀
+        if (strpos($className, $prefix) === 0) {
+            // 移除命名空间前缀
+            $relativeClass = substr($className, strlen($prefix));
+            
+            // 转换命名空间分隔符为目录分隔符
+            $filePath = $baseDir . str_replace('\\', '/', $relativeClass) . '.php';
+            
+            // 如果文件存在，加载它
+            if (file_exists($filePath)) {
+                require_once $filePath;
+                return;
+            }
+        }
     }
 });
 
@@ -70,26 +81,40 @@ $path = rtrim($path, '/');
 // 加载路由配置
 $routes = require __DIR__ . '/config/routes.php';
 
+// 优化1: 预编译路由，按HTTP方法分组
+static $compiledRoutes = [];
+if (empty($compiledRoutes)) {
+    foreach ($routes as $routePattern => $handler) {
+        list($routeMethod, $routePath) = explode(' ', $routePattern, 2);
+        
+        // 转换路由模式为正则表达式
+        $pattern = preg_replace('/\{([^}]+)\}/', '(?P<\1>[^/]+)', $routePath);
+        $pattern = str_replace('/', '\/', $pattern);
+        $pattern = '/^' . $pattern . '$/';
+        
+        // 按HTTP方法分组
+        if (!isset($compiledRoutes[$routeMethod])) {
+            $compiledRoutes[$routeMethod] = [];
+        }
+        $compiledRoutes[$routeMethod][] = [
+            'pattern' => $pattern,
+            'handler' => $handler
+        ];
+    }
+}
+
 // 匹配路由
 $matchedRoute = null;
 $params = array();
 
-foreach ($routes as $routePattern => $handler) {
-    list($routeMethod, $routePath) = explode(' ', $routePattern, 2);
-    
-    if ($routeMethod !== $method) {
-        continue;
-    }
-    
-    // 转换路由模式为正则表达式
-    $pattern = preg_replace('/\{([^}]+)\}/', '(?P<\1>[^/]+)', $routePath);
-    $pattern = str_replace('/', '\/', $pattern);
-    $pattern = '/^' . $pattern . '$/';
-    
-    if (preg_match($pattern, $path, $matches)) {
-        $matchedRoute = $handler;
-        $params = $matches;
-        break;
+// 优化2: 只检查当前请求方法的路由
+if (isset($compiledRoutes[$method])) {
+    foreach ($compiledRoutes[$method] as $route) {
+        if (preg_match($route['pattern'], $path, $matches)) {
+            $matchedRoute = $route['handler'];
+            $params = $matches;
+            break;
+        }
     }
 }
 
@@ -133,41 +158,25 @@ if ($matchedRoute) {
         }
     };
     
-    // 设置中间件堆栈
-    $middlewareStack = array(
-        '\InkClock\Middleware\CsrfMiddleware',
-        '\InkClock\Middleware\RateLimitMiddleware',
-        '\InkClock\Middleware\RequestValidationMiddleware'
-    );
+    // 使用改进后的中间件管理器
+    use InkClock\Middleware\MiddlewareManager;
     
-    // 构建中间件管道
-    $pipeline = $controllerHandler;
+    // 创建中间件管理器实例
+    $middlewareManager = new MiddlewareManager($container);
     
-    // 从后往前构建中间件链
-    foreach (array_reverse($middlewareStack) as $middlewareClass) {
-        $currentPipeline = $pipeline;
-        $pipeline = function($request) use ($middlewareClass, $currentPipeline, $container) {
-            // 根据中间件类型注入不同的依赖
-            if ($middlewareClass === '\InkClock\Middleware\RateLimitMiddleware') {
-                // RateLimitMiddleware 需要额外的 cache 依赖
-                $middleware = new $middlewareClass(
-                    $container->get('logger'),
-                    $container->get('response'),
-                    $container->get('cache')
-                );
-            } else {
-                // 其他中间件使用基本依赖
-                $middleware = new $middlewareClass(
-                    $container->get('logger'),
-                    $container->get('response')
-                );
-            }
-            return $middleware->handle($request, $currentPipeline);
-        };
-    }
+    // 注册命名中间件
+    $middlewareManager->register('csrf', '\InkClock\Middleware\CsrfMiddleware')
+                     ->register('rate_limit', '\InkClock\Middleware\RateLimitMiddleware')
+                     ->register('validation', '\InkClock\Middleware\RequestValidationMiddleware');
     
-    // 执行中间件管道
-    $pipeline($request);
+    // 定义中间件组
+    $middlewareManager->group('api', array('csrf', 'rate_limit', 'validation'));
+    
+    // 使用中间件组
+    $middlewareManager->use('api');
+    
+    // 执行中间件链
+    $middlewareManager->handle($request, $controllerHandler);
 } else {
     $logger->info('未匹配到路由', array(
         'method' => $method,

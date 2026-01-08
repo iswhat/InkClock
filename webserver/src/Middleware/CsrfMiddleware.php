@@ -29,12 +29,12 @@ class CsrfMiddleware implements MiddlewareInterface {
     }
     
     /**
-     * 处理中间件
+     * 处理请求
      * @param array $request 请求信息
-     * @param callable $next 下一个中间件
+     * @param mixed $next 下一个中间件或处理函数
      * @return mixed 响应结果
      */
-    public function handle($request, callable $next) {
+    public function handle($request, $next) {
         // 记录请求
         $this->logger->info('CSRF防护中间件执行', ['request' => $request]);
         

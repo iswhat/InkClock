@@ -31,7 +31,7 @@ class DeviceGroupController extends BaseController {
         $data = $this->parseRequestBody();
         
         $deviceGroupModel = new DeviceGroup($this->db);
-        $result = $deviceGroupModel->createGroup($data['name'], $user['id']);
+        $result = $deviceGroupModel->createGroup($user['id'], $data['name']);
         
         if ($result['success']) {
             $this->response->success('创建成功', array('group_id' => $result['group_id']));
@@ -89,7 +89,7 @@ class DeviceGroupController extends BaseController {
         $data = $this->parseRequestBody();
         
         $deviceGroupModel = new DeviceGroup($this->db);
-        $result = $deviceGroupModel->addDeviceToGroup($groupId, $user['id'], $data['device_id']);
+        $result = $deviceGroupModel->addDeviceToGroup($groupId, $data['device_id']);
         
         if ($result['success']) {
             $this->response->success('添加成功');
@@ -108,7 +108,7 @@ class DeviceGroupController extends BaseController {
         $this->logAction('device_group_remove_device', array('user_id' => $user['id'], 'group_id' => $groupId, 'device_id' => $deviceId));
         
         $deviceGroupModel = new DeviceGroup($this->db);
-        $result = $deviceGroupModel->removeDeviceFromGroup($groupId, $user['id'], $deviceId);
+        $result = $deviceGroupModel->removeDeviceFromGroup($groupId, $deviceId);
         
         if ($result['success']) {
             $this->response->success('移除成功');

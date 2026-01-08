@@ -65,6 +65,32 @@ class Response {
     }
 
     /**
+     * 过滤输出数据，防止XSS和其他安全问题
+     * @param mixed $data 待过滤的数据
+     * @return mixed 过滤后的数据
+     */
+    private function filterOutput($data) {
+        if (is_string($data)) {
+            // 过滤字符串，防止XSS
+            return htmlspecialchars($data, ENT_QUOTES, 'UTF-8');
+        } elseif (is_array($data)) {
+            // 递归过滤数组
+            foreach ($data as $key => &$value) {
+                $data[$key] = $this->filterOutput($value);
+            }
+            return $data;
+        } elseif (is_object($data)) {
+            // 递归过滤对象
+            foreach (get_object_vars($data) as $key => &$value) {
+                $data->$key = $this->filterOutput($value);
+            }
+            return $data;
+        }
+        // 其他类型直接返回
+        return $data;
+    }
+    
+    /**
      * 发送JSON响应
      * @param mixed $data 响应数据
      * @param int $statusCode HTTP状态码
@@ -72,7 +98,11 @@ class Response {
     public function json($data, $statusCode = 200) {
         header('Content-Type: application/json');
         http_response_code($statusCode);
-        echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        
+        // 过滤输出数据
+        $filteredData = $this->filterOutput($data);
+        
+        echo json_encode($filteredData, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
         exit;
     }
     

@@ -22,9 +22,8 @@ class DeviceGroup {
     public function createGroup($userId, $name, $description = '') {
         $createdAt = date('Y-m-d H:i:s');
         
-        $stmt = $this->db->prepare("INSERT INTO device_groups (name, description, user_id, created_at) VALUES (:name, :description, :userId, :createdAt)");
+        $stmt = $this->db->prepare("INSERT INTO device_groups (name, user_id, created_at) VALUES (:name, :userId, :createdAt)");
         $stmt->bindValue(':name', $name, SQLITE3_TEXT);
-        $stmt->bindValue(':description', $description, SQLITE3_TEXT);
         $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
         $stmt->bindValue(':createdAt', $createdAt, SQLITE3_TEXT);
         $result = $stmt->execute();
@@ -119,9 +118,8 @@ class DeviceGroup {
      * 更新分组信息
      */
     public function updateGroup($groupId, $userId, $name, $description = '') {
-        $stmt = $this->db->prepare("UPDATE device_groups SET name = :name, description = :description WHERE id = :groupId AND user_id = :userId");
+        $stmt = $this->db->prepare("UPDATE device_groups SET name = :name WHERE id = :groupId AND user_id = :userId");
         $stmt->bindValue(':name', $name, SQLITE3_TEXT);
-        $stmt->bindValue(':description', $description, SQLITE3_TEXT);
         $stmt->bindValue(':groupId', $groupId, SQLITE3_INTEGER);
         $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
         $result = $stmt->execute();

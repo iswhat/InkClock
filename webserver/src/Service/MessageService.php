@@ -8,7 +8,7 @@ namespace InkClock\Service;
 use InkClock\Utils\Logger;
 use InkClock\Model\User;
 use InkClock\Model\Message;
-use InkClock\Interface\MessageServiceInterface;
+use InkClock\Interfaces\MessageServiceInterface;
 
 class MessageService implements MessageServiceInterface {
     private $db;
@@ -28,11 +28,21 @@ class MessageService implements MessageServiceInterface {
     }
     
     /**
-     * 发送消息到设备
-     * @param array $messageInfo 消息信息
+     * 发送消息
+     * @param string $deviceId 设备ID
+     * @param string $sender 发送者
+     * @param string $content 消息内容
+     * @param string $type 消息类型
      * @return array 发送结果
      */
-    public function sendMessage($messageInfo) {
+    public function sendMessage($deviceId, $sender, $content, $type = 'text') {
+        $messageInfo = [
+            'device_id' => $deviceId,
+            'sender' => $sender,
+            'content' => $content,
+            'type' => $type
+        ];
+        
         $this->logger->info('发送消息请求', ['message' => $messageInfo]);
         
         // 验证消息信息
@@ -41,15 +51,12 @@ class MessageService implements MessageServiceInterface {
             return ['success' => false, 'error' => '无效的消息信息'];
         }
         
-        // 添加发送者信息
-        $messageInfo['sender'] = 'system';
-        
         // 调用模型发送消息
         $messageModel = new Message($this->db);
         $result = $messageModel->sendMessage($messageInfo);
         
         if ($result['success']) {
-            $this->logger->info('消息发送成功', ['message_id' => $result['message_id'], 'device_id' => $messageInfo['device_id']]);
+            $this->logger->info('消息发送成功', ['message_id' => $result['message_id'], 'device_id' => $deviceId]);
         } else {
             $this->logger->warning('消息发送失败', ['error' => $result['error']]);
         }
@@ -64,41 +71,17 @@ class MessageService implements MessageServiceInterface {
      * @return array 消息列表
      */
     public function getMessageList($userId, $filters = []) {
-        $this->logger->info('获取消息列表请求', ['user_id' => $userId, 'filters' => $filters]);
-        
-        // 普通用户只能查看自己设备的消息
-        $userModel = new User($this->db);
-        $userDevices = $userModel->getUserDevices($userId);
-        $deviceIds = array_column($userDevices, 'device_id');
-        
-        if (empty($deviceIds)) {
-            return ['success' => true, 'messages' => []];
-        }
-        
-        // 获取用户设备的消息
-        $messageModel = new Message($this->db);
-        $messages = $messageModel->getMessagesByDeviceIds($deviceIds);
-        
-        $this->logger->info('获取消息列表成功', ['count' => count($messages)]);
-        
-        return ['success' => true, 'messages' => $messages];
+        return $this->getDeviceMessages($filters['device_id'] ?? '', $filters);
     }
     
     /**
-     * 获取设备的消息
-     * @param int $userId 用户ID
+     * 获取设备消息
      * @param string $deviceId 设备ID
-     * @return array 设备消息
+     * @param array $filters 过滤条件
+     * @return array 消息列表
      */
-    public function getDeviceMessages($userId, $deviceId) {
-        $this->logger->info('获取设备消息请求', ['user_id' => $userId, 'device_id' => $deviceId]);
-        
-        // 验证设备所有权
-        $userModel = new User($this->db);
-        if (!$userModel->isDeviceOwnedByUser($userId, $deviceId)) {
-            $this->logger->warning('设备所有权验证失败', ['user_id' => $userId, 'device_id' => $deviceId]);
-            return ['success' => false, 'error' => '无权访问该设备的消息'];
-        }
+    public function getDeviceMessages($deviceId, $filters = []) {
+        $this->logger->info('获取设备消息请求', ['device_id' => $deviceId, 'filters' => $filters]);
         
         // 获取设备消息
         $messageModel = new Message($this->db);
@@ -131,28 +114,13 @@ class MessageService implements MessageServiceInterface {
     
     /**
      * 删除消息
-     * @param int $userId 用户ID
      * @param string $messageId 消息ID
-     * @return array 操作结果
+     * @return array 删除结果
      */
-    public function deleteMessage($userId, $messageId) {
-        $this->logger->info('删除消息请求', ['user_id' => $userId, 'message_id' => $messageId]);
+    public function deleteMessage($messageId) {
+        $this->logger->info('删除消息请求', ['message_id' => $messageId]);
         
-        // 获取消息详情，验证所有权
         $messageModel = new Message($this->db);
-        $message = $messageModel->getMessageById($messageId);
-        
-        if (!$message) {
-            return ['success' => false, 'error' => '消息不存在'];
-        }
-        
-        // 验证设备所有权
-        $userModel = new User($this->db);
-        if (!$userModel->isDeviceOwnedByUser($userId, $message['device_id'])) {
-            $this->logger->warning('设备所有权验证失败', ['user_id' => $userId, 'device_id' => $message['device_id']]);
-            return ['success' => false, 'error' => '无权删除该消息'];
-        }
-        
         $result = $messageModel->deleteMessage($messageId);
         
         if ($result['success']) {
@@ -162,6 +130,68 @@ class MessageService implements MessageServiceInterface {
         }
         
         return $result;
+    }
+    
+    /**
+     * 获取未读消息数
+     * @param string $deviceId 设备ID
+     * @return int 未读消息数
+     */
+    public function getUnreadMessageCount($deviceId) {
+        $this->logger->info('获取未读消息数请求', ['device_id' => $deviceId]);
+        
+        $messageModel = new Message($this->db);
+        $count = $messageModel->getUnreadCount($deviceId);
+        
+        $this->logger->info('获取未读消息数成功', ['count' => $count]);
+        
+        return $count;
+    }
+    
+    /**
+     * 批量标记消息为已读
+     * @param array $messageIds 消息ID数组
+     * @return array 操作结果
+     */
+    public function batchMarkAsRead($messageIds) {
+        $this->logger->info('批量标记消息为已读请求', ['count' => count($messageIds)]);
+        
+        $messageModel = new Message($this->db);
+        $successCount = 0;
+        
+        foreach ($messageIds as $messageId) {
+            $result = $messageModel->markAsRead($messageId);
+            if ($result['success']) {
+                $successCount++;
+            }
+        }
+        
+        $this->logger->info('批量标记消息已读完成', ['success' => $successCount, 'total' => count($messageIds)]);
+        
+        return ['success' => true, 'count' => $successCount];
+    }
+    
+    /**
+     * 批量删除消息
+     * @param array $messageIds 消息ID数组
+     * @return array 删除结果
+     */
+    public function batchDeleteMessages($messageIds) {
+        $this->logger->info('批量删除消息请求', ['count' => count($messageIds)]);
+        
+        $messageModel = new Message($this->db);
+        $successCount = 0;
+        
+        foreach ($messageIds as $messageId) {
+            $result = $messageModel->deleteMessage($messageId);
+            if ($result['success']) {
+                $successCount++;
+            }
+        }
+        
+        $this->logger->info('批量删除消息完成', ['success' => $successCount, 'total' => count($messageIds)]);
+        
+        return ['success' => true, 'count' => $successCount];
     }
     
     /**

@@ -9,7 +9,7 @@ use InkClock\Utils\Logger;
 use InkClock\Utils\Cache;
 use InkClock\Model\Device;
 use InkClock\Model\User;
-use InkClock\Interface\DeviceServiceInterface;
+use InkClock\Interfaces\DeviceServiceInterface;
 
 class DeviceService implements DeviceServiceInterface {
     private $db;
@@ -62,45 +62,16 @@ class DeviceService implements DeviceServiceInterface {
      * @return array 设备列表
      */
     public function getDeviceList($userId, $filters = []) {
-        $this->logger->info('获取设备列表请求', ['user_id' => $userId, 'filters' => $filters]);
-        
-        // 生成缓存键
-        $cacheKey = "device_list:user:{$userId}:".json_encode($filters);
-        
-        // 尝试从缓存获取
-        $cachedDevices = $this->cache->get($cacheKey);
-        if ($cachedDevices) {
-            $this->logger->info('从缓存获取设备列表', ['user_id' => $userId, 'count' => count($cachedDevices)]);
-            return ['success' => true, 'devices' => $cachedDevices];
-        }
-        
-        // 普通用户只能查看自己的设备
-        $userModel = new User($this->db);
-        $devices = $userModel->getUserDevices($userId);
-        
-        $this->logger->info('获取设备列表成功', ['count' => count($devices)]);
-        
-        // 缓存设备列表，有效期10分钟
-        $this->cache->set($cacheKey, $devices, 600);
-        
-        return ['success' => true, 'devices' => $devices];
+        return $this->getUserDevices($userId);
     }
     
     /**
-     * 获取设备详情
-     * @param int $userId 用户ID
+     * 获取设备信息
      * @param string $deviceId 设备ID
-     * @return array 设备详情
+     * @return array 设备信息
      */
-    public function getDeviceDetail($userId, $deviceId) {
-        $this->logger->info('获取设备详情请求', ['user_id' => $userId, 'device_id' => $deviceId]);
-        
-        // 验证设备所有权
-        $userModel = new User($this->db);
-        if (!$userModel->isDeviceOwnedByUser($userId, $deviceId)) {
-            $this->logger->warning('设备所有权验证失败', ['user_id' => $userId, 'device_id' => $deviceId]);
-            return ['success' => false, 'error' => '无权访问该设备'];
-        }
+    public function getDeviceInfo($deviceId) {
+        $this->logger->info('获取设备信息请求', ['device_id' => $deviceId]);
         
         // 生成缓存键
         $cacheKey = "device_detail:{$deviceId}";
@@ -108,7 +79,7 @@ class DeviceService implements DeviceServiceInterface {
         // 尝试从缓存获取
         $cachedDevice = $this->cache->get($cacheKey);
         if ($cachedDevice) {
-            $this->logger->info('从缓存获取设备详情', ['device_id' => $deviceId]);
+            $this->logger->info('从缓存获取设备信息', ['device_id' => $deviceId]);
             return ['success' => true, 'device' => $cachedDevice];
         }
         
@@ -116,7 +87,7 @@ class DeviceService implements DeviceServiceInterface {
         $device = $deviceModel->getDevice($deviceId);
         
         if ($device) {
-            $this->logger->info('获取设备详情成功', ['device_id' => $deviceId]);
+            $this->logger->info('获取设备信息成功', ['device_id' => $deviceId]);
             
             // 缓存设备详情，有效期5分钟
             $this->cache->set($cacheKey, $device, 300);
@@ -126,6 +97,67 @@ class DeviceService implements DeviceServiceInterface {
             $this->logger->warning('设备不存在', ['device_id' => $deviceId]);
             return ['success' => false, 'error' => '设备不存在'];
         }
+    }
+    
+    /**
+     * 更新设备状态
+     * @param string $deviceId 设备ID
+     * @param array $statusInfo 状态信息
+     * @return array 更新结果
+     */
+    public function updateDeviceStatus($deviceId, $statusInfo) {
+        $this->logger->info('更新设备状态请求', ['device_id' => $deviceId, 'status' => $statusInfo]);
+        
+        $deviceModel = new Device($this->db);
+        $result = $deviceModel->updateDevice($deviceId, $statusInfo);
+        
+        if ($result['success']) {
+            $this->logger->info('设备状态更新成功', ['device_id' => $deviceId]);
+        } else {
+            $this->logger->warning('设备状态更新失败', ['device_id' => $deviceId]);
+        }
+        
+        return $result;
+    }
+    
+    /**
+     * 获取用户的所有设备
+     * @param int $userId 用户ID
+     * @return array 设备列表
+     */
+    public function getUserDevices($userId) {
+        $this->logger->info('获取用户设备列表请求', ['user_id' => $userId]);
+        
+        // 生成缓存键
+        $cacheKey = "device_list:user:{$userId}";
+        
+        // 尝试从缓存获取
+        $cachedDevices = $this->cache->get($cacheKey);
+        if ($cachedDevices) {
+            $this->logger->info('从缓存获取用户设备列表', ['user_id' => $userId, 'count' => count($cachedDevices)]);
+            return ['success' => true, 'devices' => $cachedDevices];
+        }
+        
+        $userModel = new User($this->db);
+        $devices = $userModel->getUserDevices($userId);
+        
+        $this->logger->info('获取用户设备列表成功', ['count' => count($devices)]);
+        
+        // 缓存设备列表，有效期10分钟
+        $this->cache->set($cacheKey, $devices, 600);
+        
+        return ['success' => true, 'devices' => $devices];
+    }
+    
+    /**
+     * 绑定设备到用户
+     * @param int $userId 用户ID
+     * @param string $deviceId 设备ID
+     * @param string $nickname 设备昵称
+     * @return array 绑定结果
+     */
+    public function bindDeviceToUser($userId, $deviceId, $nickname = '') {
+        return $this->bindDevice($userId, $deviceId, $nickname);
     }
     
     /**
@@ -145,6 +177,42 @@ class DeviceService implements DeviceServiceInterface {
             $this->logger->info('设备绑定成功', ['user_id' => $userId, 'device_id' => $deviceId]);
         } else {
             $this->logger->warning('设备绑定失败', ['user_id' => $userId, 'device_id' => $deviceId, 'error' => $result['error']]);
+        }
+        
+        return $result;
+    }
+    
+    /**
+     * 获取所有设备
+     * @param array $filters 过滤条件
+     * @return array 设备列表
+     */
+    public function getAllDevices($filters = []) {
+        $this->logger->info('获取所有设备请求', ['filters' => $filters]);
+        
+        $deviceModel = new Device($this->db);
+        $devices = $deviceModel->getAllDevices($filters);
+        
+        $this->logger->info('获取所有设备成功', ['count' => count($devices)]);
+        
+        return ['success' => true, 'devices' => $devices];
+    }
+    
+    /**
+     * 删除设备
+     * @param string $deviceId 设备ID
+     * @return array 删除结果
+     */
+    public function deleteDevice($deviceId) {
+        $this->logger->info('删除设备请求', ['device_id' => $deviceId]);
+        
+        $deviceModel = new Device($this->db);
+        $result = $deviceModel->deleteDevice($deviceId);
+        
+        if ($result['success']) {
+            $this->logger->info('设备删除成功', ['device_id' => $deviceId]);
+        } else {
+            $this->logger->warning('设备删除失败', ['device_id' => $deviceId]);
         }
         
         return $result;

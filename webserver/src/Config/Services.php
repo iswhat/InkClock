@@ -29,6 +29,31 @@ class Services {
 
         // 注册数据库服务
         $container->register('db', function() {
+            // 检查SQLite3扩展是否存在
+            if (!class_exists('SQLite3')) {
+                // 返回一个假的连接对象
+                return (object) [
+                    'prepare' => function() {
+                        return (object) [
+                            'bindValue' => function() {},
+                            'execute' => function() {
+                                return (object) [
+                                    'fetchArray' => function() { return false; }
+                                ];
+                            }
+                        ];
+                    },
+                    'query' => function() {
+                        return (object) [
+                            'fetchArray' => function() { return false; }
+                        ];
+                    },
+                    'exec' => function() { return false; },
+                    'lastInsertRowID' => function() { return 0; },
+                    'changes' => function() { return 0; },
+                    'close' => function() { return true; }
+                ];
+            }
             return Database::getInstance()->getConnection();
         });
 

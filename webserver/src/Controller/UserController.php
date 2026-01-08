@@ -13,6 +13,27 @@ class UserController extends BaseController {
         $this->logAction('user_register');
         $data = $this->parseRequestBody();
         
+        // 验证输入
+        if (!isset($data['username']) || !isset($data['email']) || !isset($data['password'])) {
+            $this->response->error('缺少必要参数', 400);
+        }
+        
+        if (empty($data['username']) || empty($data['email']) || empty($data['password'])) {
+            $this->response->error('参数不能为空', 400);
+        }
+        
+        if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+            $this->response->error('邮箱格式无效', 400);
+        }
+        
+        if (strlen($data['password']) < 6) {
+            $this->response->error('密码长度至少为6个字符', 400);
+        }
+        
+        if (strlen($data['username']) < 3) {
+            $this->response->error('用户名长度至少为3个字符', 400);
+        }
+        
         // 使用服务层处理注册
         $result = $this->authService->registerUser($data);
         
@@ -30,11 +51,22 @@ class UserController extends BaseController {
         $this->logAction('user_login');
         $data = $this->parseRequestBody();
         
+        // 验证输入
+        if (!isset($data['username']) || !isset($data['password'])) {
+            $this->response->error('缺少用户名或密码', 400);
+        }
+        
+        if (empty($data['username']) || empty($data['password'])) {
+            $this->response->error('用户名和密码不能为空', 400);
+        }
+        
         // 使用服务层处理登录
         $result = $this->authService->loginUser($data['username'], $data['password']);
         
         if ($result['success']) {
-            $this->response->success('登录成功', array('user_id' => $result['user_id'], 'api_key' => $result['api_key']));
+            // 根据is_admin字段确定用户角色
+            $userRole = $result['is_admin'] ? 'admin' : 'user';
+            $this->response->success('登录成功', array('user_id' => $result['user_id'], 'api_key' => $result['api_key'], 'role' => $userRole));
         } else {
             $this->response->error($result['error'], 401);
         }

@@ -10,18 +10,52 @@ date_default_timezone_set('Asia/Shanghai');
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+// 移除手动加载DIContainer.php的代码，使用统一的自动加载机制
+
 // 自定义自动加载函数
 spl_autoload_register(function ($className) {
-    // 转换命名空间为文件路径
-    $filePath = __DIR__ . '/../src/' . str_replace('\\', '/', $className) . '.php';
+    // 定义命名空间映射
+    $namespaceMap = [
+        'InkClock\\' => __DIR__ . '/../src/'
+    ];
     
-    if (file_exists($filePath)) {
-        require_once $filePath;
+    // 遍历命名空间映射
+    foreach ($namespaceMap as $prefix => $baseDir) {
+        // 检查类是否使用了该命名空间前缀
+        if (strpos($className, $prefix) === 0) {
+            // 移除命名空间前缀
+            $relativeClass = substr($className, strlen($prefix));
+            
+            // 转换命名空间分隔符为目录分隔符
+            $filePath = $baseDir . str_replace('\\', '/', $relativeClass) . '.php';
+            
+            // 特殊处理：检查Interface/Interfaces目录
+            if (!file_exists($filePath)) {
+                // 尝试Interface目录
+                $interfaceFilePath = $baseDir . 'Interface/' . basename($filePath);
+                if (file_exists($interfaceFilePath)) {
+                    $filePath = $interfaceFilePath;
+                }
+            }
+            
+            // 如果文件存在，加载它
+            if (file_exists($filePath)) {
+                require_once $filePath;
+                return;
+            }
+            
+            // 尝试大小写变体
+            $filePathLower = $baseDir . str_replace('\\', '/', strtolower($relativeClass)) . '.php';
+            if (file_exists($filePathLower)) {
+                require_once $filePathLower;
+                return;
+            }
+        }
     }
 });
 
-// 初始化配置
-$config = require __DIR__ . '/../config/config.php';
+// 初始化配置（使用Config类加载，避免重复加载）
+// 移除手动加载config.php的代码，由Config类自动加载
 
 // 初始化依赖注入容器
 use InkClock\Utils\DIContainer;
@@ -37,17 +71,20 @@ Services::register($container);
 use InkClock\Middleware\MiddlewareManager;
 use InkClock\Middleware\CorsMiddleware;
 use InkClock\Middleware\LoggingMiddleware;
+use InkClock\Middleware\RateLimitMiddleware;
 
 $middlewareManager = new MiddlewareManager();
 
 // 获取服务实例
 $logger = $container->get('logger');
 $response = $container->get('response');
+$cache = $container->get('cache');
 
 // 添加全局中间件
 $middlewareManager
     ->add(new CorsMiddleware($response))
-    ->add(new LoggingMiddleware($logger));
+    ->add(new LoggingMiddleware($logger))
+    ->add(new RateLimitMiddleware($logger, $response, $cache));
 
 // 7. 获取请求信息
 $request = array(
@@ -62,6 +99,16 @@ $request = array(
 
 // 移除查询字符串并规范化路径
 $request['path'] = rtrim($request['path'], '/');
+
+// 处理根路径请求
+if (empty($request['path']) || $request['path'] === '/') {
+    $indexFile = __DIR__ . '/index.html';
+    if (file_exists($indexFile)) {
+        header('Content-Type: text/html');
+        readfile($indexFile);
+        exit;
+    }
+}
 
 // 处理静态资源请求
 $staticExtensions = array('.html', '.css', '.js', '.json', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', '.pdf', '.txt');
