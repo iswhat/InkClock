@@ -14,6 +14,13 @@ return [
     'PUT /api/user/device' => 'UserController@updateDeviceNickname',
     'GET /api/user/exist' => 'UserController@checkUsers',
     'POST /api/user/first-admin' => 'UserController@createFirstAdmin',
+    // 管理员用户管理路由
+    'GET /api/user' => 'UserController@getUsers',
+    'POST /api/user' => 'UserController@addUser',
+    'GET /api/user/stats' => 'UserController@getUserStats',
+    'GET /api/user/{id}' => 'UserController@getUser',
+    'PUT /api/user/{id}' => 'UserController@updateUser',
+    'DELETE /api/user/{id}' => 'UserController@deleteUser',
     
     // 设备相关路由
     'POST /api/device' => 'DeviceController@registerDevice',
@@ -69,33 +76,46 @@ return [
     'POST /api/push_task/add_log' => 'FirmwarePushTaskController@addPushLog',
     'POST /api/push_task/batch_log' => 'FirmwarePushTaskController@batchAddPushLogs',
     
-    // 消息模板相关路由
-    'POST /api/template' => 'MessageTemplateController@createTemplate',
-    'GET /api/template' => 'MessageTemplateController@getTemplates',
-    'GET /api/template/{id}' => 'MessageTemplateController@getTemplate',
-    'PUT /api/template/{id}' => 'MessageTemplateController@updateTemplate',
-    'DELETE /api/template/{id}' => 'MessageTemplateController@deleteTemplate',
+
     
-    // 系统日志相关路由
-    'GET /api/log' => 'SystemLogController@getLogs',
-    'DELETE /api/log/old' => 'SystemLogController@deleteOldLogs',
-    'POST /api/log' => 'SystemLogController@log',
+
     
     // 通知相关路由
     'GET /api/notification' => 'NotificationController@getNotifications',
-    'GET /api/notification/{id}' => 'NotificationController@getNotification',
     'GET /api/notification/unread-count' => 'NotificationController@getUnreadCount',
+    'GET /api/notification/stats' => 'NotificationController@getNotificationStats',
+    'GET /api/notification/{id}' => 'NotificationController@getNotification',
+    'POST /api/notification/publish' => 'NotificationController@publishNotification',
     'PUT /api/notification' => 'NotificationController@markAllAsRead',
     'PUT /api/notification/{id}' => 'NotificationController@markAsRead',
     'DELETE /api/notification/{id}' => 'NotificationController@deleteNotification',
     
     // 插件相关路由
     'GET /api/plugin' => 'PluginController@getPlugins',
-    'POST /api/plugin' => 'PluginController@addPlugin',
-    'PUT /api/plugin/{index}' => 'PluginController@updatePlugin',
-    'DELETE /api/plugin/{index}' => 'PluginController@deletePlugin',
+    'GET /api/plugin/stats' => 'PluginController@getPluginStats',
+    'GET /api/plugin/device/{deviceId}' => 'PluginController@getDevicePlugins',
+    'GET /api/plugin/pending' => 'PluginController@getPendingPlugins',
+    'POST /api/plugin/external' => 'PluginController@addExternalPlugin',
+    'POST /api/plugin/upload' => 'PluginController@uploadPlugin',
+    'POST /api/plugin/initialize' => 'PluginController@initializePlugins',
+    'POST /api/plugin/init' => 'PluginController@initPluginsApi',
+    'GET /api/plugin/{id}' => 'PluginController@getPlugin',
+    'PUT /api/plugin/{id}/toggle' => 'PluginController@togglePlugin',
+    'POST /api/plugin/approve/{id}' => 'PluginController@approvePlugin',
+    'POST /api/plugin/device/{deviceId}/enable/{pluginId}' => 'PluginController@enablePluginForDevice',
+    'POST /api/plugin/device/{deviceId}/disable/{pluginId}' => 'PluginController@disablePluginForDevice',
+    'DELETE /api/plugin/{id}' => 'PluginController@deletePlugin',
     
     // 状态检查路由
-    'GET /api/status' => 'StatusController@getStatus'
+    'GET /api/status' => 'StatusController@getStatus',
+    
+    // 系统设置相关路由
+    'GET /api/system/settings' => 'SystemController@getSettings',
+    'PUT /api/system/settings' => 'SystemController@updateSettings',
+    'POST /api/system/settings/reset' => 'SystemController@resetSettings',
+    'GET /api/system/info' => 'SystemController@getSystemInfo',
+    'GET /api/system/database/backup' => 'SystemController@backupDatabase',
+    'POST /api/system/restart' => 'SystemController@restartSystem',
+    'POST /api/system/cache/clear' => 'SystemController@clearCache'
 ];
 ?>

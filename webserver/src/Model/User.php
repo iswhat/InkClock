@@ -162,7 +162,7 @@ class User {
      * @return array|null 用户信息
      */
     public function getUserByApiKey($apiKey, $ipAddress = '') {
-        $stmt = $this->db->prepare("SELECT * FROM users WHERE api_key = :api_key AND status = 1");
+        $stmt = $this->db->prepare("SELECT id, username, email, is_admin, status, api_key_expires_at, api_key_ip_whitelist FROM users WHERE api_key = :api_key AND status = 1");
         $stmt->bindValue(':api_key', $apiKey, SQLITE3_TEXT);
         $result = $stmt->execute();
         $user = $result->fetchArray(SQLITE3_ASSOC);
@@ -441,5 +441,251 @@ class User {
         $result = $stmt->execute();
         
         return ['success' => $this->db->changes() > 0];
+    }
+    
+    /**
+     * 获取所有用户列表
+     * @param string $search 搜索关键词
+     * @return array 用户列表
+     */
+    public function getAllUsers($search = '') {
+        try {
+            $query = "SELECT id, username, email, is_admin, created_at, last_login, status FROM users";
+            $params = [];
+            
+            if (!empty($search)) {
+                $query .= " WHERE username LIKE :search OR email LIKE :search";
+                $search = "%$search%";
+            }
+            
+            $query .= " ORDER BY created_at DESC";
+            
+            $stmt = $this->db->prepare($query);
+            if (!empty($search)) {
+                $stmt->bindValue(':search', $search, SQLITE3_TEXT);
+            }
+            
+            $result = $stmt->execute();
+            $users = [];
+            
+            while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+                // 转换is_admin为role字段
+                $row['role'] = $row['is_admin'] ? 'admin' : 'user';
+                unset($row['is_admin']);
+                $users[] = $row;
+            }
+            
+            return $users;
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+    
+    /**
+     * 获取用户统计数据
+     * @return array 统计数据
+     */
+    public function getUserStats() {
+        try {
+            // 获取总用户数
+            $totalStmt = $this->db->prepare("SELECT COUNT(*) as count FROM users");
+            $totalResult = $totalStmt->execute();
+            $total = $totalResult->fetchArray(SQLITE3_ASSOC)['count'];
+            
+            // 获取管理员数
+            $adminStmt = $this->db->prepare("SELECT COUNT(*) as count FROM users WHERE is_admin = 1");
+            $adminResult = $adminStmt->execute();
+            $admin = $adminResult->fetchArray(SQLITE3_ASSOC)['count'];
+            
+            // 获取普通用户数
+            $userStmt = $this->db->prepare("SELECT COUNT(*) as count FROM users WHERE is_admin = 0");
+            $userResult = $userStmt->execute();
+            $user = $userResult->fetchArray(SQLITE3_ASSOC)['count'];
+            
+            // 获取活跃用户数（最近30天登录过的）
+            $activeStmt = $this->db->prepare("SELECT COUNT(*) as count FROM users WHERE last_login >= datetime('now', '-30 days')");
+            $activeResult = $activeStmt->execute();
+            $active = $activeResult->fetchArray(SQLITE3_ASSOC)['count'];
+            
+            return [
+                'total' => $total,
+                'admin' => $admin,
+                'user' => $user,
+                'active' => $active
+            ];
+        } catch (\Exception $e) {
+            return [
+                'total' => 0,
+                'admin' => 0,
+                'user' => 0,
+                'active' => 0
+            ];
+        }
+    }
+    
+    /**
+     * 通过ID获取用户信息
+     * @param int $userId 用户ID
+     * @return array|null 用户信息
+     */
+    public function getUserById($userId) {
+        try {
+            $stmt = $this->db->prepare("SELECT id, username, email, is_admin as role, created_at, last_login, status FROM users WHERE id = :id");
+            $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
+            $result = $stmt->execute();
+            $user = $result->fetchArray(SQLITE3_ASSOC);
+            
+            if ($user) {
+                // 转换role字段
+                $user['role'] = $user['role'] ? 'admin' : 'user';
+            }
+            
+            return $user;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+    
+    /**
+     * 更新用户信息
+     * @param int $userId 用户ID
+     * @param array $userData 用户数据
+     * @return array 更新结果
+     */
+    public function updateUser($userId, $userData) {
+        try {
+            $fields = [];
+            $params = [];
+            
+            if (isset($userData['username'])) {
+                $fields[] = "username = :username";
+                $params[':username'] = $userData['username'];
+            }
+            
+            if (isset($userData['email'])) {
+                $fields[] = "email = :email";
+                $params[':email'] = $userData['email'];
+            }
+            
+            if (!empty($userData['password'])) {
+                $fields[] = "password_hash = :password_hash";
+                $params[':password_hash'] = password_hash($userData['password'], PASSWORD_DEFAULT);
+            }
+            
+            if (isset($userData['role'])) {
+                $fields[] = "is_admin = :is_admin";
+                $params[':is_admin'] = $userData['role'] === 'admin' ? 1 : 0;
+            }
+            
+            if (isset($userData['status'])) {
+                $fields[] = "status = :status";
+                $params[':status'] = $userData['status'];
+            }
+            
+            if (empty($fields)) {
+                return ['success' => true, 'message' => '无需要更新的字段'];
+            }
+            
+            $query = "UPDATE users SET " . implode(', ', $fields) . " WHERE id = :id";
+            $params[':id'] = $userId;
+            
+            $stmt = $this->db->prepare($query);
+            foreach ($params as $key => $value) {
+                $stmt->bindValue($key, $value, is_numeric($value) ? SQLITE3_INTEGER : SQLITE3_TEXT);
+            }
+            
+            $result = $stmt->execute();
+            
+            if ($result && $this->db->changes() > 0) {
+                return ['success' => true, 'message' => '用户信息更新成功'];
+            } else {
+                return ['success' => false, 'error' => '更新失败或无变化'];
+            }
+        } catch (\Exception $e) {
+            return ['success' => false, 'error' => '数据库操作失败: ' . $e->getMessage()];
+        }
+    }
+    
+    /**
+     * 删除用户
+     * @param int $userId 用户ID
+     * @return array 删除结果
+     */
+    public function deleteUser($userId) {
+        try {
+            // 开始事务
+            $this->db->exec('BEGIN TRANSACTION');
+            
+            // 删除用户的设备绑定
+            $deviceStmt = $this->db->prepare("DELETE FROM user_devices WHERE user_id = :user_id");
+            $deviceStmt->bindValue(':user_id', $userId, SQLITE3_INTEGER);
+            $deviceStmt->execute();
+            
+            // 删除用户
+            $userStmt = $this->db->prepare("DELETE FROM users WHERE id = :user_id");
+            $userStmt->bindValue(':user_id', $userId, SQLITE3_INTEGER);
+            $userResult = $userStmt->execute();
+            
+            if ($userResult && $this->db->changes() > 0) {
+                $this->db->exec('COMMIT');
+                return ['success' => true, 'message' => '用户删除成功'];
+            } else {
+                $this->db->exec('ROLLBACK');
+                return ['success' => false, 'error' => '删除失败或用户不存在'];
+            }
+        } catch (\Exception $e) {
+            $this->db->exec('ROLLBACK');
+            return ['success' => false, 'error' => '数据库操作失败: ' . $e->getMessage()];
+        }
+    }
+    
+    /**
+     * 添加用户
+     * @param array $userData 用户数据
+     * @return array 添加结果
+     */
+    public function addUser($userData) {
+        try {
+            $username = $userData['username'];
+            $email = $userData['email'];
+            $password = $userData['password'];
+            $role = $userData['role'];
+            
+            // 检查用户名或邮箱是否已存在
+            $checkStmt = $this->db->prepare("SELECT id FROM users WHERE username = :username OR email = :email");
+            $checkStmt->bindValue(':username', $username, SQLITE3_TEXT);
+            $checkStmt->bindValue(':email', $email, SQLITE3_TEXT);
+            $checkResult = $checkStmt->execute();
+            
+            if ($checkResult->fetchArray(SQLITE3_ASSOC)) {
+                return ['success' => false, 'error' => '用户名或邮箱已存在'];
+            }
+            
+            // 哈希密码
+            $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+            $apiKey = $this->generateApiKey();
+            $createdAt = date('Y-m-d H:i:s');
+            $isAdmin = $role === 'admin' ? 1 : 0;
+            
+            // 插入用户
+            $stmt = $this->db->prepare("INSERT INTO users (username, email, password_hash, api_key, created_at, is_admin, status) VALUES (:username, :email, :password_hash, :api_key, :created_at, :is_admin, 1)");
+            $stmt->bindValue(':username', $username, SQLITE3_TEXT);
+            $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+            $stmt->bindValue(':password_hash', $passwordHash, SQLITE3_TEXT);
+            $stmt->bindValue(':api_key', $apiKey, SQLITE3_TEXT);
+            $stmt->bindValue(':created_at', $createdAt, SQLITE3_TEXT);
+            $stmt->bindValue(':is_admin', $isAdmin, SQLITE3_INTEGER);
+            
+            $result = $stmt->execute();
+            
+            if ($result) {
+                $userId = $this->db->lastInsertRowID();
+                return ['success' => true, 'user_id' => $userId, 'message' => '用户添加成功'];
+            } else {
+                return ['success' => false, 'error' => '添加失败'];
+            }
+        } catch (\Exception $e) {
+            return ['success' => false, 'error' => '数据库操作失败: ' . $e->getMessage()];
+        }
     }
 }

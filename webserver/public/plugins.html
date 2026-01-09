@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InkClock 插件管理</title>
+    <!-- AdminLTE CSS -->
+    <link rel="stylesheet" href="adminlte/css/adminlte.min.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 自定义CSS -->
+    <style>
+        .content-wrapper {
+            min-height: calc(100vh - 70px);
+        }
+        .info-box {
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .info-box-icon {
+            border-radius: 4px 0 0 4px;
+        }
+        .info-box-content {
+            padding: 15px;
+        }
+        .info-box-text {
+            font-size: 14px;
+        }
+        .info-box-number {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .card {
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .table-responsive {
+            overflow-x: auto;
+        }
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        .text-success {
+            color: #28a745 !important;
+        }
+        .text-danger {
+            color: #dc3545 !important;
+        }
+        .text-warning {
+            color: #ffc107 !important;
+        }
+        .text-info {
+            color: #17a2b8 !important;
+        }
+        .btn {
+            margin-right: 5px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .modal-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .modal-title {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .modal-footer {
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
+        .plugin-enabled {
+            background-color: rgba(40, 167, 69, 0.1) !important;
+        }
+        .plugin-disabled {
+            background-color: rgba(220, 53, 69, 0.1) !important;
+        }
+    </style>
+</head>
+<body class="hold-transition sidebar-mini">
+    <div class="wrapper">
+        <!-- Navbar -->
+        <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+            <!-- Left navbar links -->
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
+                </li>
+                <li class="nav-item d-none d-sm-inline-block">
+                    <a href="dashboard.html" class="nav-link">仪表盘</a>
+                </li>
+                <li class="nav-item d-none d-sm-inline-block">
+                    <a href="plugins.html" class="nav-link active">插件管理</a>
+                </li>
+            </ul>
+
+            <!-- Right navbar links -->
+            <ul class="navbar-nav ml-auto">
+                <!-- Messages Dropdown Menu -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <i class="far fa-comments"></i>
+                        <span class="badge badge-danger navbar-badge" id="messages-count">0</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right" id="messages-dropdown">
+                        <a href="messages.html" class="dropdown-item dropdown-footer">查看所有消息</a>
+                    </div>
+                </li>
+                <!-- Notifications Dropdown Menu -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <i class="far fa-bell"></i>
+                        <span class="badge badge-warning navbar-badge" id="notifications-count">0</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right" id="notifications-dropdown">
+                        <span class="dropdown-item dropdown-header" id="notifications-header">0 个通知</span>
+                        <div class="dropdown-divider"></div>
+                        <a href="notifications.html" class="dropdown-item dropdown-footer">查看所有通知</a>
+                    </div>
+                </li>
+                <!-- User Dropdown Menu -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <img src="adminlte/img/avatar.png" alt="User Avatar" class="img-size-32 img-circle">
+                        <span class="ml-2 d-none d-lg-inline-block" id="user-name">用户名</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-right">
+                        <a href="profile.html" class="dropdown-item">
+                            <i class="fas fa-user mr-2"></i> 个人资料
+                        </a>
+                        <a href="settings.html" class="dropdown-item">
+                            <i class="fas fa-cog mr-2"></i> 设置
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" class="dropdown-item" id="logout-link">
+                            <i class="fas fa-sign-out-alt mr-2"></i> 退出登录
+                        </a>
+                    </div>
+                </li>
+            </ul>
+        </nav>
+        <!-- /.navbar -->
+
+        <!-- Main Sidebar Container -->
+        <aside class="main-sidebar sidebar-dark-primary elevation-4">
+            <!-- Brand Logo -->
+            <a href="dashboard.html" class="brand-link">
+                <img src="adminlte/img/AdminLTELogo.png" alt="AdminLTE Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
+                <span class="brand-text font-weight-light">InkClock</span>
+            </a>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Sidebar user panel (optional) -->
+                <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+                    <div class="image">
+                        <img src="adminlte/img/avatar.png" class="img-circle elevation-2" alt="User Image">
+                    </div>
+                    <div class="info">
+                        <a href="profile.html" class="d-block" id="sidebar-user-name">用户名</a>
+                        <span class="text-xs text-gray-light" id="user-role">角色: 用户</span>
+                    </div>
+                </div>
+
+                <!-- Sidebar Menu -->
+                <nav class="mt-2">
+                    <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+                        <!-- Add icons to the links using the .nav-icon class
+                             with font-awesome or any other icon font library -->
+                        <li class="nav-item">
+                            <a href="dashboard.html" class="nav-link">
+                                <i class="nav-icon fas fa-tachometer-alt"></i>
+                                <p>仪表盘</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="devices.html" class="nav-link">
+                                <i class="nav-icon fas fa-microchip"></i>
+                                <p>设备管理</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="messages.html" class="nav-link">
+                                <i class="nav-icon fas fa-envelope"></i>
+                                <p>消息管理</p>
+                            </a>
+                        </li>
+                        <li class="nav-item admin-only" style="display: none;">
+                            <a href="firmware.html" class="nav-link">
+                                <i class="nav-icon fas fa-download"></i>
+                                <p>固件管理</p>
+                            </a>
+                        </li>
+                        <li class="nav-item has-treeview">
+                            <a href="#" class="nav-link">
+                                <i class="nav-icon fas fa-sitemap"></i>
+                                <p>
+                                    设备分组
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <a href="groups.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>分组管理</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="tags.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>标签管理</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                        <li class="nav-item admin-only" style="display: none;">
+                            <a href="notifications.html" class="nav-link">
+                                <i class="nav-icon fas fa-bell"></i>
+                                <p>通知管理</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="plugins.html" class="nav-link active">
+                                <i class="nav-icon fas fa-puzzle-piece"></i>
+                                <p>插件管理</p>
+                            </a>
+                        </li>
+                        <!-- Admin only menu items -->
+                        <li class="nav-item has-treeview admin-only" style="display: none;">
+                            <a href="#" class="nav-link">
+                                <i class="nav-icon fas fa-user-shield"></i>
+                                <p>
+                                    管理员
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <a href="users.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>用户管理</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="system.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>系统设置</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </nav>
+                <!-- /.sidebar-menu -->
+            </div>
+            <!-- /.sidebar -->
+        </aside>
+
+        <!-- Content Wrapper. Contains page content -->
+        <div class="content-wrapper">
+            <!-- Content Header (Page header) -->
+            <div class="content-header">
+                <div class="container-fluid">
+                    <div class="row mb-2">
+                        <div class="col-sm-6">
+                            <h1 class="m-0 text-dark">插件管理</h1>
+                        </div><!-- /.col -->
+                        <div class="col-sm-6">
+                            <ol class="breadcrumb float-sm-right">
+                                <li class="breadcrumb-item"><a href="dashboard.html">首页</a></li>
+                                <li class="breadcrumb-item active">插件管理</li>
+                            </ol>
+                        </div><!-- /.col -->
+                    </div><!-- /.row -->
+                </div><!-- /.container-fluid -->
+            </div>
+            <!-- /.content-header -->
+
+            <!-- Main content -->
+            <div class="content">
+                <div class="container-fluid">
+                    <!-- Info boxes -->
+                    <div class="row">
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-success"><i class="fas fa-plug"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">插件总数</span>
+                                    <span class="info-box-number" id="total-plugins">0</span>
+                                </div>
+                                <!-- /.info-box-content -->
+                            </div>
+                            <!-- /.info-box -->
+                        </div>
+                        <!-- /.col -->
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-info"><i class="fas fa-power-off"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">已启用</span>
+                                    <span class="info-box-number" id="enabled-plugins">0</span>
+                                </div>
+                                <!-- /.info-box-content -->
+                            </div>
+                            <!-- /.info-box -->
+                        </div>
+                        <!-- /.col -->
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-secondary"><i class="fas fa-power-off"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">已禁用</span>
+                                    <span class="info-box-number" id="disabled-plugins">0</span>
+                                </div>
+                                <!-- /.info-box-content -->
+                            </div>
+                            <!-- /.info-box -->
+                        </div>
+                        <!-- /.col -->
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-warning"><i class="fas fa-download"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">可更新</span>
+                                    <span class="info-box-number" id="updatable-plugins">0</span>
+                                </div>
+                                <!-- /.info-box-content -->
+                            </div>
+                            <!-- /.info-box -->
+                        </div>
+                        <!-- /.col -->
+                    </div>
+                    <!-- /.row -->
+
+                    <!-- Action Bar -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="input-group">
+                                                <input type="text" class="form-control" placeholder="搜索插件..." id="search-input">
+                                                <div class="input-group-append">
+                                                    <button class="btn btn-outline-secondary" type="button" id="search-btn">
+                                                        <i class="fas fa-search"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 text-right">
+                                            <button type="button" class="btn btn-success" id="upload-plugin-btn">
+                                                <i class="fas fa-upload"></i> 上传插件
+                                            </button>
+                                            <button type="button" class="btn btn-info" id="add-external-plugin-btn">
+                                                <i class="fas fa-link"></i> 外部插件
+                                            </button>
+                                            <button type="button" class="btn btn-primary" id="refresh-btn">
+                                                <i class="fas fa-sync-alt"></i> 刷新
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Device Selection -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 class="card-title">设备选择</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-group">
+                                        <label for="device-select">选择设备</label>
+                                        <select class="form-control" id="device-select">
+                                            <option value="">选择设备...</option>
+                                            <!-- 动态填充设备列表 -->
+                                        </select>
+                                        <small class="form-text text-muted">选择设备后，将显示该设备的插件状态</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Plugins Table -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 class="card-title">插件列表</h3>
+                                    <div class="card-tools">
+                                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                                            <i class="fas fa-minus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- /.card-header -->
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>插件ID</th>
+                                                    <th>名称</th>
+                                                    <th>版本</th>
+                                                    <th>描述</th>
+                                                    <th>插件状态</th>
+                                                    <th>设备状态</th>
+                                                    <th>作者</th>
+                                                    <th>操作</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="plugins-table-body">
+                                                <!-- 动态填充 -->
+                                                <tr>
+                                                    <td colspan="8" class="text-center">加载中...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <!-- /.card-body -->
+                                <div class="card-footer">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p class="text-muted">显示 <span id="showing-count">0</span> 条，共 <span id="total-count">0</span> 条</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <nav aria-label="Page navigation example" class="float-right">
+                                                <ul class="pagination">
+                                                    <li class="page-item disabled">
+                                                        <a class="page-link" href="#" tabindex="-1">上一页</a>
+                                                    </li>
+                                                    <li class="page-item active">
+                                                        <a class="page-link" href="#">1</a>
+                                                    </li>
+                                                    <li class="page-item disabled">
+                                                        <a class="page-link" href="#">下一页</a>
+                                                    </li>
+                                                </ul>
+                                            </nav>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- /.card -->
+                        </div>
+                    </div>
+                </div>
+                <!-- /.container-fluid -->
+            </div>
+            <!-- /.content -->
+        </div>
+        <!-- /.content-wrapper -->
+
+        <!-- Footer -->
+        <footer class="main-footer">
+            <div class="float-right d-none d-sm-inline">
+                <b>版本</b> 1.0.0
+            </div>
+            <strong>Copyright &copy; 2026 <a href="#">InkClock</a>.</strong> All rights reserved.
+        </footer>
+    </div>
+    <!-- ./wrapper -->
+
+    <!-- Upload Plugin Modal -->
+    <div class="modal fade" id="upload-plugin-modal" tabindex="-1" role="dialog" aria-labelledby="upload-plugin-modal-label" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="upload-plugin-modal-label">上传插件</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="upload-plugin-form" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label for="plugin-file">选择插件文件 (.zip)</label>
+                            <div class="custom-file">
+                                <input type="file" class="custom-file-input" id="plugin-file" name="plugin_file" accept=".zip" required>
+                                <label class="custom-file-label" for="plugin-file">选择文件</label>
+                            </div>
+                            <small class="form-text text-muted">插件文件必须是 ZIP 格式，包含必要的插件信息文件</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="submit-upload-btn">上传</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Plugin Detail Modal -->
+    <div class="modal fade" id="plugin-detail-modal" tabindex="-1" role="dialog" aria-labelledby="plugin-detail-modal-label" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="plugin-detail-modal-label">插件详情</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>插件ID</label>
+                        <p class="form-control-plaintext" id="detail-plugin-id"></p>
+                    </div>
+                    <div class="form-group">
+                        <label>名称</label>
+                        <p class="form-control-plaintext" id="detail-plugin-name"></p>
+                    </div>
+                    <div class="form-group">
+                        <label>版本</label>
+                        <p class="form-control-plaintext" id="detail-plugin-version"></p>
+                    </div>
+                    <div class="form-group">
+                        <label>描述</label>
+                        <div class="card">
+                            <div class="card-body" id="detail-plugin-description">
+                                <!-- 动态填充插件描述 -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label>作者</label>
+                            <p class="form-control-plaintext" id="detail-plugin-author"></p>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label>状态</label>
+                            <p class="form-control-plaintext" id="detail-plugin-status"></p>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>依赖</label>
+                        <p class="form-control-plaintext" id="detail-plugin-dependencies"></p>
+                    </div>
+                    <div class="form-group">
+                        <label>更新时间</label>
+                        <p class="form-control-plaintext" id="detail-plugin-updated"></p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-primary" id="toggle-plugin-btn">启用/禁用</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- External Plugin Modal -->
+    <div class="modal fade" id="external-plugin-modal" tabindex="-1" role="dialog" aria-labelledby="external-plugin-modal-label" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="external-plugin-modal-label">添加外部插件</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="external-plugin-form">
+                        <div class="form-group">
+                            <label for="external-plugin-name">插件名称</label>
+                            <input type="text" class="form-control" id="external-plugin-name" placeholder="请输入插件名称" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="external-plugin-url">插件URL</label>
+                            <input type="url" class="form-control" id="external-plugin-url" placeholder="请输入插件URL" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="external-plugin-description">插件描述</label>
+                            <textarea class="form-control" id="external-plugin-description" rows="3" placeholder="请输入插件描述"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="external-plugin-refresh">刷新间隔</label>
+                            <input type="text" class="form-control" id="external-plugin-refresh" placeholder="例如：60分钟" value="60分钟">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="submit-external-plugin-btn">添加</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- jQuery -->
+    <script src="adminlte/plugins/jquery/jquery.min.js"></script>
+    <!-- Bootstrap 4 -->
+    <script src="adminlte/plugins/bootstrap/js/bootstrap.min.js"></script>
+    <!-- AdminLTE App -->
+    <script src="adminlte/js/adminlte.min.js"></script>
+    <!-- Menu Script -->
+    <script src="js/menu.js"></script>
+    <!-- Plugins Script -->
+    <script>
+        // 页面加载完成后执行
+        $(document).ready(function() {
+            // 初始化菜单
+            initMenu('plugins.html');
+            // 检查登录状态
+            checkLoginStatus();
+            // 加载设备列表
+            loadDevices();
+            // 加载插件数据
+            loadPlugins();
+            // 加载统计数据
+            loadStats();
+            // 绑定事件
+            bindEvents();
+        });
+
+        // 检查登录状态
+        function checkLoginStatus() {
+            const userStr = localStorage.getItem('user');
+            if (!userStr) {
+                // 未登录，跳转到登录页面
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            const user = JSON.parse(userStr);
+            // 更新用户名
+            $('#user-name').text(user.username);
+            $('#sidebar-user-name').text(user.username);
+            // 更新用户角色
+            $('#user-role').text('角色: ' + (user.role || '用户'));
+            // 显示管理员菜单
+            if (user.role === 'admin') {
+                $('.admin-only').show();
+            }
+            // 存储用户ID和角色到localStorage，供后续权限判断使用
+            localStorage.setItem('userId', user.id);
+            localStorage.setItem('userRole', user.role || 'user');
+        }
+
+        // 加载设备列表
+        async function loadDevices() {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch('/api/user/devices?api_key=' + apiKey);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const devices = data.data;
+                        const deviceSelect = $('#device-select');
+                        deviceSelect.empty();
+                        deviceSelect.append('<option value="">选择设备...</option>');
+                        
+                        devices.forEach(device => {
+                            deviceSelect.append(`<option value="${device.device_id}">${device.nickname || device.device_id}</option>`);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('加载设备列表错误:', error);
+            }
+        }
+
+        // 加载插件数据
+        async function loadPlugins() {
+            const apiKey = localStorage.getItem('token');
+            const deviceId = $('#device-select').val();
+            
+            try {
+                let url = '/api/plugin?api_key=' + apiKey;
+                if (deviceId) {
+                    url = `/api/plugin/device/${deviceId}?api_key=${apiKey}`;
+                }
+                
+                const response = await fetch(url);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const plugins = data.data;
+                        renderPluginsTable(plugins, deviceId);
+                        $('#total-count').text(plugins.length);
+                        $('#showing-count').text(plugins.length);
+                    }
+                }
+            } catch (error) {
+                console.error('加载插件数据错误:', error);
+                $('#plugins-table-body').html('<tr><td colspan="8" class="text-center">加载失败</td></tr>');
+            }
+        }
+
+        // 渲染插件表格
+        function renderPluginsTable(plugins, deviceId) {
+            let html = '';
+            if (plugins.length > 0) {
+                plugins.forEach(plugin => {
+                    const statusClass = plugin.status === 'enabled' ? 'plugin-enabled' : 'plugin-disabled';
+                    const statusText = plugin.status === 'enabled' ? '已启用' : '已禁用';
+                    const statusIcon = plugin.status === 'enabled' ? 'fas fa-check-circle' : 'fas fa-times-circle';
+                    
+                    // 设备状态
+                    const deviceStatus = plugin.device_status || 'disabled';
+                    const deviceStatusText = deviceStatus === 'enabled' ? '已启用' : '已禁用';
+                    const deviceStatusIcon = deviceStatus === 'enabled' ? 'fas fa-check-circle' : 'fas fa-times-circle';
+                    const deviceStatusBtnClass = deviceStatus === 'enabled' ? 'btn-danger' : 'btn-success';
+                    const deviceStatusBtnText = deviceStatus === 'enabled' ? '禁用' : '启用';
+                    const deviceStatusBtnIcon = deviceStatus === 'enabled' ? 'fas fa-power-off' : 'fas fa-power-off';
+                    
+                    html += `
+                        <tr data-plugin-id="${plugin.plugin_id}" class="${statusClass}">
+                            <td>${plugin.plugin_id}</td>
+                            <td>${plugin.name}</td>
+                            <td>${plugin.version}</td>
+                            <td>${plugin.description.substring(0, 50)}${plugin.description.length > 50 ? '...' : ''}</td>
+                            <td><span class="${plugin.status === 'enabled' ? 'text-success' : 'text-danger'}"><i class="${statusIcon}"></i> ${statusText}</span></td>
+                            <td><span class="${deviceStatus === 'enabled' ? 'text-success' : 'text-danger'}"><i class="${deviceStatusIcon}"></i> ${deviceStatusText}</span></td>
+                            <td>${plugin.author}</td>
+                            <td>
+                                <button class="btn btn-sm btn-info view-plugin-btn" data-plugin-id="${plugin.plugin_id}">
+                                    <i class="fas fa-eye"></i> 查看
+                                </button>
+                                ${deviceId ? `
+                                    <button class="btn btn-sm ${deviceStatusBtnClass} toggle-device-plugin-btn" data-plugin-id="${plugin.plugin_id}" data-device-id="${deviceId}" data-status="${deviceStatus}">
+                                        <i class="${deviceStatusBtnIcon}"></i> ${deviceStatusBtnText}
+                                    </button>
+                                ` : ''}
+                                ${plugin.created_by === localStorage.getItem('userId') || localStorage.getItem('userRole') === 'admin' ? `
+                                    <button class="btn btn-sm btn-danger delete-plugin-btn" data-plugin-id="${plugin.plugin_id}">
+                                        <i class="fas fa-trash"></i> 删除
+                                    </button>
+                                ` : ''}
+                            </td>
+                        </tr>
+                    `;
+                });
+            } else {
+                html = '<tr><td colspan="8" class="text-center">暂无插件</td></tr>';
+            }
+            $('#plugins-table-body').html(html);
+        }
+
+        // 加载统计数据
+        async function loadStats() {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch('/api/plugin/stats?api_key=' + apiKey);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const stats = data.data;
+                        $('#total-plugins').text(stats.total || 0);
+                        $('#enabled-plugins').text(stats.enabled || 0);
+                        $('#disabled-plugins').text(stats.disabled || 0);
+                        $('#updatable-plugins').text(stats.updatable || 0);
+                    }
+                }
+            } catch (error) {
+                console.error('加载统计数据错误:', error);
+            }
+        }
+
+        // 绑定事件
+        function bindEvents() {
+            // 刷新按钮
+            $('#refresh-btn').click(function() {
+                loadDevices();
+                loadPlugins();
+                loadStats();
+            });
+
+            // 搜索按钮
+            $('#search-btn').click(function() {
+                const searchTerm = $('#search-input').val();
+                searchPlugins(searchTerm);
+            });
+
+            // 搜索输入框回车
+            $('#search-input').keypress(function(e) {
+                if (e.which === 13) {
+                    const searchTerm = $(this).val();
+                    searchPlugins(searchTerm);
+                }
+            });
+
+            // 上传插件按钮
+            $('#upload-plugin-btn').click(function() {
+                $('#upload-plugin-modal').modal('show');
+            });
+
+            // 外部插件按钮
+            $('#add-external-plugin-btn').click(function() {
+                $('#external-plugin-modal').modal('show');
+            });
+
+            // 提交上传
+            $('#submit-upload-btn').click(async function() {
+                const formData = new FormData();
+                const fileInput = $('#plugin-file')[0];
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    alert('请选择插件文件');
+                    return;
+                }
+                
+                formData.append('plugin_file', fileInput.files[0]);
+                const apiKey = localStorage.getItem('token');
+                
+                try {
+                    const response = await fetch('/api/plugin/upload?api_key=' + apiKey, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success) {
+                            alert('插件上传成功');
+                            $('#upload-plugin-modal').modal('hide');
+                            loadPlugins();
+                            loadStats();
+                        } else {
+                            alert('上传失败: ' + data.message);
+                        }
+                    } else {
+                        alert('上传失败: 服务器错误');
+                    }
+                } catch (error) {
+                    console.error('上传插件失败:', error);
+                    alert('上传失败: 网络错误');
+                }
+            });
+
+            // 提交外部插件
+            $('#submit-external-plugin-btn').click(async function() {
+                const name = $('#external-plugin-name').val();
+                const url = $('#external-plugin-url').val();
+                const description = $('#external-plugin-description').val();
+                const refreshInterval = $('#external-plugin-refresh').val();
+                
+                if (!name || !url) {
+                    alert('插件名称和URL不能为空');
+                    return;
+                }
+                
+                const apiKey = localStorage.getItem('token');
+                
+                try {
+                    const response = await fetch('/api/plugin/external?api_key=' + apiKey, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            name: name,
+                            url: url,
+                            description: description,
+                            refresh_interval: refreshInterval
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success) {
+                            alert('外部插件添加成功');
+                            $('#external-plugin-modal').modal('hide');
+                            loadPlugins();
+                            loadStats();
+                        } else {
+                            alert('添加失败: ' + data.message);
+                        }
+                    } else {
+                        alert('添加失败: 服务器错误');
+                    }
+                } catch (error) {
+                    console.error('添加外部插件失败:', error);
+                    alert('添加失败: 网络错误');
+                }
+            });
+
+            // 设备选择事件
+            $('#device-select').change(function() {
+                loadPlugins();
+            });
+
+            // 查看插件按钮
+            $(document).on('click', '.view-plugin-btn', function() {
+                const pluginId = $(this).data('plugin-id');
+                viewPlugin(pluginId);
+            });
+
+            // 启用/禁用插件按钮
+            $(document).on('click', '.toggle-plugin-btn', function() {
+                const pluginId = $(this).data('plugin-id');
+                const status = $(this).data('status');
+                const newStatus = status === 'enabled' ? 'disabled' : 'enabled';
+                togglePlugin(pluginId, newStatus);
+            });
+
+            // 启用/禁用设备插件按钮
+            $(document).on('click', '.toggle-device-plugin-btn', function() {
+                const pluginId = $(this).data('plugin-id');
+                const deviceId = $(this).data('device-id');
+                const status = $(this).data('status');
+                const newStatus = status === 'enabled' ? 'disabled' : 'enabled';
+                toggleDevicePlugin(pluginId, deviceId, newStatus);
+            });
+
+            // 删除插件按钮
+            $(document).on('click', '.delete-plugin-btn', function() {
+                const pluginId = $(this).data('plugin-id');
+                deletePlugin(pluginId);
+            });
+
+            // 模态框中的启用/禁用按钮
+            $('#toggle-plugin-btn').click(function() {
+                const pluginId = $('#detail-plugin-id').text();
+                const currentStatus = $('#detail-plugin-status').data('status');
+                const newStatus = currentStatus === 'enabled' ? 'disabled' : 'enabled';
+                togglePlugin(pluginId, newStatus);
+            });
+
+            // 退出登录
+            $('#logout-link').click(function(e) {
+                e.preventDefault();
+                // 清除本地存储
+                localStorage.removeItem('user');
+                localStorage.removeItem('token');
+                // 跳转到登录页面
+                window.location.href = 'login.html';
+            });
+        }
+
+        // 搜索插件
+        async function searchPlugins(searchTerm) {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                let url = '/api/plugin?api_key=' + apiKey;
+                if (searchTerm) {
+                    url += '&search=' + encodeURIComponent(searchTerm);
+                }
+                
+                const response = await fetch(url);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const plugins = data.data;
+                        renderPluginsTable(plugins);
+                        $('#showing-count').text(plugins.length);
+                    }
+                }
+            } catch (error) {
+                console.error('搜索插件错误:', error);
+            }
+        }
+
+        // 查看插件详情
+        async function viewPlugin(pluginId) {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch(`/api/plugin/${pluginId}?api_key=${apiKey}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const plugin = data.data;
+                        $('#detail-plugin-id').text(plugin.plugin_id);
+                        $('#detail-plugin-name').text(plugin.name);
+                        $('#detail-plugin-version').text(plugin.version);
+                        $('#detail-plugin-description').text(plugin.description);
+                        $('#detail-plugin-author').text(plugin.author);
+                        
+                        const statusClass = plugin.status === 'enabled' ? 'text-success' : 'text-danger';
+                        const statusText = plugin.status === 'enabled' ? '已启用' : '已禁用';
+                        $('#detail-plugin-status').html(`<span class="${statusClass}">${statusText}</span>`);
+                        $('#detail-plugin-status').data('status', plugin.status);
+                        
+                        $('#detail-plugin-dependencies').text(plugin.dependencies || '无');
+                        $('#detail-plugin-updated').text(plugin.updated_at || '未知');
+                        
+                        $('#plugin-detail-modal').modal('show');
+                    } else {
+                        alert('获取插件详情失败: ' + data.message);
+                    }
+                } else {
+                    alert('获取插件详情失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('查看插件错误:', error);
+                alert('获取插件详情失败: 网络错误');
+            }
+        }
+
+        // 启用/禁用插件
+        async function togglePlugin(pluginId, newStatus) {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch(`/api/plugin/${pluginId}/toggle?api_key=${apiKey}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        loadPlugins();
+                        loadStats();
+                    } else {
+                        alert('操作失败: ' + data.message);
+                    }
+                } else {
+                    alert('操作失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('启用/禁用插件错误:', error);
+                alert('操作失败: 网络错误');
+            }
+        }
+
+        // 启用/禁用设备插件
+        async function toggleDevicePlugin(pluginId, deviceId, newStatus) {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const endpoint = newStatus === 'enabled' ? 
+                    `/api/plugin/device/${deviceId}/enable/${pluginId}` : 
+                    `/api/plugin/device/${deviceId}/disable/${pluginId}`;
+                
+                const response = await fetch(endpoint + '?api_key=' + apiKey, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        loadPlugins();
+                    } else {
+                        alert('操作失败: ' + data.message);
+                    }
+                } else {
+                    alert('操作失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('启用/禁用设备插件错误:', error);
+                alert('操作失败: 网络错误');
+            }
+        }
+
+        // 删除插件
+        async function deletePlugin(pluginId) {
+            if (!confirm('确定要删除这个插件吗？')) {
+                return;
+            }
+            
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch(`/api/plugin/${pluginId}?api_key=${apiKey}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        loadPlugins();
+                        loadStats();
+                    } else {
+                        alert('删除失败: ' + data.message);
+                    }
+                } else {
+                    alert('删除失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('删除插件错误:', error);
+                alert('删除失败: 网络错误');
+            }
+        }
+    </script>
+</body>
+</html>

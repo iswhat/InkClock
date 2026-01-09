@@ -47,6 +47,7 @@ class BaseController {
         $this->deviceService = $this->container->get('deviceService');
         $this->messageService = $this->container->get('messageService');
         
+        // 在所有服务初始化后再获取当前用户
         $this->currentUser = $this->getCurrentUser();
     }
     
@@ -67,6 +68,18 @@ class BaseController {
         // 使用服务层验证API密钥
         $result = $this->authService->validateApiKey($apiKey, $ipAddress);
         return $result['success'] ? $result['user'] : null;
+    }
+    
+    /**
+     * 检查是否为管理员
+     */
+    protected function isAdmin() {
+        if (!$this->currentUser) {
+            return false;
+        }
+        
+        // 使用服务层检查管理员权限
+        return $this->authService->isAdmin($this->currentUser);
     }
     
     /**
@@ -159,11 +172,6 @@ class BaseController {
         return true;
     }
     
-    /**
-     * 检查是否为管理员
-     */
-    protected function isAdmin() {
-        return $this->authService->isAdmin($this->currentUser);
-    }
+    
 }
 ?>

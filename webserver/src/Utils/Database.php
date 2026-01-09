@@ -6,6 +6,7 @@
 namespace InkClock\Utils;
 
 use InkClock\Config\Config;
+use InkClock\Utils\Logger;
 
 class Database {
     private static $instance = null;
@@ -169,9 +170,7 @@ class Database {
                 FOREIGN KEY (device_id) REFERENCES devices(device_id) ON DELETE CASCADE
             )");
         
-        // 添加scheduled_time字段（如果不存在）
-        $this->execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS scheduled_time DATETIME");
-        $this->execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'");
+        
         
         // 为消息表添加索引
         $this->execute("CREATE INDEX IF NOT EXISTS idx_messages_device_id ON messages (device_id)");
@@ -298,6 +297,127 @@ class Database {
                 context TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )");
+        
+        // 插件表
+        $this->execute("CREATE TABLE IF NOT EXISTS plugins (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                description TEXT,
+                url TEXT NOT NULL,
+                type TEXT DEFAULT 'system', -- system, user, external
+                status TEXT DEFAULT 'enabled', -- enabled, disabled
+                author TEXT,
+                version TEXT DEFAULT '1.0.0',
+                refresh_interval TEXT,
+                settings_url TEXT,
+                created_by INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                approved_by INTEGER,
+                approved_at DATETIME,
+                approval_status TEXT DEFAULT 'approved', -- pending, approved, rejected
+                FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+                FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL
+            )");
+        
+        // 检查并添加缺失的列
+        // 注意：SQLite 不支持 ALTER TABLE ADD COLUMN IF NOT EXISTS，所以需要使用 try-catch
+        try {
+            $this->execute("ALTER TABLE plugins ADD COLUMN type TEXT DEFAULT 'system'");
+        } catch (Exception $e) {
+            // 忽略错误，列可能已经存在
+        }
+        
+        try {
+            $this->execute("ALTER TABLE plugins ADD COLUMN status TEXT DEFAULT 'enabled'");
+        } catch (Exception $e) {
+            // 忽略错误，列可能已经存在
+        }
+        
+        try {
+            $this->execute("ALTER TABLE plugins ADD COLUMN author TEXT");
+        } catch (Exception $e) {
+            // 忽略错误，列可能已经存在
+        }
+        
+        try {
+            $this->execute("ALTER TABLE plugins ADD COLUMN version TEXT DEFAULT '1.0.0'");
+        } catch (Exception $e) {
+            // 忽略错误，列可能已经存在
+        }
+        
+        try {
+            $this->execute("ALTER TABLE plugins ADD COLUMN refresh_interval TEXT");
+        } catch (Exception $e) {
+            // 忽略错误，列可能已经存在
+        }
+        
+        try {
+            $this->execute("ALTER TABLE plugins ADD COLUMN settings_url TEXT");
+        } catch (Exception $e) {
+            // 忽略错误，列可能已经存在
+        }
+        
+        try {
+            $this->execute("ALTER TABLE plugins ADD COLUMN created_by INTEGER");
+        } catch (Exception $e) {
+            // 忽略错误，列可能已经存在
+        }
+        
+        try {
+            $this->execute("ALTER TABLE plugins ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP");
+        } catch (Exception $e) {
+            // 忽略错误，列可能已经存在
+        }
+        
+        try {
+            $this->execute("ALTER TABLE plugins ADD COLUMN approved_by INTEGER");
+        } catch (Exception $e) {
+            // 忽略错误，列可能已经存在
+        }
+        
+        try {
+            $this->execute("ALTER TABLE plugins ADD COLUMN approved_at DATETIME");
+        } catch (Exception $e) {
+            // 忽略错误，列可能已经存在
+        }
+        
+        try {
+            $this->execute("ALTER TABLE plugins ADD COLUMN approval_status TEXT DEFAULT 'approved'");
+        } catch (Exception $e) {
+            // 忽略错误，列可能已经存在
+        }
+        
+        // 为插件表添加索引
+        try {
+            $this->execute("CREATE INDEX IF NOT EXISTS idx_plugins_type ON plugins (type)");
+            $this->execute("CREATE INDEX IF NOT EXISTS idx_plugins_status ON plugins (status)");
+            $this->execute("CREATE INDEX IF NOT EXISTS idx_plugins_created_by ON plugins (created_by)");
+            $this->execute("CREATE INDEX IF NOT EXISTS idx_plugins_approval_status ON plugins (approval_status)");
+        } catch (Exception $e) {
+            // 忽略错误，索引可能已经存在
+        }
+        
+        // 设备插件关联表
+        $this->execute("CREATE TABLE IF NOT EXISTS device_plugins (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                device_id TEXT NOT NULL,
+                plugin_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                status TEXT DEFAULT 'enabled', -- enabled, disabled
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (device_id) REFERENCES devices(device_id) ON DELETE CASCADE,
+                FOREIGN KEY (plugin_id) REFERENCES plugins(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                UNIQUE(device_id, plugin_id, user_id)
+            )");
+        
+        // 为设备插件关联表添加索引
+        $this->execute("CREATE INDEX IF NOT EXISTS idx_device_plugins_device_id ON device_plugins (device_id)");
+        $this->execute("CREATE INDEX IF NOT EXISTS idx_device_plugins_plugin_id ON device_plugins (plugin_id)");
+        $this->execute("CREATE INDEX IF NOT EXISTS idx_device_plugins_user_id ON device_plugins (user_id)");
+        $this->execute("CREATE INDEX IF NOT EXISTS idx_device_plugins_status ON device_plugins (status)");
+        $this->execute("CREATE INDEX IF NOT EXISTS idx_device_plugins_device_user ON device_plugins (device_id, user_id)");
+        $this->execute("CREATE INDEX IF NOT EXISTS idx_device_plugins_plugin_user ON device_plugins (plugin_id, user_id)");
     }
 
     /**
@@ -328,13 +448,28 @@ class Database {
             return $result;
         } catch (\Exception $e) {
             $duration = microtime(true) - $startTime;
-            $this->logger->error("数据库执行错误", [
-                "sql" => $sql,
-                "params" => $params,
-                "error" => $e->getMessage(),
-                "time" => $duration
-            ]);
-            throw $e;
+            $errorMessage = $e->getMessage();
+            
+            // 检查是否是 ALTER TABLE 语句的重复列名错误
+            if (strpos($sql, 'ALTER TABLE') !== false && strpos($errorMessage, 'duplicate column name') !== false) {
+                // 对于重复列名错误，只记录警告日志，不抛出异常
+                $this->logger->warning("数据库执行警告（忽略）", [
+                    "sql" => $sql,
+                    "params" => $params,
+                    "error" => $errorMessage,
+                    "time" => $duration
+                ]);
+                return true; // 返回成功，继续执行
+            } else {
+                // 其他错误，记录错误日志并抛出异常
+                $this->logger->error("数据库执行错误", [
+                    "sql" => $sql,
+                    "params" => $params,
+                    "error" => $errorMessage,
+                    "time" => $duration
+                ]);
+                throw $e;
+            }
         }
     }
     

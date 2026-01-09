@@ -339,4 +339,20 @@ class DeviceService implements DeviceServiceInterface {
         
         return ['success' => true, 'status' => $status];
     }
+    
+    /**
+     * 获取用户设备数量
+     * @param int $userId 用户ID
+     * @return int 设备数量
+     */
+    public function getDeviceCount($userId) {
+        try {
+            $userModel = new User($this->db);
+            $devices = $userModel->getUserDevices($userId);
+            return count($devices);
+        } catch (\Exception $e) {
+            $this->logger->error('获取用户设备数量失败', ['user_id' => $userId, 'error' => $e->getMessage()]);
+            return 0;
+        }
+    }
 }

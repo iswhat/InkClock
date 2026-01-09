@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="adminlte/css/adminlte.min.css">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 移动端适配CSS -->
+    <link rel="stylesheet" href="css/mobile-adaptation.css">
     <!-- 自定义CSS -->
     <style>
         .content-wrapper {
@@ -84,41 +86,9 @@
                 <li class="nav-item dropdown">
                     <a class="nav-link" data-toggle="dropdown" href="#">
                         <i class="far fa-comments"></i>
-                        <span class="badge badge-danger navbar-badge">3</span>
+                        <span class="badge badge-danger navbar-badge" id="messages-count">0</span>
                     </a>
-                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
-                        <a href="#" class="dropdown-item">
-                            <!-- Message Start -->
-                            <div class="media">
-                                <img src="adminlte/img/user1-128x128.jpg" alt="User Avatar" class="img-size-50 mr-3 img-circle">
-                                <div class="media-body">
-                                    <h3 class="dropdown-item-title">
-                                        设备 1
-                                        <span class="float-right text-sm text-danger"><i class="fas fa-hourglass-half"></i></span>
-                                    </h3>
-                                    <p class="text-sm">需要更新固件</p>
-                                    <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 1小时前</p>
-                                </div>
-                            </div>
-                            <!-- Message End -->
-                        </a>
-                        <div class="dropdown-divider"></div>
-                        <a href="#" class="dropdown-item">
-                            <!-- Message Start -->
-                            <div class="media">
-                                <img src="adminlte/img/user2-160x160.jpg" alt="User Avatar" class="img-size-50 mr-3 img-circle">
-                                <div class="media-body">
-                                    <h3 class="dropdown-item-title">
-                                        设备 2
-                                        <span class="float-right text-sm text-success"><i class="fas fa-check"></i></span>
-                                    </h3>
-                                    <p class="text-sm">已连接</p>
-                                    <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 2小时前</p>
-                                </div>
-                            </div>
-                            <!-- Message End -->
-                        </a>
-                        <div class="dropdown-divider"></div>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right" id="messages-dropdown">
                         <a href="messages.html" class="dropdown-item dropdown-footer">查看所有消息</a>
                     </div>
                 </li>
@@ -126,15 +96,10 @@
                 <li class="nav-item dropdown">
                     <a class="nav-link" data-toggle="dropdown" href="#">
                         <i class="far fa-bell"></i>
-                        <span class="badge badge-warning navbar-badge">1</span>
+                        <span class="badge badge-warning navbar-badge" id="notifications-count">0</span>
                     </a>
-                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
-                        <span class="dropdown-item dropdown-header">1 个通知</span>
-                        <div class="dropdown-divider"></div>
-                        <a href="#" class="dropdown-item">
-                            <i class="fas fa-exclamation-triangle mr-2"></i> 系统需要更新
-                            <span class="float-right text-sm text-muted">30分钟前</span>
-                        </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right" id="notifications-dropdown">
+                        <span class="dropdown-item dropdown-header" id="notifications-header">0 个通知</span>
                         <div class="dropdown-divider"></div>
                         <a href="notifications.html" class="dropdown-item dropdown-footer">查看所有通知</a>
                     </div>
@@ -184,102 +149,7 @@
                 </div>
 
                 <!-- Sidebar Menu -->
-                <nav class="mt-2">
-                    <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
-                        <!-- Add icons to the links using the .nav-icon class
-                             with font-awesome or any other icon font library -->
-                        <li class="nav-item">
-                            <a href="dashboard.html" class="nav-link active">
-                                <i class="nav-icon fas fa-tachometer-alt"></i>
-                                <p>仪表盘</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="devices.html" class="nav-link">
-                                <i class="nav-icon fas fa-microchip"></i>
-                                <p>设备管理</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="messages.html" class="nav-link">
-                                <i class="nav-icon fas fa-envelope"></i>
-                                <p>消息管理</p>
-                            </a>
-                        </li>
-                        <li class="nav-item admin-only" style="display: none;">
-                            <a href="firmware.html" class="nav-link">
-                                <i class="nav-icon fas fa-download"></i>
-                                <p>固件管理</p>
-                            </a>
-                        </li>
-                        <li class="nav-item has-treeview">
-                            <a href="#" class="nav-link">
-                                <i class="nav-icon fas fa-sitemap"></i>
-                                <p>
-                                    设备分组
-                                    <i class="right fas fa-angle-left"></i>
-                                </p>
-                            </a>
-                            <ul class="nav nav-treeview">
-                                <li class="nav-item">
-                                    <a href="groups.html" class="nav-link">
-                                        <i class="far fa-circle nav-icon"></i>
-                                        <p>分组管理</p>
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a href="tags.html" class="nav-link">
-                                        <i class="far fa-circle nav-icon"></i>
-                                        <p>标签管理</p>
-                                    </a>
-                                </li>
-                            </ul>
-                        </li>
-
-                        <li class="nav-item admin-only" style="display: none;">
-                            <a href="notifications.html" class="nav-link">
-                                <i class="nav-icon fas fa-bell"></i>
-                                <p>通知管理</p>
-                            </a>
-                        </li>
-                        <li class="nav-item admin-only" style="display: none;">
-                            <a href="plugins.html" class="nav-link">
-                                <i class="nav-icon fas fa-puzzle-piece"></i>
-                                <p>插件管理</p>
-                            </a>
-                        </li>
-                        <!-- Admin only menu items -->
-                        <li class="nav-item has-treeview admin-only" style="display: none;">
-                            <a href="#" class="nav-link">
-                                <i class="nav-icon fas fa-user-shield"></i>
-                                <p>
-                                    管理员
-                                    <i class="right fas fa-angle-left"></i>
-                                </p>
-                            </a>
-                            <ul class="nav nav-treeview">
-                                <li class="nav-item">
-                                    <a href="users.html" class="nav-link">
-                                        <i class="far fa-circle nav-icon"></i>
-                                        <p>用户管理</p>
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a href="system.html" class="nav-link">
-                                        <i class="far fa-circle nav-icon"></i>
-                                        <p>系统设置</p>
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a href="logs.html" class="nav-link">
-                                        <i class="far fa-circle nav-icon"></i>
-                                        <p>系统日志</p>
-                                    </a>
-                                </li>
-                            </ul>
-                        </li>
-                    </ul>
-                </nav>
+                <nav class="mt-2"></nav>
                 <!-- /.sidebar-menu -->
             </div>
             <!-- /.sidebar -->
@@ -521,10 +391,14 @@
     <script src="adminlte/plugins/bootstrap/js/bootstrap.min.js"></script>
     <!-- AdminLTE App -->
     <script src="adminlte/js/adminlte.min.js"></script>
+    <!-- Menu Script -->
+    <script src="js/menu.js"></script>
     <!-- Dashboard Script -->
     <script>
         // 页面加载完成后执行
         $(document).ready(function() {
+            // 初始化菜单
+            initMenu('dashboard.html');
             // 检查登录状态
             checkLoginStatus();
             // 加载统计数据

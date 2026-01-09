@@ -162,12 +162,72 @@ class AuthService implements AuthServiceInterface {
             $userData = $userModel->getUserByUsername($user);
             return $userData ? ($userData['is_admin'] === 1) : false;
         } else if (is_array($user)) {
-            // 直接从用户数组中获取is_admin字段
-            return isset($user['is_admin']) && $user['is_admin'] === 1;
+            // 直接从用户数组中获取is_admin字段，使用宽松比较
+            return isset($user['is_admin']) && (int)$user['is_admin'] === 1;
         } else if (is_numeric($user)) {
             // 通过用户ID检查
             return $userModel->isAdmin($user);
         }
         return false;
+    }
+    
+    /**
+     * 获取所有用户列表
+     * @param string $search 搜索关键词
+     * @return array 用户列表
+     */
+    public function getAllUsers($search = '') {
+        $userModel = new User($this->db);
+        return $userModel->getAllUsers($search);
+    }
+    
+    /**
+     * 获取用户统计数据
+     * @return array 统计数据
+     */
+    public function getUserStats() {
+        $userModel = new User($this->db);
+        return $userModel->getUserStats();
+    }
+    
+    /**
+     * 通过ID获取用户信息
+     * @param int $userId 用户ID
+     * @return array|null 用户信息
+     */
+    public function getUserById($userId) {
+        $userModel = new User($this->db);
+        return $userModel->getUserById($userId);
+    }
+    
+    /**
+     * 更新用户信息
+     * @param int $userId 用户ID
+     * @param array $userData 用户数据
+     * @return array 更新结果
+     */
+    public function updateUser($userId, $userData) {
+        $userModel = new User($this->db);
+        return $userModel->updateUser($userId, $userData);
+    }
+    
+    /**
+     * 删除用户
+     * @param int $userId 用户ID
+     * @return array 删除结果
+     */
+    public function deleteUser($userId) {
+        $userModel = new User($this->db);
+        return $userModel->deleteUser($userId);
+    }
+    
+    /**
+     * 添加用户
+     * @param array $userData 用户数据
+     * @return array 添加结果
+     */
+    public function addUser($userData) {
+        $userModel = new User($this->db);
+        return $userModel->addUser($userData);
     }
 }

@@ -29,20 +29,20 @@ class MessageService implements MessageServiceInterface {
     
     /**
      * 发送消息
-     * @param array $messageInfo 消息信息
+     * @param string $deviceId 设备ID
+     * @param string $sender 发送者
+     * @param string $content 消息内容
+     * @param string $type 消息类型
      * @return array 发送结果
      */
-    public function sendMessage($messageInfo) {
-        if (is_string($messageInfo)) {
-            // 兼容旧的调用方式
-            $args = func_get_args();
-            $messageInfo = [
-                'device_id' => $args[0],
-                'sender' => $args[1],
-                'content' => $args[2],
-                'type' => isset($args[3]) ? $args[3] : 'text'
-            ];
-        }
+    public function sendMessage($deviceId, $sender, $content, $type = 'text') {
+        // 构建消息信息数组
+        $messageInfo = [
+            'device_id' => $deviceId,
+            'sender' => $sender,
+            'content' => $content,
+            'type' => $type
+        ];
         
         $this->logger->info('发送消息请求', ['message' => $messageInfo]);
         

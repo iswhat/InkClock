@@ -5,7 +5,7 @@
  */
 
 // 插件JSON文件路径
-$pluginJsonPath = dirname(__FILE__) . '/plugin.json';
+$pluginJsonPath = __DIR__ . '/plugin.json';
 
 /**
  * 获取插件列表
@@ -15,8 +15,13 @@ function get_plugins() {
     global $pluginJsonPath;
     
     if (file_exists($pluginJsonPath)) {
-        $plugins = json_decode(file_get_contents($pluginJsonPath), true) ?? [];
-        return $plugins;
+        $content = file_get_contents($pluginJsonPath);
+        $plugins = json_decode($content, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            // JSON解析错误，返回空数组
+            return [];
+        }
+        return $plugins ?? [];
     }
     return [];
 }

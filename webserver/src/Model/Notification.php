@@ -143,5 +143,113 @@ class Notification {
         
         return $count;
     }
+    
+    /**
+     * 向所有用户发送通知
+     */
+    public function sendNotificationToAll($title, $content, $type = 'system') {
+        try {
+            // 获取所有用户ID
+            $stmt = $this->db->prepare("SELECT id FROM users");
+            $result = $stmt->execute();
+            $userIds = [];
+            while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+                $userIds[] = $row['id'];
+            }
+            $stmt->close();
+            
+            $totalSent = 0;
+            $createdAt = date('Y-m-d H:i:s');
+            
+            // 向每个用户发送通知
+            foreach ($userIds as $userId) {
+                $stmt = $this->db->prepare("INSERT INTO notifications (user_id, title, content, type, status, created_at) VALUES (?, ?, ?, ?, ?, ?)");
+                $status = 'unread';
+                $stmt->bindValue(1, $userId, SQLITE3_INTEGER);
+                $stmt->bindValue(2, $title, SQLITE3_TEXT);
+                $stmt->bindValue(3, $content, SQLITE3_TEXT);
+                $stmt->bindValue(4, $type, SQLITE3_TEXT);
+                $stmt->bindValue(5, $status, SQLITE3_TEXT);
+                $stmt->bindValue(6, $createdAt, SQLITE3_TEXT);
+                $result = $stmt->execute();
+                if ($result !== false) {
+                    $totalSent++;
+                }
+                $stmt->close();
+            }
+            
+            return array('success' => $totalSent > 0, 'total_sent' => $totalSent);
+        } catch (Exception $e) {
+            return array('success' => false, 'error' => $e->getMessage());
+        }
+    }
+    
+    /**
+     * 获取通知总数
+     */
+    public function getTotalNotifications() {
+        $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM notifications");
+        $result = $stmt->execute();
+        $count = $result->fetchArray(SQLITE3_ASSOC)['count'];
+        $stmt->close();
+        
+        return $count;
+    }
+    
+    /**
+     * 获取未读通知总数
+     */
+    public function getTotalUnreadNotifications() {
+        $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM notifications WHERE status = ?");
+        $status = 'unread';
+        $stmt->bindValue(1, $status, SQLITE3_TEXT);
+        $result = $stmt->execute();
+        $count = $result->fetchArray(SQLITE3_ASSOC)['count'];
+        $stmt->close();
+        
+        return $count;
+    }
+    
+    /**
+     * 按类型统计通知
+     */
+    public function getNotificationsByType() {
+        $stmt = $this->db->prepare("SELECT type, COUNT(*) as count FROM notifications GROUP BY type");
+        $result = $stmt->execute();
+        $types = [];
+        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+            $types[$row['type']] = $row['count'];
+        }
+        $stmt->close();
+        
+        return $types;
+    }
+    
+    /**
+     * 获取用户的通知总数
+     */
+    public function getTotalNotificationsByUser($userId) {
+        $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM notifications WHERE user_id = ?");
+        $stmt->bindValue(1, $userId, SQLITE3_INTEGER);
+        $result = $stmt->execute();
+        $count = $result->fetchArray(SQLITE3_ASSOC)['count'];
+        $stmt->close();
+        
+        return $count;
+    }
+    
+    /**
+     * 获取用户的系统通知数量
+     */
+    public function getSystemNotificationsCount($userId) {
+        $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND type = ?");
+        $stmt->bindValue(1, $userId, SQLITE3_INTEGER);
+        $stmt->bindValue(2, 'system', SQLITE3_TEXT);
+        $result = $stmt->execute();
+        $count = $result->fetchArray(SQLITE3_ASSOC)['count'];
+        $stmt->close();
+        
+        return $count;
+    }
 }
 ?>

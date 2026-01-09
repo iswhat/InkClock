@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InkClock 个人资料</title>
+    <!-- AdminLTE CSS -->
+    <link rel="stylesheet" href="adminlte/css/adminlte.min.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 自定义CSS -->
+    <style>
+        .content-wrapper {
+            min-height: calc(100vh - 70px);
+        }
+        .info-box {
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .info-box-icon {
+            border-radius: 4px 0 0 4px;
+        }
+        .info-box-content {
+            padding: 15px;
+        }
+        .info-box-text {
+            font-size: 14px;
+        }
+        .info-box-number {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .card {
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .table-responsive {
+            overflow-x: auto;
+        }
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        .text-success {
+            color: #28a745 !important;
+        }
+        .text-danger {
+            color: #dc3545 !important;
+        }
+        .text-warning {
+            color: #ffc107 !important;
+        }
+        .text-info {
+            color: #17a2b8 !important;
+        }
+        .btn {
+            margin-right: 5px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .modal-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .modal-title {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .modal-footer {
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
+        .user-profile {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .profile-image {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .profile-image img {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 3px solid #ddd;
+        }
+        .profile-details {
+            margin-top: 30px;
+        }
+        .form-control {
+            border-radius: 4px;
+        }
+        .alert {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body class="hold-transition sidebar-mini">
+    <div class="wrapper">
+        <!-- Navbar -->
+        <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+            <!-- Left navbar links -->
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
+                </li>
+                <li class="nav-item d-none d-sm-inline-block">
+                    <a href="dashboard.html" class="nav-link">仪表盘</a>
+                </li>
+                <li class="nav-item d-none d-sm-inline-block">
+                    <a href="profile.html" class="nav-link active">个人资料</a>
+                </li>
+            </ul>
+
+            <!-- Right navbar links -->
+            <ul class="navbar-nav ml-auto">
+                <!-- Messages Dropdown Menu -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <i class="far fa-comments"></i>
+                        <span class="badge badge-danger navbar-badge" id="messages-count">0</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right" id="messages-dropdown">
+                        <a href="messages.html" class="dropdown-item dropdown-footer">查看所有消息</a>
+                    </div>
+                </li>
+                <!-- Notifications Dropdown Menu -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <i class="far fa-bell"></i>
+                        <span class="badge badge-warning navbar-badge" id="notifications-count">0</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right" id="notifications-dropdown">
+                        <span class="dropdown-item dropdown-header" id="notifications-header">0 个通知</span>
+                        <div class="dropdown-divider"></div>
+                        <a href="notifications.html" class="dropdown-item dropdown-footer">查看所有通知</a>
+                    </div>
+                </li>
+                <!-- User Dropdown Menu -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <img src="adminlte/img/avatar.png" alt="User Avatar" class="img-size-32 img-circle">
+                        <span class="ml-2 d-none d-lg-inline-block" id="user-name">用户名</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-right">
+                        <a href="profile.html" class="dropdown-item">
+                            <i class="fas fa-user mr-2"></i> 个人资料
+                        </a>
+                        <a href="settings.html" class="dropdown-item">
+                            <i class="fas fa-cog mr-2"></i> 设置
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" class="dropdown-item" id="logout-link">
+                            <i class="fas fa-sign-out-alt mr-2"></i> 退出登录
+                        </a>
+                    </div>
+                </li>
+            </ul>
+        </nav>
+        <!-- /.navbar -->
+
+        <!-- Main Sidebar Container -->
+        <aside class="main-sidebar sidebar-dark-primary elevation-4">
+            <!-- Brand Logo -->
+            <a href="dashboard.html" class="brand-link">
+                <img src="adminlte/img/AdminLTELogo.png" alt="AdminLTE Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
+                <span class="brand-text font-weight-light">InkClock</span>
+            </a>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Sidebar user panel (optional) -->
+                <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+                    <div class="image">
+                        <img src="adminlte/img/avatar.png" class="img-circle elevation-2" alt="User Image">
+                    </div>
+                    <div class="info">
+                        <a href="profile.html" class="d-block" id="sidebar-user-name">用户名</a>
+                        <span class="text-xs text-gray-light" id="user-role">角色: 用户</span>
+                    </div>
+                </div>
+
+                <!-- Sidebar Menu -->
+                <nav class="mt-2">
+                    <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+                        <!-- Add icons to the links using the .nav-icon class
+                             with font-awesome or any other icon font library -->
+                        <li class="nav-item">
+                            <a href="dashboard.html" class="nav-link">
+                                <i class="nav-icon fas fa-tachometer-alt"></i>
+                                <p>仪表盘</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="devices.html" class="nav-link">
+                                <i class="nav-icon fas fa-microchip"></i>
+                                <p>设备管理</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="messages.html" class="nav-link">
+                                <i class="nav-icon fas fa-envelope"></i>
+                                <p>消息管理</p>
+                            </a>
+                        </li>
+                        <li class="nav-item admin-only" style="display: none;">
+                            <a href="firmware.html" class="nav-link">
+                                <i class="nav-icon fas fa-download"></i>
+                                <p>固件管理</p>
+                            </a>
+                        </li>
+                        <li class="nav-item has-treeview">
+                            <a href="#" class="nav-link">
+                                <i class="nav-icon fas fa-sitemap"></i>
+                                <p>
+                                    设备分组
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <a href="groups.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>分组管理</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="tags.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>标签管理</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+
+                        <li class="nav-item admin-only" style="display: none;">
+                            <a href="notifications.html" class="nav-link">
+                                <i class="nav-icon fas fa-bell"></i>
+                                <p>通知管理</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="plugins.html" class="nav-link">
+                                <i class="nav-icon fas fa-puzzle-piece"></i>
+                                <p>插件管理</p>
+                            </a>
+                        </li>
+                        <!-- Admin only menu items -->
+                        <li class="nav-item has-treeview admin-only" style="display: none;">
+                            <a href="#" class="nav-link">
+                                <i class="nav-icon fas fa-user-shield"></i>
+                                <p>
+                                    管理员
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <a href="users.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>用户管理</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="system.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>系统设置</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </nav>
+                <!-- /.sidebar-menu -->
+            </div>
+            <!-- /.sidebar -->
+        </aside>
+
+        <!-- Content Wrapper. Contains page content -->
+        <div class="content-wrapper">
+            <!-- Content Header (Page header) -->
+            <div class="content-header">
+                <div class="container-fluid">
+                    <div class="row mb-2">
+                        <div class="col-sm-6">
+                            <h1 class="m-0 text-dark">个人资料</h1>
+                        </div><!-- /.col -->
+                        <div class="col-sm-6">
+                            <ol class="breadcrumb float-sm-right">
+                                <li class="breadcrumb-item"><a href="dashboard.html">首页</a></li>
+                                <li class="breadcrumb-item active">个人资料</li>
+                            </ol>
+                        </div><!-- /.col -->
+                    </div><!-- /.row -->
+                </div><!-- /.container-fluid -->
+            </div>
+            <!-- /.content-header -->
+
+            <!-- Main content -->
+            <div class="content">
+                <div class="container-fluid">
+                    <div class="user-profile">
+                        <!-- Profile Image -->
+                        <div class="profile-image">
+                            <img src="adminlte/img/avatar.png" alt="User Image" class="img-circle elevation-2">
+                            <h3 class="mt-2" id="profile-username">用户名</h3>
+                            <p class="text-muted" id="profile-role">角色: 用户</p>
+                        </div>
+
+                        <!-- Profile Details -->
+                        <div class="profile-details">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 class="card-title">基本信息</h3>
+                                    <div class="card-tools">
+                                        <button type="button" class="btn btn-tool" id="edit-profile-btn">
+                                            <i class="fas fa-edit"></i> 编辑
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div id="profile-view">
+                                        <div class="form-group row">
+                                            <label class="col-sm-3 col-form-label">用户名</label>
+                                            <div class="col-sm-9">
+                                                <p class="form-control-plaintext" id="view-username">用户名</p>
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="col-sm-3 col-form-label">邮箱</label>
+                                            <div class="col-sm-9">
+                                                <p class="form-control-plaintext" id="view-email">user@example.com</p>
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="col-sm-3 col-form-label">创建时间</label>
+                                            <div class="col-sm-9">
+                                                <p class="form-control-plaintext" id="view-created-at">2026-01-01 00:00:00</p>
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="col-sm-3 col-form-label">最后登录</label>
+                                            <div class="col-sm-9">
+                                                <p class="form-control-plaintext" id="view-last-login">2026-01-01 00:00:00</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="profile-edit" style="display: none;">
+                                        <form id="profile-form">
+                                            <div class="form-group row">
+                                                <label for="edit-username" class="col-sm-3 col-form-label">用户名</label>
+                                                <div class="col-sm-9">
+                                                    <input type="text" class="form-control" id="edit-username" placeholder="用户名">
+                                                </div>
+                                            </div>
+                                            <div class="form-group row">
+                                                <label for="edit-email" class="col-sm-3 col-form-label">邮箱</label>
+                                                <div class="col-sm-9">
+                                                    <input type="email" class="form-control" id="edit-email" placeholder="邮箱">
+                                                </div>
+                                            </div>
+                                            <div class="form-group row">
+                                                <label for="edit-password" class="col-sm-3 col-form-label">新密码</label>
+                                                <div class="col-sm-9">
+                                                    <input type="password" class="form-control" id="edit-password" placeholder="留空表示不修改">
+                                                </div>
+                                            </div>
+                                            <div class="form-group row">
+                                                <div class="col-sm-9 offset-sm-3">
+                                                    <button type="submit" class="btn btn-primary">保存</button>
+                                                    <button type="button" class="btn btn-secondary" id="cancel-edit-btn">取消</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- API Key Section -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 class="card-title">API密钥</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-group row">
+                                        <label class="col-sm-3 col-form-label">当前密钥</label>
+                                        <div class="col-sm-9">
+                                            <div class="input-group">
+                                                <input type="text" class="form-control" id="api-key" readonly>
+                                                <div class="input-group-append">
+                                                    <button class="btn btn-secondary" type="button" id="copy-api-key">
+                                                        <i class="fas fa-copy"></i>
+                                                    </button>
+                                                    <button class="btn btn-warning" type="button" id="regenerate-api-key">
+                                                        <i class="fas fa-sync-alt"></i> 重新生成
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-sm-3 col-form-label">创建时间</label>
+                                        <div class="col-sm-9">
+                                            <p class="form-control-plaintext" id="api-key-created-at">2026-01-01 00:00:00</p>
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-sm-3 col-form-label">过期时间</label>
+                                        <div class="col-sm-9">
+                                            <p class="form-control-plaintext" id="api-key-expires-at">2027-01-01 00:00:00</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div><!-- /.container-fluid -->
+            </div>
+            <!-- /.content -->
+        </div>
+        <!-- /.content-wrapper -->
+
+        <!-- Main Footer -->
+        <footer class="main-footer">
+            <!-- To the right -->
+            <div class="float-right d-none d-sm-inline">
+                InkClock v1.0.0
+            </div>
+            <!-- Default to the left -->
+            <strong>Copyright &copy; 2026 <a href="#">InkClock</a>.</strong> All rights reserved.
+        </footer>
+    </div>
+    <!-- ./wrapper -->
+
+    <!-- jQuery -->
+    <script src="adminlte/plugins/jquery/jquery.min.js"></script>
+    <!-- Bootstrap 4 -->
+    <script src="adminlte/plugins/bootstrap/js/bootstrap.min.js"></script>
+    <!-- AdminLTE App -->
+    <script src="adminlte/js/adminlte.min.js"></script>
+    <!-- Menu Script -->
+    <script src="js/menu.js"></script>
+    <!-- Profile Script -->
+    <script>
+        $(document).ready(function() {
+            // 初始化菜单
+            initMenu('profile.html');
+            
+            // 检查登录状态
+            function checkLoginStatus() {
+                const userStr = localStorage.getItem('user');
+                if (!userStr) {
+                    // 未登录，跳转到登录页面
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                const user = JSON.parse(userStr);
+                // 更新用户名
+                $('#user-name').text(user.username);
+                $('#sidebar-user-name').text(user.username);
+                $('#profile-username').text(user.username);
+                $('#view-username').text(user.username);
+                $('#edit-username').val(user.username);
+                
+                // 更新用户角色
+                $('#user-role').text('角色: ' + (user.role || '用户'));
+                $('#profile-role').text('角色: ' + (user.role || '用户'));
+                
+                // 显示管理员菜单
+                if (user.role === 'admin') {
+                    $('.admin-only').show();
+                }
+            }
+
+            // 加载用户信息
+            function loadUserInfo() {
+                const apiKey = localStorage.getItem('token');
+                
+                if (!apiKey) {
+                    return;
+                }
+                
+                // 从localStorage获取用户信息
+                const userStr = localStorage.getItem('user');
+                if (userStr) {
+                    const user = JSON.parse(userStr);
+                    // 更新邮箱
+                    $('#view-email').text(user.email || '未设置');
+                    $('#edit-email').val(user.email || '');
+                    
+                    // 更新API密钥
+                    $('#api-key').val(apiKey);
+                }
+            }
+
+            // 编辑个人资料
+            $('#edit-profile-btn').click(function() {
+                $('#profile-view').hide();
+                $('#profile-edit').show();
+            });
+
+            // 取消编辑
+            $('#cancel-edit-btn').click(function() {
+                $('#profile-edit').hide();
+                $('#profile-view').show();
+            });
+
+            // 保存个人资料
+            $('#profile-form').submit(function(e) {
+                e.preventDefault();
+                
+                const username = $('#edit-username').val();
+                const email = $('#edit-email').val();
+                const password = $('#edit-password').val();
+                
+                // 这里可以添加API调用保存用户信息
+                alert('个人资料已保存');
+                
+                // 切换回查看模式
+                $('#profile-edit').hide();
+                $('#profile-view').show();
+                
+                // 更新显示的信息
+                $('#view-username').text(username);
+                $('#view-email').text(email);
+            });
+
+            // 复制API密钥
+            $('#copy-api-key').click(function() {
+                const apiKey = $('#api-key').val();
+                navigator.clipboard.writeText(apiKey).then(function() {
+                    alert('API密钥已复制到剪贴板');
+                });
+            });
+
+            // 重新生成API密钥
+            $('#regenerate-api-key').click(function() {
+                if (confirm('确定要重新生成API密钥吗？这会使当前密钥失效。')) {
+                    // 这里可以添加API调用重新生成密钥
+                    alert('API密钥已重新生成');
+                }
+            });
+
+            // 退出登录
+            $('#logout-link').click(function() {
+                localStorage.removeItem('user');
+                localStorage.removeItem('token');
+                window.location.href = 'login.html';
+            });
+
+            // 初始化
+            checkLoginStatus();
+            loadUserInfo();
+        });
+    </script>
+</body>
+</html>

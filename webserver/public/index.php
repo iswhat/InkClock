@@ -159,6 +159,17 @@ $routes = require __DIR__ . '/../config/routes.php';
 $matchedRoute = null;
 $params = array();
 
+// 调试信息
+$logger->info('路由匹配开始', [
+    'method' => $request['method'],
+    'path' => $request['path']
+]);
+
+// 打印所有路由，看看顺序
+$logger->info('所有路由', [
+    'routes' => array_keys($routes)
+]);
+
 foreach ($routes as $routePattern => $handler) {
     list($routeMethod, $routePath) = explode(' ', $routePattern, 2);
     
@@ -171,7 +182,20 @@ foreach ($routes as $routePattern => $handler) {
     $pattern = str_replace('/', '\/', $pattern);
     $pattern = '/^' . $pattern . '$/';
     
+    // 调试信息
+    $logger->info('尝试匹配路由', [
+        'route_pattern' => $routePattern,
+        'route_path' => $routePath,
+        'pattern' => $pattern,
+        'request_path' => $request['path']
+    ]);
+    
     if (preg_match($pattern, $request['path'], $matches)) {
+        $logger->info('路由匹配成功', [
+            'route_pattern' => $routePattern,
+            'handler' => $handler,
+            'matches' => $matches
+        ]);
         $matchedRoute = $handler;
         $params = $matches;
         break;

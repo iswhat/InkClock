@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InkClock 通知管理</title>
+    <!-- AdminLTE CSS -->
+    <link rel="stylesheet" href="adminlte/css/adminlte.min.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 自定义CSS -->
+    <style>
+        .content-wrapper {
+            min-height: calc(100vh - 70px);
+        }
+        .info-box {
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .info-box-icon {
+            border-radius: 4px 0 0 4px;
+        }
+        .info-box-content {
+            padding: 15px;
+        }
+        .info-box-text {
+            font-size: 14px;
+        }
+        .info-box-number {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .card {
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .table-responsive {
+            overflow-x: auto;
+        }
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        .text-success {
+            color: #28a745 !important;
+        }
+        .text-danger {
+            color: #dc3545 !important;
+        }
+        .text-warning {
+            color: #ffc107 !important;
+        }
+        .text-info {
+            color: #17a2b8 !important;
+        }
+        .btn {
+            margin-right: 5px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .modal-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .modal-title {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .modal-footer {
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
+        .notification-unread {
+            font-weight: bold;
+            background-color: rgba(255, 255, 255, 0.8) !important;
+        }
+        .notification-read {
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body class="hold-transition sidebar-mini">
+    <div class="wrapper">
+        <!-- Navbar -->
+        <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+            <!-- Left navbar links -->
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
+                </li>
+                <li class="nav-item d-none d-sm-inline-block">
+                    <a href="dashboard.html" class="nav-link">仪表盘</a>
+                </li>
+                <li class="nav-item d-none d-sm-inline-block">
+                    <a href="notifications.html" class="nav-link active">通知管理</a>
+                </li>
+            </ul>
+
+            <!-- Right navbar links -->
+            <ul class="navbar-nav ml-auto">
+                <!-- Messages Dropdown Menu -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <i class="far fa-comments"></i>
+                        <span class="badge badge-danger navbar-badge" id="messages-count">0</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right" id="messages-dropdown">
+                        <a href="messages.html" class="dropdown-item dropdown-footer">查看所有消息</a>
+                    </div>
+                </li>
+                <!-- Notifications Dropdown Menu -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <i class="far fa-bell"></i>
+                        <span class="badge badge-warning navbar-badge" id="notifications-count">0</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right" id="notifications-dropdown">
+                        <span class="dropdown-item dropdown-header" id="notifications-header">0 个通知</span>
+                        <div class="dropdown-divider"></div>
+                        <a href="notifications.html" class="dropdown-item dropdown-footer">查看所有通知</a>
+                    </div>
+                </li>
+                <!-- User Dropdown Menu -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <img src="adminlte/img/avatar.png" alt="User Avatar" class="img-size-32 img-circle">
+                        <span class="ml-2 d-none d-lg-inline-block" id="user-name">用户名</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-right">
+                        <a href="profile.html" class="dropdown-item">
+                            <i class="fas fa-user mr-2"></i> 个人资料
+                        </a>
+                        <a href="settings.html" class="dropdown-item">
+                            <i class="fas fa-cog mr-2"></i> 设置
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" class="dropdown-item" id="logout-link">
+                            <i class="fas fa-sign-out-alt mr-2"></i> 退出登录
+                        </a>
+                    </div>
+                </li>
+            </ul>
+        </nav>
+        <!-- /.navbar -->
+
+        <!-- Main Sidebar Container -->
+        <aside class="main-sidebar sidebar-dark-primary elevation-4">
+            <!-- Brand Logo -->
+            <a href="dashboard.html" class="brand-link">
+                <img src="adminlte/img/AdminLTELogo.png" alt="AdminLTE Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
+                <span class="brand-text font-weight-light">InkClock</span>
+            </a>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Sidebar user panel (optional) -->
+                <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+                    <div class="image">
+                        <img src="adminlte/img/avatar.png" class="img-circle elevation-2" alt="User Image">
+                    </div>
+                    <div class="info">
+                        <a href="profile.html" class="d-block" id="sidebar-user-name">用户名</a>
+                        <span class="text-xs text-gray-light" id="user-role">角色: 用户</span>
+                    </div>
+                </div>
+
+                <!-- Sidebar Menu -->
+                <nav class="mt-2"></nav>
+                <!-- /.sidebar-menu -->
+            </div>
+            <!-- /.sidebar -->
+        </aside>
+
+        <!-- Content Wrapper. Contains page content -->
+        <div class="content-wrapper">
+            <!-- Content Header (Page header) -->
+            <div class="content-header">
+                <div class="container-fluid">
+                    <div class="row mb-2">
+                        <div class="col-sm-6">
+                            <h1 class="m-0 text-dark">通知管理</h1>
+                        </div><!-- /.col -->
+                        <div class="col-sm-6">
+                            <ol class="breadcrumb float-sm-right">
+                                <li class="breadcrumb-item"><a href="dashboard.html">首页</a></li>
+                                <li class="breadcrumb-item active">通知管理</li>
+                            </ol>
+                        </div><!-- /.col -->
+                    </div><!-- /.row -->
+                </div><!-- /.container-fluid -->
+            </div>
+            <!-- /.content-header -->
+
+            <!-- Main content -->
+            <div class="content">
+                <div class="container-fluid">
+                    <!-- Info boxes -->
+                    <div class="row">
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-success"><i class="fas fa-bell"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">通知总数</span>
+                                    <span class="info-box-number" id="total-notifications">0</span>
+                                </div>
+                                <!-- /.info-box-content -->
+                            </div>
+                            <!-- /.info-box -->
+                        </div>
+                        <!-- /.col -->
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-info"><i class="fas fa-bell"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">未读通知</span>
+                                    <span class="info-box-number" id="unread-notifications">0</span>
+                                </div>
+                                <!-- /.info-box-content -->
+                            </div>
+                            <!-- /.info-box -->
+                        </div>
+                        <!-- /.col -->
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-secondary"><i class="fas fa-bell"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">已读通知</span>
+                                    <span class="info-box-number" id="read-notifications">0</span>
+                                </div>
+                                <!-- /.info-box-content -->
+                            </div>
+                            <!-- /.info-box -->
+                        </div>
+                        <!-- /.col -->
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-warning"><i class="fas fa-exclamation-circle"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">系统通知</span>
+                                    <span class="info-box-number" id="system-notifications">0</span>
+                                </div>
+                                <!-- /.info-box-content -->
+                            </div>
+                            <!-- /.info-box -->
+                        </div>
+                        <!-- /.col -->
+                    </div>
+                    <!-- /.row -->
+
+                    <!-- Action Bar -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="input-group">
+                                                <input type="text" class="form-control" placeholder="搜索通知..." id="search-input">
+                                                <div class="input-group-append">
+                                                    <button class="btn btn-outline-secondary" type="button" id="search-btn">
+                                                        <i class="fas fa-search"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="input-group">
+                                                <select class="form-control" id="status-filter">
+                                                    <option value="all">所有状态</option>
+                                                    <option value="unread">未读</option>
+                                                    <option value="read">已读</option>
+                                                </select>
+                                                <div class="input-group-append">
+                                                    <button class="btn btn-outline-secondary" type="button" id="filter-btn">
+                                                        <i class="fas fa-filter"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 text-right">
+                                            <button type="button" class="btn btn-success admin-only" id="publish-notification-btn" style="display: none;">
+                                                <i class="fas fa-bullhorn"></i> 发布通知
+                                            </button>
+                                            <button type="button" class="btn btn-primary" id="mark-all-read-btn">
+                                                <i class="fas fa-check"></i> 全部标记为已读
+                                            </button>
+                                            <button type="button" class="btn btn-secondary" id="refresh-btn">
+                                                <i class="fas fa-sync-alt"></i> 刷新
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Notifications Table -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 class="card-title">通知列表</h3>
+                                    <div class="card-tools">
+                                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                                            <i class="fas fa-minus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- /.card-header -->
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>通知ID</th>
+                                                    <th>标题</th>
+                                                    <th>内容</th>
+                                                    <th>类型</th>
+                                                    <th>状态</th>
+                                                    <th>时间</th>
+                                                    <th>操作</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="notifications-table-body">
+                                                <!-- 动态填充 -->
+                                                <tr>
+                                                    <td colspan="7" class="text-center">加载中...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <!-- /.card-body -->
+                                <div class="card-footer">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p class="text-muted">显示 <span id="showing-count">0</span> 条，共 <span id="total-count">0</span> 条</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <nav aria-label="Page navigation example" class="float-right">
+                                                <ul class="pagination">
+                                                    <li class="page-item disabled">
+                                                        <a class="page-link" href="#" tabindex="-1">上一页</a>
+                                                    </li>
+                                                    <li class="page-item active">
+                                                        <a class="page-link" href="#">1</a>
+                                                    </li>
+                                                    <li class="page-item disabled">
+                                                        <a class="page-link" href="#">下一页</a>
+                                                    </li>
+                                                </ul>
+                                            </nav>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- /.card -->
+                        </div>
+                    </div>
+                </div>
+                <!-- /.container-fluid -->
+            </div>
+            <!-- /.content -->
+        </div>
+        <!-- /.content-wrapper -->
+
+        <!-- Footer -->
+        <footer class="main-footer">
+            <div class="float-right d-none d-sm-inline">
+                <b>版本</b> 1.0.0
+            </div>
+            <strong>Copyright &copy; 2026 <a href="#">InkClock</a>.</strong> All rights reserved.
+        </footer>
+    </div>
+    <!-- ./wrapper -->
+
+    <!-- Notification Detail Modal -->
+    <div class="modal fade" id="notification-detail-modal" tabindex="-1" role="dialog" aria-labelledby="notification-detail-modal-label" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="notification-detail-modal-label">通知详情</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>通知ID</label>
+                        <p class="form-control-plaintext" id="detail-notification-id"></p>
+                    </div>
+                    <div class="form-group">
+                        <label>标题</label>
+                        <p class="form-control-plaintext" id="detail-notification-title"></p>
+                    </div>
+                    <div class="form-group">
+                        <label>内容</label>
+                        <div class="card">
+                            <div class="card-body" id="detail-notification-content">
+                                <!-- 动态填充通知内容 -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label>通知类型</label>
+                            <p class="form-control-plaintext" id="detail-notification-type"></p>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label>通知状态</label>
+                            <p class="form-control-plaintext" id="detail-notification-status"></p>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>创建时间</label>
+                        <p class="form-control-plaintext" id="detail-notification-created"></p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-primary" id="mark-notification-read-btn">标记为已读</button>
+                    <button type="button" class="btn btn-danger" id="delete-notification-btn">删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Publish Notification Modal -->
+    <div class="modal fade" id="publish-notification-modal" tabindex="-1" role="dialog" aria-labelledby="publish-notification-modal-label" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="publish-notification-modal-label">发布通知</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="publish-title">标题 *</label>
+                        <input type="text" class="form-control" id="publish-title" placeholder="请输入通知标题">
+                    </div>
+                    <div class="form-group">
+                        <label for="publish-content">内容 *</label>
+                        <textarea class="form-control" id="publish-content" rows="5" placeholder="请输入通知内容"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="publish-type">类型</label>
+                            <select class="form-control" id="publish-type">
+                                <option value="system">系统</option>
+                                <option value="info">信息</option>
+                                <option value="success">成功</option>
+                                <option value="warning">警告</option>
+                                <option value="error">错误</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="publish-user">接收用户</label>
+                            <select class="form-control" id="publish-user">
+                                <option value="">所有用户</option>
+                                <!-- 动态填充用户列表 -->
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-success" id="submit-publish-btn">发布</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- jQuery -->
+    <script src="adminlte/plugins/jquery/jquery.min.js"></script>
+    <!-- Bootstrap 4 -->
+    <script src="adminlte/plugins/bootstrap/js/bootstrap.min.js"></script>
+    <!-- AdminLTE App -->
+    <script src="adminlte/js/adminlte.min.js"></script>
+    <!-- Menu Script -->
+    <script src="js/menu.js"></script>
+    <!-- Notifications Script -->
+    <script>
+        // 页面加载完成后执行
+        $(document).ready(function() {
+            // 初始化菜单
+            initMenu('notifications.html');
+            // 检查登录状态
+            checkLoginStatus();
+            // 加载通知数据
+            loadNotifications();
+            // 加载统计数据
+            loadStats();
+            // 绑定事件
+            bindEvents();
+        });
+
+        // 检查登录状态
+        function checkLoginStatus() {
+            const userStr = localStorage.getItem('user');
+            if (!userStr) {
+                // 未登录，跳转到登录页面
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            const user = JSON.parse(userStr);
+            // 更新用户名
+            $('#user-name').text(user.username);
+            $('#sidebar-user-name').text(user.username);
+            // 更新用户角色
+            $('#user-role').text('角色: ' + (user.role || '用户'));
+            // 显示管理员菜单
+            if (user.role === 'admin') {
+                $('.admin-only').show();
+            }
+        }
+
+        // 加载通知数据
+        async function loadNotifications() {
+            const apiKey = localStorage.getItem('token');
+            const userStr = localStorage.getItem('user');
+            const user = JSON.parse(userStr);
+            const isAdmin = user.role === 'admin';
+            
+            try {
+                let url = '/api/notification?api_key=' + apiKey;
+                if (!isAdmin) {
+                    url += '&user_id=' + user.id;
+                }
+                
+                const response = await fetch(url);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const notifications = data.data;
+                        // 按时间排序（最新的在前）
+                        notifications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                        renderNotificationsTable(notifications);
+                        $('#total-count').text(notifications.length);
+                        $('#showing-count').text(notifications.length);
+                    }
+                }
+            } catch (error) {
+                console.error('加载通知数据错误:', error);
+                $('#notifications-table-body').html('<tr><td colspan="7" class="text-center">加载失败</td></tr>');
+            }
+        }
+
+        // 渲染通知表格
+        function renderNotificationsTable(notifications) {
+            let html = '';
+            if (notifications.length > 0) {
+                notifications.forEach(notification => {
+                    const statusClass = notification.is_read ? 'notification-read' : 'notification-unread';
+                    const statusText = notification.is_read ? '已读' : '未读';
+                    const statusIcon = notification.is_read ? 'fas fa-bell' : 'fas fa-bell';
+                    const statusBtnClass = notification.is_read ? 'btn-secondary' : 'btn-primary';
+                    const statusBtnText = notification.is_read ? '已读' : '标记为已读';
+                    
+                    html += `
+                        <tr data-notification-id="${notification.id}" class="${statusClass}">
+                            <td>${notification.id}</td>
+                            <td>${notification.title}</td>
+                            <td>${notification.content.substring(0, 50)}${notification.content.length > 50 ? '...' : ''}</td>
+                            <td><span class="${getTypeClass(notification.type)}"><i class="${getTypeIcon(notification.type)}"></i> ${getTypeName(notification.type)}</span></td>
+                            <td><span class="${notification.is_read ? 'text-secondary' : 'text-info'}"><i class="${statusIcon}"></i> ${statusText}</span></td>
+                            <td>${notification.created_at}</td>
+                            <td>
+                                <button class="btn btn-sm btn-info view-notification-btn" data-notification-id="${notification.id}">
+                                    <i class="fas fa-eye"></i> 查看
+                                </button>
+                                <button class="btn btn-sm ${statusBtnClass} mark-read-btn" data-notification-id="${notification.id}" data-is-read="${notification.is_read}">
+                                    <i class="fas fa-check"></i> ${statusBtnText}
+                                </button>
+                                <button class="btn btn-sm btn-danger delete-notification-btn" data-notification-id="${notification.id}">
+                                    <i class="fas fa-trash"></i> 删除
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } else {
+                html = '<tr><td colspan="7" class="text-center">暂无通知</td></tr>';
+            }
+            $('#notifications-table-body').html(html);
+        }
+
+        // 获取通知类型的样式类
+        function getTypeClass(type) {
+            switch (type) {
+                case 'info': return 'text-info';
+                case 'success': return 'text-success';
+                case 'warning': return 'text-warning';
+                case 'error': return 'text-danger';
+                default: return 'text-secondary';
+            }
+        }
+
+        // 获取通知类型的图标
+        function getTypeIcon(type) {
+            switch (type) {
+                case 'info': return 'fas fa-info-circle';
+                case 'success': return 'fas fa-check-circle';
+                case 'warning': return 'fas fa-exclamation-circle';
+                case 'error': return 'fas fa-exclamation-triangle';
+                default: return 'fas fa-bell';
+            }
+        }
+
+        // 获取通知类型的名称
+        function getTypeName(type) {
+            switch (type) {
+                case 'info': return '信息';
+                case 'success': return '成功';
+                case 'warning': return '警告';
+                case 'error': return '错误';
+                default: return '系统';
+            }
+        }
+
+        // 加载统计数据
+        async function loadStats() {
+            const apiKey = localStorage.getItem('token');
+            const userStr = localStorage.getItem('user');
+            const user = JSON.parse(userStr);
+            const isAdmin = user.role === 'admin';
+            
+            try {
+                let url = '/api/notification/stats?api_key=' + apiKey;
+                if (!isAdmin) {
+                    url += '&user_id=' + user.id;
+                }
+                
+                const response = await fetch(url);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const stats = data.data;
+                        $('#total-notifications').text(stats.total || 0);
+                        $('#unread-notifications').text(stats.unread || 0);
+                        $('#read-notifications').text(stats.read || 0);
+                        $('#system-notifications').text(stats.system || 0);
+                        $('#notifications-count').text(stats.unread || 0);
+                        $('#notifications-header').text((stats.unread || 0) + ' 个通知');
+                    }
+                }
+            } catch (error) {
+                console.error('加载统计数据错误:', error);
+            }
+        }
+
+        // 绑定事件
+        function bindEvents() {
+            // 刷新按钮
+            $('#refresh-btn').click(function() {
+                loadNotifications();
+                loadStats();
+            });
+
+            // 搜索按钮
+            $('#search-btn').click(function() {
+                const searchTerm = $('#search-input').val();
+                searchNotifications(searchTerm);
+            });
+
+            // 搜索输入框回车
+            $('#search-input').keypress(function(e) {
+                if (e.which === 13) {
+                    const searchTerm = $(this).val();
+                    searchNotifications(searchTerm);
+                }
+            });
+
+            // 过滤按钮
+            $('#filter-btn').click(function() {
+                const status = $('#status-filter').val();
+                filterNotifications(status);
+            });
+
+            // 全部标记为已读按钮
+            $('#mark-all-read-btn').click(function() {
+                markAllAsRead();
+            });
+
+            // 发布通知按钮
+            $('#publish-notification-btn').click(function() {
+                loadUsers();
+                $('#publish-notification-modal').modal('show');
+            });
+
+            // 提交发布通知
+            $('#submit-publish-btn').click(function() {
+                publishNotification();
+            });
+
+            // 查看通知按钮
+            $(document).on('click', '.view-notification-btn', function() {
+                const notificationId = $(this).data('notification-id');
+                viewNotification(notificationId);
+            });
+
+            // 标记为已读按钮
+            $(document).on('click', '.mark-read-btn', function() {
+                const notificationId = $(this).data('notification-id');
+                const isRead = $(this).data('is-read');
+                if (!isRead) {
+                    markAsRead(notificationId);
+                }
+            });
+
+            // 删除通知按钮
+            $(document).on('click', '.delete-notification-btn', function() {
+                const notificationId = $(this).data('notification-id');
+                deleteNotification(notificationId);
+            });
+
+            // 模态框中的标记为已读按钮
+            $('#mark-notification-read-btn').click(function() {
+                const notificationId = $('#detail-notification-id').text();
+                markAsRead(notificationId);
+            });
+
+            // 模态框中的删除按钮
+            $('#delete-notification-btn').click(function() {
+                const notificationId = $('#detail-notification-id').text();
+                deleteNotification(notificationId);
+            });
+
+            // 退出登录
+            $('#logout-link').click(function(e) {
+                e.preventDefault();
+                // 清除本地存储
+                localStorage.removeItem('user');
+                localStorage.removeItem('token');
+                // 跳转到登录页面
+                window.location.href = 'login.html';
+            });
+        }
+
+        // 加载用户列表
+        async function loadUsers() {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch('/api/user?api_key=' + apiKey);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const users = data.data;
+                        const userSelect = $('#publish-user');
+                        userSelect.empty();
+                        userSelect.append('<option value="">所有用户</option>');
+                        users.forEach(user => {
+                            userSelect.append(`<option value="${user.id}">${user.username} (${user.email})</option>`);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('加载用户列表错误:', error);
+            }
+        }
+
+        // 发布通知
+        async function publishNotification() {
+            const title = $('#publish-title').val();
+            const content = $('#publish-content').val();
+            const type = $('#publish-type').val();
+            const userId = $('#publish-user').val();
+            
+            if (!title || !content) {
+                alert('标题和内容不能为空');
+                return;
+            }
+            
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch('/api/notification/publish?api_key=' + apiKey, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ title, content, type, user_id: userId || null })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('通知发布成功');
+                        $('#publish-notification-modal').modal('hide');
+                        // 清空表单
+                        $('#publish-title').val('');
+                        $('#publish-content').val('');
+                        $('#publish-type').val('system');
+                        $('#publish-user').val('');
+                        // 重新加载通知列表
+                        loadNotifications();
+                        loadStats();
+                    } else {
+                        alert('发布失败: ' + data.message);
+                    }
+                } else {
+                    alert('发布失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('发布通知错误:', error);
+                alert('发布失败: 网络错误');
+            }
+        }
+
+        // 搜索通知
+        async function searchNotifications(searchTerm) {
+            const apiKey = localStorage.getItem('token');
+            const userStr = localStorage.getItem('user');
+            const user = JSON.parse(userStr);
+            const isAdmin = user.role === 'admin';
+            
+            try {
+                let url = '/api/notification?api_key=' + apiKey;
+                if (!isAdmin) {
+                    url += '&user_id=' + user.id;
+                }
+                if (searchTerm) {
+                    url += '&search=' + encodeURIComponent(searchTerm);
+                }
+                
+                const response = await fetch(url);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const notifications = data.data;
+                        notifications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                        renderNotificationsTable(notifications);
+                        $('#showing-count').text(notifications.length);
+                    }
+                }
+            } catch (error) {
+                console.error('搜索通知错误:', error);
+            }
+        }
+
+        // 过滤通知
+        async function filterNotifications(status) {
+            const apiKey = localStorage.getItem('token');
+            const userStr = localStorage.getItem('user');
+            const user = JSON.parse(userStr);
+            const isAdmin = user.role === 'admin';
+            
+            try {
+                let url = '/api/notification?api_key=' + apiKey;
+                if (!isAdmin) {
+                    url += '&user_id=' + user.id;
+                }
+                if (status && status !== 'all') {
+                    url += '&status=' + status;
+                }
+                
+                const response = await fetch(url);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const notifications = data.data;
+                        notifications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                        renderNotificationsTable(notifications);
+                        $('#showing-count').text(notifications.length);
+                    }
+                }
+            } catch (error) {
+                console.error('过滤通知错误:', error);
+            }
+        }
+
+        // 全部标记为已读
+        async function markAllAsRead() {
+            if (!confirm('确定要将所有通知标记为已读吗？')) {
+                return;
+            }
+            
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch('/api/notification/read-all?api_key=' + apiKey, {
+                    method: 'PUT'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        loadNotifications();
+                        loadStats();
+                        alert('所有通知已标记为已读');
+                    } else {
+                        alert('操作失败: ' + data.message);
+                    }
+                } else {
+                    alert('操作失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('标记所有通知为已读错误:', error);
+                alert('操作失败: 网络错误');
+            }
+        }
+
+        // 查看通知
+        async function viewNotification(notificationId) {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch(`/api/notification/${notificationId}?api_key=${apiKey}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const notification = data.data;
+                        $('#detail-notification-id').text(notification.id);
+                        $('#detail-notification-title').text(notification.title);
+                        $('#detail-notification-content').text(notification.content);
+                        $('#detail-notification-type').text(getTypeName(notification.type));
+                        
+                        const statusClass = notification.is_read ? 'text-secondary' : 'text-info';
+                        const statusText = notification.is_read ? '已读' : '未读';
+                        $('#detail-notification-status').html(`<span class="${statusClass}">${statusText}</span>`);
+                        
+                        $('#detail-notification-created').text(notification.created_at);
+                        
+                        $('#notification-detail-modal').modal('show');
+                    } else {
+                        alert('获取通知详情失败: ' + data.message);
+                    }
+                } else {
+                    alert('获取通知详情失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('查看通知错误:', error);
+                alert('获取通知详情失败: 网络错误');
+            }
+        }
+
+        // 标记为已读
+        async function markAsRead(notificationId) {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch(`/api/notification/${notificationId}/read?api_key=${apiKey}`, {
+                    method: 'PUT'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        loadNotifications();
+                        loadStats();
+                    } else {
+                        alert('标记失败: ' + data.message);
+                    }
+                } else {
+                    alert('标记失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('标记通知为已读错误:', error);
+                alert('操作失败: 网络错误');
+            }
+        }
+
+        // 删除通知
+        async function deleteNotification(notificationId) {
+            if (!confirm('确定要删除这条通知吗？')) {
+                return;
+            }
+            
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch(`/api/notification/${notificationId}?api_key=${apiKey}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        loadNotifications();
+                        loadStats();
+                    } else {
+                        alert('删除失败: ' + data.message);
+                    }
+                } else {
+                    alert('删除失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('删除通知错误:', error);
+                alert('操作失败: 网络错误');
+            }
+        }
+    </script>
+</body>
+</html>

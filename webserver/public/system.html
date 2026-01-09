@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InkClock 系统设置</title>
+    <!-- AdminLTE CSS -->
+    <link rel="stylesheet" href="adminlte/css/adminlte.min.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 自定义CSS -->
+    <style>
+        .content-wrapper {
+            min-height: calc(100vh - 70px);
+        }
+        .info-box {
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .info-box-icon {
+            border-radius: 4px 0 0 4px;
+        }
+        .info-box-content {
+            padding: 15px;
+        }
+        .info-box-text {
+            font-size: 14px;
+        }
+        .info-box-number {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .card {
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .table-responsive {
+            overflow-x: auto;
+        }
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        .text-success {
+            color: #28a745 !important;
+        }
+        .text-danger {
+            color: #dc3545 !important;
+        }
+        .text-warning {
+            color: #ffc107 !important;
+        }
+        .text-info {
+            color: #17a2b8 !important;
+        }
+        .btn {
+            margin-right: 5px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .modal-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .modal-title {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .modal-footer {
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
+    </style>
+</head>
+<body class="hold-transition sidebar-mini">
+    <div class="wrapper">
+        <!-- Navbar -->
+        <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+            <!-- Left navbar links -->
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
+                </li>
+                <li class="nav-item d-none d-sm-inline-block">
+                    <a href="dashboard.html" class="nav-link">仪表盘</a>
+                </li>
+                <li class="nav-item d-none d-sm-inline-block">
+                    <a href="system.html" class="nav-link active">系统设置</a>
+                </li>
+            </ul>
+
+            <!-- Right navbar links -->
+            <ul class="navbar-nav ml-auto">
+                <!-- Messages Dropdown Menu -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <i class="far fa-comments"></i>
+                        <span class="badge badge-danger navbar-badge" id="messages-count">0</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right" id="messages-dropdown">
+                        <a href="messages.html" class="dropdown-item dropdown-footer">查看所有消息</a>
+                    </div>
+                </li>
+                <!-- Notifications Dropdown Menu -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <i class="far fa-bell"></i>
+                        <span class="badge badge-warning navbar-badge" id="notifications-count">0</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right" id="notifications-dropdown">
+                        <span class="dropdown-item dropdown-header" id="notifications-header">0 个通知</span>
+                        <div class="dropdown-divider"></div>
+                        <a href="notifications.html" class="dropdown-item dropdown-footer">查看所有通知</a>
+                    </div>
+                </li>
+                <!-- User Dropdown Menu -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <img src="adminlte/img/avatar.png" alt="User Avatar" class="img-size-32 img-circle">
+                        <span class="ml-2 d-none d-lg-inline-block" id="user-name">用户名</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-right">
+                        <a href="profile.html" class="dropdown-item">
+                            <i class="fas fa-user mr-2"></i> 个人资料
+                        </a>
+                        <a href="settings.html" class="dropdown-item">
+                            <i class="fas fa-cog mr-2"></i> 设置
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" class="dropdown-item" id="logout-link">
+                            <i class="fas fa-sign-out-alt mr-2"></i> 退出登录
+                        </a>
+                    </div>
+                </li>
+            </ul>
+        </nav>
+        <!-- /.navbar -->
+
+        <!-- Main Sidebar Container -->
+        <aside class="main-sidebar sidebar-dark-primary elevation-4">
+            <!-- Brand Logo -->
+            <a href="dashboard.html" class="brand-link">
+                <img src="adminlte/img/AdminLTELogo.png" alt="AdminLTE Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
+                <span class="brand-text font-weight-light">InkClock</span>
+            </a>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Sidebar user panel (optional) -->
+                <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+                    <div class="image">
+                        <img src="adminlte/img/avatar.png" class="img-circle elevation-2" alt="User Image">
+                    </div>
+                    <div class="info">
+                        <a href="profile.html" class="d-block" id="sidebar-user-name">用户名</a>
+                        <span class="text-xs text-gray-light" id="user-role">角色: 用户</span>
+                    </div>
+                </div>
+
+                <!-- Sidebar Menu -->
+                <nav class="mt-2">
+                    <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+                        <!-- Add icons to the links using the .nav-icon class
+                             with font-awesome or any other icon font library -->
+                        <li class="nav-item">
+                            <a href="dashboard.html" class="nav-link">
+                                <i class="nav-icon fas fa-tachometer-alt"></i>
+                                <p>仪表盘</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="devices.html" class="nav-link">
+                                <i class="nav-icon fas fa-microchip"></i>
+                                <p>设备管理</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="messages.html" class="nav-link">
+                                <i class="nav-icon fas fa-envelope"></i>
+                                <p>消息管理</p>
+                            </a>
+                        </li>
+                        <li class="nav-item admin-only" style="display: none;">
+                            <a href="firmware.html" class="nav-link">
+                                <i class="nav-icon fas fa-download"></i>
+                                <p>固件管理</p>
+                            </a>
+                        </li>
+                        <li class="nav-item has-treeview">
+                            <a href="#" class="nav-link">
+                                <i class="nav-icon fas fa-sitemap"></i>
+                                <p>
+                                    设备分组
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <a href="groups.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>分组管理</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="tags.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>标签管理</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                        <li class="nav-item admin-only" style="display: none;">
+                            <a href="notifications.html" class="nav-link">
+                                <i class="nav-icon fas fa-bell"></i>
+                                <p>通知管理</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="plugins.html" class="nav-link">
+                                <i class="nav-icon fas fa-puzzle-piece"></i>
+                                <p>插件管理</p>
+                            </a>
+                        </li>
+                        <!-- Admin only menu items -->
+                        <li class="nav-item has-treeview admin-only" style="display: none;">
+                            <a href="#" class="nav-link active">
+                                <i class="nav-icon fas fa-user-shield"></i>
+                                <p>
+                                    管理员
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <a href="users.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>用户管理</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="system.html" class="nav-link active">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>系统设置</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </nav>
+                <!-- /.sidebar-menu -->
+            </div>
+            <!-- /.sidebar -->
+        </aside>
+
+        <!-- Content Wrapper. Contains page content -->
+        <div class="content-wrapper">
+            <!-- Content Header (Page header) -->
+            <div class="content-header">
+                <div class="container-fluid">
+                    <div class="row mb-2">
+                        <div class="col-sm-6">
+                            <h1 class="m-0 text-dark">系统设置</h1>
+                        </div><!-- /.col -->
+                        <div class="col-sm-6">
+                            <ol class="breadcrumb float-sm-right">
+                                <li class="breadcrumb-item"><a href="dashboard.html">首页</a></li>
+                                <li class="breadcrumb-item active">系统设置</li>
+                            </ol>
+                        </div><!-- /.col -->
+                    </div><!-- /.row -->
+                </div><!-- /.container-fluid -->
+            </div>
+            <!-- /.content-header -->
+
+            <!-- Main content -->
+            <div class="content">
+                <div class="container-fluid">
+                    <!-- System Info -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 class="card-title">系统信息</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="info-box">
+                                                <span class="info-box-icon bg-info"><i class="fas fa-server"></i></span>
+                                                <div class="info-box-content">
+                                                    <span class="info-box-text">系统版本</span>
+                                                    <span class="info-box-number" id="system-version">1.0.0</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="info-box">
+                                                <span class="info-box-icon bg-success"><i class="fas fa-database"></i></span>
+                                                <div class="info-box-content">
+                                                    <span class="info-box-text">数据库</span>
+                                                    <span class="info-box-number" id="database-type">SQLite</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="info-box">
+                                                <span class="info-box-icon bg-warning"><i class="fas fa-code"></i></span>
+                                                <div class="info-box-content">
+                                                    <span class="info-box-text">PHP 版本</span>
+                                                    <span class="info-box-number" id="php-version">7.4.0</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="info-box">
+                                                <span class="info-box-icon bg-danger"><i class="fas fa-clock"></i></span>
+                                                <div class="info-box-content">
+                                                    <span class="info-box-text">运行时间</span>
+                                                    <span class="info-box-number" id="uptime">0 天</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- System Settings Form -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 class="card-title">系统设置</h3>
+                                </div>
+                                <div class="card-body">
+                                    <form id="system-settings-form">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label for="system-name">系统名称</label>
+                                                    <input type="text" class="form-control" id="system-name" name="system_name" placeholder="请输入系统名称" required>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="system-domain">系统域名/IP</label>
+                                                    <input type="text" class="form-control" id="system-domain" name="system_domain" placeholder="请输入系统域名或IP地址" required>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="system-port">系统端口</label>
+                                                    <input type="number" class="form-control" id="system-port" name="system_port" placeholder="请输入系统端口" required>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="admin-email">管理员邮箱</label>
+                                                    <input type="email" class="form-control" id="admin-email" name="admin_email" placeholder="请输入管理员邮箱">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label for="api-timeout">API 超时时间 (秒)</label>
+                                                    <input type="number" class="form-control" id="api-timeout" name="api_timeout" placeholder="请输入API超时时间" min="1" max="300">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="max-devices">每用户最大设备数</label>
+                                                    <input type="number" class="form-control" id="max-devices" name="max_devices_per_user" placeholder="请输入每用户最大设备数" min="1" max="100">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="session-timeout">会话超时时间 (分钟)</label>
+                                                    <input type="number" class="form-control" id="session-timeout" name="session_timeout" placeholder="请输入会话超时时间" min="1" max="1440">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="log-level">日志级别</label>
+                                                    <select class="form-control" id="log-level" name="log_level">
+                                                        <option value="debug">Debug</option>
+                                                        <option value="info">Info</option>
+                                                        <option value="warning">Warning</option>
+                                                        <option value="error">Error</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row mt-4">
+                                            <div class="col-12">
+                                                <button type="submit" class="btn btn-primary" id="save-settings-btn">
+                                                    <i class="fas fa-save"></i> 保存设置
+                                                </button>
+                                                <button type="button" class="btn btn-secondary" id="reset-settings-btn">
+                                                    <i class="fas fa-redo"></i> 重置为默认值
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- System Actions -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 class="card-title">系统操作</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="card">
+                                                <div class="card-body text-center">
+                                                    <i class="fas fa-database text-warning" style="font-size: 3rem;"></i>
+                                                    <h5 class="card-title mt-2">数据库备份</h5>
+                                                    <p class="card-text">创建数据库备份文件</p>
+                                                    <button type="button" class="btn btn-warning" id="backup-db-btn">
+                                                        <i class="fas fa-download"></i> 备份数据库
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="card">
+                                                <div class="card-body text-center">
+                                                    <i class="fas fa-sync-alt text-primary" style="font-size: 3rem;"></i>
+                                                    <h5 class="card-title mt-2">系统重启</h5>
+                                                    <p class="card-text">重启系统服务</p>
+                                                    <button type="button" class="btn btn-primary" id="restart-system-btn">
+                                                        <i class="fas fa-power-off"></i> 重启系统
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="card">
+                                                <div class="card-body text-center">
+                                                    <i class="fas fa-trash-alt text-danger" style="font-size: 3rem;"></i>
+                                                    <h5 class="card-title mt-2">清理缓存</h5>
+                                                    <p class="card-text">清理系统缓存</p>
+                                                    <button type="button" class="btn btn-danger" id="clear-cache-btn">
+                                                        <i class="fas fa-broom"></i> 清理缓存
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- /.container-fluid -->
+            </div>
+            <!-- /.content -->
+        </div>
+        <!-- /.content-wrapper -->
+
+        <!-- Footer -->
+        <footer class="main-footer">
+            <div class="float-right d-none d-sm-inline">
+                <b>版本</b> 1.0.0
+            </div>
+            <strong>Copyright &copy; 2026 <a href="#">InkClock</a>.</strong> All rights reserved.
+        </footer>
+    </div>
+    <!-- ./wrapper -->
+
+    <!-- jQuery -->
+    <script src="adminlte/plugins/jquery/jquery.min.js"></script>
+    <!-- Bootstrap 4 -->
+    <script src="adminlte/plugins/bootstrap/js/bootstrap.min.js"></script>
+    <!-- AdminLTE App -->
+    <script src="adminlte/js/adminlte.min.js"></script>
+    <!-- Menu Script -->
+    <script src="js/menu.js"></script>
+    <!-- System Script -->
+    <script>
+        // 页面加载完成后执行
+        $(document).ready(function() {
+            // 初始化菜单
+            initMenu('system.html');
+            // 检查登录状态
+            checkLoginStatus();
+            // 加载系统设置
+            loadSystemSettings();
+            // 加载系统信息
+            loadSystemInfo();
+            // 绑定事件
+            bindEvents();
+        });
+
+        // 检查登录状态
+        function checkLoginStatus() {
+            const userStr = localStorage.getItem('user');
+            if (!userStr) {
+                // 未登录，跳转到登录页面
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            const user = JSON.parse(userStr);
+            // 检查是否为管理员
+            if (user.role !== 'admin') {
+                // 非管理员，跳转到仪表盘
+                window.location.href = 'dashboard.html';
+                return;
+            }
+            
+            // 更新用户名
+            $('#user-name').text(user.username);
+            $('#sidebar-user-name').text(user.username);
+            // 更新用户角色
+            $('#user-role').text('角色: ' + (user.role || '用户'));
+            // 显示管理员菜单
+            $('.admin-only').show();
+        }
+
+        // 加载系统设置
+        async function loadSystemSettings() {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch('/api/system/settings?api_key=' + apiKey);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const settings = data.data;
+                        // 填充表单数据
+                        $('#system-name').val(settings.system_name || 'InkClock');
+                        $('#system-domain').val(settings.system_domain || 'localhost');
+                        $('#system-port').val(settings.system_port || 8000);
+                        $('#admin-email').val(settings.admin_email || '');
+                        $('#api-timeout').val(settings.api_timeout || 30);
+                        $('#max-devices').val(settings.max_devices_per_user || 10);
+                        $('#session-timeout').val(settings.session_timeout || 30);
+                        $('#log-level').val(settings.log_level || 'info');
+                    }
+                }
+            } catch (error) {
+                console.error('加载系统设置错误:', error);
+            }
+        }
+
+        // 加载系统信息
+        async function loadSystemInfo() {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch('/api/system/info?api_key=' + apiKey);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const info = data.data;
+                        // 更新系统信息
+                        $('#system-version').text(info.system_version || '1.0.0');
+                        $('#database-type').text(info.database_type || 'SQLite');
+                        $('#php-version').text(info.php_version || '7.4.0');
+                        $('#uptime').text(info.uptime || '0 天');
+                    }
+                }
+            } catch (error) {
+                console.error('加载系统信息错误:', error);
+            }
+        }
+
+        // 绑定事件
+        function bindEvents() {
+            // 保存设置按钮
+            $('#save-settings-btn').click(async function(e) {
+                e.preventDefault();
+                await saveSystemSettings();
+            });
+
+            // 重置设置按钮
+            $('#reset-settings-btn').click(async function() {
+                if (confirm('确定要重置所有设置为默认值吗？')) {
+                    await resetSystemSettings();
+                }
+            });
+
+            // 数据库备份按钮
+            $('#backup-db-btn').click(async function() {
+                await backupDatabase();
+            });
+
+            // 系统重启按钮
+            $('#restart-system-btn').click(async function() {
+                if (confirm('确定要重启系统吗？重启过程中系统将暂时不可用。')) {
+                    await restartSystem();
+                }
+            });
+
+            // 清理缓存按钮
+            $('#clear-cache-btn').click(async function() {
+                if (confirm('确定要清理系统缓存吗？')) {
+                    await clearCache();
+                }
+            });
+
+            // 退出登录
+            $('#logout-link').click(function(e) {
+                e.preventDefault();
+                // 清除本地存储
+                localStorage.removeItem('user');
+                localStorage.removeItem('token');
+                // 跳转到登录页面
+                window.location.href = 'login.html';
+            });
+        }
+
+        // 保存系统设置
+        async function saveSystemSettings() {
+            const apiKey = localStorage.getItem('token');
+            const settings = {
+                system_name: $('#system-name').val().trim(),
+                system_domain: $('#system-domain').val().trim(),
+                system_port: parseInt($('#system-port').val()),
+                admin_email: $('#admin-email').val().trim(),
+                api_timeout: parseInt($('#api-timeout').val()),
+                max_devices_per_user: parseInt($('#max-devices').val()),
+                session_timeout: parseInt($('#session-timeout').val()),
+                log_level: $('#log-level').val()
+            };
+            
+            try {
+                const response = await fetch('/api/system/settings?api_key=' + apiKey, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(settings)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('设置保存成功');
+                    } else {
+                        alert('保存失败: ' + data.message);
+                    }
+                } else {
+                    alert('保存失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('保存系统设置失败:', error);
+                alert('保存失败: 网络错误');
+            }
+        }
+
+        // 重置系统设置
+        async function resetSystemSettings() {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch('/api/system/settings/reset?api_key=' + apiKey, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('设置已重置为默认值');
+                        // 重新加载设置
+                        loadSystemSettings();
+                    } else {
+                        alert('重置失败: ' + data.message);
+                    }
+                } else {
+                    alert('重置失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('重置系统设置失败:', error);
+                alert('重置失败: 网络错误');
+            }
+        }
+
+        // 备份数据库
+        async function backupDatabase() {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch('/api/system/database/backup?api_key=' + apiKey);
+                if (response.ok) {
+                    // 创建下载链接
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'inkclock_backup_' + new Date().toISOString().slice(0, 10) + '.db';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    alert('数据库备份成功');
+                } else {
+                    alert('备份失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('备份数据库失败:', error);
+                alert('备份失败: 网络错误');
+            }
+        }
+
+        // 重启系统
+        async function restartSystem() {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch('/api/system/restart?api_key=' + apiKey, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('系统重启命令已发送，请等待系统重启完成');
+                    } else {
+                        alert('重启失败: ' + data.message);
+                    }
+                } else {
+                    alert('重启失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('重启系统失败:', error);
+                alert('重启失败: 网络错误');
+            }
+        }
+
+        // 清理缓存
+        async function clearCache() {
+            const apiKey = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch('/api/system/cache/clear?api_key=' + apiKey, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('缓存清理成功');
+                    } else {
+                        alert('清理失败: ' + data.message);
+                    }
+                } else {
+                    alert('清理失败: 服务器错误');
+                }
+            } catch (error) {
+                console.error('清理缓存失败:', error);
+                alert('清理失败: 网络错误');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -260,7 +260,7 @@
                                 <p>通知管理</p>
                             </a>
                         </li>
-                        <li class="nav-item admin-only" style="display: none;">
+                        <li class="nav-item">
                             <a href="plugins.html" class="nav-link">
                                 <i class="nav-icon fas fa-puzzle-piece"></i>
                                 <p>插件管理</p>
@@ -286,12 +286,6 @@
                                     <a href="system.html" class="nav-link">
                                         <i class="far fa-circle nav-icon"></i>
                                         <p>系统设置</p>
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a href="logs.html" class="nav-link">
-                                        <i class="far fa-circle nav-icon"></i>
-                                        <p>系统日志</p>
                                     </a>
                                 </li>
                             </ul>
@@ -625,10 +619,14 @@
     <script src="adminlte/plugins/bootstrap/js/bootstrap.min.js"></script>
     <!-- AdminLTE App -->
     <script src="adminlte/js/adminlte.min.js"></script>
+    <!-- Menu Script -->
+    <script src="js/menu.js"></script>
     <!-- Devices Script -->
     <script>
         // 页面加载完成后执行
         $(document).ready(function() {
+            // 初始化菜单
+            initMenu('devices.html');
             // 检查登录状态
             checkLoginStatus();
             // 加载设备数据
