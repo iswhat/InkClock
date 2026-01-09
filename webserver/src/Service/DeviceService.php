@@ -191,7 +191,7 @@ class DeviceService implements DeviceServiceInterface {
         $this->logger->info('获取所有设备请求', ['filters' => $filters]);
         
         $deviceModel = new Device($this->db);
-        $devices = $deviceModel->getAllDevices($filters);
+        $devices = $deviceModel->getDevices(50, 0, $filters);
         
         $this->logger->info('获取所有设备成功', ['count' => count($devices)]);
         
