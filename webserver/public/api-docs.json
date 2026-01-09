@@ -2,8 +2,16 @@
   "openapi": "3.0.0",
   "info": {
     "title": "InkClock API",
-    "description": "InkClock 服务器完整API文档",
-    "version": "1.0.0"
+    "description": "InkClock 服务器完整API文档，包含固件端和管理系统端的所有接口。\n\n## 接口分类\n- **API网关**: 统一固件端和管理系统端的接口，提供标准化的API访问方式\n- **用户管理**: 用户注册、登录、信息管理等功能\n- **设备管理**: 设备注册、状态查询、设备列表等功能\n- **消息管理**: 消息发送、接收、同步等功能\n- **固件管理**: 固件版本管理、更新检查等功能\n- **设备分组**: 设备分组创建、管理等功能\n- **设备标签**: 设备标签创建、管理等功能\n- **固件推送**: 固件推送任务创建、管理等功能\n- **通知管理**: 系统通知管理等功能\n- **插件管理**: 插件上传、管理等功能\n- **系统管理**: 系统设置、状态查询等功能\n\n## 使用说明\n1. **认证**: 大部分API需要在请求头中添加 `X-API-Key` 进行认证\n2. **API网关**: 固件端应该通过 `/api/gateway/` 前缀访问API\n3. **版本控制**: API支持版本控制，通过路径前缀 `v1/`、`v2/` 等指定版本\n4. **错误处理**: 所有API返回JSON格式，包含 `success` 字段表示操作是否成功\n5. **速率限制**: API有速率限制，超过限制会返回429状态码\n\n## 示例请求\n```bash\n# 通过API网关获取设备状态\ncurl "http://localhost/api/gateway/device/status?device_id=123" \\n  -H "X-API-Key: your-api-key"\n\n# 注册新设备\ncurl -X POST "http://localhost/api/gateway/device/register" \\n  -H "X-API-Key: your-api-key" \\n  -H "Content-Type: application/json" \\n  -d '{"device_id": "123", "model": "InkClock Pro", "mac_address": "00:11:22:33:44:55"}'\n```\n\n## 状态码说明\n- **200**: 操作成功\n- **400**: 无效的请求数据\n- **401**: 未授权，认证失败\n- **403**: 禁止访问，权限不足\n- **404**: 资源未找到\n- **429**: 请求过于频繁，超过速率限制\n- **500**: 服务器内部错误\n\n## 数据格式\n所有API请求和响应都使用JSON格式，编码为UTF-8。\n\n## 时间格式\n所有时间戳使用Unix时间戳（秒）格式。\n\n## 安全注意事项\n1. 不要在客户端存储API密钥\n2. 生产环境应该使用HTTPS加密通信\n3. 定期轮换API密钥\n4. 限制API密钥的访问权限\n5. 监控异常的API访问行为",
+    "version": "1.0.0",
+    "contact": {
+      "name": "InkClock 开发团队",
+      "email": "dev@inkclock.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
   },
   "servers": [
     {
@@ -12,6 +20,390 @@
     }
   ],
   "paths": {
+    "/api/gateway/device/status": {
+      "get": {
+        "summary": "获取设备状态",
+        "tags": ["API网关-设备"],
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "query",
+            "description": "设备ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功获取设备状态"
+          },
+          "404": {
+            "description": "设备未找到"
+          }
+        }
+      }
+    },
+    "/api/gateway/device/refresh": {
+      "get": {
+        "summary": "刷新设备状态",
+        "tags": ["API网关-设备"],
+        "responses": {
+          "200": {
+            "description": "设备刷新成功"
+          }
+        }
+      }
+    },
+    "/api/gateway/device/register": {
+      "post": {
+        "summary": "注册新设备",
+        "tags": ["API网关-设备"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "device_id": {
+                    "type": "string",
+                    "description": "设备ID"
+                  },
+                  "model": {
+                    "type": "string",
+                    "description": "设备型号"
+                  },
+                  "mac_address": {
+                    "type": "string",
+                    "description": "MAC地址"
+                  },
+                  "ip_address": {
+                    "type": "string",
+                    "description": "IP地址"
+                  },
+                  "version": {
+                    "type": "string",
+                    "description": "固件版本"
+                  },
+                  "extra": {
+                    "type": "object",
+                    "description": "额外信息"
+                  }
+                },
+                "required": ["device_id", "model"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "设备注册成功"
+          },
+          "400": {
+            "description": "无效的请求数据"
+          }
+        }
+      }
+    },
+    "/api/gateway/device/list": {
+      "get": {
+        "summary": "获取设备列表",
+        "tags": ["API网关-设备"],
+        "responses": {
+          "200": {
+            "description": "成功获取设备列表"
+          }
+        }
+      }
+    },
+    "/api/gateway/plugin/list": {
+      "get": {
+        "summary": "获取插件列表",
+        "tags": ["API网关-插件"],
+        "responses": {
+          "200": {
+            "description": "成功获取插件列表"
+          }
+        }
+      }
+    },
+    "/api/gateway/plugin/status": {
+      "get": {
+        "summary": "获取设备插件状态",
+        "tags": ["API网关-插件"],
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "query",
+            "description": "设备ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功获取设备插件状态"
+          }
+        }
+      }
+    },
+    "/api/gateway/plugin/toggle": {
+      "post": {
+        "summary": "切换插件状态",
+        "tags": ["API网关-插件"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "plugin_id": {
+                    "type": "string",
+                    "description": "插件ID"
+                  },
+                  "status": {
+                    "type": "string",
+                    "description": "插件状态",
+                    "enum": ["enabled", "disabled"]
+                  }
+                },
+                "required": ["plugin_id", "status"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "插件状态切换成功"
+          },
+          "400": {
+            "description": "无效的请求数据"
+          }
+        }
+      }
+    },
+    "/api/gateway/message/push": {
+      "post": {
+        "summary": "推送消息到设备",
+        "tags": ["API网关-消息"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "device_id": {
+                    "type": "string",
+                    "description": "设备ID"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "消息内容"
+                  },
+                  "type": {
+                    "type": "string",
+                    "description": "消息类型",
+                    "enum": ["text", "image", "audio"]
+                  }
+                },
+                "required": ["device_id", "content"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "消息推送成功"
+          },
+          "400": {
+            "description": "无效的请求数据"
+          }
+        }
+      }
+    },
+    "/api/gateway/message/list": {
+      "get": {
+        "summary": "获取设备消息列表",
+        "tags": ["API网关-消息"],
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "query",
+            "description": "设备ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功获取设备消息列表"
+          }
+        }
+      }
+    },
+    "/api/gateway/message/unread": {
+      "get": {
+        "summary": "获取设备未读消息",
+        "tags": ["API网关-消息"],
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "query",
+            "description": "设备ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功获取设备未读消息"
+          }
+        }
+      }
+    },
+    "/api/gateway/message/sync": {
+      "post": {
+        "summary": "同步设备消息",
+        "tags": ["API网关-消息"],
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "query",
+            "description": "设备ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "messages": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "description": "消息ID"
+                        },
+                        "content": {
+                          "type": "string",
+                          "description": "消息内容"
+                        },
+                        "type": {
+                          "type": "string",
+                          "description": "消息类型"
+                        },
+                        "timestamp": {
+                          "type": "integer",
+                          "description": "时间戳"
+                        },
+                        "status": {
+                          "type": "string",
+                          "description": "消息状态"
+                        }
+                      }
+                    },
+                    "description": "消息列表"
+                  }
+                },
+                "required": ["messages"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "消息同步成功"
+          },
+          "400": {
+            "description": "无效的请求数据"
+          }
+        }
+      }
+    },
+    "/api/gateway/firmware/check": {
+      "get": {
+        "summary": "检查固件更新",
+        "tags": ["API网关-固件"],
+        "parameters": [
+          {
+            "name": "model",
+            "in": "query",
+            "description": "设备型号",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功检查固件更新"
+          }
+        }
+      }
+    },
+    "/api/gateway/firmware/list": {
+      "get": {
+        "summary": "获取固件版本列表",
+        "tags": ["API网关-固件"],
+        "responses": {
+          "200": {
+            "description": "成功获取固件版本列表"
+          }
+        }
+      }
+    },
+    "/api/gateway/system/status": {
+      "get": {
+        "summary": "获取系统状态",
+        "tags": ["API网关-系统"],
+        "responses": {
+          "200": {
+            "description": "成功获取系统状态"
+          }
+        }
+      }
+    },
+    "/api/gateway/system/info": {
+      "get": {
+        "summary": "获取系统信息",
+        "tags": ["API网关-系统"],
+        "responses": {
+          "200": {
+            "description": "成功获取系统信息"
+          }
+        }
+      }
+    },
+    "/api/gateway/health": {
+      "get": {
+        "summary": "健康检查",
+        "tags": ["API网关-系统"],
+        "responses": {
+          "200": {
+            "description": "服务器健康状态"
+          }
+        }
+      }
+    },
     "/api/gateway/{path}": {
       "get": {
         "summary": "API网关GET请求",
@@ -90,6 +482,148 @@
           },
           "500": {
             "description": "API网关错误"
+          }
+        }
+      },
+      "put": {
+        "summary": "API网关PUT请求",
+        "tags": ["API网关"],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "description": "API路径",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "device_id": {
+                    "type": "string",
+                    "description": "设备ID"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "请求内容"
+                  },
+                  "status": {
+                    "type": "string",
+                    "description": "状态"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "API网关请求成功"
+          },
+          "404": {
+            "description": "API路径不存在"
+          },
+          "500": {
+            "description": "API网关错误"
+          }
+        }
+      },
+      "delete": {
+        "summary": "API网关DELETE请求",
+        "tags": ["API网关"],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "description": "API路径",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API网关请求成功"
+          },
+          "404": {
+            "description": "API路径不存在"
+          },
+          "500": {
+            "description": "API网关错误"
+          }
+        }
+      }
+    },
+    "/api/gateway": {
+      "get": {
+        "summary": "API网关根路径",
+        "tags": ["API网关"],
+        "responses": {
+          "200": {
+            "description": "API网关根路径响应"
+          }
+        }
+      }
+    },
+    "/api/gateway/plugin/device/list": {
+      "get": {
+        "summary": "获取设备插件列表",
+        "tags": ["API网关-插件"],
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "query",
+            "description": "设备ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功获取设备插件列表"
+          }
+        }
+      }
+    },
+    "/api/gateway/message/pending": {
+      "get": {
+        "summary": "获取设备待处理消息",
+        "tags": ["API网关-消息"],
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "query",
+            "description": "设备ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功获取设备待处理消息"
+          }
+        }
+      }
+    },
+    "/api/gateway/system/refresh": {
+      "get": {
+        "summary": "刷新系统状态",
+        "tags": ["API网关-系统"],
+        "responses": {
+          "200": {
+            "description": "系统状态刷新成功"
           }
         }
       }

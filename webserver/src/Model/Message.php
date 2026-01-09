@@ -22,38 +22,62 @@ class Message {
      * @return array 发送结果
      */
     public function sendMessage($messageInfo) {
-        $deviceId = $messageInfo['device_id'];
-        $sender = isset($messageInfo['sender']) ? $messageInfo['sender'] : 'Unknown';
-        $content = $messageInfo['content'];
-        $type = isset($messageInfo['type']) ? $messageInfo['type'] : 'text';
-        $userId = isset($messageInfo['user_id']) ? $messageInfo['user_id'] : null;
-        $scheduledTime = isset($messageInfo['scheduled_time']) ? $messageInfo['scheduled_time'] : null;
-        $messageId = $this->generateMessageId();
-        $status = $scheduledTime ? 'pending' : 'unread';
-        $createdAt = date('Y-m-d H:i:s');
-        
-        // 插入消息
-        $stmt = $this->db->prepare("INSERT INTO messages (message_id, device_id, sender, content, type, is_read, status, scheduled_time, created_at) VALUES (:messageId, :deviceId, :sender, :content, :type, :isRead, :status, :scheduledTime, :createdAt)");
-        $stmt->bindValue(':messageId', $messageId, SQLITE3_TEXT);
-        $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
-        $stmt->bindValue(':sender', $sender, SQLITE3_TEXT);
-        $stmt->bindValue(':content', $content, SQLITE3_TEXT);
-        $stmt->bindValue(':type', $type, SQLITE3_TEXT);
-        $stmt->bindValue(':isRead', 0, SQLITE3_INTEGER);
-        $stmt->bindValue(':status', $status, SQLITE3_TEXT);
-        $stmt->bindValue(':scheduledTime', $scheduledTime, SQLITE3_TEXT);
-        $stmt->bindValue(':createdAt', $createdAt, SQLITE3_TEXT);
-        
-        $result = $stmt->execute();
-        $stmt->close();
-        
-        // 限制设备消息数量
-        $this->limitDeviceMessages($deviceId);
-        
-        return [
-            'success' => $result !== false,
-            'message_id' => $messageId
-        ];
+        try {
+            // 开始事务
+            $this->db->exec('BEGIN TRANSACTION');
+            
+            $deviceId = $messageInfo['device_id'];
+            $sender = isset($messageInfo['sender']) ? $messageInfo['sender'] : 'Unknown';
+            $content = $messageInfo['content'];
+            $type = isset($messageInfo['type']) ? $messageInfo['type'] : 'text';
+            $userId = isset($messageInfo['user_id']) ? $messageInfo['user_id'] : null;
+            $scheduledTime = isset($messageInfo['scheduled_time']) ? $messageInfo['scheduled_time'] : null;
+            $messageId = $this->generateMessageId();
+            $status = $scheduledTime ? 'pending' : 'unread';
+            $syncStatus = 'pending'; // 同步状态：pending, synced, failed
+            $createdAt = date('Y-m-d H:i:s');
+            $syncAttempts = 0;
+            
+            // 插入消息
+            $stmt = $this->db->prepare("INSERT INTO messages (message_id, device_id, sender, content, type, is_read, status, sync_status, sync_attempts, scheduled_time, created_at) VALUES (:messageId, :deviceId, :sender, :content, :type, :isRead, :status, :syncStatus, :syncAttempts, :scheduledTime, :createdAt)");
+            $stmt->bindValue(':messageId', $messageId, SQLITE3_TEXT);
+            $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
+            $stmt->bindValue(':sender', $sender, SQLITE3_TEXT);
+            $stmt->bindValue(':content', $content, SQLITE3_TEXT);
+            $stmt->bindValue(':type', $type, SQLITE3_TEXT);
+            $stmt->bindValue(':isRead', 0, SQLITE3_INTEGER);
+            $stmt->bindValue(':status', $status, SQLITE3_TEXT);
+            $stmt->bindValue(':syncStatus', $syncStatus, SQLITE3_TEXT);
+            $stmt->bindValue(':syncAttempts', $syncAttempts, SQLITE3_INTEGER);
+            $stmt->bindValue(':scheduledTime', $scheduledTime, SQLITE3_TEXT);
+            $stmt->bindValue(':createdAt', $createdAt, SQLITE3_TEXT);
+            
+            $result = $stmt->execute();
+            if (!$result) {
+                throw new \Exception('消息发送失败: ' . $this->db->lastErrorMsg());
+            }
+            $stmt->close();
+            
+            // 限制设备消息数量
+            $this->limitDeviceMessages($deviceId);
+            
+            // 提交事务
+            $this->db->exec('COMMIT');
+            
+            return [
+                'success' => true,
+                'message_id' => $messageId,
+                'sync_status' => $syncStatus
+            ];
+        } catch (\Exception $e) {
+            // 回滚事务
+            $this->db->exec('ROLLBACK');
+            
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
     }
     
     /**
@@ -213,6 +237,141 @@ class Message {
         $stmt->bindValue(':expireDate', $expireDate, SQLITE3_TEXT);
         $stmt->execute();
         $stmt->close();
+    }
+    
+    /**
+     * 获取待同步的消息
+     * @param string $deviceId 设备ID
+     * @param int $limit 限制数量
+     * @return array 待同步消息列表
+     */
+    public function getPendingSyncMessages($deviceId, $limit = 50) {
+        $stmt = $this->db->prepare("SELECT * FROM messages WHERE device_id = :deviceId AND sync_status IN ('pending', 'failed') ORDER BY created_at ASC LIMIT :limit");
+        $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
+        $stmt->bindValue(':limit', $limit, SQLITE3_INTEGER);
+        $result = $stmt->execute();
+        
+        $messages = [];
+        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+            $messages[] = $row;
+        }
+        $result->finalize();
+        $stmt->close();
+        
+        return $messages;
+    }
+    
+    /**
+     * 更新消息同步状态
+     * @param string $messageId 消息ID
+     * @param string $syncStatus 同步状态
+     * @return array 操作结果
+     */
+    public function updateSyncStatus($messageId, $syncStatus) {
+        try {
+            $syncAttempts = $syncStatus === 'failed' ? 1 : 0;
+            $syncTime = $syncStatus === 'synced' ? date('Y-m-d H:i:s') : null;
+            
+            $stmt = $this->db->prepare("UPDATE messages SET sync_status = :syncStatus, sync_attempts = sync_attempts + :syncAttempts, last_sync_at = :syncTime WHERE message_id = :messageId");
+            $stmt->bindValue(':syncStatus', $syncStatus, SQLITE3_TEXT);
+            $stmt->bindValue(':syncAttempts', $syncAttempts, SQLITE3_INTEGER);
+            $stmt->bindValue(':syncTime', $syncTime, SQLITE3_TEXT);
+            $stmt->bindValue(':messageId', $messageId, SQLITE3_TEXT);
+            
+            $result = $stmt->execute();
+            $stmt->close();
+            
+            return [
+                'success' => $result !== false
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+    
+    /**
+     * 批量更新消息同步状态
+     * @param array $messageIds 消息ID列表
+     * @param string $syncStatus 同步状态
+     * @return array 操作结果
+     */
+    public function batchUpdateSyncStatus($messageIds, $syncStatus) {
+        if (empty($messageIds)) {
+            return ['success' => true];
+        }
+        
+        try {
+            // 开始事务
+            $this->db->exec('BEGIN TRANSACTION');
+            
+            $syncAttempts = $syncStatus === 'failed' ? 1 : 0;
+            $syncTime = $syncStatus === 'synced' ? date('Y-m-d H:i:s') : null;
+            
+            foreach ($messageIds as $messageId) {
+                $stmt = $this->db->prepare("UPDATE messages SET sync_status = :syncStatus, sync_attempts = sync_attempts + :syncAttempts, last_sync_at = :syncTime WHERE message_id = :messageId");
+                $stmt->bindValue(':syncStatus', $syncStatus, SQLITE3_TEXT);
+                $stmt->bindValue(':syncAttempts', $syncAttempts, SQLITE3_INTEGER);
+                $stmt->bindValue(':syncTime', $syncTime, SQLITE3_TEXT);
+                $stmt->bindValue(':messageId', $messageId, SQLITE3_TEXT);
+                $result = $stmt->execute();
+                $stmt->close();
+                
+                if (!$result) {
+                    throw new \Exception('批量更新同步状态失败');
+                }
+            }
+            
+            // 提交事务
+            $this->db->exec('COMMIT');
+            
+            return ['success' => true];
+        } catch (\Exception $e) {
+            // 回滚事务
+            $this->db->exec('ROLLBACK');
+            
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+    
+    /**
+     * 处理设备消息同步
+     * @param string $deviceId 设备ID
+     * @param array $syncedMessageIds 已同步的消息ID列表
+     * @return array 同步结果
+     */
+    public function syncMessages($deviceId, $syncedMessageIds = []) {
+        try {
+            // 开始事务
+            $this->db->exec('BEGIN TRANSACTION');
+            
+            // 更新已同步的消息状态
+            if (!empty($syncedMessageIds)) {
+                foreach ($syncedMessageIds as $messageId) {
+                    $this->updateSyncStatus($messageId, 'synced');
+                    $this->markAsRead($messageId);
+                }
+            }
+            
+            // 获取待同步的消息
+            $pendingMessages = $this->getPendingSyncMessages($deviceId);
+            
+            // 提交事务
+            $this->db->exec('COMMIT');
+            
+            return [
+                'success' => true,
+                'pending_messages' => $pendingMessages,
+                'synced_count' => count($syncedMessageIds)
+            ];
+        } catch (\Exception $e) {
+            // 回滚事务
+            $this->db->exec('ROLLBACK');
+            
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
     }
     
     /**

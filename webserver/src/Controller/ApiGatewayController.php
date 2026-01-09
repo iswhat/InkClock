@@ -108,6 +108,16 @@ class ApiGatewayController extends BaseController {
                 'method' => 'refreshDevice',
                 'params' => []
             ],
+            '/device/register' => [
+                'controller' => 'DeviceController',
+                'method' => 'registerDevice',
+                'params' => []
+            ],
+            '/device/list' => [
+                'controller' => 'DeviceController',
+                'method' => 'getDevices',
+                'params' => []
+            ],
             
             // 插件相关
             '/plugin/list' => [
@@ -125,6 +135,11 @@ class ApiGatewayController extends BaseController {
                 'method' => 'togglePlugin',
                 'params' => ['id' => '{plugin_id}']
             ],
+            '/plugin/device/list' => [
+                'controller' => 'PluginController',
+                'method' => 'getDevicePlugins',
+                'params' => ['deviceId' => '{device_id}']
+            ],
             
             // 消息相关
             '/message/push' => [
@@ -136,6 +151,33 @@ class ApiGatewayController extends BaseController {
                 'controller' => 'MessageController',
                 'method' => 'getMessages',
                 'params' => ['deviceId' => '{device_id}']
+            ],
+            '/message/unread' => [
+                'controller' => 'MessageController',
+                'method' => 'getUnreadMessages',
+                'params' => ['deviceId' => '{device_id}']
+            ],
+            '/message/sync' => [
+                'controller' => 'MessageController',
+                'method' => 'syncMessages',
+                'params' => ['deviceId' => '{device_id}']
+            ],
+            '/message/pending' => [
+                'controller' => 'MessageController',
+                'method' => 'getPendingMessages',
+                'params' => ['deviceId' => '{device_id}']
+            ],
+            
+            // 固件相关
+            '/firmware/check' => [
+                'controller' => 'FirmwareController',
+                'method' => 'getActiveVersion',
+                'params' => ['model' => '{model}']
+            ],
+            '/firmware/list' => [
+                'controller' => 'FirmwareController',
+                'method' => 'getAllVersions',
+                'params' => []
             ],
             
             // 系统相关
@@ -149,12 +191,44 @@ class ApiGatewayController extends BaseController {
                 'method' => 'refreshSystem',
                 'params' => []
             ],
+            '/system/info' => [
+                'controller' => 'SystemController',
+                'method' => 'getSystemInfo',
+                'params' => []
+            ],
+            
+            // 健康检查
+            '/health' => [
+                'controller' => 'HealthController',
+                'method' => 'check',
+                'params' => []
+            ],
         ];
         
         // 查找匹配的路径
         foreach ($pathMap as $path => $target) {
             if ($apiPath === $path) {
                 return $target;
+            }
+        }
+        
+        // 支持带参数的路径匹配
+        foreach ($pathMap as $path => $target) {
+            if (strpos($path, '{') !== false) {
+                $pattern = preg_replace('/\{[^}]+\}/', '([^/]+)', $path);
+                $pattern = '/^' . str_replace('/', '\/', $pattern) . '$/';
+                if (preg_match($pattern, $apiPath, $matches)) {
+                    // 提取参数
+                    preg_match_all('/\{([^}]+)\}/', $path, $paramNames);
+                    $params = [];
+                    for ($i = 1; $i < count($matches); $i++) {
+                        if (isset($paramNames[1][$i-1])) {
+                            $params[$paramNames[1][$i-1]] = $matches[$i];
+                        }
+                    }
+                    $target['params'] = $params;
+                    return $target;
+                }
             }
         }
         
@@ -179,33 +253,78 @@ class ApiGatewayController extends BaseController {
         if (!empty($body)) {
             $data = json_decode($body, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                $data = [];
+                // 尝试解析表单数据
+                parse_str($body, $data);
+            }
+        }
+        
+        // 合并路径参数
+        if (isset($target['params'])) {
+            foreach ($target['params'] as $key => $value) {
+                // 替换参数占位符
+                if (strpos($value, '{') === 0 && strpos($value, '}') === strlen($value) - 1) {
+                    $paramName = substr($value, 1, -1);
+                    if (isset($data[$paramName])) {
+                        $target['params'][$key] = $data[$paramName];
+                    }
+                }
             }
         }
         
         // 根据目标转换数据格式
         switch ($target['controller']) {
-            case 'MessageController':
-                if ($target['method'] === 'sendMessage') {
+            case 'DeviceController':
+                if ($target['method'] === 'registerDevice') {
                     return [
                         'device_id' => $data['device_id'] ?? '',
-                        'content' => $data['content'] ?? '',
-                        'type' => $data['type'] ?? 'text'
+                        'model' => $data['model'] ?? '',
+                        'mac_address' => $data['mac_address'] ?? '',
+                        'ip_address' => $data['ip_address'] ?? $_SERVER['REMOTE_ADDR'],
+                        'version' => $data['version'] ?? '',
+                        'extra' => $data['extra'] ?? []
                     ];
+                }
+                break;
+                
+            case 'MessageController':
+                switch ($target['method']) {
+                    case 'sendMessage':
+                        return [
+                            'device_id' => $data['device_id'] ?? '',
+                            'content' => $data['content'] ?? '',
+                            'type' => $data['type'] ?? 'text'
+                        ];
+                    case 'syncMessages':
+                        return [
+                            'deviceId' => $target['params']['deviceId'] ?? $data['device_id'] ?? '',
+                            'messages' => $data['messages'] ?? [],
+                            'sync_time' => $data['sync_time'] ?? time()
+                        ];
+                    default:
+                        return $data;
                 }
                 break;
                 
             case 'PluginController':
                 if ($target['method'] === 'togglePlugin') {
                     return [
-                        'id' => $data['plugin_id'] ?? '',
+                        'id' => $target['params']['id'] ?? $data['plugin_id'] ?? '',
                         'status' => $data['status'] ?? 'disabled'
+                    ];
+                }
+                break;
+                
+            case 'FirmwareController':
+                if ($target['method'] === 'getActiveVersion') {
+                    return [
+                        'model' => $target['params']['model'] ?? $data['model'] ?? ''
                     ];
                 }
                 break;
         }
         
-        return $data;
+        // 合并路径参数和请求体数据
+        return array_merge($target['params'] ?? [], $data);
     }
     
     /**
@@ -238,9 +357,44 @@ class ApiGatewayController extends BaseController {
             }
             
             // 调用方法
-            // 对于需要请求体参数的方法，传递转换后的数据
-            // 对于需要路径参数的方法，传递参数映射
-            $result = call_user_func_array([$controller, $target['method']], [$data]);
+            $result = null;
+            $method = $target['method'];
+            
+            // 检查方法参数
+            $reflection = new \ReflectionMethod($controllerClass, $method);
+            $params = $reflection->getParameters();
+            
+            if (empty($params)) {
+                // 无参数方法
+                $result = $controller->$method();
+            } else if (count($params) === 1) {
+                // 单参数方法
+                $result = $controller->$method($data);
+            } else {
+                // 多参数方法，尝试根据参数名匹配
+                $args = [];
+                foreach ($params as $param) {
+                    $paramName = $param->getName();
+                    if (isset($data[$paramName])) {
+                        $args[] = $data[$paramName];
+                    } else if (isset($target['params'][$paramName])) {
+                        $args[] = $target['params'][$paramName];
+                    } else if ($param->isOptional()) {
+                        $args[] = $param->getDefaultValue();
+                    } else {
+                        $args[] = null;
+                    }
+                }
+                $result = call_user_func_array([$controller, $method], $args);
+            }
+            
+            // 确保返回值是数组
+            if (!is_array($result)) {
+                $result = [
+                    'success' => true,
+                    'data' => $result
+                ];
+            }
             
             // 转换响应格式
             return [
@@ -252,7 +406,9 @@ class ApiGatewayController extends BaseController {
             // 记录错误
             $this->logger->error('API Gateway Error', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
+                'controller' => $target['controller'],
+                'method' => $target['method']
             ]);
             
             return [

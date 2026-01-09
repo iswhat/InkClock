@@ -25,6 +25,91 @@ class User {
     }
     
     /**
+     * 生成双因素认证密钥
+     * @return string 生成的密钥
+     */
+    public function generate2faSecret() {
+        return bin2hex(random_bytes(16));
+    }
+    
+    /**
+     * 验证TOTP验证码
+     * @param string $secret 双因素认证密钥
+     * @param string $code 用户输入的验证码
+     * @return bool 验证结果
+     */
+    public function verify2faCode($secret, $code) {
+        $timestamp = floor(time() / 30);
+        
+        // 验证当前时间戳和前后各一个时间戳的验证码
+        for ($i = -1; $i <= 1; $i++) {
+            $hash = hash_hmac('sha1', pack('N', $timestamp + $i), hex2bin($secret));
+            $offset = ord(hex2bin(substr($hash, -1)));
+            $truncatedHash = substr($hash, $offset * 2, 8);
+            $calculatedCode = hexdec($truncatedHash) & 0x7fffffff;
+            $calculatedCode = str_pad($calculatedCode % 1000000, 6, '0', STR_PAD_LEFT);
+            
+            if ($calculatedCode === $code) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * 启用双因素认证
+     * @param int $userId 用户ID
+     * @param string $secret 双因素认证密钥
+     * @return array 操作结果
+     */
+    public function enable2fa($userId, $secret) {
+        try {
+            $stmt = $this->db->prepare("UPDATE users SET two_factor_secret = :secret, two_factor_enabled = 1 WHERE id = :id");
+            $stmt->bindValue(':secret', $secret, SQLITE3_TEXT);
+            $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
+            $result = $stmt->execute();
+            
+            return ['success' => $result !== false];
+        } catch (\Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+    
+    /**
+     * 禁用双因素认证
+     * @param int $userId 用户ID
+     * @return array 操作结果
+     */
+    public function disable2fa($userId) {
+        try {
+            $stmt = $this->db->prepare("UPDATE users SET two_factor_secret = NULL, two_factor_enabled = 0 WHERE id = :id");
+            $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
+            $result = $stmt->execute();
+            
+            return ['success' => $result !== false];
+        } catch (\Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+    
+    /**
+     * 获取用户的双因素认证设置
+     * @param int $userId 用户ID
+     * @return array|null 双因素认证设置
+     */
+    public function get2faSettings($userId) {
+        try {
+            $stmt = $this->db->prepare("SELECT two_factor_secret, two_factor_enabled FROM users WHERE id = :id");
+            $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
+            $result = $stmt->execute();
+            return $result->fetchArray(SQLITE3_ASSOC);
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+    
+    /**
      * 用户注册
      * @param array $userInfo 用户信息
      * @return array 注册结果
@@ -85,9 +170,10 @@ class User {
      * 用户登录
      * @param string $username 用户名或邮箱
      * @param string $password 密码
+     * @param string $twoFactorCode 双因素认证验证码（可选）
      * @return array 登录结果
      */
-    public function login($username, $password) {
+    public function login($username, $password, $twoFactorCode = null) {
         // 检查数据库连接是否有效
         if (!method_exists($this->db, 'prepare')) {
             return array('success' => false, 'error' => '数据库连接失败，请联系管理员');
@@ -95,7 +181,7 @@ class User {
         
         try {
             // 查找用户
-            $stmt = $this->db->prepare("SELECT id, password_hash, api_key, api_key_expires_at, status, is_admin FROM users WHERE username = :username OR email = :email");
+            $stmt = $this->db->prepare("SELECT id, password_hash, api_key, api_key_expires_at, status, is_admin, two_factor_enabled, two_factor_secret FROM users WHERE username = :username OR email = :email");
             $stmt->bindValue(':username', $username, SQLITE3_TEXT);
             $stmt->bindValue(':email', $username, SQLITE3_TEXT);
             $result = $stmt->execute();
@@ -114,6 +200,17 @@ class User {
             // 验证密码
             if (!password_verify($password, $user['password_hash'])) {
                 return array('success' => false, 'error' => '用户名或密码错误');
+            }
+            
+            // 检查双因素认证
+            if ($user['two_factor_enabled']) {
+                if (!$twoFactorCode) {
+                    return array('success' => false, 'requires_2fa' => true, 'error' => '需要双因素认证验证码');
+                }
+                
+                if (!$this->verify2faCode($user['two_factor_secret'], $twoFactorCode)) {
+                    return array('success' => false, 'error' => '双因素认证验证码错误');
+                }
             }
             
             // 检查API密钥是否即将过期（30天内），如果是则生成新密钥

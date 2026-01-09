@@ -34,6 +34,8 @@ return [
     'GET /api/message/{deviceId}/unread' => 'MessageController@getUnreadMessages',
     'PUT /api/message/{deviceId}/read' => 'MessageController@markAsRead',
     'DELETE /api/message/{deviceId}/{messageId}' => 'MessageController@deleteMessage',
+    'POST /api/message/{deviceId}/sync' => 'MessageController@syncMessages',
+    'GET /api/message/{deviceId}/pending' => 'MessageController@getPendingMessages',
     
     // 固件相关路由
     'POST /api/firmware' => 'FirmwareController@addVersion',
@@ -47,7 +49,9 @@ return [
     // 设备分组相关路由
     'POST /api/group' => 'DeviceGroupController@createGroup',
     'GET /api/group' => 'DeviceGroupController@getGroups',
+    'GET /api/group/tree' => 'DeviceGroupController@getGroupTree',
     'GET /api/group/{id}' => 'DeviceGroupController@getGroup',
+    'GET /api/group/{id}/children' => 'DeviceGroupController@getChildGroups',
     'PUT /api/group/{id}' => 'DeviceGroupController@updateGroup',
     'DELETE /api/group/{id}' => 'DeviceGroupController@deleteGroup',
     'POST /api/group/add_device' => 'DeviceGroupController@addDeviceToGroup',

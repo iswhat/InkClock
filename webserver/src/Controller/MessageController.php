@@ -104,5 +104,43 @@ class MessageController extends BaseController {
             $this->response->error('删除失败', 400);
         }
     }
+    
+    /**
+     * 同步消息
+     */
+    public function syncMessages($params) {
+        $deviceId = $params['deviceId'];
+        $this->logAction('message_sync', array('device_id' => $deviceId));
+        
+        $data = $this->parseRequestBody();
+        $syncedMessageIds = $data['synced_message_ids'] ?? [];
+        
+        $messageModel = new Message($this->db);
+        $result = $messageModel->syncMessages($deviceId, $syncedMessageIds);
+        
+        if ($result['success']) {
+            $this->response->success('同步成功', array(
+                'pending_messages' => $result['pending_messages'],
+                'synced_count' => $result['synced_count']
+            ));
+        } else {
+            $this->response->error($result['error'], 400);
+        }
+    }
+    
+    /**
+     * 获取待同步消息
+     */
+    public function getPendingMessages($params) {
+        $deviceId = $params['deviceId'];
+        $this->logAction('message_get_pending', array('device_id' => $deviceId));
+        
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 50;
+        
+        $messageModel = new Message($this->db);
+        $messages = $messageModel->getPendingSyncMessages($deviceId, $limit);
+        
+        $this->response->success('获取成功', $messages);
+    }
 }
 ?>

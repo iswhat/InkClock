@@ -6,6 +6,14 @@
 // 设置默认时区
 date_default_timezone_set('Asia/Shanghai');
 
+// 强制HTTPS重定向（生产环境）
+$forceHttps = false; // 在生产环境中设置为true
+if ($forceHttps && (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS'] !== 'on')) {
+    $httpsUrl = 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+    header('Location: ' . $httpsUrl, true, 301);
+    exit;
+}
+
 // 错误报告设置
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
@@ -72,6 +80,7 @@ use InkClock\Middleware\MiddlewareManager;
 use InkClock\Middleware\CorsMiddleware;
 use InkClock\Middleware\LoggingMiddleware;
 use InkClock\Middleware\RateLimitMiddleware;
+use InkClock\Middleware\VersionMiddleware;
 
 $middlewareManager = new MiddlewareManager();
 
@@ -83,6 +92,7 @@ $cache = $container->get('cache');
 // 添加全局中间件
 $middlewareManager
     ->add(new CorsMiddleware($response))
+    ->add(new VersionMiddleware())
     ->add(new LoggingMiddleware($logger))
     ->add(new RateLimitMiddleware($logger, $response, $cache));
 

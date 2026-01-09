@@ -30,11 +30,17 @@ class DeviceController extends BaseController {
             $this->response->error('设备ID格式无效', 400);
         }
         
+        // 获取可选参数
+        $macAddress = $data['mac_address'] ?? '';
+        $extraInfo = $data['extra_info'] ?? [];
+        
         $deviceModel = new Device($this->db);
-        $result = $deviceModel->registerDevice($data['device_id'], $data['model'], $data['firmware_version']);
+        $result = $deviceModel->registerDevice($data['device_id'], $data['model'], $data['firmware_version'], $macAddress, $extraInfo);
         
         if ($result['success']) {
-            $this->response->success('设备注册成功');
+            // 清除设备相关的缓存
+            $this->cache->flushByTags(['devices']);
+            $this->response->success($result['message'], $result['device_info']);
         } else {
             $this->response->error($result['error'], 400);
         }
@@ -47,8 +53,20 @@ class DeviceController extends BaseController {
         $user = $this->checkApiPermission(true);
         $this->logAction('device_get_list', array('user_id' => $user['id']));
         
+        // 尝试从缓存获取
+        $cacheKey = 'devices:user:' . $user['id'];
+        $cachedDevices = $this->cache->get($cacheKey);
+        
+        if ($cachedDevices) {
+            $this->response->success('获取成功（缓存）', $cachedDevices);
+            return;
+        }
+        
         $userModel = new User($this->db);
         $devices = $userModel->getUserDevices($user['id']);
+        
+        // 缓存结果，10分钟过期
+        $this->cache->set($cacheKey, $devices, 600, ['devices', 'user:' . $user['id']]);
         
         $this->response->success('获取成功', $devices);
     }
@@ -61,10 +79,21 @@ class DeviceController extends BaseController {
         $this->checkDevicePermission($deviceId);
         $this->logAction('device_get_detail', array('device_id' => $deviceId));
         
+        // 尝试从缓存获取
+        $cacheKey = 'device:detail:' . $deviceId;
+        $cachedDevice = $this->cache->get($cacheKey);
+        
+        if ($cachedDevice) {
+            $this->response->success('获取成功（缓存）', $cachedDevice);
+            return;
+        }
+        
         $deviceModel = new Device($this->db);
         $device = $deviceModel->getDevice($deviceId);
         
         if ($device) {
+            // 缓存结果，5分钟过期
+            $this->cache->set($cacheKey, $device, 300, ['devices', 'device:' . $deviceId]);
             $this->response->success('获取成功', $device);
         } else {
             $this->response->error('设备不存在', 404);
@@ -91,6 +120,9 @@ class DeviceController extends BaseController {
         // 删除设备（如果没有其他用户绑定）
         $deviceModel = new Device($this->db);
         $deviceModel->deleteDevice($deviceId);
+        
+        // 清除设备相关的缓存
+        $this->cache->flushByTags(['devices']);
         
         $this->response->success('设备删除成功');
     }

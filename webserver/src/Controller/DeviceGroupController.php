@@ -30,8 +30,11 @@ class DeviceGroupController extends BaseController {
         
         $data = $this->parseRequestBody();
         
+        $description = $data['description'] ?? '';
+        $parentId = $data['parent_id'] ?? null;
+        
         $deviceGroupModel = new DeviceGroup($this->db);
-        $result = $deviceGroupModel->createGroup($user['id'], $data['name']);
+        $result = $deviceGroupModel->createGroup($user['id'], $data['name'], $description, $parentId);
         
         if ($result['success']) {
             $this->response->success('创建成功', array('group_id' => $result['group_id']));
@@ -50,8 +53,11 @@ class DeviceGroupController extends BaseController {
         
         $data = $this->parseRequestBody();
         
+        $description = $data['description'] ?? '';
+        $parentId = $data['parent_id'] ?? null;
+        
         $deviceGroupModel = new DeviceGroup($this->db);
-        $result = $deviceGroupModel->updateGroup($groupId, $user['id'], $data['name']);
+        $result = $deviceGroupModel->updateGroup($groupId, $user['id'], $data['name'], $description, $parentId);
         
         if ($result['success']) {
             $this->response->success('更新成功');
@@ -115,6 +121,33 @@ class DeviceGroupController extends BaseController {
         } else {
             $this->response->error($result['error'], 400);
         }
+    }
+    
+    /**
+     * 获取分组树结构
+     */
+    public function getGroupTree() {
+        $user = $this->checkApiPermission(true);
+        $this->logAction('device_group_get_tree', array('user_id' => $user['id']));
+        
+        $deviceGroupModel = new DeviceGroup($this->db);
+        $tree = $deviceGroupModel->getGroupTree($user['id']);
+        
+        $this->response->success('获取成功', $tree);
+    }
+    
+    /**
+     * 获取子分组列表
+     */
+    public function getChildGroups($params) {
+        $user = $this->checkApiPermission(true);
+        $groupId = $params['id'];
+        $this->logAction('device_group_get_children', array('user_id' => $user['id'], 'group_id' => $groupId));
+        
+        $deviceGroupModel = new DeviceGroup($this->db);
+        $children = $deviceGroupModel->getChildGroups($groupId, $user['id']);
+        
+        $this->response->success('获取成功', $children);
     }
 }
 ?>

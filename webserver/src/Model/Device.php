@@ -21,52 +21,81 @@ class Device {
      * @param string $deviceId 设备ID
      * @param string $model 设备型号
      * @param string $firmwareVersion 固件版本
+     * @param string $macAddress MAC地址（可选）
+     * @param array $extraInfo 额外信息（可选）
      * @return array 注册结果
      */
-    public function registerDevice($deviceId, $model = '', $firmwareVersion = 'unknown') {
-        $macAddress = ''; // 暂时为空，可在后续扩展中添加
-        $ipAddress = $_SERVER['REMOTE_ADDR'];
-        $ipv6Address = isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? $_SERVER['HTTP_X_FORWARDED_FOR'] : '';
-        $lastActive = date('Y-m-d H:i:s');
-        
-        // 检查设备是否已存在
-        $stmt = $this->db->prepare("SELECT id FROM devices WHERE device_id = :deviceId");
-        $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
-        $result = $stmt->execute();
-        $exists = $result->fetchArray(SQLITE3_ASSOC) !== false;
-        $result->finalize();
-        $stmt->close();
-        
-        if ($exists) {
-            // 更新设备信息
-            $stmt = $this->db->prepare("UPDATE devices SET ip_address = :ipAddress, ipv6_address = :ipv6Address, model = :model, firmware_version = :firmwareVersion, last_active = :lastActive WHERE device_id = :deviceId");
-            $stmt->bindValue(':ipAddress', $ipAddress, SQLITE3_TEXT);
-            $stmt->bindValue(':ipv6Address', $ipv6Address, SQLITE3_TEXT);
-            $stmt->bindValue(':model', $model, SQLITE3_TEXT);
-            $stmt->bindValue(':firmwareVersion', $firmwareVersion, SQLITE3_TEXT);
-            $stmt->bindValue(':lastActive', $lastActive, SQLITE3_TEXT);
+    public function registerDevice($deviceId, $model = '', $firmwareVersion = 'unknown', $macAddress = '', $extraInfo = []) {
+        try {
+            // 开始事务
+            $this->db->exec('BEGIN TRANSACTION');
+            
+            $ipAddress = $_SERVER['REMOTE_ADDR'] ?? '';
+            $ipv6Address = isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? $_SERVER['HTTP_X_FORWARDED_FOR'] : '';
+            $lastActive = date('Y-m-d H:i:s');
+            $connectionStatus = 1; // 默认为在线状态
+            
+            // 检查设备是否已存在
+            $stmt = $this->db->prepare("SELECT id FROM devices WHERE device_id = :deviceId");
             $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
-        } else {
-            // 插入新设备
-            $createdAt = date('Y-m-d H:i:s');
-            $stmt = $this->db->prepare("INSERT INTO devices (device_id, mac_address, ip_address, ipv6_address, model, firmware_version, created_at, last_active) VALUES (:deviceId, :macAddress, :ipAddress, :ipv6Address, :model, :firmwareVersion, :createdAt, :lastActive)");
-            $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
-            $stmt->bindValue(':macAddress', $macAddress, SQLITE3_TEXT);
-            $stmt->bindValue(':ipAddress', $ipAddress, SQLITE3_TEXT);
-            $stmt->bindValue(':ipv6Address', $ipv6Address, SQLITE3_TEXT);
-            $stmt->bindValue(':model', $model, SQLITE3_TEXT);
-            $stmt->bindValue(':firmwareVersion', $firmwareVersion, SQLITE3_TEXT);
-            $stmt->bindValue(':createdAt', $createdAt, SQLITE3_TEXT);
-            $stmt->bindValue(':lastActive', $lastActive, SQLITE3_TEXT);
+            $result = $stmt->execute();
+            $exists = $result->fetchArray(SQLITE3_ASSOC) !== false;
+            $result->finalize();
+            $stmt->close();
+            
+            if ($exists) {
+                // 更新设备信息
+                $stmt = $this->db->prepare("UPDATE devices SET ip_address = :ipAddress, ipv6_address = :ipv6Address, model = :model, firmware_version = :firmwareVersion, mac_address = :macAddress, last_active = :lastActive, connection_status = :connectionStatus WHERE device_id = :deviceId");
+                $stmt->bindValue(':ipAddress', $ipAddress, SQLITE3_TEXT);
+                $stmt->bindValue(':ipv6Address', $ipv6Address, SQLITE3_TEXT);
+                $stmt->bindValue(':model', $model, SQLITE3_TEXT);
+                $stmt->bindValue(':firmwareVersion', $firmwareVersion, SQLITE3_TEXT);
+                $stmt->bindValue(':macAddress', $macAddress, SQLITE3_TEXT);
+                $stmt->bindValue(':lastActive', $lastActive, SQLITE3_TEXT);
+                $stmt->bindValue(':connectionStatus', $connectionStatus, SQLITE3_INTEGER);
+                $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
+            } else {
+                // 插入新设备
+                $createdAt = date('Y-m-d H:i:s');
+                $stmt = $this->db->prepare("INSERT INTO devices (device_id, mac_address, ip_address, ipv6_address, model, firmware_version, created_at, last_active, connection_status) VALUES (:deviceId, :macAddress, :ipAddress, :ipv6Address, :model, :firmwareVersion, :createdAt, :lastActive, :connectionStatus)");
+                $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
+                $stmt->bindValue(':macAddress', $macAddress, SQLITE3_TEXT);
+                $stmt->bindValue(':ipAddress', $ipAddress, SQLITE3_TEXT);
+                $stmt->bindValue(':ipv6Address', $ipv6Address, SQLITE3_TEXT);
+                $stmt->bindValue(':model', $model, SQLITE3_TEXT);
+                $stmt->bindValue(':firmwareVersion', $firmwareVersion, SQLITE3_TEXT);
+                $stmt->bindValue(':createdAt', $createdAt, SQLITE3_TEXT);
+                $stmt->bindValue(':lastActive', $lastActive, SQLITE3_TEXT);
+                $stmt->bindValue(':connectionStatus', $connectionStatus, SQLITE3_INTEGER);
+            }
+            
+            $result = $stmt->execute();
+            if (!$result) {
+                throw new \Exception('设备注册失败: ' . $this->db->lastErrorMsg());
+            }
+            
+            // 提交事务
+            $this->db->exec('COMMIT');
+            
+            // 获取设备完整信息
+            $deviceInfo = $this->getDevice($deviceId);
+            
+            return [
+                'success' => true,
+                'device_id' => $deviceId,
+                'message' => $exists ? '设备信息更新成功' : '设备注册成功',
+                'device_info' => $deviceInfo
+            ];
+        } catch (\Exception $e) {
+            // 回滚事务
+            $this->db->exec('ROLLBACK');
+            
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'device_id' => $deviceId
+            ];
         }
-        
-        $result = $stmt->execute();
-        $stmt->close();
-        
-        return [
-            'success' => $result !== false,
-            'device_id' => $deviceId
-        ];
     }
     
     /**
