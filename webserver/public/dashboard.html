@@ -4,12 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>InkClock 仪表盘</title>
-    <!-- AdminLTE CSS -->
-    <link rel="stylesheet" href="adminlte/css/adminlte.min.css">
+    <!-- PWA 相关标签 -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="description" content="InkClock 智能设备管理系统">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="InkClock">
+    <!-- iOS 图标 -->
+    <link rel="apple-touch-icon" href="/adminlte/img/AdminLTELogo.png">
+    <link rel="icon" href="/adminlte/img/AdminLTELogo.png" type="image/png">
+    <!-- 预加载关键资源 -->
+    <link rel="preload" href="dist/app.min.css" as="style">
+    <link rel="preload" href="dist/app.min.js" as="script">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- 移动端适配CSS -->
-    <link rel="stylesheet" href="css/mobile-adaptation.css">
+    <!-- 优化后的CSS -->
+    <link rel="stylesheet" href="dist/app.min.css">
     <!-- 自定义CSS -->
     <style>
         .content-wrapper {
@@ -385,14 +396,8 @@
     </div>
     <!-- ./wrapper -->
 
-    <!-- jQuery -->
-    <script src="adminlte/plugins/jquery/jquery.min.js"></script>
-    <!-- Bootstrap 4 -->
-    <script src="adminlte/plugins/bootstrap/js/bootstrap.min.js"></script>
-    <!-- AdminLTE App -->
-    <script src="adminlte/js/adminlte.min.js"></script>
-    <!-- Menu Script -->
-    <script src="js/menu.js"></script>
+    <!-- 优化后的JavaScript -->
+    <script src="dist/app.min.js"></script>
     <!-- Dashboard Script -->
     <script>
         // 页面加载完成后执行
@@ -432,13 +437,19 @@
             }
         }
 
-        // 加载统计数据
+        // 加载统计数据（并行请求优化）
         async function loadStats() {
             const apiKey = localStorage.getItem('token');
             
             try {
-                // 获取设备数量
-                const devicesResponse = await fetch('/api/device?api_key=' + apiKey);
+                // 并行执行所有API请求
+                const [devicesResponse, firmwareResponse, notificationsResponse] = await Promise.all([
+                    fetch('/api/device?api_key=' + apiKey),
+                    fetch('/api/firmware?api_key=' + apiKey),
+                    fetch('/api/notification?api_key=' + apiKey)
+                ]);
+                
+                // 处理设备数据
                 if (devicesResponse.ok) {
                     const devicesData = await devicesResponse.json();
                     if (devicesData.success) {
@@ -446,28 +457,7 @@
                     }
                 }
                 
-                // 获取未读消息数量
-                const messagesResponse = await fetch('/api/user/devices?api_key=' + apiKey);
-                if (messagesResponse.ok) {
-                    const devicesData = await messagesResponse.json();
-                    if (devicesData.success && devicesData.data.length > 0) {
-                        let unreadCount = 0;
-                        // 为每个设备获取未读消息
-                        for (const device of devicesData.data) {
-                            const deviceMessagesResponse = await fetch(`/api/message/${device.device_id}?api_key=${apiKey}`);
-                            if (deviceMessagesResponse.ok) {
-                                const deviceMessagesData = await deviceMessagesResponse.json();
-                                if (deviceMessagesData.success) {
-                                    unreadCount += deviceMessagesData.data.filter(msg => !msg.is_read).length;
-                                }
-                            }
-                        }
-                        $('#stat-messages').text(unreadCount);
-                    }
-                }
-                
-                // 获取固件版本数量
-                const firmwareResponse = await fetch('/api/firmware?api_key=' + apiKey);
+                // 处理固件数据
                 if (firmwareResponse.ok) {
                     const firmwareData = await firmwareResponse.json();
                     if (firmwareData.success) {
@@ -475,8 +465,7 @@
                     }
                 }
                 
-                // 获取未读通知数量
-                const notificationsResponse = await fetch('/api/notification?api_key=' + apiKey);
+                // 处理通知数据
                 if (notificationsResponse.ok) {
                     const notificationsData = await notificationsResponse.json();
                     if (notificationsData.success) {
@@ -484,12 +473,31 @@
                         $('#stat-notifications').text(unreadNotifications.length);
                     }
                 }
+                
+                // 单独处理消息数据（因为需要先获取设备列表）
+                const messagesResponse = await fetch('/api/user/devices?api_key=' + apiKey);
+                if (messagesResponse.ok) {
+                    const devicesData = await messagesResponse.json();
+                    if (devicesData.success && devicesData.data.length > 0) {
+                        // 并行获取所有设备的消息
+                        const messagePromises = devicesData.data.map(device => 
+                            fetch(`/api/message/${device.device_id}?api_key=${apiKey}`)
+                                .then(res => res.ok ? res.json() : { success: false })
+                                .then(data => data.success ? data.data : [])
+                        );
+                        
+                        const messagesList = await Promise.all(messagePromises);
+                        const allMessages = messagesList.flat();
+                        const unreadCount = allMessages.filter(msg => !msg.is_read).length;
+                        $('#stat-messages').text(unreadCount);
+                    }
+                }
             } catch (error) {
                 console.error('加载统计数据错误:', error);
             }
         }
 
-        // 加载最近设备
+        // 加载最近设备（优化版本）
         async function loadRecentDevices() {
             const apiKey = localStorage.getItem('token');
             
@@ -529,7 +537,7 @@
             }
         }
 
-        // 加载最近消息
+        // 加载最近消息（并行请求优化）
         async function loadRecentMessages() {
             const apiKey = localStorage.getItem('token');
             
@@ -539,21 +547,23 @@
                 if (devicesResponse.ok) {
                     const devicesData = await devicesResponse.json();
                     if (devicesData.success && devicesData.data.length > 0) {
-                        let allMessages = [];
+                        // 并行获取所有设备的消息
+                        const messagePromises = devicesData.data.map(device => 
+                            fetch(`/api/message/${device.device_id}?api_key=${apiKey}`)
+                                .then(res => res.ok ? res.json() : { success: false })
+                                .then(data => {
+                                    if (data.success) {
+                                        return data.data.map(msg => ({
+                                            ...msg,
+                                            device_id: device.device_id
+                                        }));
+                                    }
+                                    return [];
+                                })
+                        );
                         
-                        // 为每个设备获取消息
-                        for (const device of devicesData.data) {
-                            const messagesResponse = await fetch(`/api/message/${device.device_id}?api_key=${apiKey}`);
-                            if (messagesResponse.ok) {
-                                const messagesData = await messagesResponse.json();
-                                if (messagesData.success) {
-                                    messagesData.data.forEach(msg => {
-                                        msg.device_id = device.device_id;
-                                        allMessages.push(msg);
-                                    });
-                                }
-                            }
-                        }
+                        const messagesList = await Promise.all(messagePromises);
+                        const allMessages = messagesList.flat();
                         
                         // 按时间排序
                         allMessages.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -612,6 +622,74 @@
             // 跳转到登录页面
             window.location.href = 'login.html';
         });
+    </script>
+    
+    <!-- Service Worker 注册 -->
+    <script>
+        // 注册 Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then((registration) => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
+        
+        // 监听网络状态变化
+        window.addEventListener('online', () => {
+            console.log('网络已连接');
+            // 可以在这里添加同步操作
+            if ('serviceWorker' in navigator && 'SyncManager' in window) {
+                navigator.serviceWorker.ready.then((registration) => {
+                    registration.sync.register('sync-messages');
+                    registration.sync.register('sync-settings');
+                });
+            }
+        });
+        
+        window.addEventListener('offline', () => {
+            console.log('网络已断开');
+            // 显示离线提示
+            const offlineToast = document.createElement('div');
+            offlineToast.style.position = 'fixed';
+            offlineToast.style.bottom = '20px';
+            offlineToast.style.right = '20px';
+            offlineToast.style.backgroundColor = '#ff6b6b';
+            offlineToast.style.color = 'white';
+            offlineToast.style.padding = '12px 20px';
+            offlineToast.style.borderRadius = '5px';
+            offlineToast.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+            offlineToast.style.zIndex = '9999';
+            offlineToast.innerHTML = '<i class="fas fa-wifi-slash"></i> 您当前处于离线状态';
+            offlineToast.id = 'offline-toast';
+            
+            // 移除已存在的提示
+            const existingToast = document.getElementById('offline-toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+            
+            document.body.appendChild(offlineToast);
+            
+            // 3秒后自动消失
+            setTimeout(() => {
+                offlineToast.remove();
+            }, 3000);
+        });
+        
+        // 监听 Service Worker 消息
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'SYNC_COMPLETED') {
+                    console.log('数据同步完成:', event.data.data);
+                    // 可以在这里更新UI
+                }
+            });
+        }
     </script>
 </body>
 </html>

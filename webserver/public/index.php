@@ -178,9 +178,16 @@ foreach ($routes as $routePattern => $handler) {
     }
     
     // 转换路由模式为正则表达式
+    // 处理通配符 *
+    $routePath = str_replace('*', '.*', $routePath);
     $pattern = preg_replace('/\{([^}]+)\}/', '(?P<\1>[^/]+)', $routePath);
     $pattern = str_replace('/', '\/', $pattern);
     $pattern = '/^' . $pattern . '$/';
+    
+    // 调试信息
+    $logger->info('转换后的正则表达式', [
+        'pattern' => $pattern
+    ]);
     
     // 调试信息
     $logger->info('尝试匹配路由', [

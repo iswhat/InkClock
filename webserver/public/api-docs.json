@@ -12,6 +12,88 @@
     }
   ],
   "paths": {
+    "/api/gateway/{path}": {
+      "get": {
+        "summary": "API网关GET请求",
+        "tags": ["API网关"],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "description": "API路径",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API网关请求成功"
+          },
+          "404": {
+            "description": "API路径不存在"
+          },
+          "500": {
+            "description": "API网关错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "API网关POST请求",
+        "tags": ["API网关"],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "description": "API路径",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "device_id": {
+                    "type": "string",
+                    "description": "设备ID"
+                  },
+                  "plugin_id": {
+                    "type": "string",
+                    "description": "插件ID"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "请求内容"
+                  },
+                  "status": {
+                    "type": "string",
+                    "description": "状态"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "API网关请求成功"
+          },
+          "404": {
+            "description": "API路径不存在"
+          },
+          "500": {
+            "description": "API网关错误"
+          }
+        }
+      }
+    },
     "/api/user/register": {
       "post": {
         "summary": "注册新用户",

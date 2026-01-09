@@ -919,20 +919,86 @@
         // 音频录音功能
         let mediaRecorder;
         let audioChunks = [];
+        let stream;
+
+        // 检查浏览器兼容性
+        function checkBrowserCompatibility() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('您的浏览器不支持录音功能，请使用现代浏览器如Chrome、Firefox或Safari');
+                return false;
+            }
+            
+            if (!window.MediaRecorder) {
+                alert('您的浏览器不支持MediaRecorder API，请使用现代浏览器如Chrome、Firefox或Safari');
+                return false;
+            }
+            
+            return true;
+        }
+
+        // 获取支持的音频格式
+        function getSupportedAudioFormat() {
+            const possibleFormats = [
+                'audio/ogg;codecs=opus',
+                'audio/mp4;codecs=aac',
+                'audio/webm;codecs=opus',
+                'audio/wav'
+            ];
+            
+            for (const format of possibleFormats) {
+                if (MediaRecorder.isTypeSupported(format)) {
+                    return format;
+                }
+            }
+            
+            // 如果没有支持的格式，返回默认格式
+            return 'audio/wav';
+        }
 
         // 开始录音
         $('#start-record-btn').click(function() {
+            if (!checkBrowserCompatibility()) {
+                return;
+            }
+
+            // 检查权限状态
+            navigator.permissions.query({ name: 'microphone' })
+                .then(permissionStatus => {
+                    if (permissionStatus.state === 'granted') {
+                        startRecording();
+                    } else if (permissionStatus.state === 'prompt') {
+                        startRecording();
+                    } else {
+                        alert('麦克风权限被拒绝，请在浏览器设置中允许访问麦克风');
+                    }
+                })
+                .catch(error => {
+                    console.error('检查麦克风权限失败:', error);
+                    // 尝试直接获取媒体设备
+                    startRecording();
+                });
+        });
+
+        // 开始录音的实际实现
+        function startRecording() {
             navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(stream => {
-                    mediaRecorder = new MediaRecorder(stream);
+                .then(s => {
+                    stream = s;
+                    const audioFormat = getSupportedAudioFormat();
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: audioFormat });
                     audioChunks = [];
                     
                     mediaRecorder.ondataavailable = event => {
-                        audioChunks.push(event.data);
+                        if (event.data.size > 0) {
+                            audioChunks.push(event.data);
+                        }
                     };
                     
                     mediaRecorder.onstop = () => {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        // 停止所有轨道
+                        stream.getTracks().forEach(track => track.stop());
+                        
+                        const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
                         const audioUrl = URL.createObjectURL(audioBlob);
                         $('#audio-preview').attr('src', audioUrl).show();
                         
@@ -950,37 +1016,100 @@
                         $('#start-record-btn').prop('disabled', true);
                     };
                     
-                    mediaRecorder.start();
-                    $('#recording-status').text('正在录音...');
-                    $(this).prop('disabled', true);
-                    $('#stop-record-btn').prop('disabled', false);
+                    mediaRecorder.onerror = (error) => {
+                        console.error('录音失败:', error);
+                        alert('录音过程中发生错误');
+                        stream.getTracks().forEach(track => track.stop());
+                        resetRecordingUI();
+                    };
+                    
+                    try {
+                        mediaRecorder.start();
+                        $('#recording-status').text('正在录音...');
+                        $('#start-record-btn').prop('disabled', true);
+                        $('#stop-record-btn').prop('disabled', false);
+                    } catch (error) {
+                        console.error('开始录音失败:', error);
+                        alert('无法开始录音，请检查浏览器兼容性');
+                        stream.getTracks().forEach(track => track.stop());
+                        resetRecordingUI();
+                    }
                 })
                 .catch(error => {
                     console.error('获取麦克风失败:', error);
-                    alert('无法访问麦克风，请检查权限设置');
+                    if (error.name === 'NotAllowedError') {
+                        alert('麦克风权限被拒绝，请在浏览器设置中允许访问麦克风');
+                    } else if (error.name === 'NotFoundError') {
+                        alert('未找到麦克风设备');
+                    } else {
+                        alert('无法访问麦克风，请检查设备连接和权限设置');
+                    }
                 });
-        });
+        }
 
         // 停止录音
         $('#stop-record-btn').click(function() {
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                try {
+                    mediaRecorder.stop();
+                } catch (error) {
+                    console.error('停止录音失败:', error);
+                    // 确保流被停止
+                    if (stream) {
+                        stream.getTracks().forEach(track => track.stop());
+                    }
+                    resetRecordingUI();
+                }
             }
         });
 
         // 播放录音
         $('#play-audio-btn').click(function() {
-            $('#audio-preview')[0].play();
+            const audioElement = $('#audio-preview')[0];
+            if (audioElement) {
+                audioElement.play().catch(error => {
+                    console.error('播放录音失败:', error);
+                    alert('无法播放录音，请检查浏览器兼容性');
+                });
+            }
         });
 
         // 重新录音
         $('#reset-audio-btn').click(function() {
+            resetRecordingUI();
+        });
+
+        // 重置录音UI
+        function resetRecordingUI() {
+            // 停止任何正在进行的录音
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                try {
+                    mediaRecorder.stop();
+                } catch (error) {
+                    console.error('停止录音失败:', error);
+                }
+            }
+            
+            // 停止流
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            
+            // 重置UI
             $('#audio-preview').hide().attr('src', '');
             $('#audio-data').val('');
             $('#recording-status').text('');
             $('#start-record-btn').prop('disabled', false);
+            $('#stop-record-btn').prop('disabled', true);
             $('#play-audio-btn').prop('disabled', true);
             $('#reset-audio-btn').prop('disabled', true);
+        }
+
+        // 页面卸载时清理资源
+        window.addEventListener('beforeunload', function() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
         });
 
         // 发送消息

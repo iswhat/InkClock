@@ -182,6 +182,19 @@ class SystemController extends BaseController {
     }
     
     /**
+     * 刷新系统
+     */
+    public function refreshSystem($params) {
+        $this->logAction('system_refresh');
+        
+        return [
+            'success' => true,
+            'message' => '系统刷新成功',
+            'timestamp' => time()
+        ];
+    }
+    
+    /**
      * 获取系统设置
      * @return array 系统设置
      */

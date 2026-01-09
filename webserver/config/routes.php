@@ -116,6 +116,16 @@ return [
     'GET /api/system/info' => 'SystemController@getSystemInfo',
     'GET /api/system/database/backup' => 'SystemController@backupDatabase',
     'POST /api/system/restart' => 'SystemController@restartSystem',
-    'POST /api/system/cache/clear' => 'SystemController@clearCache'
+    'POST /api/system/cache/clear' => 'SystemController@clearCache',
+    
+    // API网关路由
+    'GET /api/gateway/*' => 'ApiGatewayController@gateway',
+    'POST /api/gateway/*' => 'ApiGatewayController@gateway',
+    'PUT /api/gateway/*' => 'ApiGatewayController@gateway',
+    'DELETE /api/gateway/*' => 'ApiGatewayController@gateway',
+    
+    // 健康检查路由
+    'GET /health' => 'HealthController@check',
+    'GET /api/health' => 'HealthController@check'
 ];
 ?>

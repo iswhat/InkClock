@@ -94,5 +94,18 @@ class DeviceController extends BaseController {
         
         $this->response->success('设备删除成功');
     }
+    
+    /**
+     * 刷新设备
+     */
+    public function refreshDevice($params) {
+        $this->logAction('device_refresh');
+        
+        return [
+            'success' => true,
+            'message' => '设备刷新成功',
+            'timestamp' => time()
+        ];
+    }
 }
 ?>

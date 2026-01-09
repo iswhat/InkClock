@@ -9,10 +9,7 @@ class StatusController {
     /**
      * 获取系统状态
      */
-    public function getStatus() {
-        // 直接使用Response类，避免依赖注入失败
-        $response = \InkClock\Utils\Response::getInstance();
-        
+    public function getStatus($params = array()) {
         $status = array(
             'status' => 'ok',
             'timestamp' => time(),
@@ -24,7 +21,11 @@ class StatusController {
             )
         );
         
-        $response->success('获取成功', $status);
+        return array(
+            'success' => true,
+            'message' => '获取成功',
+            'data' => $status
+        );
     }
     
     /**
