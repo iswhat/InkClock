@@ -130,6 +130,11 @@ return [
     
     // 健康检查路由
     'GET /health' => 'HealthController@check',
-    'GET /api/health' => 'HealthController@check'
+    'GET /api/health' => 'HealthController@check',
+    
+    // 监控相关路由
+    'GET /api/monitoring/status' => 'MonitoringController@getSystemStatus',
+    'GET /api/monitoring/metrics' => 'MonitoringController@getApiMetrics',
+    'GET /api/monitoring/logs' => 'MonitoringController@getLogAnalysis'
 ];
 ?>

@@ -1,0 +1,14 @@
+{
+    "devices": [
+        "devices:user:1",
+        "devices:user:1",
+        "devices:user:1",
+        "devices:user:1"
+    ],
+    "user:1": [
+        "devices:user:1",
+        "devices:user:1",
+        "devices:user:1",
+        "devices:user:1"
+    ]
+}

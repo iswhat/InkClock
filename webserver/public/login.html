@@ -4,10 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>InkClock 登录</title>
+    <!-- PWA 相关标签 -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="description" content="InkClock 智能设备管理系统">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="InkClock">
+    <!-- iOS 图标 -->
+    <link rel="apple-touch-icon" href="/adminlte/img/AdminLTELogo.png">
+    <link rel="icon" href="/adminlte/img/AdminLTELogo.png" type="image/png">
+    <!-- 预加载关键资源 -->
+    <link rel="preload" href="adminlte/css/adminlte.min.css" as="style">
+    <link rel="preload" href="adminlte/plugins/jquery/jquery.min.js" as="script">
     <!-- AdminLTE CSS -->
     <link rel="stylesheet" href="adminlte/css/adminlte.min.css">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 移动端适配CSS -->
+    <link rel="stylesheet" href="css/mobile-adaptation.css">
     <!-- 自定义CSS -->
     <style>
         body {
@@ -42,6 +57,60 @@
         }
         .alert {
             margin-top: 20px;
+        }
+        
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            .login-box {
+                margin-top: 50px;
+                width: 90%;
+                max-width: 400px;
+            }
+            .login-card-body {
+                padding: 20px;
+            }
+            .login-logo {
+                font-size: 20px;
+            }
+            .login-box-msg {
+                font-size: 14px;
+                margin-bottom: 15px;
+            }
+            .input-group {
+                margin-bottom: 15px;
+            }
+            .form-control {
+                padding: 10px;
+                font-size: 14px;
+            }
+            .btn-primary {
+                padding: 10px;
+                font-size: 14px;
+            }
+            .social-auth-links {
+                margin-top: 20px;
+            }
+            .social-auth-links a {
+                padding: 10px;
+                font-size: 14px;
+            }
+        }
+        
+        /* 小屏幕设备优化 */
+        @media (max-width: 320px) {
+            .login-box {
+                margin-top: 30px;
+                width: 95%;
+            }
+            .login-card-body {
+                padding: 15px;
+            }
+            .login-logo {
+                font-size: 18px;
+            }
+            .login-box-msg {
+                font-size: 13px;
+            }
         }
     </style>
 </head>
@@ -179,6 +248,57 @@
             const loginCardBody = document.querySelector('.login-card-body');
             loginCardBody.appendChild(alertDiv);
         }
+    </script>
+    
+    <!-- Service Worker 注册 -->
+    <script>
+        // 注册 Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then((registration) => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
+        
+        // 监听网络状态变化
+        window.addEventListener('online', () => {
+            console.log('网络已连接');
+        });
+        
+        window.addEventListener('offline', () => {
+            console.log('网络已断开');
+            // 显示离线提示
+            const offlineToast = document.createElement('div');
+            offlineToast.style.position = 'fixed';
+            offlineToast.style.bottom = '20px';
+            offlineToast.style.right = '20px';
+            offlineToast.style.backgroundColor = '#ff6b6b';
+            offlineToast.style.color = 'white';
+            offlineToast.style.padding = '12px 20px';
+            offlineToast.style.borderRadius = '5px';
+            offlineToast.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+            offlineToast.style.zIndex = '9999';
+            offlineToast.innerHTML = '<i class="fas fa-wifi-slash"></i> 您当前处于离线状态';
+            offlineToast.id = 'offline-toast';
+            
+            // 移除已存在的提示
+            const existingToast = document.getElementById('offline-toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+            
+            document.body.appendChild(offlineToast);
+            
+            // 3秒后自动消失
+            setTimeout(() => {
+                offlineToast.remove();
+            }, 3000);
+        });
     </script>
 </body>
 </html>

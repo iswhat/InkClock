@@ -1,5 +1,6 @@
 #include "wifi_manager.h"
 #include <Preferences.h>
+#include <esp_system.h>
 
 Preferences preferences;
 
@@ -13,6 +14,8 @@ WiFiManager::WiFiManager() {
   currentPassword = WIFI_PASSWORD;
   configuredSSID = "";
   configuredPassword = "";
+  lastSignalStrength = -100;
+  signalStrengthCheckInterval = 0;
 }
 
 WiFiManager::~WiFiManager() {
@@ -36,6 +39,9 @@ void WiFiManager::init() {
   // 禁用WiFi自动连接
   WiFi.setAutoConnect(false);
   WiFi.setAutoReconnect(false);
+  
+  // 配置WiFi电源管理，平衡功耗和性能
+  WiFi.setSleep(WIFI_PS_MIN_MODEM);
   
   // 如果有配置的WiFi信息，尝试连接
   if (hasConfiguredWiFi()) {
@@ -119,6 +125,9 @@ void WiFiManager::loop() {
       connected = true;
       connectionAttempts = 0;
       printWiFiStatus();
+    } else {
+      // 定期检查信号强度
+      checkSignalStrength();
     }
   }
 }
@@ -154,6 +163,11 @@ void WiFiManager::setupWiFi(String ssid, String password) {
     connected = false;
     DEBUG_PRINTLN("\nWiFi连接失败");
     
+    // 记录错误状态
+    wl_status_t errorStatus = WiFi.status();
+    DEBUG_PRINT("错误状态: ");
+    DEBUG_PRINTLN(getWiFiStatusString(errorStatus));
+    
     // 如果连接失败，尝试进入AP模式
     if (!apMode) {
       DEBUG_PRINTLN("尝试进入AP模式...");
@@ -188,10 +202,16 @@ void WiFiManager::printWiFiStatus() {
   DEBUG_PRINT("IPv6地址: ");
   DEBUG_PRINTLN(WiFi.localIPv6());
   DEBUG_PRINT("信号强度: ");
-  DEBUG_PRINT(WiFi.RSSI());
-  DEBUG_PRINTLN(" dBm");
+  int rssi = WiFi.RSSI();
+  DEBUG_PRINT(rssi);
+  DEBUG_PRINT(" dBm (质量: ");
+  DEBUG_PRINT(getSignalQuality(rssi));
+  DEBUG_PRINTLN(")");
   DEBUG_PRINT("MAC地址: ");
   DEBUG_PRINTLN(WiFi.macAddress());
+  DEBUG_PRINT("WiFi模式: ");
+  DEBUG_PRINTLN(WiFi.getMode() == WIFI_STA ? "STA" : "AP");
+  lastSignalStrength = rssi;
 }
 
 void WiFiManager::startAP() {
@@ -279,4 +299,59 @@ void WiFiManager::setConfiguredWiFi(String ssid, String password) {
   
   // 尝试使用新配置连接
   setupWiFi(ssid, password);
+}
+
+void WiFiManager::checkSignalStrength() {
+  // 每10秒检查一次信号强度
+  if (millis() - signalStrengthCheckInterval > 10000) {
+    signalStrengthCheckInterval = millis();
+    
+    int currentRSSI = WiFi.RSSI();
+    int rssiDiff = abs(currentRSSI - lastSignalStrength);
+    
+    // 如果信号强度变化超过10dBm，打印信息
+    if (rssiDiff > 10 || lastSignalStrength == -100) {
+      DEBUG_PRINT("WiFi信号强度变化: ");
+      DEBUG_PRINT(currentRSSI);
+      DEBUG_PRINT(" dBm (质量: ");
+      DEBUG_PRINT(getSignalQuality(currentRSSI));
+      DEBUG_PRINTLN(")");
+      lastSignalStrength = currentRSSI;
+    }
+  }
+}
+
+String WiFiManager::getWiFiStatusString(wl_status_t status) {
+  switch (status) {
+    case WL_CONNECTED:
+      return "WL_CONNECTED";
+    case WL_IDLE_STATUS:
+      return "WL_IDLE_STATUS";
+    case WL_NO_SSID_AVAIL:
+      return "WL_NO_SSID_AVAIL";
+    case WL_SCAN_COMPLETED:
+      return "WL_SCAN_COMPLETED";
+    case WL_CONNECT_FAILED:
+      return "WL_CONNECT_FAILED";
+    case WL_CONNECTION_LOST:
+      return "WL_CONNECTION_LOST";
+    case WL_DISCONNECTED:
+      return "WL_DISCONNECTED";
+    default:
+      return "UNKNOWN_STATUS";
+  }
+}
+
+String WiFiManager::getSignalQuality(int rssi) {
+  if (rssi >= -50) {
+    return "优秀";
+  } else if (rssi >= -60) {
+    return "良好";
+  } else if (rssi >= -70) {
+    return "一般";
+  } else if (rssi >= -80) {
+    return "较差";
+  } else {
+    return "很差";
+  }
 }

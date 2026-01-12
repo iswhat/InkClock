@@ -18,6 +18,16 @@ PlatformType getPlatformType() {
         return PlatformType::PLATFORM_STM32;
     #elif defined(RP2040)
         return PlatformType::PLATFORM_RP2040;
+    #elif defined(ARDUINO_ARCH_ESP32)
+        return PlatformType::PLATFORM_ESP32;
+    #elif defined(ARDUINO_ARCH_ESP8266)
+        return PlatformType::PLATFORM_ESP8266;
+    #elif defined(ARDUINO_ARCH_NRF52)
+        return PlatformType::PLATFORM_NRF52;
+    #elif defined(ARDUINO_ARCH_STM32)
+        return PlatformType::PLATFORM_STM32;
+    #elif defined(ARDUINO_ARCH_RP2040)
+        return PlatformType::PLATFORM_RP2040;
     #else
         return PlatformType::PLATFORM_UNKNOWN;
     #endif
@@ -42,7 +52,18 @@ void platformReset() {
         reset_usb_boot(0, 0);
     #else
         // 默认实现
-        while(1);
+        // 不使用while(1)避免系统卡死
+        // 尝试使用标准的系统重置方法
+        #if defined(__AVR__)
+            wdt_enable(WDTO_15MS);
+            while(1);
+        #elif defined(__arm__)
+            __asm__ __volatile__("bkpt #0");
+        #else
+            // 对于其他平台，使用空循环但添加超时
+            unsigned long start = platformGetMillis();
+            while(platformGetMillis() - start < 1000);
+        #endif
     #endif
 }
 
@@ -59,13 +80,28 @@ size_t platformGetFreeHeap() {
         return heap_caps_get_free_size(MALLOC_CAP_DEFAULT);
     #elif defined(STM32)
         // STM32获取堆内存实现
-        extern char _estack;
-        extern char _sheap;
-        extern char _eheap;
-        return &_estack - &_sheap;
+        #if defined(STM32duino)
+            return freeMemory();
+        #elif defined(HAL_H)
+            // 使用HAL库的内存检测
+            return xPortGetFreeHeapSize();
+        #else
+            // 尝试使用更准确的堆内存计算
+            extern char _estack;
+            extern char _sheap;
+            extern char _eheap;
+            size_t heapSize = &_eheap - &_sheap;
+            size_t stackSize = &_estack - &_eheap;
+            return heapSize;
+        #endif
     #elif defined(RP2040)
         // RP2040获取堆内存实现
-        return mallinfo().uordblks;
+        struct mallinfo info = mallinfo();
+        return info.fordblks;
+    #elif defined(ARDUINO_ARCH_ESP32)
+        return ESP.getFreeHeap();
+    #elif defined(ARDUINO_ARCH_ESP8266)
+        return ESP.getFreeHeap();
     #else
         // 默认实现
         return 0;
@@ -85,13 +121,49 @@ size_t platformGetMinFreeHeap() {
         return heap_caps_get_minimum_free_size(MALLOC_CAP_DEFAULT);
     #elif defined(STM32)
         // STM32获取最小堆内存实现
-        return 0;
+        #if defined(STM32duino)
+            static size_t minFreeHeap = 0;
+            size_t currentFree = freeMemory();
+            if (minFreeHeap == 0 || currentFree < minFreeHeap) {
+                minFreeHeap = currentFree;
+            }
+            return minFreeHeap;
+        #elif defined(HAL_H)
+            // 使用HAL库的内存检测
+            static size_t minFreeHeap = 0;
+            size_t currentFree = xPortGetFreeHeapSize();
+            if (minFreeHeap == 0 || currentFree < minFreeHeap) {
+                minFreeHeap = currentFree;
+            }
+            return minFreeHeap;
+        #else
+            static size_t minFreeHeap = 0;
+            extern char _estack;
+            extern char _sheap;
+            extern char _eheap;
+            size_t currentFree = &_eheap - &_sheap;
+            if (minFreeHeap == 0 || currentFree < minFreeHeap) {
+                minFreeHeap = currentFree;
+            }
+            return minFreeHeap;
+        #endif
     #elif defined(RP2040)
         // RP2040获取最小堆内存实现
-        return 0;
+        static size_t minFreeHeap = 0;
+        struct mallinfo info = mallinfo();
+        size_t currentFree = info.fordblks;
+        if (minFreeHeap == 0 || currentFree < minFreeHeap) {
+            minFreeHeap = currentFree;
+        }
+        return minFreeHeap;
+    #elif defined(ARDUINO_ARCH_ESP32)
+        return ESP.getMinFreeHeap();
+    #elif defined(ARDUINO_ARCH_ESP8266)
+        return ESP.getMinFreeHeap();
     #else
         // 默认实现
-        return 0;
+        static size_t minFreeHeap = 0;
+        return minFreeHeap;
     #endif
 }
 

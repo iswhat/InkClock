@@ -477,9 +477,23 @@ class Database {
      * 执行查询语句（用于有返回结果的操作）
      * @param string $sql SQL语句
      * @param array $params 参数（可选）
+     * @param bool $useCache 是否使用缓存
+     * @param int $cacheExpire 缓存过期时间（秒）
      * @return array 查询结果
      */
-    public function query($sql, $params = []) {
+    public function query($sql, $params = [], $useCache = false, $cacheExpire = 300) {
+        // 生成缓存键
+        $cacheKey = null;
+        if ($useCache) {
+            $cacheKey = 'db_query_' . md5($sql . json_encode($params));
+            $cache = \InkClock\Utils\Cache::getInstance();
+            $cachedResult = $cache->get($cacheKey);
+            if ($cachedResult !== null) {
+                $this->logger->debug("数据库查询缓存命中", ["cache_key" => $cacheKey]);
+                return $cachedResult;
+            }
+        }
+        
         // 延迟连接，首次使用时才连接
         $this->connect();
         
@@ -501,6 +515,12 @@ class Database {
             $duration = microtime(true) - $startTime;
             $this->logger->databaseLog($sql, $params, $duration);
             
+            // 缓存结果
+            if ($useCache && !empty($rows)) {
+                $cache->set($cacheKey, $rows, $cacheExpire, ['database']);
+                $this->logger->debug("数据库查询结果缓存", ["cache_key" => $cacheKey, "expire" => $cacheExpire]);
+            }
+            
             return $rows;
         } catch (\Exception $e) {
             $duration = microtime(true) - $startTime;
@@ -518,10 +538,12 @@ class Database {
      * 执行单条查询（返回单条结果）
      * @param string $sql SQL语句
      * @param array $params 参数（可选）
+     * @param bool $useCache 是否使用缓存
+     * @param int $cacheExpire 缓存过期时间（秒）
      * @return array|null 查询结果
      */
-    public function querySingle($sql, $params = []) {
-        $rows = $this->query($sql, $params);
+    public function querySingle($sql, $params = [], $useCache = false, $cacheExpire = 300) {
+        $rows = $this->query($sql, $params, $useCache, $cacheExpire);
         return $rows[0] ?? null;
     }
     

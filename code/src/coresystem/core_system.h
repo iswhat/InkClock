@@ -141,6 +141,37 @@ private:
   size_t peakAllocatedMemory;            // 峰值分配内存大小
   unsigned long lastMemoryUpdate;        // 上次内存更新时间
   
+  // 资源监控和性能分析
+  struct SystemStats {
+    unsigned long uptime;                // 系统运行时间
+    size_t freeHeap;                     // 可用堆内存
+    size_t minFreeHeap;                  // 最小堆内存
+    size_t usedMemory;                   // 已用内存
+    size_t peakMemory;                   // 峰值内存使用
+    uint32_t cpuFreqMHz;                 // CPU频率
+    float batteryVoltage;                // 电池电压
+    int batteryPercentage;               // 电池百分比
+    bool isCharging;                     // 充电状态
+    bool isLowPowerMode;                 // 低功耗模式
+    size_t activeThreads;                // 活动线程数
+    size_t activeTimers;                 // 活动定时器数
+    unsigned long lastStatsUpdate;       // 上次统计更新时间
+  };
+  
+  SystemStats systemStats;               // 系统统计信息
+  
+  // 性能分析
+  struct PerformanceMetric {
+    String name;                         // 指标名称
+    unsigned long totalTime;             // 总执行时间
+    unsigned long count;                 // 执行次数
+    unsigned long maxTime;               // 最大执行时间
+    unsigned long minTime;               // 最小执行时间
+    unsigned long lastTime;              // 上次执行时间
+  };
+  
+  std::map<String, PerformanceMetric> performanceMetrics;  // 性能指标
+  
   // 初始化SPIFFS文件系统
   bool initSPIFFS() {
     if (!isSPIFFSMounted()) {
@@ -918,6 +949,16 @@ public:
   void getFlashInfo(uint32_t& totalSize, uint32_t& firmwareSize, uint32_t& freeSize) {
     platformGetFlashInfo(totalSize, firmwareSize, freeSize);
   }
+  
+  // 系统统计信息
+  void updateSystemStats();
+  const SystemStats& getSystemStats();
+  
+  // 性能分析
+  void startPerformanceMeasurement(const String& name);
+  void endPerformanceMeasurement(const String& name);
+  String getPerformanceStats();
+  void resetPerformanceStats();
   
   // 内存管理方法
   
