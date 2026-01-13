@@ -2,7 +2,11 @@
 #include <iostream>
 #include <string>
 
-SimulatorDisplay::SimulatorDisplay() : width(800), height(480), frameBuffer(nullptr) {
+SimulatorDisplay::SimulatorDisplay() : width(800), height(480), frameBuffer(nullptr)
+#ifdef USE_SDL2
+, window(nullptr), renderer(nullptr), texture(nullptr)
+#endif
+ {
   // 初始化日志文件
   logFile.open("simulator_display.log");
   if (logFile.is_open()) {
@@ -11,9 +15,19 @@ SimulatorDisplay::SimulatorDisplay() : width(800), height(480), frameBuffer(null
   
   // 初始化帧缓冲区
   initFrameBuffer();
+  
+  // 初始化SDL2
+  #ifdef USE_SDL2
+  initSDL2();
+  #endif
 }
 
 SimulatorDisplay::~SimulatorDisplay() {
+  // 清理SDL2
+  #ifdef USE_SDL2
+  cleanupSDL2();
+  #endif
+  
   // 清理帧缓冲区
   cleanupFrameBuffer();
   
@@ -70,26 +84,129 @@ void SimulatorDisplay::drawPixel(int16_t x, int16_t y, uint16_t color) {
 
 // 绘制字符
 void SimulatorDisplay::drawChar(int16_t x, int16_t y, unsigned char c, uint16_t color, uint16_t bg, uint8_t size) {
-  // 简化的字符绘制，实际应用中可能需要更复杂的实现
+  // 简单的字符绘制实现
+  // 注意：这是一个简化版本，实际应用中可能需要使用字体库
+  for (uint8_t i = 0; i < 5; i++) { // 字符宽度
+    uint8_t line = 0;
+    // 这里使用一个简单的字体映射，实际应用中应该使用字体库
+    switch (c) {
+      case 'A': line = 0x7E; break;
+      case 'B': line = 0x3F; break;
+      case 'C': line = 0x1C; break;
+      case 'D': line = 0x3F; break;
+      case 'E': line = 0x79; break;
+      case 'F': line = 0x71; break;
+      case 'G': line = 0x1E; break;
+      case 'H': line = 0x77; break;
+      case 'I': line = 0x30; break;
+      case 'J': line = 0x0E; break;
+      case 'K': line = 0x76; break;
+      case 'L': line = 0x18; break;
+      case 'M': line = 0x55; break;
+      case 'N': line = 0x57; break;
+      case 'O': line = 0x1C; break;
+      case 'P': line = 0x73; break;
+      case 'Q': line = 0x3D; break;
+      case 'R': line = 0x7B; break;
+      case 'S': line = 0x4E; break;
+      case 'T': line = 0x31; break;
+      case 'U': line = 0x1F; break;
+      case 'V': line = 0x3B; break;
+      case 'W': line = 0x6B; break;
+      case 'X': line = 0x76; break;
+      case 'Y': line = 0x33; break;
+      case 'Z': line = 0x49; break;
+      case '0': line = 0x3E; break;
+      case '1': line = 0x06; break;
+      case '2': line = 0x7A; break;
+      case '3': line = 0x7E; break;
+      case '4': line = 0x46; break;
+      case '5': line = 0x6E; break;
+      case '6': line = 0x6F; break;
+      case '7': line = 0x70; break;
+      case '8': line = 0x7F; break;
+      case '9': line = 0x7E; break;
+      default: line = 0x00; break;
+    }
+    
+    for (uint8_t j = 0; j < 8; j++) { // 字符高度
+      if (line & (1 << j)) {
+        for (uint8_t sx = 0; sx < size; sx++) {
+          for (uint8_t sy = 0; sy < size; sy++) {
+            drawPixel(x + i * size + sx, y + j * size + sy, color);
+          }
+        }
+      } else if (bg != color) {
+        for (uint8_t sx = 0; sx < size; sx++) {
+          for (uint8_t sy = 0; sy < size; sy++) {
+            drawPixel(x + i * size + sx, y + j * size + sy, bg);
+          }
+        }
+      }
+    }
+  }
+  
   logDrawOperation("drawChar", x, y, 8 * size, 16 * size, color);
 }
 
 // 绘制字符串
 void SimulatorDisplay::drawString(int16_t x, int16_t y, const String& text, uint16_t color, uint16_t bg, uint8_t size) {
-  // 简化的字符串绘制
+  int16_t currentX = x;
+  for (size_t i = 0; i < text.length(); i++) {
+    drawChar(currentX, y, text[i], color, bg, size);
+    currentX += 6 * size; // 字符间距
+  }
   logDrawOperation("drawString", x, y, text.length() * 8 * size, 16 * size, color);
 }
 
 // 绘制矩形
 void SimulatorDisplay::drawRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) {
-  // 简化的矩形绘制
+  // 绘制矩形的四条边
+  drawLine(x, y, x + w - 1, y, color);           // 上边
+  drawLine(x, y + h - 1, x + w - 1, y + h - 1, color); // 下边
+  drawLine(x, y, x, y + h - 1, color);           // 左边
+  drawLine(x + w - 1, y, x + w - 1, y + h - 1, color); // 右边
   logDrawOperation("drawRect", x, y, w, h, color);
 }
 
 // 填充矩形
 void SimulatorDisplay::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) {
-  // 简化的填充矩形
+  // 填充矩形区域
+  for (int16_t i = x; i < x + w; i++) {
+    for (int16_t j = y; j < y + h; j++) {
+      drawPixel(i, j, color);
+    }
+  }
   logDrawOperation("fillRect", x, y, w, h, color);
+}
+
+// 绘制直线
+void SimulatorDisplay::drawLine(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color) {
+  // 简化的直线绘制（使用Bresenham算法）
+  int dx = abs(x2 - x1);
+  int dy = abs(y2 - y1);
+  int sx = x1 < x2 ? 1 : -1;
+  int sy = y1 < y2 ? 1 : -1;
+  int err = dx - dy;
+  
+  int x = x1;
+  int y = y1;
+  
+  while (x != x2 || y != y2) {
+    drawPixel(x, y, color);
+    int e2 = 2 * err;
+    if (e2 > -dy) {
+      err -= dy;
+      x += sx;
+    }
+    if (e2 < dx) {
+      err += dx;
+      y += sy;
+    }
+  }
+  drawPixel(x2, y2, color);
+  
+  logDrawOperation("drawLine", x1, y1, x2 - x1, y2 - y1, color);
 }
 
 // 更新显示
@@ -97,6 +214,11 @@ void SimulatorDisplay::update() {
   std::cout << "SimulatorDisplay update" << std::endl;
   exportToHtml("simulator_display.html");
   exportToSvg("simulator_display.svg");
+  
+  // 更新SDL2显示
+  #ifdef USE_SDL2
+  updateSDL2();
+  #endif
 }
 
 // 局部更新
@@ -205,3 +327,98 @@ void SimulatorDisplay::exportToSvg(const char* filename) {
     std::cout << "Display exported to " << filename << std::endl;
   }
 }
+
+#ifdef USE_SDL2
+
+// 初始化SDL2
+bool SimulatorDisplay::initSDL2() {
+  if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    std::cerr << "SDL_Init failed: " << SDL_GetError() << std::endl;
+    return false;
+  }
+  
+  window = SDL_CreateWindow(
+    "InkClock Simulator Display",
+    SDL_WINDOWPOS_UNDEFINED,
+    SDL_WINDOWPOS_UNDEFINED,
+    width,
+    height,
+    SDL_WINDOW_SHOWN
+  );
+  
+  if (!window) {
+    std::cerr << "SDL_CreateWindow failed: " << SDL_GetError() << std::endl;
+    SDL_Quit();
+    return false;
+  }
+  
+  renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+  if (!renderer) {
+    std::cerr << "SDL_CreateRenderer failed: " << SDL_GetError() << std::endl;
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+    return false;
+  }
+  
+  texture = SDL_CreateTexture(
+    renderer,
+    SDL_PIXELFORMAT_RGB565,
+    SDL_TEXTUREACCESS_STREAMING,
+    width,
+    height
+  );
+  
+  if (!texture) {
+    std::cerr << "SDL_CreateTexture failed: " << SDL_GetError() << std::endl;
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+    return false;
+  }
+  
+  std::cout << "SDL2 initialized successfully" << std::endl;
+  return true;
+}
+
+// 清理SDL2
+void SimulatorDisplay::cleanupSDL2() {
+  if (texture) {
+    SDL_DestroyTexture(texture);
+    texture = nullptr;
+  }
+  
+  if (renderer) {
+    SDL_DestroyRenderer(renderer);
+    renderer = nullptr;
+  }
+  
+  if (window) {
+    SDL_DestroyWindow(window);
+    window = nullptr;
+  }
+  
+  SDL_Quit();
+  std::cout << "SDL2 cleanup completed" << std::endl;
+}
+
+// 更新SDL2显示
+void SimulatorDisplay::updateSDL2() {
+  if (!texture || !renderer) {
+    return;
+  }
+  
+  SDL_UpdateTexture(texture, nullptr, frameBuffer, width * sizeof(uint16_t));
+  SDL_RenderClear(renderer);
+  SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+  SDL_RenderPresent(renderer);
+  
+  // 处理SDL事件
+  SDL_Event event;
+  while (SDL_PollEvent(&event)) {
+    if (event.type == SDL_QUIT) {
+      // 这里可以添加退出处理逻辑
+    }
+  }
+}
+
+#endif // USE_SDL2

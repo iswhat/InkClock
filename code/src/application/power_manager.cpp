@@ -1,6 +1,7 @@
 #include "power_manager.h"
 #include "../coresystem/core_system.h"
 #include "../coresystem/event_bus.h"
+#include "../coresystem/config_manager.h"
 
 PowerManager::PowerManager() {
   batteryVoltage = 0.0;
@@ -15,7 +16,7 @@ PowerManager::PowerManager() {
   
   // 充电相关初始化
   chargingInterface = USB_TYPE_C; // 仅支持USB-Type-C
-  hasChargingProtection = CHARGING_PROTECTION_ENABLED;
+  hasChargingProtection = CONFIG_GET_BOOL("charging.protection_enabled", true);
   
   // 获取CoreSystem实例
   coreSystem = CoreSystem::getInstance();
@@ -26,18 +27,24 @@ PowerManager::~PowerManager() {
 
 void PowerManager::init() {
   // 初始化电池检测引脚
-  pinMode(BATTERY_ADC_PIN, INPUT);
+  int batteryAdcPin = CONFIG_GET_INT("pins.battery_adc", 34);
+  pinMode(batteryAdcPin, INPUT);
   
   // 如果有充电状态引脚，初始化它
-  if (CHARGE_STATUS_PIN != -1) {
-    pinMode(CHARGE_STATUS_PIN, INPUT);
-    DEBUG_PRINTLN("Charge status pin initialized on pin " + String(CHARGE_STATUS_PIN));
+  int chargeStatusPin = CONFIG_GET_INT("pins.charge_status", -1);
+  if (chargeStatusPin != -1) {
+    pinMode(chargeStatusPin, INPUT);
+    DEBUG_PRINTLN("Charge status pin initialized on pin " + String(chargeStatusPin));
   }
   
   // 初始化人体感应传感器引脚
-  if (LOW_POWER_MODE_ENABLED) {
-    pinMode(PIR_SENSOR_PIN, INPUT);
-    DEBUG_PRINTLN("PIR sensor initialized on pin " + String(PIR_SENSOR_PIN));
+  bool lowPowerModeEnabled = CONFIG_GET_BOOL("power.low_power_mode", false);
+  if (lowPowerModeEnabled) {
+    int pirSensorPin = CONFIG_GET_INT("pins.pir_sensor", -1);
+    if (pirSensorPin != -1) {
+      pinMode(pirSensorPin, INPUT);
+      DEBUG_PRINTLN("PIR sensor initialized on pin " + String(pirSensorPin));
+    }
   }
   
   // 检查充电接口类型
@@ -87,16 +94,22 @@ void PowerManager::loop() {
   }
   
   // 低功耗模式处理
-  if (LOW_POWER_MODE_ENABLED) {
+  bool lowPowerModeEnabled = CONFIG_GET_BOOL("power.low_power_mode", false);
+  if (lowPowerModeEnabled) {
     // 1. 读取人体感应传感器
     bool motionDetected = readPIRSensor();
     
     // 2. 读取光照传感器（如果启用了光照节能功能）
     bool nightMode = false;
-    #if ENABLE_LIGHT_SAVING
-    int lightLevel = analogRead(LIGHT_SENSOR_PIN);
-    nightMode = (lightLevel < NIGHT_LIGHT_THRESHOLD);
-    #endif
+    bool enableLightSaving = CONFIG_GET_BOOL("feature.enable_light_saving", false);
+    if (enableLightSaving) {
+      int lightSensorPin = CONFIG_GET_INT("pins.light_sensor", -1);
+      if (lightSensorPin != -1) {
+        int lightLevel = analogRead(lightSensorPin);
+        int nightLightThreshold = CONFIG_GET_INT("power.night_light_threshold", 100);
+        nightMode = (lightLevel < nightLightThreshold);
+      }
+    }
     
     // 3. 人体感应处理
     if (motionDetected) {
@@ -115,7 +128,8 @@ void PowerManager::loop() {
         }
       } else {
         // 白天模式，根据无运动时间判断
-        if (!isLowPowerMode && (millis() - lastMotionTime > NO_MOTION_TIMEOUT)) {
+        int noMotionTimeout = CONFIG_GET_INT("power.no_motion_timeout", 30000);
+        if (!isLowPowerMode && (millis() - lastMotionTime > noMotionTimeout)) {
           // 通过CoreSystem进入低功耗模式
           coreSystem->enterLowPowerMode();
         }
@@ -154,20 +168,26 @@ void PowerManager::update() {
 }
 
 bool PowerManager::readPIRSensor() {
-  #if LOW_POWER_MODE_ENABLED
-    return digitalRead(PIR_SENSOR_PIN) == HIGH;
-  #else
-    return true;
-  #endif
+  bool lowPowerModeEnabled = CONFIG_GET_BOOL("power.low_power_mode", false);
+  if (lowPowerModeEnabled) {
+    int pirSensorPin = CONFIG_GET_INT("pins.pir_sensor", -1);
+    if (pirSensorPin != -1) {
+      return digitalRead(pirSensorPin) == HIGH;
+    }
+  }
+  return true;
 }
 
 void PowerManager::checkChargingInterface() {
   // 由于硬件设计只支持USB-Type-C，这里直接设置为USB_TYPE_C
   chargingInterface = USB_TYPE_C;
-  hasChargingProtection = CHARGING_PROTECTION_ENABLED;
+  hasChargingProtection = CONFIG_GET_BOOL("charging.protection_enabled", true);
+  
+  float chargingPowerMin = CONFIG_GET_FLOAT("charging.power_min", 5.0);
+  float chargingPowerMax = CONFIG_GET_FLOAT("charging.power_max", 18.0);
   
   DEBUG_PRINTLN("Charging interface confirmed as USB-Type-C");
-  DEBUG_PRINTLN("Charging power range: " + String(CHARGING_POWER_MIN) + "W - " + String(CHARGING_POWER_MAX) + "W");
+  DEBUG_PRINTLN("Charging power range: " + String(chargingPowerMin) + "W - " + String(chargingPowerMax) + "W");
 }
 
 void PowerManager::enterLowPowerMode() {
@@ -218,18 +238,23 @@ void PowerManager::enterLowPowerMode() {
         DEBUG_PRINTLN("GPIO hold enabled for unused pins");
         
         // 确保报警相关传感器引脚不被关闭
-        rtc_gpio_hold_dis(GAS_SENSOR_PIN);
-        rtc_gpio_hold_dis(FLAME_SENSOR_PIN);
-        rtc_gpio_hold_dis(PIR_SENSOR_PIN);
-        #if ENABLE_LIGHT_SAVING
-        rtc_gpio_hold_dis(LIGHT_SENSOR_PIN);
-        #endif
+        int gasSensorPin = CONFIG_GET_INT("pins.gas_sensor", -1);
+        int flameSensorPin = CONFIG_GET_INT("pins.flame_sensor", -1);
+        int pirSensorPin = CONFIG_GET_INT("pins.pir_sensor", -1);
+        int lightSensorPin = CONFIG_GET_INT("pins.light_sensor", -1);
+        
+        if (gasSensorPin != -1) rtc_gpio_hold_dis(gasSensorPin);
+        if (flameSensorPin != -1) rtc_gpio_hold_dis(flameSensorPin);
+        if (pirSensorPin != -1) rtc_gpio_hold_dis(pirSensorPin);
+        if (lightSensorPin != -1) rtc_gpio_hold_dis(lightSensorPin);
+        
         DEBUG_PRINTLN("保留报警相关传感器引脚功能");
       #endif
     #endif
     
     // 4. 优化显示刷新策略
-    DEBUG_PRINTLN("Display refresh interval set to " + String(LOW_POWER_REFRESH_INTERVAL) + "ms");
+    int lowPowerRefreshInterval = CONFIG_GET_INT("power.low_power_refresh_interval", 300000);
+    DEBUG_PRINTLN("Display refresh interval set to " + String(lowPowerRefreshInterval) + "ms");
     
     // 5. 降低传感器采样频率，但保留报警相关传感器的正常采样频率
     DEBUG_PRINTLN("Low power mode enabled, reducing non-alarm sensor sampling rate");
@@ -288,7 +313,8 @@ void PowerManager::exitLowPowerMode() {
     #endif
     
     // 4. 恢复显示刷新频率
-    DEBUG_PRINTLN("Display refresh interval set to " + String(NORMAL_REFRESH_INTERVAL) + "ms");
+    int normalRefreshInterval = CONFIG_GET_INT("power.normal_refresh_interval", 60000);
+    DEBUG_PRINTLN("Display refresh interval set to " + String(normalRefreshInterval) + "ms");
     
     // 5. 恢复正常的传感器采样频率
     DEBUG_PRINTLN("Normal mode enabled, restoring sensor sampling rate");
@@ -302,20 +328,22 @@ bool PowerManager::shouldUpdateDisplay() {
   // 根据电池电量和充电状态动态调整刷新间隔
   if (isCharging) {
     // 充电时，使用正常刷新间隔
-    refreshInterval = NORMAL_REFRESH_INTERVAL;
-  } else if (batteryPercentage <= CRITICAL_BATTERY_THRESHOLD) {
+    refreshInterval = CONFIG_GET_INT("power.normal_refresh_interval", 60000);
+  } else if (batteryPercentage <= CONFIG_GET_INT("power.critical_battery_threshold", 10)) {
     // 电量极低时，大幅延长刷新间隔
-    refreshInterval = CRITICAL_LOW_POWER_REFRESH_INTERVAL;
+    refreshInterval = CONFIG_GET_INT("power.critical_low_power_refresh_interval", 600000);
   } else if (isLowPowerMode) {
     // 低功耗模式下，延长刷新间隔
-    refreshInterval = LOW_POWER_REFRESH_INTERVAL;
+    refreshInterval = CONFIG_GET_INT("power.low_power_refresh_interval", 300000);
   } else {
     // 正常模式下，使用正常刷新间隔
-    refreshInterval = NORMAL_REFRESH_INTERVAL;
+    refreshInterval = CONFIG_GET_INT("power.normal_refresh_interval", 60000);
   }
   
   // 确保刷新间隔在合理范围内
-  refreshInterval = constrain(refreshInterval, MIN_REFRESH_INTERVAL, MAX_REFRESH_INTERVAL);
+  int minRefreshInterval = CONFIG_GET_INT("power.min_refresh_interval", 10000);
+  int maxRefreshInterval = CONFIG_GET_INT("power.max_refresh_interval", 3600000);
+  refreshInterval = constrain(refreshInterval, minRefreshInterval, maxRefreshInterval);
   
   if (currentTime - lastDisplayUpdateTime >= refreshInterval) {
     lastDisplayUpdateTime = currentTime;
@@ -327,7 +355,8 @@ bool PowerManager::shouldUpdateDisplay() {
 
 float PowerManager::readBatteryVoltage() {
   // 读取ADC值（0-4095）
-  int adcValue = analogRead(BATTERY_ADC_PIN);
+  int batteryAdcPin = CONFIG_GET_INT("pins.battery_adc", 34);
+  int adcValue = analogRead(batteryAdcPin);
   
   // 转换为电压值
   // 注意：需要根据实际的分压电路进行调整
@@ -340,26 +369,30 @@ float PowerManager::readBatteryVoltage() {
 
 int PowerManager::calculateBatteryPercentage(float voltage) {
   // 确保电压在合理范围内
-  if (voltage >= FULL_BATTERY_VOLTAGE) {
+  float fullBatteryVoltage = CONFIG_GET_FLOAT("battery.full_voltage", 4.2);
+  float emptyBatteryVoltage = CONFIG_GET_FLOAT("battery.empty_voltage", 3.0);
+  
+  if (voltage >= fullBatteryVoltage) {
     return 100;
-  } else if (voltage <= EMPTY_BATTERY_VOLTAGE) {
+  } else if (voltage <= emptyBatteryVoltage) {
     return 0;
   }
   
   // 线性计算电量百分比
-  int percentage = ((voltage - EMPTY_BATTERY_VOLTAGE) / (FULL_BATTERY_VOLTAGE - EMPTY_BATTERY_VOLTAGE)) * 100;
+  int percentage = ((voltage - emptyBatteryVoltage) / (fullBatteryVoltage - emptyBatteryVoltage)) * 100;
   
   return percentage;
 }
 
 bool PowerManager::readChargingStatus() {
   // 如果没有充电状态引脚，返回false
-  if (CHARGE_STATUS_PIN == -1) {
+  int chargeStatusPin = CONFIG_GET_INT("pins.charge_status", -1);
+  if (chargeStatusPin == -1) {
     return false;
   }
   
   // 读取充电状态引脚
   // 注意：根据实际硬件设计，充电状态引脚的电平可能不同
   // 这里假设高电平表示正在充电
-  return digitalRead(CHARGE_STATUS_PIN) == HIGH;
+  return digitalRead(chargeStatusPin) == HIGH;
 }

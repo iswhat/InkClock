@@ -1,7 +1,11 @@
 #ifndef CORE_SYSTEM_H
 #define CORE_SYSTEM_H
 
+#ifdef ARDUINO
 #include <Arduino.h>
+#else
+#include "arduino_compat.h"
+#endif
 #include "icore_system.h" // 包含ICoreSystem接口和CoreSystemState枚举
 #include "event_bus.h"
 #include "driver_registry.h"

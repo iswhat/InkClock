@@ -26,6 +26,7 @@ TimeManager::TimeManager() {
   
   timeUpdated = false;
   lastUpdate = 0;
+  calculationPrecision = 3; // 默认最高精度
   
   // 订阅农历数据更新事件
   EVENT_SUBSCRIBE(EVENT_LUNAR_DATA_UPDATED, [this](EventType type, std::shared_ptr<EventData> data) {
@@ -124,6 +125,13 @@ void TimeManager::loop() {
   if (millis() - lastNTPUpdate > NTP_UPDATE_INTERVAL) {
     lastNTPUpdate = millis();
     update();
+  }
+  
+  // 每10秒更新一次计算精度
+  static unsigned long lastPrecisionUpdate = 0;
+  if (millis() - lastPrecisionUpdate > 10000) {
+    lastPrecisionUpdate = millis();
+    updateCalculationPrecision();
   }
 }
 
@@ -349,4 +357,76 @@ String TimeManager::getDateTimeString() {
            currentTime.year, currentTime.month, currentTime.day, 
            currentTime.hour, currentTime.minute, currentTime.second);
   return String(buffer);
+}
+
+// 获取系统负载等级
+int TimeManager::getSystemLoadLevel() {
+  // 获取核心系统实例
+  CoreSystem* coreSystem = CoreSystem::getInstance();
+  
+  // 获取内存信息
+  size_t freeHeap, minFreeHeap;
+  coreSystem->getMemoryInfo(freeHeap, minFreeHeap);
+  
+  // 计算内存使用率
+  size_t totalHeap = minFreeHeap * 10; // 估算总堆内存
+  size_t usedHeap = totalHeap - freeHeap;
+  int memoryUsage = (usedHeap * 100) / totalHeap;
+  
+  // 获取CPU频率
+  uint32_t cpuFreq = coreSystem->getCpuFrequencyMhz();
+  
+  // 获取电池电量
+  int batteryLevel = coreSystem->getBatteryPercentage();
+  
+  // 综合计算负载等级
+  int loadLevel = 0;
+  
+  if (memoryUsage > 80) {
+    loadLevel += 3;
+  } else if (memoryUsage > 60) {
+    loadLevel += 2;
+  } else if (memoryUsage > 40) {
+    loadLevel += 1;
+  }
+  
+  if (cpuFreq < 120) {
+    loadLevel += 2;
+  } else if (cpuFreq < 180) {
+    loadLevel += 1;
+  }
+  
+  if (batteryLevel < 20) {
+    loadLevel += 2;
+  } else if (batteryLevel < 50) {
+    loadLevel += 1;
+  }
+  
+  // 限制负载等级在0-5之间
+  if (loadLevel > 5) loadLevel = 5;
+  
+  return loadLevel;
+}
+
+// 更新计算精度
+void TimeManager::updateCalculationPrecision() {
+  int loadLevel = getSystemLoadLevel();
+  
+  // 根据负载等级调整计算精度
+  switch (loadLevel) {
+    case 0: // 低负载
+    case 1:
+      calculationPrecision = 3; // 最高精度
+      break;
+    case 2: // 中低负载
+      calculationPrecision = 2; // 中等精度
+      break;
+    case 3: // 中等负载
+      calculationPrecision = 2; // 中等精度
+      break;
+    case 4: // 中高负载
+    case 5: // 高负载
+      calculationPrecision = 1; // 低精度
+      break;
+  }
 }

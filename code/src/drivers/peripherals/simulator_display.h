@@ -4,6 +4,11 @@
 #include "display_driver.h"
 #include <fstream>
 
+// 条件编译：如果定义了USE_SDL2，则使用SDL2图形库
+#ifdef USE_SDL2
+#include <SDL2/SDL.h>
+#endif
+
 // 模拟显示驱动，用于PC端预览
 class SimulatorDisplay : public IDisplayDriver {
 public:
@@ -30,6 +35,9 @@ public:
   
   // 填充矩形
   void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) override;
+  
+  // 绘制直线
+  void drawLine(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color) override;
   
   // 更新显示
   void update() override;
@@ -73,6 +81,13 @@ private:
   uint16_t* frameBuffer;
   std::ofstream logFile;
   
+  // SDL2相关成员变量
+  #ifdef USE_SDL2
+  SDL_Window* window;
+  SDL_Renderer* renderer;
+  SDL_Texture* texture;
+  #endif
+  
   // 初始化帧缓冲区
   void initFrameBuffer();
   
@@ -81,6 +96,13 @@ private:
   
   // 记录绘制操作
   void logDrawOperation(const char* operation, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
+  
+  // SDL2相关方法
+  #ifdef USE_SDL2
+  bool initSDL2();
+  void cleanupSDL2();
+  void updateSDL2();
+  #endif
 };
 
 #endif // SIMULATOR_DISPLAY_H

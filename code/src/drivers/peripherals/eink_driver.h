@@ -74,6 +74,9 @@ public:
   // 填充矩形
   void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) override;
   
+  // 绘制直线
+  void drawLine(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color) override;
+  
   // 更新显示
   void update() override;
   

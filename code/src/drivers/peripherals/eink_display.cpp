@@ -1427,6 +1427,17 @@ void EinkDisplay::drawSettingPage(int x, int y) {
     
     display.setCursor(x, y + 140);
     display.print("6. 关于");
+    
+    // 显示二维码提示
+    display.setCursor(x, y + 180);
+    display.setTextSize(1);
+    display.print("扫码访问设置页面");
+    
+    // 显示二维码区域
+    display.drawRect(x, y + 200, 180, 180, GxEPD_BLACK);
+    display.setCursor(x + 5, y + 390);
+    display.setTextSize(1);
+    display.print("http://192.168.4.1:8080");
   #elif DISPLAY_TYPE == EINK_75_INCH
     display.setCursor(x, y);
     display.setTextSize(3);
@@ -1442,6 +1453,17 @@ void EinkDisplay::drawSettingPage(int x, int y) {
     display.setCursor(x, y + 140);
     display.print("3. 天气设置");
     
+    // 显示二维码提示
+    display.setCursor(x, y + 240);
+    display.setTextSize(2);
+    display.print("扫码访问设置页面");
+    
+    // 显示二维码区域
+    display.drawRect(x, y + 280, 250, 250, GxEPD_BLACK);
+    display.setCursor(x + 10, y + 540);
+    display.setTextSize(2);
+    display.print("http://192.168.4.1:8080");
+    
     display.setCursor(x, y + 180);
     display.print("4. 股票设置");
     
@@ -1453,6 +1475,11 @@ void EinkDisplay::drawSettingPage(int x, int y) {
     
     display.setCursor(x, y + 300);
     display.print("7. 关于");
+    
+    // 显示二维码提示
+    display.setCursor(x, y + 340);
+    display.setTextSize(1);
+    display.print("扫码访问设置页面");
   #endif
   
   DEBUG_PRINTLN("设置页面绘制完成");

@@ -47,6 +47,8 @@ private:
   int maxConnectionAttempts;
   String currentSSID;
   String currentPassword;
+  int lastSignalStrength;
+  unsigned long signalStrengthCheckInterval;
   
   // 配置的WiFi信息
   String configuredSSID;

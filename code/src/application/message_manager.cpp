@@ -14,6 +14,8 @@ MessageManager::MessageManager() {
     messages[i].content = "";
     messages[i].type = MESSAGE_TEXT;
     messages[i].status = MESSAGE_UNREAD;
+    messages[i].priority = MESSAGE_PRIORITY_NORMAL;
+    messages[i].category = MESSAGE_CATEGORY_GENERAL;
     messages[i].time = "";
     messages[i].valid = false;
   }
@@ -69,7 +71,7 @@ void MessageManager::loop() {
   }
 }
 
-bool MessageManager::addMessage(String sender, String content, MessageType type) {
+bool MessageManager::addMessage(String sender, String content, MessageType type, MessagePriority priority, MessageCategory category) {
   DEBUG_PRINTLN("添加新消息...");
   
   // 检查消息数组是否已满
@@ -88,6 +90,8 @@ bool MessageManager::addMessage(String sender, String content, MessageType type)
   newMessage.content = content;
   newMessage.type = type;
   newMessage.status = MESSAGE_UNREAD;
+  newMessage.priority = priority;
+  newMessage.category = category;
   newMessage.time = timeStr;
   newMessage.valid = true;
   
@@ -199,6 +203,23 @@ MessageData MessageManager::getMessage(int id) {
 
 MessageData MessageManager::getLatestMessage() {
   if (messageCount > 0) {
+    // 优先返回优先级最高的未读消息
+    int highestPriorityIndex = 0;
+    int highestPriority = -1;
+    
+    for (int i = 0; i < messageCount; i++) {
+      if (messages[i].status == MESSAGE_UNREAD && messages[i].priority > highestPriority) {
+        highestPriority = messages[i].priority;
+        highestPriorityIndex = i;
+      }
+    }
+    
+    // 如果有未读消息，返回优先级最高的
+    if (highestPriority >= 0) {
+      return messages[highestPriorityIndex];
+    }
+    
+    // 否则返回最新的消息
     return messages[0];
   }
   
@@ -209,6 +230,7 @@ MessageData MessageManager::getLatestMessage() {
   invalidMessage.content = "";
   invalidMessage.type = MESSAGE_TEXT;
   invalidMessage.status = MESSAGE_UNREAD;
+  invalidMessage.priority = MESSAGE_PRIORITY_NORMAL;
   invalidMessage.time = "";
   invalidMessage.valid = false;
   
@@ -245,6 +267,8 @@ bool MessageManager::saveMessages() {
     messageObj["content"] = messages[i].content;
     messageObj["type"] = messages[i].type;
     messageObj["status"] = messages[i].status;
+    messageObj["priority"] = messages[i].priority;
+    messageObj["category"] = messages[i].category;
     messageObj["time"] = messages[i].time;
   }
   
@@ -320,6 +344,8 @@ bool MessageManager::loadMessages() {
     message.content = messageObj["content"].as<String>();
     message.type = (MessageType)messageObj["type"];
     message.status = (MessageStatus)messageObj["status"];
+    message.priority = messageObj.containsKey("priority") ? (MessagePriority)messageObj["priority"] : MESSAGE_PRIORITY_NORMAL;
+    message.category = messageObj.containsKey("category") ? (MessageCategory)messageObj["category"] : MESSAGE_CATEGORY_GENERAL;
     message.time = messageObj["time"].as<String>();
     message.valid = true;
     
@@ -357,4 +383,64 @@ int MessageManager::findMessageIndex(int id) {
 bool MessageManager::isValidMessageId(int id) {
   // 检查消息ID是否有效
   return findMessageIndex(id) != -1;
+}
+
+// 根据分类获取消息
+MessageData* MessageManager::getMessagesByCategory(MessageCategory category, int& count) {
+  static MessageData filteredMessages[MAX_MESSAGES];
+  count = 0;
+  
+  for (int i = 0; i < messageCount; i++) {
+    if (messages[i].category == category) {
+      filteredMessages[count++] = messages[i];
+    }
+  }
+  
+  return count > 0 ? filteredMessages : nullptr;
+}
+
+// 根据优先级获取消息
+MessageData* MessageManager::getMessagesByPriority(MessagePriority priority, int& count) {
+  static MessageData filteredMessages[MAX_MESSAGES];
+  count = 0;
+  
+  for (int i = 0; i < messageCount; i++) {
+    if (messages[i].priority == priority) {
+      filteredMessages[count++] = messages[i];
+    }
+  }
+  
+  return count > 0 ? filteredMessages : nullptr;
+}
+
+// 根据状态获取消息
+MessageData* MessageManager::getMessagesByStatus(MessageStatus status, int& count) {
+  static MessageData filteredMessages[MAX_MESSAGES];
+  count = 0;
+  
+  for (int i = 0; i < messageCount; i++) {
+    if (messages[i].status == status) {
+      filteredMessages[count++] = messages[i];
+    }
+  }
+  
+  return count > 0 ? filteredMessages : nullptr;
+}
+
+// 根据多个条件过滤消息
+MessageData* MessageManager::filterMessages(MessageCategory category, MessagePriority priority, MessageStatus status, int& count) {
+  static MessageData filteredMessages[MAX_MESSAGES];
+  count = 0;
+  
+  for (int i = 0; i < messageCount; i++) {
+    bool matchCategory = (category == MESSAGE_CATEGORY_GENERAL) || (messages[i].category == category);
+    bool matchPriority = (priority == MESSAGE_PRIORITY_NORMAL) || (messages[i].priority == priority);
+    bool matchStatus = (status == MESSAGE_UNREAD) || (messages[i].status == status);
+    
+    if (matchCategory && matchPriority && matchStatus) {
+      filteredMessages[count++] = messages[i];
+    }
+  }
+  
+  return count > 0 ? filteredMessages : nullptr;
 }

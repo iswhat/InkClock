@@ -50,6 +50,9 @@ private:
   bool timeUpdated;
   unsigned long lastUpdate;
   
+  // 计算精度等级
+  int calculationPrecision;
+  
   // 私有方法
   void updateNTPTime();
   bool sendNTPRequest(const char* serverName);
@@ -59,6 +62,10 @@ private:
   String getSolarTerm(int year, int month, int day);
   bool isLeapYear(int year);
   int getDaysInMonth(int year, int month);
+  
+  // 资源感知方法
+  void updateCalculationPrecision();
+  int getSystemLoadLevel();
 };
 
 #endif // TIME_MANAGER_H

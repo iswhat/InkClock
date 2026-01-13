@@ -1,7 +1,12 @@
 #ifndef EVENT_BUS_H
 #define EVENT_BUS_H
 
+#ifdef ARDUINO
 #include <Arduino.h>
+#else
+#include "arduino_compat.h"
+#endif
+
 #include <vector>
 #include <functional>
 #include <memory>
@@ -125,7 +130,14 @@ enum EventType {
   EVENT_UPDATE_FAILED,
   
   // 硬件变化事件
-  EVENT_HARDWARE_CHANGED
+  EVENT_HARDWARE_CHANGED,
+  
+  // 模块事件
+  EVENT_MODULE_REGISTERED,
+  EVENT_MODULE_UNREGISTERED,
+  EVENT_MODULE_ENABLED,
+  EVENT_MODULE_DISABLED,
+  EVENT_MODULE_STATUS_CHANGED
 };
 
 // 事件数据基类
@@ -228,6 +240,15 @@ public:
   String pluginStatus;
   PluginEventData(const String& name, const String& version, const String& status) : 
     pluginName(name), pluginVersion(version), pluginStatus(status) {}
+};
+
+// 模块事件数据
+class ModuleEventData : public EventData {
+public:
+  String moduleName;
+  int moduleType;
+  ModuleEventData(const String& name, int type) : 
+    moduleName(name), moduleType(type) {}
 };
 
 // 电源状态事件数据

@@ -1,7 +1,11 @@
 #ifndef DISPLAY_DRIVER_H
 #define DISPLAY_DRIVER_H
 
+#ifdef ARDUINO
 #include <Arduino.h>
+#else
+#include "arduino_compat.h"
+#endif
 
 // 显示类型枚举
 enum class DisplayType {
@@ -34,6 +38,9 @@ public:
   
   // 填充矩形
   virtual void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) = 0;
+  
+  // 绘制直线
+  virtual void drawLine(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color) = 0;
   
   // 更新显示
   virtual void update() = 0;

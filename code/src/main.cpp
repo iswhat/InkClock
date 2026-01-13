@@ -33,6 +33,11 @@
 #include "application/api_manager.h"
 #include "application/geo_manager.h"
 #include "coresystem/spiffs_manager.h"
+#include "application/feedback_manager.h"
+#include "coresystem/hardware_detector.h"
+#include "coresystem/feature_manager.h"
+#include "coresystem/performance_monitor.h"
+#include "coresystem/storage_manager.h"
 
 // 条件包含可选模块 - 可通过修改这些宏来启用或禁用相应功能
 // 音频功能 - 用于音频录制和播放
@@ -58,6 +63,9 @@
 
 // Web客户端功能 - 用于与Web服务器通信
 #define ENABLE_WEBCLIENT true   
+
+// 场景管理功能 - 用于场景模式管理
+#define ENABLE_SCENE true       
 
 // IPv6功能 - 用于IPv6网络支持
 #define ENABLE_IPV6 false       
@@ -105,6 +113,10 @@
   #include "application/web_client.h"
 #endif
 
+#if ENABLE_SCENE
+  #include "application/scene_manager.h"
+#endif
+
 #if ENABLE_FONT
   #include "coresystem/font_manager.h"
 #endif
@@ -125,59 +137,682 @@
  * @brief 全局对象实例
  * 
  * 所有功能模块的全局实例，用于在setup和loop函数中访问各个模块
- */// 全局对象实例
-DisplayManager displayManager;       // 显示管理模块
-WiFiManager wifiManager;             // WiFi管理模块
-TimeManager timeManager;             // 时间管理模块
-LunarManager lunarManager;           // 农历管理模块
-WeatherManager weatherManager;       // 天气管理模块
-SensorManager sensorManager;         // 传感器管理模块
-ButtonManager buttonManager;         // 按键管理模块
-PowerManager powerManager;           // 电源管理模块
-WebServerManager webServerManager;   // Web服务器模块
-APIManager apiManager;               // API管理模块
-GeoManager geoManager;               // 地理位置管理模块
+ */// 模块注册中心实例
+ModuleRegistry* moduleRegistry;
 
-// 条件创建可选模块实例
+// 模块获取辅助函数
+template <typename T>
+T* getModule() {
+  return moduleRegistry->getModule<T>();
+}
+
+// 条件注册可选模块
 #if ENABLE_AUDIO
-  AudioManager audioManager;           // 音频管理模块
+  class AudioModuleWrapper : public IModule {
+  public:
+    AudioModuleWrapper() : audioManager() {}
+    
+    void init() override {
+      audioManager.init();
+    }
+    
+    void loop() override {
+      audioManager.loop();
+    }
+    
+    String getName() const override {
+      return "AudioManager";
+    }
+    
+    ModuleType getModuleType() const override {
+      return MODULE_TYPE_AUDIO;
+    }
+    
+    AudioManager& getAudioManager() {
+      return audioManager;
+    }
+    
+  private:
+    AudioManager audioManager;
+  };
+#endif
+
+#if ENABLE_SCENE
+  class SceneModuleWrapper : public IModule {
+  public:
+    SceneModuleWrapper() : sceneManager() {}
+    
+    void init() override {
+      sceneManager.init();
+    }
+    
+    void loop() override {
+      sceneManager.loop();
+    }
+    
+    String getName() const override {
+      return "SceneManager";
+    }
+    
+    ModuleType getModuleType() const override {
+      return MODULE_TYPE_SCENE;
+    }
+    
+    SceneManager& getSceneManager() {
+      return sceneManager;
+    }
+    
+  private:
+    SceneManager sceneManager;
+  };
 #endif
 
 #if ENABLE_BLUETOOTH
-  BluetoothManager bluetoothManager;   // 蓝牙管理模块
+  class BluetoothModuleWrapper : public IModule {
+  public:
+    BluetoothModuleWrapper() : bluetoothManager() {}
+    
+    void init() override {
+      bluetoothManager.init();
+    }
+    
+    void loop() override {
+      bluetoothManager.loop();
+    }
+    
+    String getName() const override {
+      return "BluetoothManager";
+    }
+    
+    ModuleType getModuleType() const override {
+      return MODULE_TYPE_BLUETOOTH;
+    }
+    
+    BluetoothManager& getBluetoothManager() {
+      return bluetoothManager;
+    }
+    
+  private:
+    BluetoothManager bluetoothManager;
+  };
 #endif
 
 #if ENABLE_CAMERA
-  CameraManager cameraManager;         // 摄像头管理模块
+  class CameraModuleWrapper : public IModule {
+  public:
+    CameraModuleWrapper() : cameraManager() {}
+    
+    void init() override {
+      cameraManager.init();
+    }
+    
+    void loop() override {
+      cameraManager.loop();
+    }
+    
+    String getName() const override {
+      return "CameraManager";
+    }
+    
+    ModuleType getModuleType() const override {
+      return MODULE_TYPE_CAMERA;
+    }
+    
+    CameraManager& getCameraManager() {
+      return cameraManager;
+    }
+    
+  private:
+    CameraManager cameraManager;
+  };
 #endif
 
 #if ENABLE_STOCK
-  StockManager stockManager;           // 股票管理模块
+  class StockModuleWrapper : public IModule {
+  public:
+    StockModuleWrapper() : stockManager() {}
+    
+    void init() override {
+      stockManager.init();
+    }
+    
+    void loop() override {
+      stockManager.loop();
+    }
+    
+    String getName() const override {
+      return "StockManager";
+    }
+    
+    ModuleType getModuleType() const override {
+      return MODULE_TYPE_STOCK;
+    }
+    
+    StockManager& getStockManager() {
+      return stockManager;
+    }
+    
+  private:
+    StockManager stockManager;
+  };
 #endif
 
 #if ENABLE_MESSAGE
-  MessageManager messageManager;       // 消息管理模块
+  class MessageModuleWrapper : public IModule {
+  public:
+    MessageModuleWrapper() : messageManager() {}
+    
+    void init() override {
+      messageManager.init();
+    }
+    
+    void loop() override {
+      messageManager.loop();
+    }
+    
+    String getName() const override {
+      return "MessageManager";
+    }
+    
+    ModuleType getModuleType() const override {
+      return MODULE_TYPE_MESSAGE;
+    }
+    
+    MessageManager& getMessageManager() {
+      return messageManager;
+    }
+    
+  private:
+    MessageManager messageManager;
+  };
 #endif
 
 #if ENABLE_PLUGIN
-  PluginManager pluginManager;         // 插件管理模块
+  class PluginModuleWrapper : public IModule {
+  public:
+    PluginModuleWrapper() : pluginManager() {}
+    
+    void init() override {
+      pluginManager.init();
+    }
+    
+    void loop() override {
+      pluginManager.loop();
+    }
+    
+    String getName() const override {
+      return "PluginManager";
+    }
+    
+    ModuleType getModuleType() const override {
+      return MODULE_TYPE_PLUGIN;
+    }
+    
+    PluginManager& getPluginManager() {
+      return pluginManager;
+    }
+    
+  private:
+    PluginManager pluginManager;
+  };
 #endif
 
 #if ENABLE_WEBCLIENT
-  WebClient webClient;                 // Web客户端模块
+  class WebClientModuleWrapper : public IModule {
+  public:
+    WebClientModuleWrapper() : webClient() {}
+    
+    void init() override {
+      webClient.init();
+    }
+    
+    void loop() override {
+      webClient.loop();
+    }
+    
+    String getName() const override {
+      return "WebClient";
+    }
+    
+    ModuleType getModuleType() const override {
+      return MODULE_TYPE_WEBCLIENT;
+    }
+    
+    WebClient& getWebClient() {
+      return webClient;
+    }
+    
+  private:
+    WebClient webClient;
+  };
 #endif
 
 #if ENABLE_FONT
-  FontManager fontManager;             // 字体管理模块
+  class FontModuleWrapper : public IModule {
+  public:
+    FontModuleWrapper() : fontManager() {}
+    
+    void init() override {
+      fontManager.init();
+    }
+    
+    void loop() override {
+      fontManager.loop();
+    }
+    
+    String getName() const override {
+      return "FontManager";
+    }
+    
+    ModuleType getModuleType() const override {
+      return MODULE_TYPE_FONT;
+    }
+    
+    FontManager& getFontManager() {
+      return fontManager;
+    }
+    
+  private:
+    FontManager fontManager;
+  };
 #endif
 
 #if ENABLE_FIRMWARE
-  FirmwareManager firmwareManager;     // 固件管理模块
+  class FirmwareModuleWrapper : public IModule {
+  public:
+    FirmwareModuleWrapper() : firmwareManager() {}
+    
+    void init() override {
+      firmwareManager.init();
+    }
+    
+    void loop() override {
+      firmwareManager.loop();
+    }
+    
+    String getName() const override {
+      return "FirmwareManager";
+    }
+    
+    ModuleType getModuleType() const override {
+      return MODULE_TYPE_FIRMWARE;
+    }
+    
+    FirmwareManager& getFirmwareManager() {
+      return firmwareManager;
+    }
+    
+  private:
+    FirmwareManager firmwareManager;
+  };
 #endif
 
 #if ENABLE_TOUCH
-  TouchManager touchManager;           // 触摸管理模块
+  class TouchModuleWrapper : public IModule {
+  public:
+    TouchModuleWrapper() : touchManager() {}
+    
+    void init() override {
+      touchManager.init();
+    }
+    
+    void loop() override {
+      touchManager.loop();
+    }
+    
+    String getName() const override {
+      return "TouchManager";
+    }
+    
+    ModuleType getModuleType() const override {
+      return MODULE_TYPE_TOUCH;
+    }
+    
+    TouchManager& getTouchManager() {
+      return touchManager;
+    }
+    
+  private:
+    TouchManager touchManager;
+  };
 #endif
+
+// 核心模块包装器
+class DisplayModuleWrapper : public IModule {
+public:
+  DisplayModuleWrapper() : displayManager() {}
+  
+  void init() override {
+    displayManager.init();
+  }
+  
+  void loop() override {
+    displayManager.loop();
+  }
+  
+  String getName() const override {
+    return "DisplayManager";
+  }
+  
+  ModuleType getModuleType() const override {
+    return MODULE_TYPE_DISPLAY;
+  }
+  
+  DisplayManager& getDisplayManager() {
+    return displayManager;
+  }
+  
+private:
+  DisplayManager displayManager;
+};
+
+class WiFiModuleWrapper : public IModule {
+public:
+  WiFiModuleWrapper() : wifiManager() {}
+  
+  void init() override {
+    wifiManager.init();
+  }
+  
+  void loop() override {
+    wifiManager.loop();
+  }
+  
+  String getName() const override {
+    return "WiFiManager";
+  }
+  
+  ModuleType getModuleType() const override {
+    return MODULE_TYPE_WIFI;
+  }
+  
+  WiFiManager& getWiFiManager() {
+    return wifiManager;
+  }
+  
+private:
+  WiFiManager wifiManager;
+};
+
+class TimeModuleWrapper : public IModule {
+public:
+  TimeModuleWrapper() : timeManager() {}
+  
+  void init() override {
+    timeManager.init();
+  }
+  
+  void loop() override {
+    timeManager.loop();
+  }
+  
+  String getName() const override {
+    return "TimeManager";
+  }
+  
+  ModuleType getModuleType() const override {
+    return MODULE_TYPE_TIME;
+  }
+  
+  TimeManager& getTimeManager() {
+    return timeManager;
+  }
+  
+private:
+  TimeManager timeManager;
+};
+
+class LunarModuleWrapper : public IModule {
+public:
+  LunarModuleWrapper() : lunarManager() {}
+  
+  void init() override {
+    lunarManager.init();
+  }
+  
+  void loop() override {
+    lunarManager.loop();
+  }
+  
+  String getName() const override {
+    return "LunarManager";
+  }
+  
+  ModuleType getModuleType() const override {
+    return MODULE_TYPE_LUNAR;
+  }
+  
+  LunarManager& getLunarManager() {
+    return lunarManager;
+  }
+  
+private:
+  LunarManager lunarManager;
+};
+
+class WeatherModuleWrapper : public IModule {
+public:
+  WeatherModuleWrapper() : weatherManager() {}
+  
+  void init() override {
+    weatherManager.init();
+  }
+  
+  void loop() override {
+    weatherManager.loop();
+  }
+  
+  String getName() const override {
+    return "WeatherManager";
+  }
+  
+  ModuleType getModuleType() const override {
+    return MODULE_TYPE_WEATHER;
+  }
+  
+  WeatherManager& getWeatherManager() {
+    return weatherManager;
+  }
+  
+private:
+  WeatherManager weatherManager;
+};
+
+class SensorModuleWrapper : public IModule {
+public:
+  SensorModuleWrapper() : sensorManager() {}
+  
+  void init() override {
+    sensorManager.init();
+  }
+  
+  void loop() override {
+    sensorManager.loop();
+  }
+  
+  String getName() const override {
+    return "SensorManager";
+  }
+  
+  ModuleType getModuleType() const override {
+    return MODULE_TYPE_SENSOR;
+  }
+  
+  SensorManager& getSensorManager() {
+    return sensorManager;
+  }
+  
+private:
+  SensorManager sensorManager;
+};
+
+class ButtonModuleWrapper : public IModule {
+public:
+  ButtonModuleWrapper() : buttonManager() {}
+  
+  void init() override {
+    buttonManager.init();
+  }
+  
+  void loop() override {
+    buttonManager.loop();
+  }
+  
+  String getName() const override {
+    return "ButtonManager";
+  }
+  
+  ModuleType getModuleType() const override {
+    return MODULE_TYPE_BUTTON;
+  }
+  
+  ButtonManager& getButtonManager() {
+    return buttonManager;
+  }
+  
+private:
+  ButtonManager buttonManager;
+};
+
+class FeedbackModuleWrapper : public IModule {
+public:
+  FeedbackModuleWrapper() : feedbackManager() {}
+  
+  void init() override {
+    feedbackManager.init();
+  }
+  
+  void loop() override {
+    feedbackManager.update();
+  }
+  
+  String getName() const override {
+    return "FeedbackManager";
+  }
+  
+  ModuleType getModuleType() const override {
+    return MODULE_TYPE_FEEDBACK;
+  }
+  
+  FeedbackManager& getFeedbackManager() {
+    return feedbackManager;
+  }
+  
+private:
+  FeedbackManager feedbackManager;
+};
+
+class PowerModuleWrapper : public IModule {
+public:
+  PowerModuleWrapper() : powerManager() {}
+  
+  void init() override {
+    powerManager.init();
+  }
+  
+  void loop() override {
+    powerManager.loop();
+  }
+  
+  String getName() const override {
+    return "PowerManager";
+  }
+  
+  ModuleType getModuleType() const override {
+    return MODULE_TYPE_POWER;
+  }
+  
+  PowerManager& getPowerManager() {
+    return powerManager;
+  }
+  
+private:
+  PowerManager powerManager;
+};
+
+class WebServerModuleWrapper : public IModule {
+public:
+  WebServerModuleWrapper() : webServerManager() {}
+  
+  void init() override {
+    webServerManager.init();
+  }
+  
+  void loop() override {
+    webServerManager.loop();
+  }
+  
+  String getName() const override {
+    return "WebServerManager";
+  }
+  
+  ModuleType getModuleType() const override {
+    return MODULE_TYPE_WEB_SERVER;
+  }
+  
+  WebServerManager& getWebServerManager() {
+    return webServerManager;
+  }
+  
+private:
+  WebServerManager webServerManager;
+};
+
+class APIModuleWrapper : public IModule {
+public:
+  APIModuleWrapper() : apiManager() {}
+  
+  void init() override {
+    apiManager.init();
+  }
+  
+  void loop() override {
+    apiManager.loop();
+  }
+  
+  String getName() const override {
+    return "APIManager";
+  }
+  
+  ModuleType getModuleType() const override {
+    return MODULE_TYPE_API;
+  }
+  
+  APIManager& getAPIManager() {
+    return apiManager;
+  }
+  
+private:
+  APIManager apiManager;
+};
+
+class GeoModuleWrapper : public IModule {
+public:
+  GeoModuleWrapper() : geoManager() {}
+  
+  void init() override {
+    geoManager.init();
+  }
+  
+  void loop() override {
+    geoManager.loop();
+  }
+  
+  String getName() const override {
+    return "GeoManager";
+  }
+  
+  ModuleType getModuleType() const override {
+    return MODULE_TYPE_GEO;
+  }
+  
+  GeoManager& getGeoManager() {
+    return geoManager;
+  }
+  
+private:
+  GeoManager geoManager;
+};
 
 /**
  * @brief 初始化函数
@@ -211,6 +846,108 @@ void initSystem() {
     Serial.println("SPIFFS初始化完成");
   } catch (const std::exception& e) {
     Serial.print("SPIFFS初始化异常: ");
+    Serial.println(e.what());
+  }
+  
+  // 初始化硬件检测器，用于硬件资源评估
+  try {
+    HardwareDetector* hardwareDetector = HardwareDetector::getInstance();
+    if (hardwareDetector->init()) {
+      // 执行硬件资源检测
+      hardwareDetector->detectResources();
+      hardwareDetector->evaluateCapabilities();
+      
+      // 获取硬件评估结果
+      HardwareEvaluationResult result = hardwareDetector->getEvaluationResult();
+      Serial.printf("硬件评估完成: 得分=%.2f, 级别=%d\n", result.overallScore, result.overallLevel);
+      Serial.printf("硬件平台: %s\n", result.platform.c_str());
+      Serial.printf("总内存: %.2f KB\n", result.totalMemory);
+      Serial.printf("总存储: %.2f KB\n", result.totalStorage);
+      
+      Serial.println("硬件检测器初始化完成");
+    } else {
+      Serial.println("硬件检测器初始化失败");
+    }
+  } catch (const std::exception& e) {
+    Serial.print("硬件检测器初始化异常: ");
+    Serial.println(e.what());
+  }
+  
+  // 初始化功能管理器，用于功能降级策略
+  try {
+    FeatureManager* featureManager = FeatureManager::getInstance();
+    if (featureManager->init()) {
+      // 评估功能级别
+      featureManager->evaluateFeatures();
+      
+      // 打印功能状态
+      std::vector<FeatureConfig> featureConfigs = featureManager->getAllFeatureConfigs();
+      Serial.println("功能状态:");
+      for (const auto& config : featureConfigs) {
+        if (featureManager->isFeatureEnabled(config.name)) {
+          Serial.printf("%s: 级别=%d, 状态=启用\n", config.name.c_str(), config.currentLevel);
+        } else {
+          Serial.printf("%s: 级别=%d, 状态=禁用\n", config.name.c_str(), config.currentLevel);
+        }
+      }
+      
+      Serial.println("功能管理器初始化完成");
+    } else {
+      Serial.println("功能管理器初始化失败");
+    }
+  } catch (const std::exception& e) {
+    Serial.print("功能管理器初始化异常: ");
+    Serial.println(e.what());
+  }
+  
+  // 初始化性能监控器，用于实时性能监控和预警
+  try {
+    PerformanceMonitor* performanceMonitor = PerformanceMonitor::getInstance();
+    if (performanceMonitor->init()) {
+      // 运行基准测试
+      float benchmarkTime = performanceMonitor->runBenchmark();
+      Serial.printf("性能基准测试完成: %.2f ms\n", benchmarkTime);
+      
+      // 检查系统健康状态
+      performanceMonitor->checkSystemHealth();
+      
+      Serial.println("性能监控器初始化完成");
+    } else {
+      Serial.println("性能监控器初始化失败");
+    }
+  } catch (const std::exception& e) {
+    Serial.print("性能监控器初始化异常: ");
+    Serial.println(e.what());
+  }
+  
+  // 初始化存储管理器，用于分层存储管理
+  try {
+    StorageManager* storageManager = StorageManager::getInstance();
+    if (storageManager->init()) {
+      // 检查存储系统健康状态
+      if (storageManager->checkHealth()) {
+        Serial.println("存储系统健康状态良好");
+      } else {
+        Serial.println("存储系统健康状态异常");
+      }
+      
+      // 打印存储介质信息
+      std::vector<StorageMediumInfo> storageInfos = storageManager->getAllStorageMediumInfo();
+      for (const auto& info : storageInfos) {
+        if (info.available) {
+          Serial.printf("存储介质: %s, 总容量: %.2f MB, 可用容量: %.2f MB\n", 
+                      info.name.c_str(), 
+                      (float)info.totalSize / (1024 * 1024), 
+                      (float)info.availableSize / (1024 * 1024));
+        }
+      }
+      
+      Serial.println("存储管理器初始化完成");
+    } else {
+      Serial.println("存储管理器初始化失败");
+    }
+  } catch (const std::exception& e) {
+    Serial.print("存储管理器初始化异常: ");
     Serial.println(e.what());
   }
   
@@ -324,15 +1061,91 @@ void initInputDevices() {
   try {
     buttonManager.init();       // 按键事件处理
     
+    // 初始化状态反馈管理器
+    feedbackManager.init();
+    // 设置LED引脚（根据实际硬件连接修改）
+    feedbackManager.setLEDPins(13, 12, 14); // 电源LED、WiFi LED、蓝牙LED
+    // 设置屏幕驱动
+    feedbackManager.setDisplayDriver(displayManager.getDisplayDriver());
+    
     // 设置按键回调函数，用于处理按键事件，包括报警状态下切换回主界面
-    buttonManager.setCallback([](int buttonIndex, ButtonEvent event) {
-      if (displayManager.isAlarmShowing()) {
-        // 如果处于报警状态，任何按键都切换回主界面
-        displayManager.hideAlarm();
-      }
-      // 其他按键处理逻辑可以在这里添加
-    });
+  buttonManager.setCallback([](int buttonIndex, ButtonEvent event) {
+    if (displayManager.isAlarmShowing()) {
+      // 如果处于报警状态，任何按键都切换回主界面
+      displayManager.hideAlarm();
+      return;
+    }
+    
+    // 单按钮操作逻辑
+    switch (event) {
+      case BUTTON_CLICK:
+        // 单击：切换右侧页面（日历/股票/消息）
+        {
+          static RightPageType currentPage = RIGHT_PAGE_CALENDAR;
+          switch (currentPage) {
+            case RIGHT_PAGE_CALENDAR:
+              currentPage = RIGHT_PAGE_STOCK;
+              break;
+            case RIGHT_PAGE_STOCK:
+              currentPage = RIGHT_PAGE_MESSAGE;
+              break;
+            case RIGHT_PAGE_MESSAGE:
+              currentPage = RIGHT_PAGE_CALENDAR;
+              break;
+            default:
+              currentPage = RIGHT_PAGE_CALENDAR;
+              break;
+          }
+          displayManager.switchRightPage(currentPage);
+          displayManager.updateDisplay();
+          // 触发反馈
+          feedbackManager.triggerFeedback(FEEDBACK_CLICK);
+        }
+        break;
+        
+      case BUTTON_DOUBLE_CLICK:
+        // 双击：切换显示模式（数字/模拟/文字时钟）
+        displayManager.toggleClockMode();
+        displayManager.updateDisplay();
+        // 触发反馈
+        feedbackManager.triggerFeedback(FEEDBACK_DOUBLE_CLICK);
+        break;
+        
+      case BUTTON_TRIPLE_CLICK:
+        // 三连击：切换到下一个场景
+        #if ENABLE_SCENE
+          SceneManager& sceneManager = getModule<SceneModuleWrapper>()->getSceneManager();
+          sceneManager.switchToNextScene();
+          // 显示当前场景名称
+          displayManager.showToastMessage("场景: " + sceneManager.getSceneConfig(sceneManager.getCurrentScene()).name, 2000);
+        #endif
+        // 触发反馈
+        feedbackManager.triggerFeedback(FEEDBACK_TRIPLE_CLICK);
+        break;
+        
+      case BUTTON_LONG_PRESS:
+        // 长按：开机/关机
+        DEBUG_PRINTLN("长按：开机/关机");
+        // 触发反馈
+        feedbackManager.triggerFeedback(FEEDBACK_LONG_PRESS);
+        break;
+        
+      case BUTTON_POWER_OFF:
+        // 长按5秒以上：关机
+        DEBUG_PRINTLN("长按5秒以上：关机");
+        // 触发反馈
+        feedbackManager.triggerFeedback(FEEDBACK_POWER_OFF);
+        // 这里可以添加关机逻辑
+        // 例如：进入深度睡眠模式
+        platformDeepSleep(0); // 永久睡眠
+        break;
+        
+      default:
+        break;
+    }
+  });
     Serial.println("按键管理器初始化完成");
+    Serial.println("状态反馈管理器初始化完成");
   } catch (const std::exception& e) {
     Serial.print("按键管理器初始化异常: ");
     Serial.println(e.what());
@@ -387,6 +1200,16 @@ void initLocalModules() {
       Serial.println("消息管理器初始化完成");
     } catch (const std::exception& e) {
       Serial.print("消息管理器初始化异常: ");
+      Serial.println(e.what());
+    }
+  #endif
+
+  #if ENABLE_SCENE
+    try {
+      sceneManager.init();        // 场景模式管理
+      Serial.println("场景管理器初始化完成");
+    } catch (const std::exception& e) {
+      Serial.print("场景管理器初始化异常: ");
       Serial.println(e.what());
     }
   #endif
@@ -645,6 +1468,12 @@ void loop() {
     coreSystem->sendError("按键模块异常", 1003, "ButtonManager");
   }
   
+  try {
+    feedbackManager.update();      // 操作反馈系统（实时响应）
+  } catch (const std::exception& e) {
+    coreSystem->sendError("反馈模块异常", 1013, "FeedbackManager");
+  }
+  
   #if ENABLE_TOUCH
     try {
       touchManager.loop();          // 触摸事件检测（实时交互）
@@ -737,9 +1566,17 @@ void loop() {
   // 后台功能模块
   #if ENABLE_MESSAGE
     try {
-      messageManager.loop();        // 消息接收和处理
+      messageManager.loop();       // 消息处理和通知
     } catch (const std::exception& e) {
-      coreSystem->sendError("消息模块异常", 1016, "MessageManager");
+      coreSystem->sendError("消息模块异常", 1011, "MessageManager");
+    }
+  #endif
+
+  #if ENABLE_SCENE
+    try {
+      sceneManager.loop();         // 场景模式管理
+    } catch (const std::exception& e) {
+      coreSystem->sendError("场景模块异常", 1014, "SceneManager");
     }
   #endif
   
@@ -854,6 +1691,49 @@ void loop() {
     Serial.flush();
     platformDelay(1000);
     platformReset(); // 重启系统
+  }
+  
+  // 定期监控硬件资源使用情况
+  static unsigned long lastHardwareMonitor = 0;
+  static const unsigned long HARDWARE_MONITOR_INTERVAL = 60000; // 60秒
+  
+  if (now - lastHardwareMonitor > HARDWARE_MONITOR_INTERVAL) {
+    lastHardwareMonitor = now;
+    try {
+      HardwareDetector* hardwareDetector = HardwareDetector::getInstance();
+      hardwareDetector->monitorResources();
+      
+      // 监控功能状态
+      FeatureManager* featureManager = FeatureManager::getInstance();
+      featureManager->monitorFeatures();
+      
+      // 运行性能监控周期
+      PerformanceMonitor* performanceMonitor = PerformanceMonitor::getInstance();
+      performanceMonitor->runMonitoringCycle();
+      
+      // 执行存储系统清理和优化
+      StorageManager* storageManager = StorageManager::getInstance();
+      storageManager->cleanup();
+      storageManager->optimize();
+      
+      // 每5分钟打印一次性能报告
+      static unsigned long lastReportTime = 0;
+      if (now - lastReportTime > 300000) { // 5分钟
+        lastReportTime = now;
+        String performanceReport = performanceMonitor->getPerformanceReport();
+        Serial.println(performanceReport);
+        
+        // 打印存储使用情况
+        auto storageUsage = storageManager->getStorageUsage();
+        Serial.println("存储使用情况:");
+        for (const auto& pair : storageUsage) {
+          StorageMediumInfo info = storageManager->getStorageMediumInfo(pair.first);
+          Serial.printf("%s: %.2f MB 已使用\n", info.name.c_str(), (float)pair.second / (1024 * 1024));
+        }
+      }
+    } catch (const std::exception& e) {
+      coreSystem->sendError("硬件监控异常", 1026, "HardwareDetector");
+    }
   }
   
   // 短暂延迟，降低CPU占用

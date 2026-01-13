@@ -20,6 +20,10 @@ typedef struct {
   int visibility;       // 能见度
   long sunrise;         // 日出时间（Unix时间戳）
   long sunset;          // 日落时间（Unix时间戳）
+  int airQuality;       // 空气质量指数（AQI）
+  String airQualityLevel; // 空气质量级别
+  float uvIndex;        // 紫外线指数
+  String uvIndexLevel;  // 紫外线指数级别
   bool valid;           // 数据是否有效
 } WeatherData;
 
@@ -42,9 +46,15 @@ public:
   void update();
   void loop();
   
-  // 获取天气数据
-  WeatherData getWeatherData() { return currentWeather; }
+  // 获取天气数据（惰性计算）
+  WeatherData getWeatherData();
   ForecastData getForecastData(int index);
+  
+  // 强制更新数据
+  void forceUpdate();
+  
+  // 检查数据是否需要更新
+  bool isDataStale();
   
 private:
   // HTTPS客户端
@@ -57,6 +67,7 @@ private:
   // 更新标志
   unsigned long lastUpdate;
   bool dataUpdated;
+  bool dataRequested;
   
   // 私有方法
   bool fetchWeatherData();

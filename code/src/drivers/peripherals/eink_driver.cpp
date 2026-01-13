@@ -83,6 +83,14 @@ void EinkDriver::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t c
   display.fillRect(x, y, w, h, color);
 }
 
+void EinkDriver::drawLine(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color) {
+  if (!initialized) {
+    return;
+  }
+  
+  display.drawLine(x1, y1, x2, y2, color);
+}
+
 void EinkDriver::update() {
   if (!initialized) {
     return;

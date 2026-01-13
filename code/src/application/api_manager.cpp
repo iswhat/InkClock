@@ -245,11 +245,10 @@ String APIManager::generateCacheKey(const ApiRequest& request) {
 bool APIManager::isCacheValid(const String& key) {
     unsigned long now = millis();
     
-    // 遍历缓存
-    for (const CacheItem& item : cache) {
-        if (item.key == key && now < item.expireTime) {
-            return true;
-        }
+    // 检查缓存中是否存在该键且未过期
+    auto it = cache.find(key);
+    if (it != cache.end()) {
+        return now < it->second.expireTime;
     }
     
     return false;
@@ -258,39 +257,41 @@ bool APIManager::isCacheValid(const String& key) {
 bool APIManager::getCachedResponse(const String& key, ApiResponse& response) {
     unsigned long now = millis();
     
-    // 遍历缓存
-    for (const CacheItem& item : cache) {
-        if (item.key == key && now < item.expireTime) {
-            // 找到有效缓存
-            response.response = item.value;
-            response.httpCode = 200;
-            response.status = API_STATUS_CACHED;
-            response.timestamp = now;
-            return true;
-        }
+    // 查找缓存
+    auto it = cache.find(key);
+    if (it != cache.end() && now < it->second.expireTime) {
+        // 找到有效缓存
+        response.response = it->second.value;
+        response.httpCode = 200;
+        response.status = API_STATUS_CACHED;
+        response.timestamp = now;
+        return true;
     }
     
     return false;
 }
 
 void APIManager::saveCache(const String& key, const ApiResponse& response, unsigned long cacheTime) {
-    // 移除旧缓存
-    for (size_t i = 0; i < cache.size(); i++) {
-        if (cache[i].key == key) {
-            cache.erase(cache.begin() + i);
-            break;
+    // 检查缓存大小是否超过限制
+    if (cache.size() >= maxCacheSize) {
+        // 清理过期缓存
+        cleanupExpiredCache();
+        
+        // 如果仍然超过限制，移除最早的缓存项
+        if (cache.size() >= maxCacheSize) {
+            auto it = cache.begin();
+            cache.erase(it);
         }
     }
     
     // 创建新缓存项
     CacheItem item;
-    item.key = key;
     item.value = response.response;
     item.expireTime = millis() + cacheTime;
     item.type = response.status == API_STATUS_SUCCESS ? API_TYPE_CUSTOM : API_TYPE_CUSTOM;
     
-    // 添加到缓存
-    cache.push_back(item);
+    // 添加到缓存（会自动覆盖已存在的键）
+    cache[key] = item;
     
     DEBUG_PRINTLN("缓存数据：" + key + "，过期时间：" + String(item.expireTime));
 }
@@ -300,9 +301,11 @@ void APIManager::cleanupExpiredCache() {
     size_t initialSize = cache.size();
     
     // 遍历缓存，移除过期项
-    for (size_t i = cache.size(); i > 0; i--) {
-        if (cache[i - 1].expireTime < now) {
-            cache.erase(cache.begin() + (i - 1));
+    for (auto it = cache.begin(); it != cache.end();) {
+        if (it->second.expireTime < now) {
+            it = cache.erase(it);
+        } else {
+            ++it;
         }
     }
     
@@ -319,9 +322,11 @@ void APIManager::clearCache(ApiType type) {
         DEBUG_PRINTLN("清除所有缓存");
     } else {
         // 清除指定类型的缓存
-        for (size_t i = cache.size(); i > 0; i--) {
-            if (cache[i - 1].type == type) {
-                cache.erase(cache.begin() + (i - 1));
+        for (auto it = cache.begin(); it != cache.end();) {
+            if (it->second.type == type) {
+                it = cache.erase(it);
+            } else {
+                ++it;
             }
         }
         DEBUG_PRINTLN("清除类型为" + String(type) + "的缓存");

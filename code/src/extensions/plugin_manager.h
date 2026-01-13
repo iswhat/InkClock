@@ -50,6 +50,10 @@ typedef struct {
   PluginDeinitFunc deinit;  // 反初始化函数（原生插件）
   URLPluginData urlData;    // URL插件数据
   bool valid;               // 数据是否有效
+  unsigned long lastAccessTime; // 最后访问时间
+  unsigned long accessCount;    // 访问次数
+  unsigned long idleTime;       // 空闲时间
+  bool autoLoad;                // 是否自动加载
 } PluginData;
 
 class PluginManager {
@@ -86,6 +90,14 @@ public:
   PluginData getPlugin(String name);
   PluginData getPlugin(int index);
   int getPluginCount();
+  
+  // 插件按需加载功能
+  bool loadPluginOnDemand(String name);
+  bool unloadIdlePlugins();
+  bool setPluginAutoLoad(String name, bool autoLoad);
+  bool isPluginAutoLoad(String name);
+  unsigned long getPluginIdleTime(String name);
+  unsigned long getPluginAccessCount(String name);
   
   // 插件存储功能
   bool savePlugins();

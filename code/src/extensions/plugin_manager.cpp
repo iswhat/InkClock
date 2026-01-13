@@ -23,6 +23,10 @@ PluginManager::PluginManager() {
     plugins[i].urlData.lastData = "";
     plugins[i].urlData.lastUpdateTime = 0;
     plugins[i].valid = false;
+    plugins[i].lastAccessTime = 0;
+    plugins[i].accessCount = 0;
+    plugins[i].idleTime = 0;
+    plugins[i].autoLoad = false;
   }
   
   // 初始化插件计数
@@ -186,6 +190,10 @@ bool PluginManager::registerPlugin(String name, String version, String descripti
   plugin.urlData.lastData = "";
   plugin.urlData.lastUpdateTime = 0;
   plugin.valid = true;
+  plugin.lastAccessTime = 0;
+  plugin.accessCount = 0;
+  plugin.idleTime = 0;
+  plugin.autoLoad = false;
   
   // 更新插件计数
   pluginCount++;
@@ -249,6 +257,10 @@ bool PluginManager::registerURLPlugin(String name, String version, String descri
   plugin.urlData.lastData = "";
   plugin.urlData.lastUpdateTime = 0;
   plugin.valid = true;
+  plugin.lastAccessTime = 0;
+  plugin.accessCount = 0;
+  plugin.idleTime = 0;
+  plugin.autoLoad = true; // URL插件默认自动加载
   
   // 更新插件计数
   pluginCount++;
@@ -889,4 +901,141 @@ bool PluginManager::deinitPlugin(int index) {
   // 更新插件状态
   plugin.status = PLUGIN_DISABLED;
   return true;
+}
+
+/**
+ * @brief 按需加载插件
+ * @param name 插件名称
+ * @return bool 加载是否成功
+ * @note 当插件被访问时按需加载
+ */
+bool PluginManager::loadPluginOnDemand(String name) {
+  DEBUG_PRINT("按需加载插件: ");
+  DEBUG_PRINTLN(name);
+  
+  // 查找插件索引
+  int index = findPluginIndex(name);
+  if (index == -1) {
+    DEBUG_PRINTLN("插件不存在");
+    return false;
+  }
+  
+  PluginData &plugin = plugins[index];
+  
+  // 更新访问信息
+  plugin.lastAccessTime = millis();
+  plugin.accessCount++;
+  plugin.idleTime = 0;
+  
+  // 如果插件已经在运行，直接返回
+  if (plugin.status == PLUGIN_RUNNING) {
+    return true;
+  }
+  
+  // 加载插件
+  return enablePlugin(name);
+}
+
+/**
+ * @brief 卸载空闲插件
+ * @return bool 卸载是否成功
+ * @note 卸载长时间未使用的插件以释放内存
+ */
+bool PluginManager::unloadIdlePlugins() {
+  DEBUG_PRINTLN("检查并卸载空闲插件...");
+  
+  unsigned long currentTime = millis();
+  unsigned long idleThreshold = 300000; // 5分钟空闲阈值
+  int unloadedCount = 0;
+  
+  for (int i = 0; i < pluginCount; i++) {
+    PluginData &plugin = plugins[i];
+    
+    // 只处理运行中的插件
+    if (plugin.status == PLUGIN_RUNNING && !plugin.autoLoad) {
+      // 计算空闲时间
+      plugin.idleTime = currentTime - plugin.lastAccessTime;
+      
+      // 如果空闲时间超过阈值，卸载插件
+      if (plugin.idleTime > idleThreshold) {
+        DEBUG_PRINT("卸载空闲插件: ");
+        DEBUG_PRINTLN(plugin.name);
+        
+        if (deinitPlugin(i)) {
+          unloadedCount++;
+        }
+      }
+    }
+  }
+  
+  if (unloadedCount > 0) {
+    DEBUG_PRINTF("已卸载 %d 个空闲插件\n", unloadedCount);
+    return true;
+  }
+  
+  DEBUG_PRINTLN("没有需要卸载的空闲插件");
+  return false;
+}
+
+/**
+ * @brief 设置插件是否自动加载
+ * @param name 插件名称
+ * @param autoLoad 是否自动加载
+ * @return bool 设置是否成功
+ */
+bool PluginManager::setPluginAutoLoad(String name, bool autoLoad) {
+  // 查找插件索引
+  int index = findPluginIndex(name);
+  if (index == -1) {
+    return false;
+  }
+  
+  plugins[index].autoLoad = autoLoad;
+  dataUpdated = true;
+  return true;
+}
+
+/**
+ * @brief 检查插件是否自动加载
+ * @param name 插件名称
+ * @return bool 是否自动加载
+ */
+bool PluginManager::isPluginAutoLoad(String name) {
+  // 查找插件索引
+  int index = findPluginIndex(name);
+  if (index == -1) {
+    return false;
+  }
+  
+  return plugins[index].autoLoad;
+}
+
+/**
+ * @brief 获取插件空闲时间
+ * @param name 插件名称
+ * @return unsigned long 空闲时间（毫秒）
+ */
+unsigned long PluginManager::getPluginIdleTime(String name) {
+  // 查找插件索引
+  int index = findPluginIndex(name);
+  if (index == -1) {
+    return 0;
+  }
+  
+  return plugins[index].idleTime;
+}
+
+/**
+ * @brief 获取插件访问次数
+ * @param name 插件名称
+ * @return unsigned long 访问次数
+ */
+unsigned long PluginManager::getPluginAccessCount(String name) {
+  // 查找插件索引
+  int index = findPluginIndex(name);
+  if (index == -1) {
+    return 0;
+  }
+  
+  return plugins[index].accessCount;
 }

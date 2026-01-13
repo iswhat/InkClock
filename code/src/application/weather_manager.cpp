@@ -9,7 +9,7 @@ extern GeoManager geoManager;
 
 WeatherManager::WeatherManager() {
   // 初始化天气数据
-  currentWeather.city = "未知城市";
+  currentWeather.valid = false;
   currentWeather.temp = 0.0;
   currentWeather.humidity = 0;
   currentWeather.condition = "未知";
@@ -20,7 +20,10 @@ WeatherManager::WeatherManager() {
   currentWeather.visibility = 0;
   currentWeather.sunrise = 0;
   currentWeather.sunset = 0;
-  currentWeather.valid = false;
+  currentWeather.airQuality = 0;
+  currentWeather.airQualityLevel = "未知";
+  currentWeather.uvIndex = 0.0;
+  currentWeather.uvIndexLevel = "未知";
   
   // 初始化天气预报数据
   for (int i = 0; i < 5; i++) {
@@ -34,6 +37,7 @@ WeatherManager::WeatherManager() {
   
   lastUpdate = 0;
   dataUpdated = false;
+  dataRequested = false;
 }
 
 WeatherManager::~WeatherManager() {
@@ -56,7 +60,12 @@ void WeatherManager::update() {
 }
 
 void WeatherManager::loop() {
-  // 定期更新天气数据
+  // 惰性计算：只在数据被请求且需要更新时才更新
+  if (dataRequested && isDataStale()) {
+    update();
+  }
+  
+  // 定期更新天气数据（即使没有被请求，也按设定间隔更新一次，确保数据不会太旧）
   static unsigned long lastUpdateCheck = 0;
   if (millis() - lastUpdateCheck > WEATHER_UPDATE_INTERVAL) {
     lastUpdateCheck = millis();
@@ -64,22 +73,7 @@ void WeatherManager::loop() {
   }
 }
 
-ForecastData WeatherManager::getForecastData(int index) {
-  if (index >= 0 && index < 5) {
-    return forecastData[index];
-  }
-  
-  // 返回默认值
-  ForecastData defaultForecast;
-  defaultForecast.date = "";
-  defaultForecast.tempDay = 0.0;
-  defaultForecast.tempNight = 0.0;
-  defaultForecast.condition = "未知";
-  defaultForecast.wind = "未知";
-  defaultForecast.humidity = 0;
-  
-  return defaultForecast;
-}
+
 
 bool WeatherManager::fetchWeatherData() {
   DEBUG_PRINTLN("获取天气数据...");
@@ -235,6 +229,43 @@ bool WeatherManager::parseWeatherData(String json) {
   currentWeather.pressure = current["pressure"].as<int>();
   currentWeather.visibility = current["visibility"].as<int>() * 1000; // 转换为米
   
+  // 解析空气质量数据
+  if (current.containsKey("air_quality")) {
+    JsonObject airQuality = current["air_quality"];
+    currentWeather.airQuality = airQuality["us-epa-index"].as<int>();
+    switch (currentWeather.airQuality) {
+      case 1: currentWeather.airQualityLevel = "优"; break;
+      case 2: currentWeather.airQualityLevel = "良"; break;
+      case 3: currentWeather.airQualityLevel = "轻度污染"; break;
+      case 4: currentWeather.airQualityLevel = "中度污染"; break;
+      case 5: currentWeather.airQualityLevel = "重度污染"; break;
+      case 6: currentWeather.airQualityLevel = "严重污染"; break;
+      default: currentWeather.airQualityLevel = "未知"; break;
+    }
+  } else {
+    currentWeather.airQuality = 0;
+    currentWeather.airQualityLevel = "未知";
+  }
+  
+  // 解析紫外线指数数据
+  if (current.containsKey("uvIndex")) {
+    currentWeather.uvIndex = current["uvIndex"].as<float>();
+    if (currentWeather.uvIndex <= 2) {
+      currentWeather.uvIndexLevel = "低"; 
+    } else if (currentWeather.uvIndex <= 5) {
+      currentWeather.uvIndexLevel = "中等"; 
+    } else if (currentWeather.uvIndex <= 7) {
+      currentWeather.uvIndexLevel = "高"; 
+    } else if (currentWeather.uvIndex <= 10) {
+      currentWeather.uvIndexLevel = "很高"; 
+    } else {
+      currentWeather.uvIndexLevel = "极高"; 
+    }
+  } else {
+    currentWeather.uvIndex = 0;
+    currentWeather.uvIndexLevel = "未知";
+  }
+  
   // 转换风力风向
   float windSpeed = current["windspeedKmph"].as<float>() / 3.6; // 转换为m/s
   float windDeg = current["winddirDegree"].as<float>();
@@ -329,7 +360,71 @@ String WeatherManager::convertWindDirection(float deg) {
     return "西北风";
   } else {
     return "未知";
+}
+
+// 惰性计算：获取天气数据
+WeatherData WeatherManager::getWeatherData() {
+  // 如果数据需要更新，先更新数据
+  if (isDataStale()) {
+    update();
   }
+  
+  // 标记数据已被请求
+  dataRequested = true;
+  
+  return currentWeather;
+}
+
+// 惰性计算：获取天气预报数据
+ForecastData WeatherManager::getForecastData(int index) {
+  // 如果数据需要更新，先更新数据
+  if (isDataStale()) {
+    update();
+  }
+  
+  // 标记数据已被请求
+  dataRequested = true;
+  
+  // 检查索引是否有效
+  if (index >= 0 && index < 5) {
+    return forecastData[index];
+  }
+  
+  // 返回默认数据
+  ForecastData defaultData;
+  defaultData.date = "";
+  defaultData.tempDay = 0.0;
+  defaultData.tempNight = 0.0;
+  defaultData.condition = "未知";
+  defaultData.wind = "未知";
+  defaultData.humidity = 0;
+  return defaultData;
+}
+
+// 强制更新数据
+void WeatherManager::forceUpdate() {
+  update();
+}
+
+// 检查数据是否需要更新
+bool WeatherManager::isDataStale() {
+  // 数据从未更新过
+  if (lastUpdate == 0) {
+    return true;
+  }
+  
+  // 数据超过30分钟未更新
+  unsigned long currentTime = millis();
+  if (currentTime - lastUpdate > 30 * 60 * 1000) {
+    return true;
+  }
+  
+  // 数据无效
+  if (!currentWeather.valid) {
+    return true;
+  }
+  
+  return false;
 }
 
 bool WeatherManager::parseWeatherDataBackup(String json) {
@@ -358,6 +453,10 @@ bool WeatherManager::parseWeatherDataBackup(String json) {
   currentWeather.tempMax = 0.0;
   currentWeather.pressure = 0;
   currentWeather.visibility = 0;
+  currentWeather.airQuality = 0;
+  currentWeather.airQualityLevel = "未知";
+  currentWeather.uvIndex = 0;
+  currentWeather.uvIndexLevel = "未知";
   
   // 转换风力风向
   float windSpeed = current["windspeed"].as<float>();
@@ -423,6 +522,10 @@ bool WeatherManager::parseWeatherDataSecondaryBackup(String json) {
   currentWeather.visibility = current["visibility"].as<int>();
   currentWeather.sunrise = doc["city"]["sunrise"].as<long>();
   currentWeather.sunset = doc["city"]["sunset"].as<long>();
+  currentWeather.airQuality = 0;
+  currentWeather.airQualityLevel = "未知";
+  currentWeather.uvIndex = 0;
+  currentWeather.uvIndexLevel = "未知";
   
   // 转换风力风向
   float windSpeed = wind["speed"].as<float>();
@@ -489,6 +592,12 @@ bool WeatherManager::parseWeatherDataTertiaryBackup(String json) {
     windDeg = current["wind_degree"].as<float>();
   }
   currentWeather.wind = convertWindSpeed(current["wind_kph"].as<float>()) + " " + convertWindDirection(windDeg);
+  
+  // 初始化空气质量和紫外线指数
+  currentWeather.airQuality = 0;
+  currentWeather.airQualityLevel = "未知";
+  currentWeather.uvIndex = 0;
+  currentWeather.uvIndexLevel = "未知";
   
   // 解析5天天气预报
   JsonArray forecastDays = doc["forecast"]["forecastday"];
