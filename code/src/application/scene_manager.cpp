@@ -106,89 +106,29 @@ void SceneManager::initDefaultScenes() {
   sceneConfigs[SCENE_NORMAL] = {
     SCENE_NORMAL,
     "正常模式",
-    "默认的正常工作模式",
+    "聚焦当前界面内容，其他功能服务休眠，低功耗",
     true,
     true,
-    true,
-    true,
-    true,
-    100,
-    60,
-    true
-  };
-  
-  // 办公模式
-  sceneConfigs[SCENE_OFFICE] = {
-    SCENE_OFFICE,
-    "办公模式",
-    "适合办公室使用的模式",
     true,
     true,
     false,
-    true,
-    true,
     80,
-    30,
-    true
-  };
-  
-  // 家庭模式
-  sceneConfigs[SCENE_HOME] = {
-    SCENE_HOME,
-    "家庭模式",
-    "适合家庭使用的模式",
-    true,
-    true,
-    true,
-    true,
-    true,
-    100,
-    60,
-    true
-  };
-  
-  // 户外模式
-  sceneConfigs[SCENE_OUTDOOR] = {
-    SCENE_OUTDOOR,
-    "户外模式",
-    "适合户外使用的模式",
-    true,
-    true,
-    true,
-    true,
-    false,
-    100,
     120,
     true
   };
   
-  // 派对模式
-  sceneConfigs[SCENE_PARTY] = {
-    SCENE_PARTY,
-    "派对模式",
-    "适合派对使用的模式",
+  // 互动模式
+  sceneConfigs[SCENE_INTERACTIVE] = {
+    SCENE_INTERACTIVE,
+    "互动模式",
+    "高性能模式，预加载功能和网络数据，交互更流畅",
     true,
     true,
     true,
     true,
     true,
     100,
-    10,
-    true
-  };
-  
-  // 放松模式
-  sceneConfigs[SCENE_RELAX] = {
-    SCENE_RELAX,
-    "放松模式",
-    "适合放松使用的模式",
-    true,
-    true,
-    true,
-    true,
-    false,
-    60,
-    300,
+    30,
     true
   };
   
@@ -196,7 +136,7 @@ void SceneManager::initDefaultScenes() {
   sceneConfigs[SCENE_SLEEP] = {
     SCENE_SLEEP,
     "睡眠模式",
-    "适合睡眠时使用的模式",
+    "凌晨到早晨时段，无互动情况下进入，只保留最低供电需求",
     false,
     false,
     false,
@@ -204,51 +144,6 @@ void SceneManager::initDefaultScenes() {
     false,
     0,
     600,
-    true
-  };
-  
-  // 自定义模式1
-  sceneConfigs[SCENE_CUSTOM_1] = {
-    SCENE_CUSTOM_1,
-    "自定义模式1",
-    "用户自定义模式1",
-    true,
-    true,
-    true,
-    true,
-    true,
-    100,
-    60,
-    true
-  };
-  
-  // 自定义模式2
-  sceneConfigs[SCENE_CUSTOM_2] = {
-    SCENE_CUSTOM_2,
-    "自定义模式2",
-    "用户自定义模式2",
-    true,
-    true,
-    true,
-    true,
-    true,
-    100,
-    60,
-    true
-  };
-  
-  // 自定义模式3
-  sceneConfigs[SCENE_CUSTOM_3] = {
-    SCENE_CUSTOM_3,
-    "自定义模式3",
-    "用户自定义模式3",
-    true,
-    true,
-    true,
-    true,
-    true,
-    100,
-    60,
     true
   };
 }
@@ -330,7 +225,7 @@ void SceneManager::applySceneConfig(SceneConfig config) {
 }
 
 bool SceneManager::setCurrentScene(SceneMode mode) {
-  if (mode < SCENE_NORMAL || mode > SCENE_CUSTOM_3) {
+  if (mode < SCENE_NORMAL || mode > SCENE_SLEEP) {
     return false;
   }
   
@@ -346,7 +241,7 @@ SceneMode SceneManager::getCurrentScene() {
 }
 
 bool SceneManager::setSceneConfig(SceneMode mode, SceneConfig config) {
-  if (mode < SCENE_NORMAL || mode > SCENE_CUSTOM_3) {
+  if (mode < SCENE_NORMAL || mode > SCENE_SLEEP) {
     return false;
   }
   
