@@ -532,14 +532,55 @@ void PerformanceMonitor::cleanupExpiredData() {
 
 // 发布性能数据事件
 void PerformanceMonitor::publishPerformanceDataEvent(PerformanceDataPoint dataPoint) {
-  // 这里可以添加事件发布逻辑
-  // DEBUG_PRINTF("性能数据事件: %s = %.2f %s\n", dataPoint.name.c_str(), dataPoint.value, dataPoint.unit.c_str());
+  // 通过EventBus发布事件
+  #ifdef ENABLE_EVENT_BUS
+    EventBus* eventBus = EventBus::getInstance();
+    if (eventBus) {
+      // 创建事件数据
+      std::map<String, String> eventData;
+      eventData["metricType"] = String(dataPoint.type);
+      eventData["metricName"] = dataPoint.name;
+      eventData["value"] = String(dataPoint.value);
+      eventData["unit"] = dataPoint.unit;
+      eventData["threshold"] = String(dataPoint.threshold);
+      eventData["alertLevel"] = String(dataPoint.alertLevel);
+      eventData["isAlert"] = dataPoint.isAlert ? "true" : "false";
+      eventData["timestamp"] = String(dataPoint.timestamp);
+      
+      // 发布事件
+      eventBus->publish("performance_data", eventData);
+    }
+  #endif
+  
+  // 打印调试信息
+  DEBUG_PRINTF("性能数据事件: %s = %.2f %s\n", dataPoint.name.c_str(), dataPoint.value, dataPoint.unit.c_str());
 }
 
 // 发布告警事件
 void PerformanceMonitor::publishAlertEvent(AlertEvent alert) {
-  // 这里可以添加事件发布逻辑
-  // DEBUG_PRINTF("告警事件: %s - %s\n", alert.title.c_str(), alert.description.c_str());
+  // 通过EventBus发布事件
+  #ifdef ENABLE_EVENT_BUS
+    EventBus* eventBus = EventBus::getInstance();
+    if (eventBus) {
+      // 创建事件数据
+      std::map<String, String> eventData;
+      eventData["alertId"] = alert.id;
+      eventData["title"] = alert.title;
+      eventData["description"] = alert.description;
+      eventData["level"] = String(alert.level);
+      eventData["metricType"] = String(alert.metricType);
+      eventData["metricValue"] = String(alert.metricValue);
+      eventData["threshold"] = String(alert.threshold);
+      eventData["timestamp"] = String(alert.timestamp);
+      eventData["resolved"] = alert.resolved ? "true" : "false";
+      
+      // 发布事件
+      eventBus->publish("alert_event", eventData);
+    }
+  #endif
+  
+  // 打印调试信息
+  DEBUG_PRINTF("告警事件: %s - %s\n", alert.title.c_str(), alert.description.c_str());
 }
 
 // 获取性能数据

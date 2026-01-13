@@ -7,6 +7,7 @@
 #include <vector>
 #include <deque>
 #include "hardware_detector.h"
+#include "event_bus.h"
 
 // 性能指标类型枚举
 enum PerformanceMetricType {

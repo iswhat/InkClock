@@ -544,9 +544,76 @@ bool StorageManager::backupData(const String& dataId) {
   }
   
   // 备份到其他存储介质
-  // 这里简化实现，实际应该备份到不同的存储介质
+  DEBUG_PRINTF("开始备份数据: %s\n", dataId.c_str());
   
-  return true;
+  // 确定源存储介质
+  StorageMediumType sourceMedium = selectStorageMedium(config);
+  
+  // 确定备份目标存储介质
+  std::vector<StorageMediumType> backupTargets;
+  
+  // 为不同类型的源介质选择合适的备份目标
+  switch (sourceMedium) {
+    case STORAGE_RAM:
+      // 从RAM备份到SPIFFS和TF卡
+      backupTargets.push_back(STORAGE_SPIFFS);
+      backupTargets.push_back(STORAGE_TFCARD);
+      break;
+    case STORAGE_SPIFFS:
+      // 从SPIFFS备份到TF卡和RAM
+      backupTargets.push_back(STORAGE_TFCARD);
+      backupTargets.push_back(STORAGE_RAM);
+      break;
+    case STORAGE_TFCARD:
+      // 从TF卡备份到SPIFFS
+      backupTargets.push_back(STORAGE_SPIFFS);
+      break;
+    default:
+      // 其他介质备份到SPIFFS
+      backupTargets.push_back(STORAGE_SPIFFS);
+      break;
+  }
+  
+  // 执行备份到每个目标介质
+  bool backupSuccess = false;
+  for (StorageMediumType targetMedium : backupTargets) {
+    // 跳过源介质
+    if (targetMedium == sourceMedium) {
+      continue;
+    }
+    
+    // 检查目标介质是否可用
+    if (!isStorageMediumAvailable(targetMedium)) {
+      DEBUG_PRINTF("备份目标介质不可用: %d\n", targetMedium);
+      continue;
+    }
+    
+    // 获取目标存储介质
+    auto targetStorage = getStorageMedium(targetMedium);
+    if (!targetStorage) {
+      DEBUG_PRINTF("无法获取备份目标存储介质: %d\n", targetMedium);
+      continue;
+    }
+    
+    // 构建备份文件路径
+    String backupKey = "backup_" + dataId;
+    
+    // 写入备份数据
+    if (targetStorage->write(backupKey, data)) {
+      DEBUG_PRINTF("数据备份成功到介质 %d: %s\n", targetMedium, backupKey.c_str());
+      backupSuccess = true;
+    } else {
+      DEBUG_PRINTF("数据备份失败到介质 %d: %s\n", targetMedium, backupKey.c_str());
+    }
+  }
+  
+  // 如果配置了定期备份，更新最后备份时间
+  if (backupSuccess && config.backupEnabled) {
+    DataStorageConfig& mutableConfig = dataConfigs[dataId];
+    mutableConfig.lastModifiedTime = millis();
+  }
+  
+  return backupSuccess;
 }
 
 // 优化存储布局
@@ -555,15 +622,141 @@ void StorageManager::optimizeStorageLayout() {
   // 这里简化实现
 }
 
+// 简单的Run-Length Encoding (RLE)压缩函数
+String compressRLE(const String& input) {
+  if (input.length() == 0) {
+    return "";
+  }
+  
+  String output;
+  char currentChar = input[0];
+  int count = 1;
+  
+  for (size_t i = 1; i < input.length(); i++) {
+    if (input[i] == currentChar && count < 255) {
+      count++;
+    } else {
+      output += currentChar;
+      output += (char)count;
+      currentChar = input[i];
+      count = 1;
+    }
+  }
+  
+  // 添加最后一个字符和计数
+  output += currentChar;
+  output += (char)count;
+  
+  return output;
+}
+
+// 简单的Run-Length Encoding (RLE)解压缩函数
+String decompressRLE(const String& input) {
+  if (input.length() == 0) {
+    return "";
+  }
+  
+  String output;
+  
+  for (size_t i = 0; i < input.length(); i += 2) {
+    if (i + 1 < input.length()) {
+      char currentChar = input[i];
+      int count = (unsigned char)input[i + 1];
+      
+      for (int j = 0; j < count; j++) {
+        output += currentChar;
+      }
+    }
+  }
+  
+  return output;
+}
+
 // 压缩数据
 bool StorageManager::compressData(const String& dataId) {
-  // 简化实现，实际应该使用压缩算法
+  if (!dataConfigs.count(dataId)) {
+    return false;
+  }
+  
+  DataStorageConfig& config = dataConfigs[dataId];
+  
+  // 检查是否可压缩
+  if (!config.compressible) {
+    return false;
+  }
+  
+  // 读取原始数据
+  String originalData;
+  if (!read(dataId, originalData)) {
+    return false;
+  }
+  
+  // 执行压缩
+  DEBUG_PRINTF("开始压缩数据: %s, 原始大小: %u\n", dataId.c_str(), originalData.length());
+  
+  String compressedData = compressRLE(originalData);
+  
+  // 检查压缩效果
+  if (compressedData.length() >= originalData.length()) {
+    DEBUG_PRINTF("压缩效果不明显，跳过压缩: %s\n", dataId.c_str());
+    return false;
+  }
+  
+  // 保存压缩数据
+  String compressedKey = dataId + "_compressed";
+  if (!write(compressedKey, compressedData)) {
+    DEBUG_PRINTF("保存压缩数据失败: %s\n", dataId.c_str());
+    return false;
+  }
+  
+  // 更新配置，标记为已压缩
+  config.metadata["compressed"] = "true";
+  config.metadata["originalSize"] = String(originalData.length());
+  config.metadata["compressedSize"] = String(compressedData.length());
+  config.lastModifiedTime = millis();
+  
+  DEBUG_PRINTF("数据压缩成功: %s, 压缩大小: %u, 压缩率: %.2f%%\n", 
+               dataId.c_str(), compressedData.length(), 
+               (1.0 - (float)compressedData.length() / originalData.length()) * 100);
+  
   return true;
 }
 
 // 解压缩数据
 bool StorageManager::decompressData(const String& dataId) {
-  // 简化实现，实际应该使用解压算法
+  if (!dataConfigs.count(dataId)) {
+    return false;
+  }
+  
+  const DataStorageConfig& config = dataConfigs[dataId];
+  
+  // 检查是否已压缩
+  if (config.metadata.find("compressed") == config.metadata.end() || 
+      config.metadata["compressed"] != "true") {
+    return false;
+  }
+  
+  // 读取压缩数据
+  String compressedKey = dataId + "_compressed";
+  String compressedData;
+  if (!read(compressedKey, compressedData)) {
+    return false;
+  }
+  
+  // 执行解压缩
+  DEBUG_PRINTF("开始解压缩数据: %s\n", dataId.c_str());
+  
+  String decompressedData = decompressRLE(compressedData);
+  
+  // 保存解压缩数据
+  if (!write(dataId, decompressedData)) {
+    DEBUG_PRINTF("保存解压缩数据失败: %s\n", dataId.c_str());
+    return false;
+  }
+  
+  DEBUG_PRINTF("数据解压缩成功: %s, 解压缩大小: %u\n", 
+               dataId.c_str(), decompressedData.length());
+  
   return true;
 }
 

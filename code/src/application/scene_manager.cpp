@@ -181,12 +181,12 @@ void SceneManager::applySceneConfig(SceneConfig config) {
   if (config.enableDisplay) {
     // 设置显示亮度
     if (displayManager) {
-      // displayManager->setBrightness(config.displayBrightness);
+      displayManager->setBrightness(config.displayBrightness);
     }
   } else {
     // 关闭显示
     if (displayManager) {
-      // displayManager->turnOff();
+      displayManager->turnOff();
     }
   }
   
@@ -194,12 +194,12 @@ void SceneManager::applySceneConfig(SceneConfig config) {
   if (config.enableWiFi) {
     // 启用WiFi
     if (wifiManager) {
-      // wifiManager->enable();
+      wifiManager->enable();
     }
   } else {
     // 禁用WiFi
     if (wifiManager) {
-      // wifiManager->disable();
+      wifiManager->disable();
     }
   }
   
@@ -207,12 +207,12 @@ void SceneManager::applySceneConfig(SceneConfig config) {
   if (config.enableBluetooth) {
     // 启用蓝牙
     if (bluetoothManager) {
-      // bluetoothManager->enable();
+      bluetoothManager->enable();
     }
   } else {
     // 禁用蓝牙
     if (bluetoothManager) {
-      // bluetoothManager->disable();
+      bluetoothManager->disable();
     }
   }
   
@@ -220,12 +220,12 @@ void SceneManager::applySceneConfig(SceneConfig config) {
   if (config.enableSensors) {
     // 启用传感器
     if (sensorManager) {
-      // sensorManager->enable();
+      sensorManager->enable();
     }
   } else {
     // 禁用传感器
     if (sensorManager) {
-      // sensorManager->disable();
+      sensorManager->disable();
     }
   }
   
@@ -233,18 +233,18 @@ void SceneManager::applySceneConfig(SceneConfig config) {
   if (config.enablePlugins) {
     // 启用插件
     if (pluginManager) {
-      // pluginManager->enable();
+      pluginManager->enable();
     }
   } else {
     // 禁用插件
     if (pluginManager) {
-      // pluginManager->disable();
+      pluginManager->disable();
     }
   }
   
   // 设置刷新间隔
   if (displayManager) {
-    // displayManager->setRefreshInterval(config.refreshInterval * 1000);
+    displayManager->setRefreshInterval(config.refreshInterval * 1000);
   }
   
   DEBUG_PRINTLN("场景配置应用完成");
@@ -311,17 +311,138 @@ bool SceneManager::switchToPreviousScene() {
 bool SceneManager::saveScenes() {
   DEBUG_PRINTLN("保存场景配置到文件");
   
-  // 这里可以实现将场景配置保存到SPIFFS或其他存储介质
-  // 暂时返回true，表示保存成功
+  // 初始化SPIFFS
+  if (!SPIFFS.begin()) {
+    DEBUG_PRINTLN("SPIFFS初始化失败，无法保存场景配置");
+    return false;
+  }
+  
+  // 创建JSON文档
+  DynamicJsonDocument doc(2048);
+  
+  // 保存场景配置
+  JsonArray scenes = doc.createNestedArray("scenes");
+  
+  for (int i = 0; i < 3; i++) {
+    SceneMode mode = static_cast<SceneMode>(i);
+    SceneConfig config = sceneConfigs[mode];
+    
+    JsonObject sceneObj = scenes.createNestedObject();
+    sceneObj["mode"] = config.mode;
+    sceneObj["name"] = config.name;
+    sceneObj["description"] = config.description;
+    sceneObj["enableDisplay"] = config.enableDisplay;
+    sceneObj["enableWiFi"] = config.enableWiFi;
+    sceneObj["enableBluetooth"] = config.enableBluetooth;
+    sceneObj["enableSensors"] = config.enableSensors;
+    sceneObj["enablePlugins"] = config.enablePlugins;
+    sceneObj["displayBrightness"] = config.displayBrightness;
+    sceneObj["refreshInterval"] = config.refreshInterval;
+    sceneObj["valid"] = config.valid;
+  }
+  
+  // 保存快捷功能
+  JsonArray quickActionsArray = doc.createNestedArray("quickActions");
+  for (int i = 0; i < 10; i++) {
+    quickActionsArray.add(quickActions[i]);
+  }
+  
+  // 打开文件
+  File file = SPIFFS.open("/scenes.json", "w");
+  if (!file) {
+    DEBUG_PRINTLN("打开场景配置文件失败");
+    SPIFFS.end();
+    return false;
+  }
+  
+  // 序列化JSON到文件
+  if (serializeJson(doc, file) == 0) {
+    DEBUG_PRINTLN("写入场景配置失败");
+    file.close();
+    SPIFFS.end();
+    return false;
+  }
+  
+  // 关闭文件
+  file.close();
+  SPIFFS.end();
+  
+  DEBUG_PRINTLN("场景配置保存成功");
   return true;
 }
 
 bool SceneManager::loadScenes() {
   DEBUG_PRINTLN("从文件加载场景配置");
   
-  // 这里可以实现从SPIFFS或其他存储介质加载场景配置
-  // 暂时返回false，表示使用默认配置
-  return false;
+  // 初始化SPIFFS
+  if (!SPIFFS.begin()) {
+    DEBUG_PRINTLN("SPIFFS初始化失败，使用默认场景配置");
+    return false;
+  }
+  
+  // 检查文件是否存在
+  if (!SPIFFS.exists("/scenes.json")) {
+    DEBUG_PRINTLN("场景配置文件不存在，使用默认配置");
+    SPIFFS.end();
+    return false;
+  }
+  
+  // 打开文件
+  File file = SPIFFS.open("/scenes.json", "r");
+  if (!file) {
+    DEBUG_PRINTLN("打开场景配置文件失败，使用默认配置");
+    SPIFFS.end();
+    return false;
+  }
+  
+  // 读取文件内容
+  DynamicJsonDocument doc(2048);
+  DeserializationError error = deserializeJson(doc, file);
+  if (error) {
+    DEBUG_PRINTF("解析场景配置文件失败: %s\n", error.c_str());
+    file.close();
+    SPIFFS.end();
+    return false;
+  }
+  
+  // 加载场景配置
+  if (doc.containsKey("scenes")) {
+    JsonArray scenes = doc["scenes"];
+    for (JsonVariant scene : scenes) {
+      int mode = scene["mode"];
+      if (mode >= 0 && mode < 3) {
+        SceneConfig config;
+        config.mode = static_cast<SceneMode>(mode);
+        config.name = scene["name"].as<String>();
+        config.description = scene["description"].as<String>();
+        config.enableDisplay = scene["enableDisplay"];
+        config.enableWiFi = scene["enableWiFi"];
+        config.enableBluetooth = scene["enableBluetooth"];
+        config.enableSensors = scene["enableSensors"];
+        config.enablePlugins = scene["enablePlugins"];
+        config.displayBrightness = scene["displayBrightness"];
+        config.refreshInterval = scene["refreshInterval"];
+        config.valid = scene["valid"];
+        
+        sceneConfigs[mode] = config;
+      }
+    }
+  }
+  
+  // 加载快捷功能
+  if (doc.containsKey("quickActions")) {
+    JsonArray quickActionsArray = doc["quickActions"];
+    for (int i = 0; i < quickActionsArray.size() && i < 10; i++) {
+      quickActions[i] = static_cast<SceneMode>(quickActionsArray[i].as<int>());
+    }
+  }
+  
+  // 关闭文件
+  file.close();
+  SPIFFS.end();
+  
+  DEBUG_PRINTLN("场景配置加载成功");
+  return true;
 }
 
 void SceneManager::initDefaultQuickActions() {
@@ -450,7 +571,8 @@ bool SceneManager::switchBasedOnUserActivity() {
 
 // 记录用户活动
 void SceneManager::recordUserActivity() {
-  lastUserActivityTime = millis();
+  unsigned long currentTime = millis();
+  lastUserActivityTime = currentTime;
   userActivityCount++;
   
   // 用户活动时，如果当前是睡眠模式，切换到正常模式
@@ -459,16 +581,22 @@ void SceneManager::recordUserActivity() {
     setCurrentScene(SCENE_NORMAL);
   }
   // 用户频繁活动（1分钟内超过5次操作），切换到互动模式
-  else if (userActivityCount > 5) {
+  else {
     static unsigned long lastActivityReset = 0;
-    if (millis() - lastActivityReset > 60000) {
-      lastActivityReset = millis();
-      userActivityCount = 0;
-    } else if (currentScene != SCENE_INTERACTIVE) {
+    // 每分钟重置计数
+    if (currentTime - lastActivityReset > 60000) {
+      lastActivityReset = currentTime;
+      userActivityCount = 1; // 重置为1，因为当前操作也算一次
+    } 
+    // 如果1分钟内活动次数超过5次，切换到互动模式
+    else if (userActivityCount > 5 && currentScene != SCENE_INTERACTIVE) {
       DEBUG_PRINTLN("检测到用户频繁活动，切换到互动模式");
       setCurrentScene(SCENE_INTERACTIVE);
     }
   }
+  
+  // 打印调试信息
+  DEBUG_PRINTF("用户活动记录：计数=%d, 上次活动时间=%lu\n", userActivityCount, lastUserActivityTime);
 }
 
 // 检查是否需要场景切换
