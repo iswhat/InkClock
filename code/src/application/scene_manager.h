@@ -49,6 +49,14 @@ public:
   bool switchToNextScene();
   bool switchToPreviousScene();
   
+  // 智能场景切换
+  bool autoSwitchScene();
+  bool switchBasedOnTime();
+  bool switchBasedOnUserActivity();
+  
+  // 用户活动记录
+  void recordUserActivity();
+  
   // 快捷功能集
   bool triggerQuickAction(int actionId);
   bool registerQuickAction(int actionId, SceneMode scene);
@@ -69,6 +77,11 @@ private:
   // 快捷功能映射
   SceneMode quickActions[10]; // 支持10个快捷操作
   
+  // 智能切换相关
+  unsigned long lastUserActivityTime; // 上次用户活动时间
+  unsigned long lastSceneSwitchTime; // 上次场景切换时间
+  int userActivityCount; // 用户活动计数
+  
   // 初始化默认场景配置
   void initDefaultScenes();
   
@@ -77,6 +90,12 @@ private:
   
   // 应用场景配置
   void applySceneConfig(SceneConfig config);
+  
+  // 检查是否需要场景切换
+  bool shouldSwitchScene();
+  
+  // 获取推荐场景
+  SceneMode getRecommendedScene();
 };
 
 #endif // SCENE_MANAGER_H

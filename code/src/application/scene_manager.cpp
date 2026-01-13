@@ -30,6 +30,11 @@ SceneManager::SceneManager() {
   for (int i = 0; i < 10; i++) {
     quickActions[i] = SCENE_NORMAL;
   }
+  
+  // 初始化智能切换相关变量
+  lastUserActivityTime = millis();
+  lastSceneSwitchTime = millis();
+  userActivityCount = 0;
 }
 
 SceneManager::~SceneManager() {
@@ -92,6 +97,27 @@ void SceneManager::update() {
   if (millis() - lastSave > 60000) { // 每分钟保存一次
     lastSave = millis();
     saveScenes();
+  }
+  
+  // 定期检查是否需要智能切换场景
+  static unsigned long lastAutoSwitchCheck = 0;
+  if (millis() - lastAutoSwitchCheck > 30000) { // 每30秒检查一次
+    lastAutoSwitchCheck = millis();
+    autoSwitchScene();
+  }
+  
+  // 检查用户活动，超时进入睡眠模式
+  static unsigned long lastActivityCheck = 0;
+  if (millis() - lastActivityCheck > 60000) { // 每分钟检查一次
+    lastActivityCheck = millis();
+    switchBasedOnUserActivity();
+  }
+  
+  // 基于时间自动切换场景
+  static unsigned long lastTimeCheck = 0;
+  if (millis() - lastTimeCheck > 300000) { // 每5分钟检查一次
+    lastTimeCheck = millis();
+    switchBasedOnTime();
   }
 }
 
@@ -232,6 +258,9 @@ bool SceneManager::setCurrentScene(SceneMode mode) {
   currentScene = mode;
   applySceneConfig(sceneConfigs[mode]);
   
+  // 更新场景切换时间
+  lastSceneSwitchTime = millis();
+  
   DEBUG_PRINTF("设置当前场景为: %s\n", sceneConfigs[mode].name.c_str());
   return true;
 }
@@ -257,7 +286,7 @@ bool SceneManager::setSceneConfig(SceneMode mode, SceneConfig config) {
 }
 
 SceneConfig SceneManager::getSceneConfig(SceneMode mode) {
-  if (mode < SCENE_NORMAL || mode > SCENE_CUSTOM_3) {
+  if (mode < SCENE_NORMAL || mode > SCENE_SLEEP) {
     SceneConfig invalid = {SCENE_NORMAL, "", "", false, false, false, false, false, 0, 0, false};
     return invalid;
   }
@@ -270,12 +299,12 @@ bool SceneManager::switchToScene(SceneMode mode) {
 }
 
 bool SceneManager::switchToNextScene() {
-  SceneMode nextScene = (SceneMode)((currentScene + 1) % 10);
+  SceneMode nextScene = (SceneMode)((currentScene + 1) % 3);
   return setCurrentScene(nextScene);
 }
 
 bool SceneManager::switchToPreviousScene() {
-  SceneMode prevScene = (SceneMode)((currentScene - 1 + 10) % 10);
+  SceneMode prevScene = (SceneMode)((currentScene - 1 + 3) % 3);
   return setCurrentScene(prevScene);
 }
 
@@ -300,15 +329,15 @@ void SceneManager::initDefaultQuickActions() {
   
   // 预设快捷功能映射
   quickActions[0] = SCENE_NORMAL;     // 快捷1：正常模式
-  quickActions[1] = SCENE_OFFICE;     // 快捷2：办公模式
-  quickActions[2] = SCENE_HOME;       // 快捷3：家庭模式
-  quickActions[3] = SCENE_SLEEP;      // 快捷4：睡眠模式
-  quickActions[4] = SCENE_RELAX;      // 快捷5：放松模式
-  quickActions[5] = SCENE_PARTY;      // 快捷6：派对模式
-  quickActions[6] = SCENE_OUTDOOR;    // 快捷7：户外模式
-  quickActions[7] = SCENE_CUSTOM_1;   // 快捷8：自定义模式1
-  quickActions[8] = SCENE_CUSTOM_2;   // 快捷9：自定义模式2
-  quickActions[9] = SCENE_CUSTOM_3;   // 快捷10：自定义模式3
+  quickActions[1] = SCENE_INTERACTIVE;     // 快捷2：互动模式
+  quickActions[2] = SCENE_SLEEP;      // 快捷3：睡眠模式
+  quickActions[3] = SCENE_NORMAL;     // 快捷4：正常模式
+  quickActions[4] = SCENE_INTERACTIVE;      // 快捷5：互动模式
+  quickActions[5] = SCENE_SLEEP;      // 快捷6：睡眠模式
+  quickActions[6] = SCENE_NORMAL;    // 快捷7：正常模式
+  quickActions[7] = SCENE_INTERACTIVE;   // 快捷8：互动模式
+  quickActions[8] = SCENE_SLEEP;   // 快捷9：睡眠模式
+  quickActions[9] = SCENE_NORMAL;   // 快捷10：正常模式
   
   DEBUG_PRINTLN("默认快捷功能初始化完成");
 }
@@ -329,7 +358,7 @@ bool SceneManager::triggerQuickAction(int actionId) {
 }
 
 bool SceneManager::registerQuickAction(int actionId, SceneMode scene) {
-  if (actionId < 0 || actionId >= 10 || scene < SCENE_NORMAL || scene > SCENE_CUSTOM_3) {
+  if (actionId < 0 || actionId >= 10 || scene < SCENE_NORMAL || scene > SCENE_SLEEP) {
     return false;
   }
   
@@ -351,4 +380,133 @@ void SceneManager::resetScenes() {
   initDefaultScenes();
   initDefaultQuickActions();
   applySceneConfig(sceneConfigs[currentScene]);
+}
+
+// 智能场景切换
+bool SceneManager::autoSwitchScene() {
+  if (!shouldSwitchScene()) {
+    return false;
+  }
+  
+  SceneMode recommendedScene = getRecommendedScene();
+  if (recommendedScene != currentScene) {
+    return setCurrentScene(recommendedScene);
+  }
+  
+  return false;
+}
+
+// 基于时间切换场景
+bool SceneManager::switchBasedOnTime() {
+  // 获取当前时间
+  time_t now = time(nullptr);
+  struct tm* timeInfo = localtime(&now);
+  int hour = timeInfo->tm_hour;
+  int minute = timeInfo->tm_min;
+  
+  // 凌晨12点到早上5点：睡眠模式
+  if (hour >= 0 && hour < 5) {
+    if (currentScene != SCENE_SLEEP) {
+      DEBUG_PRINTLN("基于时间切换到睡眠模式");
+      return setCurrentScene(SCENE_SLEEP);
+    }
+  }
+  // 早上5点到7点：正常模式（刚起床，不需要高性能）
+  else if (hour >= 5 && hour < 7) {
+    if (currentScene == SCENE_SLEEP) {
+      DEBUG_PRINTLN("基于时间切换到正常模式");
+      return setCurrentScene(SCENE_NORMAL);
+    }
+  }
+  // 晚上7点到10点：互动模式（用户可能频繁使用）
+  else if (hour >= 19 && hour < 22) {
+    if (currentScene != SCENE_INTERACTIVE && currentScene != SCENE_SLEEP) {
+      DEBUG_PRINTLN("基于时间切换到互动模式");
+      return setCurrentScene(SCENE_INTERACTIVE);
+    }
+  }
+  
+  return false;
+}
+
+// 基于用户活动切换场景
+bool SceneManager::switchBasedOnUserActivity() {
+  unsigned long currentTime = millis();
+  unsigned long inactivityTime = currentTime - lastUserActivityTime;
+  
+  // 用户无活动30分钟，且当前不是睡眠模式，切换到睡眠模式
+  if (inactivityTime > 1800000 && currentScene != SCENE_SLEEP) {
+    DEBUG_PRINTLN("用户无活动超时，切换到睡眠模式");
+    return setCurrentScene(SCENE_SLEEP);
+  }
+  // 用户有活动，且当前是睡眠模式，切换到正常模式
+  else if (inactivityTime < 600000 && currentScene == SCENE_SLEEP) {
+    DEBUG_PRINTLN("检测到用户活动，从睡眠模式切换到正常模式");
+    return setCurrentScene(SCENE_NORMAL);
+  }
+  
+  return false;
+}
+
+// 记录用户活动
+void SceneManager::recordUserActivity() {
+  lastUserActivityTime = millis();
+  userActivityCount++;
+  
+  // 用户活动时，如果当前是睡眠模式，切换到正常模式
+  if (currentScene == SCENE_SLEEP) {
+    DEBUG_PRINTLN("检测到用户活动，从睡眠模式切换到正常模式");
+    setCurrentScene(SCENE_NORMAL);
+  }
+  // 用户频繁活动（1分钟内超过5次操作），切换到互动模式
+  else if (userActivityCount > 5) {
+    static unsigned long lastActivityReset = 0;
+    if (millis() - lastActivityReset > 60000) {
+      lastActivityReset = millis();
+      userActivityCount = 0;
+    } else if (currentScene != SCENE_INTERACTIVE) {
+      DEBUG_PRINTLN("检测到用户频繁活动，切换到互动模式");
+      setCurrentScene(SCENE_INTERACTIVE);
+    }
+  }
+}
+
+// 检查是否需要场景切换
+bool SceneManager::shouldSwitchScene() {
+  // 避免频繁切换场景，至少间隔30秒
+  if (millis() - lastSceneSwitchTime < 30000) {
+    return false;
+  }
+  
+  return true;
+}
+
+// 获取推荐场景
+SceneMode SceneManager::getRecommendedScene() {
+  // 首先检查时间因素
+  time_t now = time(nullptr);
+  struct tm* timeInfo = localtime(&now);
+  int hour = timeInfo->tm_hour;
+  
+  // 凌晨12点到早上5点：睡眠模式
+  if (hour >= 0 && hour < 5) {
+    return SCENE_SLEEP;
+  }
+  
+  // 检查用户活动
+  unsigned long inactivityTime = millis() - lastUserActivityTime;
+  if (inactivityTime > 1800000) { // 30分钟无活动
+    return SCENE_SLEEP;
+  }
+  
+  // 检查用户活动频率
+  if (userActivityCount > 3) { // 近期有活动
+    // 晚上7点到10点：互动模式
+    if (hour >= 19 && hour < 22) {
+      return SCENE_INTERACTIVE;
+    }
+  }
+  
+  // 默认：正常模式
+  return SCENE_NORMAL;
 }

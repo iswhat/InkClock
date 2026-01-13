@@ -1070,6 +1070,12 @@ void initInputDevices() {
     
     // 设置按键回调函数，用于处理按键事件，包括报警状态下切换回主界面
   buttonManager.setCallback([](int buttonIndex, ButtonEvent event) {
+    // 记录用户活动，用于场景切换
+    #if ENABLE_SCENE
+      SceneManager& sceneManager = getModule<SceneModuleWrapper>()->getSceneManager();
+      sceneManager.recordUserActivity();
+    #endif
+    
     if (displayManager.isAlarmShowing()) {
       // 如果处于报警状态，任何按键都切换回主界面
       displayManager.hideAlarm();
@@ -1114,7 +1120,6 @@ void initInputDevices() {
       case BUTTON_TRIPLE_CLICK:
         // 三连击：切换到下一个场景
         #if ENABLE_SCENE
-          SceneManager& sceneManager = getModule<SceneModuleWrapper>()->getSceneManager();
           sceneManager.switchToNextScene();
           // 显示当前场景名称
           displayManager.showToastMessage("场景: " + sceneManager.getSceneConfig(sceneManager.getCurrentScene()).name, 2000);
