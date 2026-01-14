@@ -1,7 +1,15 @@
 #pragma once
 
+#ifdef ARDUINO
 #include <Arduino.h>
+#else
+#include "arduino_compat.h"
+#endif
 #include <string>
+
+// 前向声明
+class EventBus;
+class DriverRegistry;
 
 // 核心系统状态枚举
 enum CoreSystemState {

@@ -113,28 +113,20 @@
 #define FLAME_SENSOR_PIN -1
 
 // 充电接口类型
-#define ChargingInterfaceType enum {
+typedef enum {
   USB_TYPE_A,
   USB_TYPE_C,
   USB_TYPE_B,
   DC_JACK
-};
-
-// 充电接口类型
-#define ChargingInterfaceType enum {
-  USB_TYPE_A,
-  USB_TYPE_C,
-  USB_TYPE_B,
-  DC_JACK
-};
+} ChargingInterfaceType;
 
 // 充电保护电路状态
-#define ChargingProtectionStatus enum {
+typedef enum {
   PROTECTION_OK,
   PROTECTION_OVER_VOLTAGE,
   PROTECTION_OVER_CURRENT,
   PROTECTION_OVER_TEMPERATURE,
   PROTECTION_SHORT_CIRCUIT
-};
+} ChargingProtectionStatus;
 
 #endif // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H

@@ -27,7 +27,7 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/../plugins
 )
 
-# 收集源文件
+# 收集源文件 - 完整模拟器
 set(SOURCE_FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/simulator_main.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../coresystem/arduino_compat.cpp
@@ -40,8 +40,14 @@ set(SOURCE_FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/../plugins/example_plugin.cpp
 )
 
+# 收集源文件 - PC模拟器
+set(PC_SIMULATOR_SOURCE_FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/pc_simulator.cpp
+)
+
 # 创建可执行文件
 add_executable(inkclock_simulator ${SOURCE_FILES})
+add_executable(inkclock_pc_simulator ${PC_SIMULATOR_SOURCE_FILES})
 
 # 链接库（如果需要）
 target_link_libraries(inkclock_simulator
@@ -64,6 +70,10 @@ endif()
 
 # 设置输出目录
 set_target_properties(inkclock_simulator PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../..
+)
+
+set_target_properties(inkclock_pc_simulator PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../..
 )
 

@@ -74,14 +74,14 @@ public:
         return _str.empty();
     }
 
-    String substring(size_t beginIndex) const {
+    String substring(size_t beginIndex) {
         if (beginIndex >= _str.length()) {
             return String();
         }
         return String(_str.substr(beginIndex));
     }
 
-    String substring(size_t beginIndex, size_t endIndex) const {
+    String substring(size_t beginIndex, size_t endIndex) {
         if (beginIndex >= _str.length()) {
             return String();
         }
@@ -89,7 +89,7 @@ public:
         return String(_str.substr(beginIndex, endIndex - beginIndex));
     }
 
-    int toInt() const {
+    int toInt() {
         try {
             return std::stoi(_str);
         } catch (...) {
@@ -97,7 +97,7 @@ public:
         }
     }
 
-    float toFloat() const {
+    float toFloat() {
         try {
             return std::stof(_str);
         } catch (...) {
@@ -106,142 +106,72 @@ public:
     }
 
     // 转换为std::string
-    std::string toStdString() const {
+    std::string toStdString() {
         return _str;
     }
 
     // 比较操作符
-    bool operator==(const char* cstr) const {
+    bool operator==(const char* cstr) {
         return _str == cstr;
     }
 
-    bool operator!=(const char* cstr) const {
+    bool operator!=(const char* cstr) {
         return _str != cstr;
     }
 
-    bool operator==(const String& other) const {
+    bool operator==(const String& other) {
         return _str == other._str;
     }
 
-    bool operator!=(const String& other) const {
+    bool operator!=(const String& other) {
         return _str != other._str;
     }
 };
 
+// 运算符重载：String + char
+String operator+(const String& lhs, char rhs);
+
+// 运算符重载：String + const char*
+String operator+(const String& lhs, const char* rhs);
+
+// 运算符重载：String + String
+String operator+(const String& lhs, const String& rhs);
+
+// 运算符重载：const char* + String
+String operator+(const char* lhs, const String& rhs);
+
+// 运算符重载：char + String
+String operator+(char lhs, const String& rhs);
+
 // 基本函数
-void delay(unsigned long ms) {
-    // 简单的延迟实现
-    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
-}
-
-unsigned long millis() {
-    // 简单的毫秒计数实现
-    static auto start_time = std::chrono::steady_clock::now();
-    auto current_time = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time);
-    return duration.count();
-}
-
-unsigned long micros() {
-    // 简单的微秒计数实现
-    static auto start_time = std::chrono::steady_clock::now();
-    auto current_time = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(current_time - start_time);
-    return duration.count();
-}
-
-void yield() {
-    // 空实现，用于兼容Arduino
-}
+void delay(unsigned long ms);
+unsigned long millis();
+unsigned long micros();
+void yield();
 
 // 随机数函数
-int random(int max) {
-    return rand() % max;
-}
-
-int random(int min, int max) {
-    return min + rand() % (max - min);
-}
-
-void randomSeed(unsigned long seed) {
-    srand(seed);
-}
+int random(int max);
+int random(int min, int max);
+void randomSeed(unsigned long seed);
 
 // 串口函数
 class Serial_ {
 public:
-    void begin(unsigned long baud) {
-        // 空实现，用于兼容Arduino
-    }
-
-    void end() {
-        // 空实现，用于兼容Arduino
-    }
-
-    size_t print(const char* str) {
-        std::cout << str;
-        return strlen(str);
-    }
-
-    size_t print(const String& str) {
-        std::cout << str.c_str();
-        return str.length();
-    }
-
-    size_t print(int value, int base = 10) {
-        std::cout << value;
-        return std::to_string(value).length();
-    }
-
-    size_t print(long value, int base = 10) {
-        std::cout << value;
-        return std::to_string(value).length();
-    }
-
-    size_t print(float value, int digits = 2) {
-        std::cout.precision(digits);
-        std::cout << value;
-        return std::to_string(value).length();
-    }
-
-    size_t println(const char* str) {
-        std::cout << str << std::endl;
-        return strlen(str) + 1;
-    }
-
-    size_t println(const String& str) {
-        std::cout << str.c_str() << std::endl;
-        return str.length() + 1;
-    }
-
-    size_t println(int value, int base = 10) {
-        std::cout << value << std::endl;
-        return std::to_string(value).length() + 1;
-    }
-
-    size_t println(long value, int base = 10) {
-        std::cout << value << std::endl;
-        return std::to_string(value).length() + 1;
-    }
-
-    size_t println(float value, int digits = 2) {
-        std::cout.precision(digits);
-        std::cout << value << std::endl;
-        return std::to_string(value).length() + 1;
-    }
-
-    size_t println() {
-        std::cout << std::endl;
-        return 1;
-    }
-
-    bool available() {
-        return false;
-    }
-
-    int read() {
-        return -1;
-    }
+    void begin(unsigned long baud);
+    void end();
+    size_t print(const char* str);
+    size_t print(const String& str);
+    size_t print(int value, int base = 10);
+    size_t print(long value, int base = 10);
+    size_t print(float value, int digits = 2);
+    size_t println(const char* str);
+    size_t println(const String& str);
+    size_t println(int value, int base = 10);
+    size_t println(long value, int base = 10);
+    size_t println(float value, int digits = 2);
+    size_t println();
+    bool available();
+    int read();
 };
 
 // 全局串口对象
@@ -266,9 +196,7 @@ extern Serial_ Serial;
 #define RAD_TO_DEG 57.29577951308232
 
 // 常用函数
-long map(long x, long in_min, long in_max, long out_min, long out_max) {
-    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-}
+long map(long x, long in_min, long in_max, long out_min, long out_max);
 
 // 数学函数
 template<typename T>
@@ -286,42 +214,6 @@ T max(T a, T b) {
 template<typename T>
 T min(T a, T b) {
     return (a < b) ? a : b;
-}
-
-// 运算符重载：String + char
-String operator+(const String& lhs, char rhs) {
-    String result = lhs;
-    result += rhs;
-    return result;
-}
-
-// 运算符重载：String + const char*
-String operator+(const String& lhs, const char* rhs) {
-    String result = lhs;
-    result += rhs;
-    return result;
-}
-
-// 运算符重载：String + String
-String operator+(const String& lhs, const String& rhs) {
-    String result = lhs;
-    result += rhs;
-    return result;
-}
-
-// 运算符重载：const char* + String
-String operator+(const char* lhs, const String& rhs) {
-    String result = lhs;
-    result += rhs;
-    return result;
-}
-
-// 运算符重载：char + String
-String operator+(char lhs, const String& rhs) {
-    String result;
-    result += lhs;
-    result += rhs;
-    return result;
 }
 
 #endif // ARDUINO_COMPAT_H

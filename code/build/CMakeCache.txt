@@ -200,6 +200,9 @@ InkClockSimulator_IS_TOP_LEVEL:STATIC=ON
 //Value Computed by CMake
 InkClockSimulator_SOURCE_DIR:STATIC=D:/InkClock/code/src/simulator
 
+//Use SDL2 for real-time display
+USE_SDL2:BOOL=OFF
+
 
 ########################
 # INTERNAL cache entries

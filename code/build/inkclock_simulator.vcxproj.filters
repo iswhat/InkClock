@@ -4,6 +4,18 @@
     <ClCompile Include="D:\InkClock\code\src\simulator\simulator_main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="D:\InkClock\code\src\coresystem\arduino_compat.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\InkClock\code\src\coresystem\dependency_injection.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\InkClock\code\src\coresystem\plugin_manager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\InkClock\code\src\coresystem\network_manager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="D:\InkClock\code\src\drivers\peripherals\simulator_display.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -11,6 +23,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="D:\InkClock\code\src\application\display_manager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\InkClock\code\src\plugins\example_plugin.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

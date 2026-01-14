@@ -1,7 +1,7 @@
 #ifndef EXAMPLE_PLUGIN_H
 #define EXAMPLE_PLUGIN_H
 
-#include "coresystem/base_plugin.h"
+#include "../coresystem/base_plugin.h"
 
 class ExamplePlugin : public BasePlugin {
 public:
