@@ -18,7 +18,7 @@ HardwareDetector::HardwareDetector() {
   evaluationResult.totalStorage = 0;
   evaluationResult.overallLevel = CAPABILITY_LEVEL_LOW;
   evaluationResult.overallScore = 0;
-  evaluationResult.评估时间 = 0;
+  evaluationResult.evaluationTime = 0;
   evaluationResult.isValid = false;
 }
 
@@ -297,7 +297,7 @@ void HardwareDetector::reset() {
   evaluationResult.totalStorage = 0;
   evaluationResult.overallLevel = CAPABILITY_LEVEL_LOW;
   evaluationResult.overallScore = 0;
-  evaluationResult.评估时间 = 0;
+  evaluationResult.evaluationTime = 0;
   evaluationResult.isValid = false;
   evaluationResult.resources.clear();
   evaluationResult.capabilities.clear();
@@ -391,7 +391,7 @@ void HardwareDetector::updateEvaluationResult() {
   evaluationResult.overallLevel = determineOverallLevel(evaluationResult.overallScore);
   
   // 更新评估时间
-  evaluationResult.评估时间 = millis();
+  evaluationResult.evaluationTime = millis();
   evaluationResult.isValid = true;
   
   // 更新内存和存储信息

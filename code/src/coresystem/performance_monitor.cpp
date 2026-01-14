@@ -546,6 +546,9 @@ void PerformanceMonitor::publishPerformanceDataEvent(PerformanceDataPoint dataPo
       eventData["alertLevel"] = String(dataPoint.alertLevel);
       eventData["isAlert"] = dataPoint.isAlert ? "true" : "false";
       eventData["timestamp"] = String(dataPoint.timestamp);
+      eventData["minValue"] = String(dataPoint.minValue);
+      eventData["maxValue"] = String(dataPoint.maxValue);
+      eventData["averageValue"] = String(dataPoint.averageValue);
       
       // 发布事件
       eventBus->publish("performance_data", eventData);
@@ -553,7 +556,7 @@ void PerformanceMonitor::publishPerformanceDataEvent(PerformanceDataPoint dataPo
   #endif
   
   // 打印调试信息
-  DEBUG_PRINTF("性能数据事件: %s = %.2f %s\n", dataPoint.name.c_str(), dataPoint.value, dataPoint.unit.c_str());
+  DEBUG_PRINTF("性能数据事件: %s = %.2f %s (平均: %.2f %s)\n", dataPoint.name.c_str(), dataPoint.value, dataPoint.unit.c_str(), dataPoint.averageValue, dataPoint.unit.c_str());
 }
 
 // 发布告警事件

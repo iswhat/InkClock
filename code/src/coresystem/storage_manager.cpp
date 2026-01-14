@@ -685,6 +685,13 @@ bool StorageManager::compressData(const String& dataId) {
     return false;
   }
   
+  // 检查是否已经压缩
+  if (config.metadata.find("compressed") != config.metadata.end() && 
+      config.metadata["compressed"] == "true") {
+    DEBUG_PRINTF("数据已经压缩: %s\n", dataId.c_str());
+    return false;
+  }
+  
   // 读取原始数据
   String originalData;
   if (!read(dataId, originalData)) {
@@ -728,7 +735,7 @@ bool StorageManager::decompressData(const String& dataId) {
     return false;
   }
   
-  const DataStorageConfig& config = dataConfigs[dataId];
+  DataStorageConfig& config = dataConfigs[dataId];
   
   // 检查是否已压缩
   if (config.metadata.find("compressed") == config.metadata.end() || 
@@ -753,6 +760,13 @@ bool StorageManager::decompressData(const String& dataId) {
     DEBUG_PRINTF("保存解压缩数据失败: %s\n", dataId.c_str());
     return false;
   }
+  
+  // 更新配置，标记为未压缩
+  config.metadata["compressed"] = "false";
+  config.lastModifiedTime = millis();
+  
+  // 删除压缩数据
+  remove(compressedKey);
   
   DEBUG_PRINTF("数据解压缩成功: %s, 解压缩大小: %u\n", 
                dataId.c_str(), decompressedData.length());
