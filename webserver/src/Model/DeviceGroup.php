@@ -19,7 +19,7 @@ class DeviceGroup {
     /**
      * 创建设备分组
      */
-    public function createGroup($userId, $name, $parentId = null) {
+    public function createGroup($userId, $name, $description = '', $parentId = null) {
         $createdAt = date('Y-m-d H:i:s');
         
         // 检查父分组是否存在且属于当前用�?
@@ -31,7 +31,7 @@ class DeviceGroup {
             
             // 检查是否会形成循环依赖
             if ($this->checkCircularDependency($parentId, $parentId)) {
-                return array('success' => false, 'error' => '不能将分组设置为自身或其子分组的子分�?);
+                return array('success' => false, 'error' => '不能将分组设置为自身或其子分组的子分组');
             }
         }
         
@@ -172,11 +172,6 @@ class DeviceGroup {
     }
     
     /**
-     * 更新分组信息
-     */
-    public function updateGroup($groupId, $userId, $name, $description = '') {
-    
-    /**
      * 删除分组
      */
     public function deleteGroup($groupId, $userId) {
@@ -304,7 +299,7 @@ class DeviceGroup {
     /**
      * 更新分组信息
      */
-    public function updateGroup($groupId, $userId, $name, $parentId = null) {
+    public function updateGroup($groupId, $userId, $name, $description = '', $parentId = null) {
         // 检查父分组是否存在且属于当前用�?
         if ($parentId) {
             $parentGroup = $this->getGroupById($parentId, $userId);
@@ -314,7 +309,7 @@ class DeviceGroup {
             
             // 检查是否会形成循环依赖
             if ($this->checkCircularDependency($groupId, $parentId)) {
-                return array('success' => false, 'error' => '不能将分组设置为自身或其子分组的子分�?);
+                return array('success' => false, 'error' => '不能将分组设置为自身或其子分组的子分组');
             }
         }
         

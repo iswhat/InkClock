@@ -158,11 +158,8 @@ if ($matchedRoute) {
         }
     };
     
-    // 使用改进后的中间件管理器
-    use InkClock\Middleware\MiddlewareManager;
-    
     // 创建中间件管理器实例
-    $middlewareManager = new MiddlewareManager($container);
+    $middlewareManager = new \InkClock\Middleware\MiddlewareManager($container);
     
     // 注册命名中间件
     $middlewareManager->register('csrf', '\InkClock\Middleware\CsrfMiddleware')

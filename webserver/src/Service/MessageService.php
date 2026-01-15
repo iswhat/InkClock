@@ -139,7 +139,7 @@ class MessageService implements MessageServiceInterface {
         $this->logger->info('获取未读消息数请求', ['device_id' => $deviceId]);
         
         $messageModel = new Message($this->db);
-        $count = $messageModel->getUnreadCount($deviceId);
+        $count = $messageModel->getMessageCount($deviceId, 'unread');
         
         $this->logger->info('获取未读消息数成功', ['count' => $count]);
         

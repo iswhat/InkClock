@@ -161,7 +161,6 @@ class MonitoringController extends BaseController {
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             $response = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
             return $httpCode >= 200 && $httpCode < 400;
         } catch (\Exception $e) {
             return false;
@@ -550,7 +549,7 @@ class MonitoringController extends BaseController {
     private function getDirectorySize($dir) {
         $size = 0;
         if (is_dir($dir)) {
-            $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir));
+            $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir));
             foreach ($files as $file) {
                 if ($file->isFile()) {
                     $size += $file->getSize();
