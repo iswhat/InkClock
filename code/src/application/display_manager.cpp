@@ -1235,7 +1235,7 @@ void DisplayManager::drawSensorData(int x, int y, float temperature, float humid
   checkSensorAnomalies(temperature, humidity);
   
   // 绘制标题
-  displayDriver->drawString(x, y, "室内温湿度", GxEPD_BLACK, GxEPD_WHITE, titleSize);
+  displayDriver->drawString(x, y, "室内环境监测", GxEPD_BLACK, GxEPD_WHITE, titleSize);
   
   // 绘制温度
   displayDriver->drawString(x, y + (height < 400 ? 30 : 50), "温度: " + String(temperature) + "°C", 
@@ -1245,8 +1245,47 @@ void DisplayManager::drawSensorData(int x, int y, float temperature, float humid
   displayDriver->drawString(x, y + (height < 400 ? 50 : 90), "湿度: " + String(humidity) + "%", 
                          GxEPD_BLACK, GxEPD_WHITE, dataSize);
   
+  // 绘制气体传感器数据
+  int gasLevel = sensorManager.getGasLevel();
+  String gasStatus = "正常";
+  uint16_t gasColor = GxEPD_BLACK;
+  if (gasLevel > 800) {
+    gasStatus = "异常";
+    gasColor = GxEPD_RED;
+  } else if (gasLevel > 500) {
+    gasStatus = "警告";
+    gasColor = GxEPD_RED;
+  }
+  displayDriver->drawString(x, y + (height < 400 ? 70 : 130), "空气质量: " + gasStatus, 
+                         gasColor, GxEPD_WHITE, dataSize);
+  
+  // 绘制光照强度
+  int lightLevel = sensorManager.getLightLevel();
+  String lightStatus = "暗";
+  if (lightLevel > 500) {
+    lightStatus = "亮";
+  } else if (lightLevel > 200) {
+    lightStatus = "中等";
+  }
+  displayDriver->drawString(x, y + (height < 400 ? 90 : 170), "光照: " + lightStatus, 
+                         GxEPD_BLACK, GxEPD_WHITE, dataSize);
+  
+  // 绘制人体感应
+  bool motionDetected = sensorManager.getMotionDetected();
+  displayDriver->drawString(x, y + (height < 400 ? 110 : 210), "人体感应: " + (motionDetected ? "有人" : "无人"), 
+                         GxEPD_BLACK, GxEPD_WHITE, dataSize);
+  
+  // 绘制火焰检测
+  bool flameDetected = sensorManager.getFlameDetected();
+  uint16_t flameColor = GxEPD_BLACK;
+  if (flameDetected) {
+    flameColor = GxEPD_RED;
+  }
+  displayDriver->drawString(x, y + (height < 400 ? 130 : 250), "火焰检测: " + (flameDetected ? "检测到" : "未检测到"), 
+                         flameColor, GxEPD_WHITE, dataSize);
+  
   // 绘制传感器数据趋势图表
-  int chartY = y + (height < 400 ? 80 : 130);
+  int chartY = y + (height < 400 ? 150 : 290);
   int chartWidth = leftPanelWidth - 40;
   int chartHeight = height < 400 ? 60 : 80;
   

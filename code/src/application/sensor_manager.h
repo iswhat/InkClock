@@ -64,6 +64,12 @@ public:
   bool isFlameSensorEnabled() { return flameSensorEnabled; }
   bool isLightSensorEnabled() { return lightSensorEnabled; }
   
+  // 获取传感器数据
+  int getGasLevel() { return currentData.gasLevel; }
+  int getLightLevel() { return currentData.lightLevel; }
+  bool getMotionDetected() { return currentData.motionDetected; }
+  bool getFlameDetected() { return currentData.flameDetected; }
+  
 private:
   // 传感器配置
   SensorConfig currentConfig;
