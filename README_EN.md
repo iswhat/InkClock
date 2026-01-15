@@ -1,10 +1,12 @@
-# InkClock - Smart E-Paper Clock System
+# InkClock - Smart E-Paper Clock and Perpetual Calendar System
 
 [中文版本](README.md)
 
 ## Project Introduction
 
-InkClock is a smart e-paper clock system based on multiple development boards, supporting ESP32, ESP8266, NRF52, STM32, RP2040 and other microcontroller platforms. It features low power consumption, high resolution, and remote configuration capabilities. The system supports displaying time, date, weather, air quality, stock quotes and other information, and has human presence detection, light sensing, low power optimization and other functions.
+InkClock is a smart e-paper clock and perpetual calendar system based on multiple development boards, supporting ESP32, ESP8266, NRF52, STM32, RP2040 and other microcontroller platforms. It features low power consumption, high resolution, and remote configuration capabilities. The system integrates complete perpetual calendar functions, supporting the display of Gregorian calendar, lunar calendar, solar terms, festivals and other information, and has human presence detection, light sensing, low power optimization and other features. At the same time, the system supports online plugin extensions and can be remotely configured and managed through the accompanying management system website.
+
+**Hardware and Function Flexibility**：The system adopts a modular design, allowing hardware and functions to be freely added or removed according to user needs. Users can choose different development boards, e-paper sizes, and sensor combinations based on their budget and requirements, and the system will automatically detect and adapt to the hardware configuration. In terms of functionality, users can freely enable or disable various functional modules through the management system website, achieving true personalized customization.
 
 ## Features
 
@@ -23,6 +25,11 @@ InkClock is a smart e-paper clock system based on multiple development boards, s
 - 🔔 **Smart Reminders**: Timed reminders and event reminders
 - 🌐 **Network Synchronization**: NTP time synchronization, network weather updates
 - 📝 **Custom Display**: Support custom display content and layout
+- 📱 **Mobile App Management**: Device configuration, status monitoring, and remote control through dedicated APP
+- 💬 **Network Text Messages**: Support remote sending of text messages to device display
+- 🎤 **Network Voice Messages**: Support remote sending of voice messages to device playback
+- 📹 **Local Video Messages**: Support local recording and playback of video messages
+- 🔌 **Extended Sensors**: Support for multiple sensor extensions, such as gas sensors, flame sensors, etc.
 
 ### Hardware Support
 

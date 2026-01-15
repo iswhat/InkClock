@@ -3,15 +3,7 @@
   "info": {
     "title": "InkClock API",
     "description": "InkClock Server API Documentation",
-    "version": "1.0.0",
-    "contact": {
-      "name": "InkClock Development Team",
-      "email": "dev@inkclock.com"
-    },
-    "license": {
-      "name": "MIT",
-      "url": "https://opensource.org/licenses/MIT"
-    }
+    "version": "1.0.0"
   },
   "servers": [
     {
@@ -20,18 +12,5 @@
     }
   ],
   "paths": {},
-  "components": {
-    "securitySchemes": {
-      "apiKey": {
-        "type": "apiKey",
-        "name": "X-API-Key",
-        "in": "header"
-      }
-    }
-  },
-  "security": [
-    {
-      "apiKey": []
-    }
-  ]
+  "components": {}
 }

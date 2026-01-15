@@ -665,7 +665,7 @@ class ApiGatewayController extends BaseController {
             
             // 生成正则表达式模式
             $pattern = preg_replace('/\{([^}]+)\}/', '([^/]+)', $path);
-            $pattern = '/^' . str_replace('/', '\/', $pattern) . '$/';
+            $pattern = '/^' . str_replace('/', '\\/', $pattern) . '$/';
             
             // 尝试匹配路径
             if (preg_match($pattern, $apiPath, $matches)) {
