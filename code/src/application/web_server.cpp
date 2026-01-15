@@ -2831,11 +2831,15 @@ void WebServerManager::handleSensorData() {
     SensorData data = sensorManager.getSensorData();
     
     // 创建JSON响应
-    DynamicJsonDocument doc(256);
+    DynamicJsonDocument doc(512);
     doc["status"] = "success";
     doc["timestamp"] = data.timestamp;
     doc["data"]["temperature"] = data.temperature;
     doc["data"]["humidity"] = data.humidity;
+    doc["data"]["motionDetected"] = data.motionDetected;
+    doc["data"]["gasLevel"] = data.gasLevel;
+    doc["data"]["flameDetected"] = data.flameDetected;
+    doc["data"]["lightLevel"] = data.lightLevel;
     doc["data"]["valid"] = data.valid;
     
     // 设置响应头
@@ -2869,7 +2873,7 @@ void WebServerManager::handleApi() {
     endpoint1["url"] = "/api/sensor";
     endpoint1["method"] = "GET";
     endpoint1["description"] = "获取传感器数据";
-    endpoint1["response"] = "{\"status\": \"success\", \"data\": {\"temperature\": 23.5, \"humidity\": 45.2}}";
+    endpoint1["response"] = "{\"status\": \"success\", \"data\": {\"temperature\": 23.5, \"humidity\": 45.2, \"motionDetected\": false, \"gasLevel\": 300, \"flameDetected\": false, \"lightLevel\": 200, \"valid\": true}}";
     
     JsonObject endpoint2 = endpoints.createNestedObject();
     endpoint2["url"] = "/api/plugin/{name}/data";

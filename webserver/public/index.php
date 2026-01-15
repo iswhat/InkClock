@@ -243,7 +243,7 @@ $requestHandler = function($request) use ($matchedRoute, $params, $container, $l
         $controller->$actionName($params);
         
         return ['status_code' => 200];
-    } catch (Exception $e) {
+    } catch (\Exception $e) {
         $logger->error('控制器执行错误', [
             'exception' => $e->getMessage(),
             'trace' => $e->getTraceAsString(),

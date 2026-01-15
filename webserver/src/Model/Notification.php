@@ -4,7 +4,7 @@
  */
 namespace InkClock\Model;
 
-use InkClock\Utils\Database;
+
 
 class Notification {
     private $db;
@@ -179,7 +179,7 @@ class Notification {
             }
             
             return array('success' => $totalSent > 0, 'total_sent' => $totalSent);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return array('success' => false, 'error' => $e->getMessage());
         }
     }

@@ -7,6 +7,10 @@ namespace InkClock\Middleware;
 
 use InkClock\Utils\DIContainer;
 
+interface MiddlewareInterface {
+    public function handle($request, $next);
+}
+
 class MiddlewareManager {
     private $middlewares = [];
     private $namedMiddlewares = [];
@@ -15,24 +19,20 @@ class MiddlewareManager {
     
     /**
      * 构造函数
-     * @param DIContainer $container 依赖注入容器
+     * @param DIContainer|null $container 依赖注入容器
      */
-    public function __construct(DIContainer $container = null) {
+    public function __construct(?DIContainer $container = null) {
         $this->container = $container;
     }
     
     /**
      * 添加中间件到链中
      * @param string|MiddlewareInterface $middleware 中间件类名或实例
-     * @param string $name 中间件名称（可选）
+     * @param string|null $name 中间件名称（可选）
      * @return $this
      */
-    public function add($middleware, $name = null) {
-        if ($middleware instanceof MiddlewareInterface) {
-            $this->middlewares[] = $middleware;
-        } else {
-            $this->middlewares[] = $middleware;
-        }
+    public function add($middleware, ?string $name = null) {
+        $this->middlewares[] = $middleware;
         
         if ($name) {
             $this->namedMiddlewares[$name] = $middleware;
@@ -47,7 +47,7 @@ class MiddlewareManager {
      * @param string|MiddlewareInterface $middleware 中间件类名或实例
      * @return $this
      */
-    public function register($name, $middleware) {
+    public function register(string $name, $middleware) {
         $this->namedMiddlewares[$name] = $middleware;
         return $this;
     }
@@ -58,7 +58,7 @@ class MiddlewareManager {
      * @param array $middlewares 中间件列表
      * @return $this
      */
-    public function group($name, array $middlewares) {
+    public function group(string $name, array $middlewares) {
         $this->middlewareGroups[$name] = $middlewares;
         return $this;
     }

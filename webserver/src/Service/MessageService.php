@@ -13,18 +13,16 @@ use InkClock\Interfaces\MessageServiceInterface;
 class MessageService implements MessageServiceInterface {
     private $db;
     private $logger;
-    private $cache;
+
     
     /**
      * 构造函数
      * @param \SQLite3 $db 数据库连接
      * @param Logger $logger 日志服务
-     * @param \InkClock\Utils\Cache $cache 缓存服务
      */
-    public function __construct($db, Logger $logger, $cache = null) {
+    public function __construct($db, Logger $logger) {
         $this->db = $db;
         $this->logger = $logger;
-        $this->cache = $cache;
     }
     
     /**
@@ -67,11 +65,10 @@ class MessageService implements MessageServiceInterface {
     
     /**
      * 获取消息列表
-     * @param int $userId 用户ID
      * @param array $filters 过滤条件
      * @return array 消息列表
      */
-    public function getMessageList($userId, $filters = []) {
+    public function getMessageList($filters = []) {
         return $this->getDeviceMessages($filters['device_id'] ?? '', $filters);
     }
     

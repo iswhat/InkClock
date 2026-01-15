@@ -9,8 +9,8 @@ class DeviceGroup {
     private $db;
     
     /**
-     * 构造函数
-     * @param \SQLite3 $db 数据库连接
+     * 构造函�?
+     * @param \SQLite3 $db 数据库连�?
      */
     public function __construct($db) {
         $this->db = $db;
@@ -19,10 +19,10 @@ class DeviceGroup {
     /**
      * 创建设备分组
      */
-    public function createGroup($userId, $name, $description = '', $parentId = null) {
+    public function createGroup($userId, $name, $parentId = null) {
         $createdAt = date('Y-m-d H:i:s');
         
-        // 检查父分组是否存在且属于当前用户
+        // 检查父分组是否存在且属于当前用�?
         if ($parentId) {
             $parentGroup = $this->getGroupById($parentId, $userId);
             if (!$parentGroup) {
@@ -31,7 +31,7 @@ class DeviceGroup {
             
             // 检查是否会形成循环依赖
             if ($this->checkCircularDependency($parentId, $parentId)) {
-                return array('success' => false, 'error' => '不能将分组设置为自身或其子分组的子分组');
+                return array('success' => false, 'error' => '不能将分组设置为自身或其子分组的子分�?);
             }
         }
         
@@ -40,22 +40,22 @@ class DeviceGroup {
         $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
         $stmt->bindValue(':parentId', $parentId, $parentId ? SQLITE3_INTEGER : SQLITE3_NULL);
         $stmt->bindValue(':createdAt', $createdAt, SQLITE3_TEXT);
-        $result = $stmt->execute();
+        $stmt->execute();
         
         $groupId = $this->db->lastInsertRowID();
         
         return array(
-            'success' => $result !== false,
+            'success' => true,
             'group_id' => $groupId,
             'created_at' => $createdAt
         );
     }
     
     /**
-     * 检查循环依赖
+     * 检查循环依�?
      */
     private function checkCircularDependency($groupId, $parentId) {
-        // 获取父分组
+        // 获取父分�?
         $parentGroup = $this->getGroupById($parentId);
         if (!$parentGroup) {
             return false;
@@ -75,7 +75,7 @@ class DeviceGroup {
     }
     
     /**
-     * 获取用户的设备分组列表
+     * 获取用户的设备分组列�?
      */
     public function getGroupsByUserId($userId, $limit = 50, $offset = 0) {
         $stmt = $this->db->prepare("SELECT * FROM device_groups WHERE user_id = :userId ORDER BY created_at DESC LIMIT :limit OFFSET :offset");
@@ -89,7 +89,7 @@ class DeviceGroup {
             $groups[] = $row;
         }
         
-        // 为每个分组添加设备数量和父分组信息
+        // 为每个分组添加设备数量和父分组信�?
         foreach ($groups as &$group) {
             $group['device_count'] = $this->getDeviceCountByGroupId($group['id']);
             $group['child_count'] = $this->getChildGroupCount($group['id']);
@@ -125,7 +125,7 @@ class DeviceGroup {
     }
     
     /**
-     * 获取分组的设备数量
+     * 获取分组的设备数�?
      */
     public function getDeviceCountByGroupId($groupId) {
         $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM device_group_relations WHERE group_id = :groupId");
@@ -165,7 +165,7 @@ class DeviceGroup {
     }
     
     /**
-     * 获取分组详情（控制器调用的方法名）
+     * 获取分组详情（控制器调用的方法名�?
      */
     public function getGroup($groupId) {
         return $this->getGroupById($groupId);
@@ -175,16 +175,6 @@ class DeviceGroup {
      * 更新分组信息
      */
     public function updateGroup($groupId, $userId, $name, $description = '') {
-        $stmt = $this->db->prepare("UPDATE device_groups SET name = :name WHERE id = :groupId AND user_id = :userId");
-        $stmt->bindValue(':name', $name, SQLITE3_TEXT);
-        $stmt->bindValue(':groupId', $groupId, SQLITE3_INTEGER);
-        $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        
-        $affectedRows = $this->db->changes();
-        
-        return array('success' => $affectedRows > 0);
-    }
     
     /**
      * 删除分组
@@ -193,7 +183,7 @@ class DeviceGroup {
         $stmt = $this->db->prepare("DELETE FROM device_groups WHERE id = :groupId AND user_id = :userId");
         $stmt->bindValue(':groupId', $groupId, SQLITE3_INTEGER);
         $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
-        $result = $stmt->execute();
+        $stmt->execute();
         
         $affectedRows = $this->db->changes();
         
@@ -201,7 +191,7 @@ class DeviceGroup {
     }
     
     /**
-     * 添加设备到分组
+     * 添加设备到分�?
      */
     public function addDeviceToGroup($groupId, $deviceId) {
         $createdAt = date('Y-m-d H:i:s');
@@ -210,7 +200,7 @@ class DeviceGroup {
         $stmt->bindValue(':groupId', $groupId, SQLITE3_INTEGER);
         $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
         $stmt->bindValue(':createdAt', $createdAt, SQLITE3_TEXT);
-        $result = $stmt->execute();
+        $stmt->execute();
         
         $affectedRows = $this->db->changes();
         
@@ -224,7 +214,7 @@ class DeviceGroup {
         $stmt = $this->db->prepare("DELETE FROM device_group_relations WHERE group_id = :groupId AND device_id = :deviceId");
         $stmt->bindValue(':groupId', $groupId, SQLITE3_INTEGER);
         $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
-        $result = $stmt->execute();
+        $stmt->execute();
         
         $affectedRows = $this->db->changes();
         
@@ -255,7 +245,7 @@ class DeviceGroup {
     }
     
     /**
-     * 获取分组中的设备列表（控制器调用的方法名）
+     * 获取分组中的设备列表（控制器调用的方法名�?
      */
     public function getDevicesByGroup($groupId, $limit = 50, $offset = 0) {
         return $this->getDevicesByGroupId($groupId, $limit, $offset);
@@ -283,10 +273,10 @@ class DeviceGroup {
     }
     
     /**
-     * 获取分组树结构
+     * 获取分组树结�?
      */
     public function getGroupTree($userId) {
-        // 获取用户的所有分组
+        // 获取用户的所有分�?
         $allGroups = $this->getGroupsByUserId($userId, 1000, 0);
         
         // 构建分组ID到分组的映射
@@ -300,10 +290,10 @@ class DeviceGroup {
         $tree = array();
         foreach ($groupMap as $groupId => $group) {
             if (empty($group['parent_id'])) {
-                // 根分组
+                // 根分�?
                 $tree[] = &$groupMap[$groupId];
             } else if (isset($groupMap[$group['parent_id']])) {
-                // 子分组
+                // 子分�?
                 $groupMap[$group['parent_id']]['children'][] = &$groupMap[$groupId];
             }
         }
@@ -314,8 +304,8 @@ class DeviceGroup {
     /**
      * 更新分组信息
      */
-    public function updateGroup($groupId, $userId, $name, $description = '', $parentId = null) {
-        // 检查父分组是否存在且属于当前用户
+    public function updateGroup($groupId, $userId, $name, $parentId = null) {
+        // 检查父分组是否存在且属于当前用�?
         if ($parentId) {
             $parentGroup = $this->getGroupById($parentId, $userId);
             if (!$parentGroup) {
@@ -324,7 +314,7 @@ class DeviceGroup {
             
             // 检查是否会形成循环依赖
             if ($this->checkCircularDependency($groupId, $parentId)) {
-                return array('success' => false, 'error' => '不能将分组设置为自身或其子分组的子分组');
+                return array('success' => false, 'error' => '不能将分组设置为自身或其子分组的子分�?);
             }
         }
         
@@ -341,7 +331,7 @@ class DeviceGroup {
     }
     
     /**
-     * 获取子分组列表
+     * 获取子分组列�?
      */
     public function getChildGroups($groupId, $userId = null) {
         $query = "SELECT * FROM device_groups WHERE parent_id = :groupId";

@@ -527,14 +527,14 @@ class MonitoringController extends BaseController {
         
         // 取前5个
         $topErrors = [];
-        $count = 0;
+        $errorCount = 0;
         foreach ($errorCounts as $message => $countValue) {
             $topErrors[] = [
                 'message' => substr($message, 0, 200),
                 'count' => $countValue
             ];
-            $count++;
-            if ($count >= 5) {
+            $errorCount++;
+            if ($errorCount >= 5) {
                 break;
             }
         }

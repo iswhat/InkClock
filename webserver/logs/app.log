@@ -1,0 +1,93 @@
+[2026-01-15 15:59:15.000000] INFO: 路由匹配开始 {"method":"GET","path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 所有路由 {"routes":["POST \/api\/user\/register","POST \/api\/user\/login","GET \/api\/user\/info","GET \/api\/user\/devices","POST \/api\/user\/bind","POST \/api\/user\/unbind","PUT \/api\/user\/device","GET \/api\/user\/exist","POST \/api\/user\/first-admin","GET \/api\/user","POST \/api\/user","GET \/api\/user\/stats","GET \/api\/user\/{id}","PUT \/api\/user\/{id}","DELETE \/api\/user\/{id}","POST \/api\/device","GET \/api\/device","GET \/api\/device\/{id}","DELETE \/api\/device\/{id}","POST \/api\/message","GET \/api\/message\/{deviceId}","GET \/api\/message\/{deviceId}\/unread","PUT \/api\/message\/{deviceId}\/read","DELETE \/api\/message\/{deviceId}\/{messageId}","POST \/api\/message\/{deviceId}\/sync","GET \/api\/message\/{deviceId}\/pending","POST \/api\/firmware","GET \/api\/firmware","GET \/api\/firmware\/active\/{model}","GET \/api\/firmware\/{id}","PUT \/api\/firmware\/{id}","PUT \/api\/firmware\/publish\/{id}","DELETE \/api\/firmware\/{id}","POST \/api\/group","GET \/api\/group","GET \/api\/group\/tree","GET \/api\/group\/{id}","GET \/api\/group\/{id}\/children","PUT \/api\/group\/{id}","DELETE \/api\/group\/{id}","POST \/api\/group\/add_device","POST \/api\/group\/remove_device","GET \/api\/group\/devices\/{id}","POST \/api\/tag","GET \/api\/tag","GET \/api\/tag\/{id}","PUT \/api\/tag\/{id}","DELETE \/api\/tag\/{id}","POST \/api\/tag\/add_device","POST \/api\/tag\/remove_device","POST \/api\/tag\/batch_add","POST \/api\/tag\/batch_remove","GET \/api\/tag\/devices\/{id}","GET \/api\/tag\/device_tags\/{deviceId}","POST \/api\/push_task","GET \/api\/push_task","GET \/api\/push_task\/{id}","PUT \/api\/push_task\/{id}","DELETE \/api\/push_task\/{id}","POST \/api\/push_task\/add_log","POST \/api\/push_task\/batch_log","GET \/api\/notification","GET \/api\/notification\/unread-count","GET \/api\/notification\/stats","GET \/api\/notification\/{id}","POST \/api\/notification\/publish","PUT \/api\/notification","PUT \/api\/notification\/{id}","DELETE \/api\/notification\/{id}","GET \/api\/plugin","GET \/api\/plugin\/stats","GET \/api\/plugin\/device\/{deviceId}","GET \/api\/plugin\/pending","POST \/api\/plugin\/external","POST \/api\/plugin\/upload","POST \/api\/plugin\/initialize","POST \/api\/plugin\/init","GET \/api\/plugin\/{id}","PUT \/api\/plugin\/{id}\/toggle","POST \/api\/plugin\/approve\/{id}","POST \/api\/plugin\/device\/{deviceId}\/enable\/{pluginId}","POST \/api\/plugin\/device\/{deviceId}\/disable\/{pluginId}","DELETE \/api\/plugin\/{id}","GET \/api\/status","GET \/api\/system\/settings","PUT \/api\/system\/settings","POST \/api\/system\/settings\/reset","GET \/api\/system\/info","GET \/api\/system\/database\/backup","POST \/api\/system\/restart","POST \/api\/system\/cache\/clear","GET \/api\/gateway\/*","POST \/api\/gateway\/*","PUT \/api\/gateway\/*","DELETE \/api\/gateway\/*","GET \/health","GET \/api\/health","GET \/api\/monitoring\/status","GET \/api\/monitoring\/metrics","GET \/api\/monitoring\/logs"]}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/user\\\/info$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/user\/info","route_path":"\/api\/user\/info","pattern":"\/^\\\/api\\\/user\\\/info$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/user\\\/devices$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/user\/devices","route_path":"\/api\/user\/devices","pattern":"\/^\\\/api\\\/user\\\/devices$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/user\\\/exist$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/user\/exist","route_path":"\/api\/user\/exist","pattern":"\/^\\\/api\\\/user\\\/exist$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/user$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/user","route_path":"\/api\/user","pattern":"\/^\\\/api\\\/user$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/user\\\/stats$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/user\/stats","route_path":"\/api\/user\/stats","pattern":"\/^\\\/api\\\/user\\\/stats$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/user\\\/(?P<id>[^\\\/]+)$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/user\/{id}","route_path":"\/api\/user\/{id}","pattern":"\/^\\\/api\\\/user\\\/(?P<id>[^\\\/]+)$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/device$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/device","route_path":"\/api\/device","pattern":"\/^\\\/api\\\/device$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/device\\\/(?P<id>[^\\\/]+)$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/device\/{id}","route_path":"\/api\/device\/{id}","pattern":"\/^\\\/api\\\/device\\\/(?P<id>[^\\\/]+)$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/message\\\/(?P<deviceId>[^\\\/]+)$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/message\/{deviceId}","route_path":"\/api\/message\/{deviceId}","pattern":"\/^\\\/api\\\/message\\\/(?P<deviceId>[^\\\/]+)$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/message\\\/(?P<deviceId>[^\\\/]+)\\\/unread$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/message\/{deviceId}\/unread","route_path":"\/api\/message\/{deviceId}\/unread","pattern":"\/^\\\/api\\\/message\\\/(?P<deviceId>[^\\\/]+)\\\/unread$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/message\\\/(?P<deviceId>[^\\\/]+)\\\/pending$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/message\/{deviceId}\/pending","route_path":"\/api\/message\/{deviceId}\/pending","pattern":"\/^\\\/api\\\/message\\\/(?P<deviceId>[^\\\/]+)\\\/pending$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/firmware$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/firmware","route_path":"\/api\/firmware","pattern":"\/^\\\/api\\\/firmware$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/firmware\\\/active\\\/(?P<model>[^\\\/]+)$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/firmware\/active\/{model}","route_path":"\/api\/firmware\/active\/{model}","pattern":"\/^\\\/api\\\/firmware\\\/active\\\/(?P<model>[^\\\/]+)$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/firmware\\\/(?P<id>[^\\\/]+)$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/firmware\/{id}","route_path":"\/api\/firmware\/{id}","pattern":"\/^\\\/api\\\/firmware\\\/(?P<id>[^\\\/]+)$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/group$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/group","route_path":"\/api\/group","pattern":"\/^\\\/api\\\/group$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/group\\\/tree$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/group\/tree","route_path":"\/api\/group\/tree","pattern":"\/^\\\/api\\\/group\\\/tree$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/group\\\/(?P<id>[^\\\/]+)$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/group\/{id}","route_path":"\/api\/group\/{id}","pattern":"\/^\\\/api\\\/group\\\/(?P<id>[^\\\/]+)$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/group\\\/(?P<id>[^\\\/]+)\\\/children$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/group\/{id}\/children","route_path":"\/api\/group\/{id}\/children","pattern":"\/^\\\/api\\\/group\\\/(?P<id>[^\\\/]+)\\\/children$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/group\\\/devices\\\/(?P<id>[^\\\/]+)$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/group\/devices\/{id}","route_path":"\/api\/group\/devices\/{id}","pattern":"\/^\\\/api\\\/group\\\/devices\\\/(?P<id>[^\\\/]+)$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/tag$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/tag","route_path":"\/api\/tag","pattern":"\/^\\\/api\\\/tag$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/tag\\\/(?P<id>[^\\\/]+)$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/tag\/{id}","route_path":"\/api\/tag\/{id}","pattern":"\/^\\\/api\\\/tag\\\/(?P<id>[^\\\/]+)$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/tag\\\/devices\\\/(?P<id>[^\\\/]+)$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/tag\/devices\/{id}","route_path":"\/api\/tag\/devices\/{id}","pattern":"\/^\\\/api\\\/tag\\\/devices\\\/(?P<id>[^\\\/]+)$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/tag\\\/device_tags\\\/(?P<deviceId>[^\\\/]+)$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/tag\/device_tags\/{deviceId}","route_path":"\/api\/tag\/device_tags\/{deviceId}","pattern":"\/^\\\/api\\\/tag\\\/device_tags\\\/(?P<deviceId>[^\\\/]+)$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/push_task$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/push_task","route_path":"\/api\/push_task","pattern":"\/^\\\/api\\\/push_task$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/push_task\\\/(?P<id>[^\\\/]+)$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/push_task\/{id}","route_path":"\/api\/push_task\/{id}","pattern":"\/^\\\/api\\\/push_task\\\/(?P<id>[^\\\/]+)$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/notification$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/notification","route_path":"\/api\/notification","pattern":"\/^\\\/api\\\/notification$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/notification\\\/unread-count$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/notification\/unread-count","route_path":"\/api\/notification\/unread-count","pattern":"\/^\\\/api\\\/notification\\\/unread-count$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/notification\\\/stats$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/notification\/stats","route_path":"\/api\/notification\/stats","pattern":"\/^\\\/api\\\/notification\\\/stats$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/notification\\\/(?P<id>[^\\\/]+)$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/notification\/{id}","route_path":"\/api\/notification\/{id}","pattern":"\/^\\\/api\\\/notification\\\/(?P<id>[^\\\/]+)$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/plugin$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/plugin","route_path":"\/api\/plugin","pattern":"\/^\\\/api\\\/plugin$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/plugin\\\/stats$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/plugin\/stats","route_path":"\/api\/plugin\/stats","pattern":"\/^\\\/api\\\/plugin\\\/stats$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/plugin\\\/device\\\/(?P<deviceId>[^\\\/]+)$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/plugin\/device\/{deviceId}","route_path":"\/api\/plugin\/device\/{deviceId}","pattern":"\/^\\\/api\\\/plugin\\\/device\\\/(?P<deviceId>[^\\\/]+)$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/plugin\\\/pending$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/plugin\/pending","route_path":"\/api\/plugin\/pending","pattern":"\/^\\\/api\\\/plugin\\\/pending$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/plugin\\\/(?P<id>[^\\\/]+)$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/plugin\/{id}","route_path":"\/api\/plugin\/{id}","pattern":"\/^\\\/api\\\/plugin\\\/(?P<id>[^\\\/]+)$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/status$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/status","route_path":"\/api\/status","pattern":"\/^\\\/api\\\/status$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/system\\\/settings$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/system\/settings","route_path":"\/api\/system\/settings","pattern":"\/^\\\/api\\\/system\\\/settings$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/system\\\/info$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/system\/info","route_path":"\/api\/system\/info","pattern":"\/^\\\/api\\\/system\\\/info$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/system\\\/database\\\/backup$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/system\/database\/backup","route_path":"\/api\/system\/database\/backup","pattern":"\/^\\\/api\\\/system\\\/database\\\/backup$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/gateway\\\/.*$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/gateway\/*","route_path":"\/api\/gateway\/.*","pattern":"\/^\\\/api\\\/gateway\\\/.*$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/health$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/health","route_path":"\/health","pattern":"\/^\\\/health$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/health$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/health","route_path":"\/api\/health","pattern":"\/^\\\/api\\\/health$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/monitoring\\\/status$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/monitoring\/status","route_path":"\/api\/monitoring\/status","pattern":"\/^\\\/api\\\/monitoring\\\/status$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/monitoring\\\/metrics$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/monitoring\/metrics","route_path":"\/api\/monitoring\/metrics","pattern":"\/^\\\/api\\\/monitoring\\\/metrics$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: 转换后的正则表达式 {"pattern":"\/^\\\/api\\\/monitoring\\\/logs$\/"}
+[2026-01-15 15:59:15.000000] INFO: 尝试匹配路由 {"route_pattern":"GET \/api\/monitoring\/logs","route_path":"\/api\/monitoring\/logs","pattern":"\/^\\\/api\\\/monitoring\\\/logs$\/","request_path":"\/api\/sensor"}
+[2026-01-15 15:59:15.000000] INFO: API请求 {"request_id":"req_69689e53168cd9.74706140","method":"GET","path":"\/api\/sensor","query":[],"ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT; Windows NT 10.0; zh-CN) WindowsPowerShell\/5.1.26100.7462","api_version":"v1","content_type":"application\/json","body":null}
+[2026-01-15 15:59:15.000000] INFO: 速率限制中间件执行 {"request":{"method":"GET","uri":"\/api\/sensor","path":"\/api\/sensor","query":[],"ip":"::1","headers":{"User-Agent":"Mozilla\/5.0 (Windows NT; Windows NT 10.0; zh-CN) WindowsPowerShell\/5.1.26100.7462","Content-Type":"application\/json","Host":"localhost:8000"},"body":"","api_version":"v1"}}
+[2026-01-15 15:59:15.000000] INFO: 未匹配到路由 {"method":"GET","path":"\/api\/sensor"}

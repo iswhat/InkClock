@@ -54,7 +54,8 @@ class Services {
                     'close' => function() { return true; }
                 ];
             }
-            return Database::getInstance()->getConnection();
+            $db = Database::getInstance();
+            return $db ? $db->getConnection() : null;
         });
 
         // 注册日志服务

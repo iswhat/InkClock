@@ -22,7 +22,7 @@ class DeviceService implements DeviceServiceInterface {
      * @param Logger $logger 日志服务
      * @param Cache $cache 缓存服务
      */
-    public function __construct($db, Logger $logger, Cache $cache = null) {
+    public function __construct($db, Logger $logger, ?Cache $cache = null) {
         $this->db = $db;
         $this->logger = $logger;
         $this->cache = $cache;
@@ -58,10 +58,9 @@ class DeviceService implements DeviceServiceInterface {
     /**
      * 获取设备列表
      * @param int $userId 用户ID
-     * @param array $filters 过滤条件
      * @return array 设备列表
      */
-    public function getDeviceList($userId, $filters = []) {
+    public function getDeviceList($userId) {
         return $this->getUserDevices($userId);
     }
     

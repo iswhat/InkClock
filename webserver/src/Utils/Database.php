@@ -323,67 +323,67 @@ class Database {
         // 注意：SQLite 不支持 ALTER TABLE ADD COLUMN IF NOT EXISTS，所以需要使用 try-catch
         try {
             $this->execute("ALTER TABLE plugins ADD COLUMN type TEXT DEFAULT 'system'");
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 忽略错误，列可能已经存在
         }
         
         try {
             $this->execute("ALTER TABLE plugins ADD COLUMN status TEXT DEFAULT 'enabled'");
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 忽略错误，列可能已经存在
         }
         
         try {
             $this->execute("ALTER TABLE plugins ADD COLUMN author TEXT");
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 忽略错误，列可能已经存在
         }
         
         try {
             $this->execute("ALTER TABLE plugins ADD COLUMN version TEXT DEFAULT '1.0.0'");
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 忽略错误，列可能已经存在
         }
         
         try {
             $this->execute("ALTER TABLE plugins ADD COLUMN refresh_interval TEXT");
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 忽略错误，列可能已经存在
         }
         
         try {
             $this->execute("ALTER TABLE plugins ADD COLUMN settings_url TEXT");
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 忽略错误，列可能已经存在
         }
         
         try {
             $this->execute("ALTER TABLE plugins ADD COLUMN created_by INTEGER");
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 忽略错误，列可能已经存在
         }
         
         try {
             $this->execute("ALTER TABLE plugins ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP");
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 忽略错误，列可能已经存在
         }
         
         try {
             $this->execute("ALTER TABLE plugins ADD COLUMN approved_by INTEGER");
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 忽略错误，列可能已经存在
         }
         
         try {
             $this->execute("ALTER TABLE plugins ADD COLUMN approved_at DATETIME");
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 忽略错误，列可能已经存在
         }
         
         try {
             $this->execute("ALTER TABLE plugins ADD COLUMN approval_status TEXT DEFAULT 'approved'");
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 忽略错误，列可能已经存在
         }
         
@@ -393,7 +393,7 @@ class Database {
             $this->execute("CREATE INDEX IF NOT EXISTS idx_plugins_status ON plugins (status)");
             $this->execute("CREATE INDEX IF NOT EXISTS idx_plugins_created_by ON plugins (created_by)");
             $this->execute("CREATE INDEX IF NOT EXISTS idx_plugins_approval_status ON plugins (approval_status)");
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 忽略错误，索引可能已经存在
         }
         
