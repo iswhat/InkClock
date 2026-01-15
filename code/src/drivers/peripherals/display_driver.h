@@ -4,7 +4,7 @@
 #ifdef ARDUINO
 #include <Arduino.h>
 #else
-#include "arduino_compat.h"
+#include "../coresystem/arduino_compat.h"
 #endif
 
 // 显示类型枚举

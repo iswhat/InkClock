@@ -50,13 +50,13 @@ private:
     std::map<std::string, std::unique_ptr<IPlugin>> plugins;
 };
 
-#define REGISTER_PLUGIN(PluginClass) 
-    class PluginClass##Registrar {
-    public:
-        PluginClass##Registrar() {
-            PluginManager::getInstance().registerPlugin(std::make_unique<PluginClass>());
-        }
-    };
+#define REGISTER_PLUGIN(PluginClass) \
+    class PluginClass##Registrar { \
+    public: \
+        PluginClass##Registrar() { \
+            PluginManager::getInstance().registerPlugin(std::make_unique<PluginClass>()); \
+        } \
+    }; \
     static PluginClass##Registrar pluginRegistrar_##PluginClass;
 
 #endif // PLUGIN_MANAGER_H

@@ -9,17 +9,38 @@
 #define PLATFORM_RP2040 0
 
 // Audio module macros
+typedef enum {
+    AUDIO_DRIVER_NONE,
+    AUDIO_DRIVER_SPEAKER,
+    AUDIO_DRIVER_HEADPHONE
+} AudioDriverType;
 #define AUDIO_DRIVER_TYPE AUDIO_DRIVER_NONE
 
 // WiFi+Bluetooth module macros
+typedef enum {
+    WIFI_BT_NONE,
+    WIFI_BT_INTERNAL,
+    WIFI_BT_EXTERNAL
+} WiFiBTModuleType;
 #define WIFI_BT_MODULE_TYPE WIFI_BT_INTERNAL
 #define HAS_WIFI_BT 1
 
 // TF card reader macros
+typedef enum {
+    TF_READER_NONE,
+    TF_READER_INTERNAL,
+    TF_READER_EXTERNAL
+} TFReaderType;
 #define TF_CARD_READER_TYPE TF_READER_NONE
 #define HAS_TF_CARD 0
 
 // Display macros
+typedef enum {
+    EINK_42_INCH_HEMA,
+    EINK_42_INCH,
+    EINK_75_INCH,
+    LCD_DISPLAY
+} DisplayType;
 #define DISPLAY_TYPE EINK_42_INCH_HEMA
 
 // Sensor macros

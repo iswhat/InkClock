@@ -128,21 +128,6 @@ public:
     }
 };
 
-// 运算符重载：String + char
-String operator+(const String& lhs, char rhs);
-
-// 运算符重载：String + const char*
-String operator+(const String& lhs, const char* rhs);
-
-// 运算符重载：String + String
-String operator+(const String& lhs, const String& rhs);
-
-// 运算符重载：const char* + String
-String operator+(const char* lhs, const String& rhs);
-
-// 运算符重载：char + String
-String operator+(char lhs, const String& rhs);
-
 // 基本函数
 void delay(unsigned long ms);
 unsigned long millis();
@@ -185,8 +170,8 @@ extern Serial_ Serial;
 #define OUTPUT 1
 #define INPUT_PULLUP 2
 
-#define true true
-#define false false
+// #define true true
+// #define false false
 
 #define PI 3.14159265358979323846
 #define HALF_PI 1.57079632679489661923

@@ -265,7 +265,7 @@ public:
 typedef std::function<void(EventType, std::shared_ptr<EventData>)> EventHandler;
 
 // 事件订阅信息
-typedef struct {
+typedef struct EventSubscriptionStruct {
   EventType type;
   EventHandler handler;
   const char* moduleName;

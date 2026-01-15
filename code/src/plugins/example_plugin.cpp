@@ -1,5 +1,5 @@
 #include "example_plugin.h"
-#include "coresystem/dependency_injection.h"
+#include "dependency_injection.h"
 
 bool ExamplePlugin::initialize() {
     if (!BasePlugin::initialize()) {

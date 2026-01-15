@@ -5,15 +5,30 @@
 
 class ExamplePlugin : public BasePlugin {
 public:
-    ExamplePlugin() : BasePlugin("ExamplePlugin", "1.0.0", "示例插件，展示插件系统使用方法") {}
-    
+    ExamplePlugin();
+    ~ExamplePlugin() override;
+
+    // 插件接口方法
+    std::string getName() const override;
+    std::string getVersion() const override;
+    std::string getDescription() const override;
+
     bool initialize() override;
     void update() override;
     void shutdown() override;
-    
+
+    bool isEnabled() const override;
+    void setEnabled(bool enabled) override;
+
+    // 插件特定方法
+    void doSomething();
+
 private:
-    unsigned long lastUpdateTime;
+    bool enabled;
     int counter;
 };
+
+// 注册插件
+REGISTER_PLUGIN(ExamplePlugin);
 
 #endif // EXAMPLE_PLUGIN_H

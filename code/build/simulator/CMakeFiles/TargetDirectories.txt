@@ -1,3 +1,0 @@
-D:/InkClock/code/build/simulator/CMakeFiles/inkclock_simulator.dir
-D:/InkClock/code/build/simulator/CMakeFiles/ALL_BUILD.dir
-D:/InkClock/code/build/simulator/CMakeFiles/ZERO_CHECK.dir
