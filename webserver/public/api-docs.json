@@ -1,16 +1,8 @@
 {
-  "openapi": "3.0.0",
-  "info": {
-    "title": "InkClock API",
-    "description": "InkClock Server API Documentation",
-    "version": "1.0.0"
-  },
-  "servers": [
-    {
-      "url": "/",
-      "description": "Local Server"
-    }
-  ],
-  "paths": {},
-  "components": {}
+    "openapi": "3.0.0",
+    "info": {
+        "title": "InkClock API",
+        "version": "1.0.0"
+    },
+    "paths": []
 }

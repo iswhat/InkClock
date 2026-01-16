@@ -33,7 +33,7 @@ class DIContainerTest {
         echo "Testing service sharing...\n";
         
         // 注册一个共享服务
-        $this->container->setShared('shared_service', function() {
+        $this->container->register('shared_service', function() {
             return ['shared' => true];
         });
         
