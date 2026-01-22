@@ -16,7 +16,6 @@
     <link rel="icon" href="/adminlte/img/AdminLTELogo.png" type="image/png">
     <!-- 预加载关键资源 -->
     <link rel="preload" href="dist/app.min.css" as="style">
-    <link rel="preload" href="dist/app.min.js" as="script">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- 优化后的CSS -->
@@ -398,8 +397,11 @@
     </div>
     <!-- ./wrapper -->
 
-    <!-- 优化后的JavaScript -->
-    <script src="dist/app.min.js"></script>
+    <!-- JavaScript 依赖 -->
+    <script src="adminlte/plugins/jquery/jquery.min.js"></script>
+    <script src="adminlte/plugins/bootstrap/js/bootstrap.min.js"></script>
+    <script src="adminlte/js/adminlte.min.js"></script>
+    <script src="js/menu.js"></script>
     <!-- Dashboard Script -->
     <script>
         // 页面加载完成后执行
