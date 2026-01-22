@@ -197,6 +197,24 @@ InkClock/
 2. **配置固件**：
    - 修改 `code/src/coresystem/config.h` 中的配置项
    - 设置WiFi信息和其他参数
+   - 修改管理系统API URL：
+     ```cpp
+     // 管理系统API配置
+     #define MANAGEMENT_SYSTEM_URL "http://localhost:8000"  // 管理系统API基础URL
+     #define DEVICE_REGISTER_ENDPOINT "/api/device/register"  // 设备注册端点
+     #define DEVICE_STATUS_ENDPOINT "/api/device/status"  // 设备状态上报端点
+     ```
+
+3. **配置模拟器**：
+   - 如果使用模拟器测试，修改 `test/inkclock_simulator.py` 中的API配置：
+     ```python
+     # 管理系统API配置
+     self.api_config = {
+         "base_url": "http://localhost:8000",  # 管理系统API基础URL
+         "device_register_endpoint": "/api/device/register",
+         "device_status_endpoint": "/api/device/status"
+     }
+     ```
 
 3. **编译上传**：
    - 编译固件

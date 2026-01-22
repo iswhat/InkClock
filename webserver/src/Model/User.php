@@ -180,8 +180,8 @@ class User {
         }
         
         try {
-            // 查找用户
-            $stmt = $this->db->prepare("SELECT id, password_hash, api_key, api_key_expires_at, status, is_admin, two_factor_enabled, two_factor_secret FROM users WHERE username = :username OR email = :email");
+            // 查找用户，包含用户名和邮箱
+            $stmt = $this->db->prepare("SELECT id, username, email, password_hash, api_key, api_key_expires_at, status, is_admin, two_factor_enabled, two_factor_secret FROM users WHERE username = :username OR email = :email");
             $stmt->bindValue(':username', $username, SQLITE3_TEXT);
             $stmt->bindValue(':email', $username, SQLITE3_TEXT);
             $result = $stmt->execute();
@@ -241,12 +241,18 @@ class User {
             $stmt->bindValue(':id', $user['id'], SQLITE3_INTEGER);
             $stmt->execute();
             
-            return array(
+            // 构建返回数据
+            $returnData = array(
                 'success' => true, 
                 'user_id' => $user['id'], 
+                'username' => $user['username'],
+                'email' => $user['email'],
                 'api_key' => $apiKey,
-                'is_admin' => $user['is_admin']
+                'is_admin' => $user['is_admin'],
+                'role' => $user['is_admin'] ? 'admin' : 'user'
             );
+            
+            return $returnData;
         } catch (\Exception $e) {
             return array('success' => false, 'error' => '数据库操作失败: ' . $e->getMessage());
         }

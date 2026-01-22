@@ -63,34 +63,17 @@ function minifyCSS(css) {
     return css
         .replace(/\/\*[\s\S]*?\*\//g, '') // 移除注释
         .replace(/\s+/g, ' ') // 合并空白
-        .replace(/\s*{\s*/g, '{') // 移除选择器后的空白
-        .replace(/\s*}\s*/g, '}') // 移除属性后的空白
+        .replace(/\s*\{\s*/g, '{') // 移除选择器后的空白
+        .replace(/\s*\}\s*/g, '}') // 移除属性后的空白
         .replace(/\s*:\s*/g, ':') // 移除冒号周围的空白
         .replace(/\s*;\s*/g, ';') // 移除分号周围的空白
         .trim();
 }
 
-// 压缩JS
+// 合并JS文件，不进行压缩，避免破坏jQuery等库的语法
 function minifyJS(js) {
-    // 简单的JS压缩
-    return js
-        .replace(/\/\*[\s\S]*?\*\//g, '') // 移除注释
-        .replace(/\/\/.*$/gm, '') // 移除单行注释
-        .replace(/\s+/g, ' ') // 合并空白
-        .replace(/\s*{\s*/g, '{') // 移除大括号前的空白
-        .replace(/\s*}\s*/g, '}') // 移除大括号后的空白
-        .replace(/\s*;\s*/g, ';') // 移除分号周围的空白
-        .replace(/\s*,\s*/g, ',') // 移除逗号周围的空白
-        .replace(/\s*\+\s*/g, '+') // 移除加号周围的空白
-        .replace(/\s*\-\s*/g, '-') // 移除减号周围的空白
-        .replace(/\s*\*\s*/g, '*') // 移除乘号周围的空白
-        .replace(/\s*\/\s*/g, '/') // 移除除号周围的空白
-        .replace(/\s*\=\s*/g, '=') // 移除等号周围的空白
-        .replace(/\s*\?\s*/g, '?') // 移除问号周围的空白
-        .replace(/\s*:\s*/g, ':') // 移除冒号周围的空白
-        .replace(/\s*&&\s*/g, '&&') // 移除&&周围的空白
-        .replace(/\s*\|\|\s*/g, '||') // 移除||周围的空白
-        .trim();
+    // 只合并文件，不进行压缩，确保依赖库能正常工作
+    return js;
 }
 
 // 构建CSS

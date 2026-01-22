@@ -105,7 +105,9 @@ class Database {
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 last_login DATETIME,
                 is_admin INTEGER DEFAULT 0,
-                status INTEGER DEFAULT 1
+                status INTEGER DEFAULT 1,
+                two_factor_enabled INTEGER DEFAULT 0,
+                two_factor_secret TEXT
             )");
         
         // 为用户表添加索引
@@ -321,6 +323,20 @@ class Database {
         
         // 检查并添加缺失的列
         // 注意：SQLite 不支持 ALTER TABLE ADD COLUMN IF NOT EXISTS，所以需要使用 try-catch
+        // 用户表 - 添加双因素认证相关列
+        try {
+            $this->execute("ALTER TABLE users ADD COLUMN two_factor_enabled INTEGER DEFAULT 0");
+        } catch (\Exception $e) {
+            // 忽略错误，列可能已经存在
+        }
+        
+        try {
+            $this->execute("ALTER TABLE users ADD COLUMN two_factor_secret TEXT");
+        } catch (\Exception $e) {
+            // 忽略错误，列可能已经存在
+        }
+        
+        // 插件表 - 添加缺失的列
         try {
             $this->execute("ALTER TABLE plugins ADD COLUMN type TEXT DEFAULT 'system'");
         } catch (\Exception $e) {

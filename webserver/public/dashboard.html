@@ -403,7 +403,7 @@
     <!-- Dashboard Script -->
     <script>
         // 页面加载完成后执行
-        $(document).ready(function() {
+        document.addEventListener('DOMContentLoaded', function() {
             // 初始化菜单
             initMenu('dashboard.html');
             // 检查登录状态
@@ -429,13 +429,16 @@
             
             const user = JSON.parse(userStr);
             // 更新用户名
-            $('#user-name').text(user.username);
-            $('#sidebar-user-name').text(user.username);
+            document.getElementById('user-name').textContent = user.username;
+            document.getElementById('sidebar-user-name').textContent = user.username;
             // 更新用户角色
-            $('#user-role').text('角色: ' + (user.role || '用户'));
+            document.getElementById('user-role').textContent = '角色: ' + (user.role || '用户');
             // 显示管理员菜单
             if (user.role === 'admin') {
-                $('.admin-only').show();
+                const adminOnlyElements = document.querySelectorAll('.admin-only');
+                adminOnlyElements.forEach(element => {
+                    element.style.display = '';
+                });
             }
         }
 
@@ -467,7 +470,7 @@
                 if (devicesResponse.ok) {
                     const devicesData = await devicesResponse.json();
                     if (devicesData.success) {
-                        $('#stat-devices').text(devicesData.data.length || 0);
+                        document.getElementById('stat-devices').textContent = devicesData.data.length || 0;
                     }
                 }
                 
@@ -475,7 +478,7 @@
                 if (firmwareResponse.ok) {
                     const firmwareData = await firmwareResponse.json();
                     if (firmwareData.success) {
-                        $('#stat-firmware').text(firmwareData.data.length || 0);
+                        document.getElementById('stat-firmware').textContent = firmwareData.data.length || 0;
                     }
                 }
                 
@@ -484,7 +487,7 @@
                     const notificationsData = await notificationsResponse.json();
                     if (notificationsData.success) {
                         const unreadNotifications = notificationsData.data.filter(n => !n.is_read);
-                        $('#stat-notifications').text(unreadNotifications.length);
+                        document.getElementById('stat-notifications').textContent = unreadNotifications.length;
                     }
                 }
                 
@@ -511,7 +514,7 @@
                         const messagesList = await Promise.all(messagePromises);
                         const allMessages = messagesList.flat();
                         const unreadCount = allMessages.filter(msg => !msg.is_read).length;
-                        $('#stat-messages').text(unreadCount);
+                        document.getElementById('stat-messages').textContent = unreadCount;
                     }
                 }
             } catch (error) {
@@ -554,12 +557,12 @@
                         } else {
                             html = '<tr><td colspan="3" class="text-center">暂无设备</td></tr>';
                         }
-                        $('#recent-devices').html(html);
+                        document.getElementById('recent-devices').innerHTML = html;
                     }
                 }
             } catch (error) {
                 console.error('加载最近设备错误:', error);
-                $('#recent-devices').html('<tr><td colspan="3" class="text-center">加载失败</td></tr>');
+                document.getElementById('recent-devices').innerHTML = '<tr><td colspan="3" class="text-center">加载失败</td></tr>';
             }
         }
 
@@ -618,14 +621,14 @@
                         } else {
                             html = '<tr><td colspan="3" class="text-center">暂无消息</td></tr>';
                         }
-                        $('#recent-messages').html(html);
+                        document.getElementById('recent-messages').innerHTML = html;
                     } else {
-                        $('#recent-messages').html('<tr><td colspan="3" class="text-center">暂无设备</td></tr>');
+                        document.getElementById('recent-messages').innerHTML = '<tr><td colspan="3" class="text-center">暂无设备</td></tr>';
                     }
                 }
             } catch (error) {
                 console.error('加载最近消息错误:', error);
-                $('#recent-messages').html('<tr><td colspan="3" class="text-center">加载失败</td></tr>');
+                document.getElementById('recent-messages').innerHTML = '<tr><td colspan="3" class="text-center">加载失败</td></tr>';
             }
         }
 
@@ -641,10 +644,10 @@
                 if (response.ok) {
                     const data = await response.json();
                     if (data.success) {
-                        $('#system-status').text(data.data.status || '正常');
-                        $('#db-status').text('正常');
-                        $('#network-status').text('正常');
-                        $('#memory-status').text('0%');
+                        document.getElementById('system-status').textContent = data.data.status || '正常';
+                        document.getElementById('db-status').textContent = '正常';
+                        document.getElementById('network-status').textContent = '正常';
+                        document.getElementById('memory-status').textContent = '0%';
                     }
                 }
             } catch (error) {
@@ -653,7 +656,7 @@
         }
 
         // 退出登录
-        $('#logout-link').click(function(e) {
+        document.getElementById('logout-link').addEventListener('click', function(e) {
             e.preventDefault();
             // 清除本地存储
             localStorage.removeItem('user');

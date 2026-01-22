@@ -486,6 +486,22 @@ class ApiGatewayController extends BaseController {
         'sampling_rate' => 1.0 // 采样率 | Sampling rate (0.0 to 1.0)
     ];
     
+    // 性能监控配置 | Performance monitoring configuration
+    // @var array
+    private $performanceMonitoringConfig = [
+        'enabled' => true, // 是否启用性能监控 | Whether performance monitoring is enabled
+        'batch_size' => 100, // 批量发送大小 | Batch size for sending metrics
+        'collection_interval' => 30 // 收集间隔（秒）| Collection interval in seconds
+    ];
+    
+    // 告警配置 | Alerting configuration
+    // @var array
+    private $alertingConfig = [
+        'enabled' => true, // 是否启用告警 | Whether alerting is enabled
+        'thresholds' => [], // 告警阈值 | Alert thresholds
+        'notification_channels' => ['email', 'webhook'] // 通知渠道 | Notification channels
+    ];
+    
     // 解析API路径 | Parse API path
     // @param string $path 原始请求路径 | Original request path
     // @return string 解析后的API路径 | Parsed API path
@@ -524,14 +540,6 @@ class ApiGatewayController extends BaseController {
     // @return array 响应数据 | Response data
     private function forwardRequest($apiPath, $method, $headers, $body) {
         try {
-            // 选择后端服务 | Select backend service for load balancing
-            $backendService = $this->selectBackendService($apiPath);
-            
-            if ($backendService) {
-                // 远程服务调用模式 | Remote service call mode
-                return $this->callRemoteService($backendService, $apiPath, $method, $headers, $body);
-            }
-            
             // 本地控制器调用模式 | Local controller call mode
             // 获取转发目标 | Get forward target
             $target = $this->getForwardTarget($apiPath, $method);
@@ -1273,10 +1281,16 @@ class ApiGatewayController extends BaseController {
     // 初始化会话配置 | Initialize session configuration
     private function initSessionConfig() {
         try {
-            $config = $this->container->get('config') ?? [];
+            $config = $this->container->get('config');
+            $sessionConfig = [];
+            if (method_exists($config, 'get')) {
+                $sessionConfig = $config->get('session') ?? [];
+            } else {
+                $sessionConfig = $config['session'] ?? [];
+            }
             $this->sessionConfig = array_merge(
                 $this->sessionConfig,
-                $config['session'] ?? []
+                $sessionConfig
             );
         } catch (\Exception $e) {
             $this->logger->warning('Failed to load session config, using defaults', [
@@ -1481,10 +1495,16 @@ class ApiGatewayController extends BaseController {
     // 初始化分布式追踪配置 | Initialize distributed tracing configuration
     private function initTracingConfig() {
         try {
-            $config = $this->container->get('config') ?? [];
+            $config = $this->container->get('config');
+            $tracingConfig = [];
+            if (method_exists($config, 'get')) {
+                $tracingConfig = $config->get('tracing') ?? [];
+            } else {
+                $tracingConfig = $config['tracing'] ?? [];
+            }
             $this->tracingConfig = array_merge(
                 $this->tracingConfig,
-                $config['tracing'] ?? []
+                $tracingConfig
             );
         } catch (\Exception $e) {
             $this->logger->warning('Failed to load tracing config, using defaults', [
@@ -1675,8 +1695,13 @@ class ApiGatewayController extends BaseController {
     // 初始化插件系统 | Initialize plugin system
     private function initPluginSystem() {
         try {
-            $config = $this->container->get('config') ?? [];
-            $plugins = $config['plugins'] ?? [];
+            $config = $this->container->get('config');
+            $plugins = [];
+            if (method_exists($config, 'get')) {
+                $plugins = $config->get('plugins') ?? [];
+            } else {
+                $plugins = $config['plugins'] ?? [];
+            }
             
             foreach ($plugins as $pluginName => $pluginConfig) {
                 if ($pluginConfig['enabled']) {
@@ -1745,12 +1770,22 @@ class ApiGatewayController extends BaseController {
     private function initConfig() {
         try {
             // 从容器获取基础配置 | Get base config from container
-            $baseConfig = $this->container->get('config') ?? [];
+            $baseConfig = $this->container->get('config');
+            
+            // 确保baseConfig是数组 | Ensure baseConfig is an array
+            $baseConfigArray = [];
+            if (method_exists($baseConfig, 'toArray')) {
+                $baseConfigArray = $baseConfig->toArray();
+            } elseif (is_object($baseConfig)) {
+                $baseConfigArray = (array) $baseConfig;
+            } else {
+                $baseConfigArray = $baseConfig ?? [];
+            }
             
             // 合并默认配置 | Merge with default config
             $this->config = array_merge(
                 $this->getDefaultConfig(),
-                $baseConfig
+                $baseConfigArray
             );
             
             // 加载动态配置 | Load dynamic config

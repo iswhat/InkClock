@@ -205,10 +205,11 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    // 保存用户信息到本地存储
+                    // 保存用户信息到本地存储，使用服务器返回的完整信息
                     const userInfo = {
                         id: data.data.user_id,
-                        username: username,
+                        username: data.data.username,
+                        email: data.data.email,
                         api_key: data.data.api_key,
                         role: data.data.role
                     };
@@ -218,7 +219,7 @@
                     // 跳转到仪表盘
                     window.location.href = 'dashboard.html';
                 } else {
-                    showAlert('登录失败', data.message, 'danger');
+                    showAlert('登录失败', data.error, 'danger');
                 }
             } catch (error) {
                 showAlert('错误', '登录失败，请稍后重试', 'danger');
