@@ -27,6 +27,7 @@ return [
     'GET /api/device' => 'DeviceController@getDevices',
     'GET /api/device/{id}' => 'DeviceController@getDevice',
     'DELETE /api/device/{id}' => 'DeviceController@deleteDevice',
+    'POST /api/device/status' => 'DeviceController@updateDeviceStatus',
     
     // 消息相关路由
     'POST /api/message' => 'MessageController@sendMessage',

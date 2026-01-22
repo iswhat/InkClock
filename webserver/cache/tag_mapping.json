@@ -1,14 +1,12 @@
 {
     "devices": [
         "devices:user:1",
-        "devices:user:1",
-        "devices:user:1",
-        "devices:user:1"
+        "device:detail:496082051719"
     ],
     "user:1": [
-        "devices:user:1",
-        "devices:user:1",
-        "devices:user:1",
         "devices:user:1"
+    ],
+    "device:496082051719": [
+        "device:detail:496082051719"
     ]
 }

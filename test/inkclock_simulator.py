@@ -378,8 +378,15 @@ class InkClockSimulator:
             # 冲突，重新生成设备编码
             self.status_var.set(f"设备状态: 开机 | 设备编码冲突，正在重新生成...")
             self.generate_device_code()
-            # 再次尝试注册
-            self.register_device()
+            # 再次检查新编码是否冲突
+            conflict = random.choice([True, False, False])
+            if not conflict:
+                # 新编码无冲突，注册成功
+                self.registered = True
+                self.status_var.set(f"设备状态: 开机 | 设备已成功注册到管理系统，编码: {self.device_code}")
+            else:
+                # 仍有冲突，只更新状态
+                self.status_var.set(f"设备状态: 开机 | 设备编码仍有冲突，建议检查网络后重试")
         else:
             # 注册成功
             self.registered = True
@@ -576,9 +583,6 @@ class InkClockSimulator:
         
         # 确保设备编码为12位纯数字
         self.device_code = device_code[:12]
-        
-        # 验证设备编码唯一性（模拟）
-        self.register_device()
         
         self.device_code_var.set(self.device_code)
         self.status_var.set(f"设备状态: {'开机' if self.power_on else '关机'} | 设备编码已生成: {self.device_code}")
@@ -819,12 +823,53 @@ class InkClockSimulator:
             self.root.after_cancel(self.message_timer)
         
         # 每10秒检查一次消息
-        self.message_timer = self.root.after(self.message_refresh_interval * 1000, self.check_new_messages)
+        self.message_timer = self.root.after(self.message_refresh_interval * 1000, self.check_new_messages)    
+    
+    def report_status(self):
+        """上报设备状态到管理系统"""
+        if not self.registered:
+            return
+        
+        try:
+            import requests
+            import json
+            
+            # 构建API请求
+            url = f"{self.api_config['base_url']}{self.api_config['device_status_endpoint']}"
+            headers = {
+                "Content-Type": "application/json"
+            }
+            data = {
+                "device_id": self.device_code,
+                "connection_status": "online" if self.power_on else "offline",
+                "battery_level": self.battery_level,
+                "temperature": self.temperature,
+                "humidity": self.humidity,
+                "light_level": self.light_level,
+                "last_active": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            
+            response = requests.post(url, headers=headers, json=data, timeout=5)
+            
+            if response.status_code == 200:
+                # 状态上报成功
+                pass
+        except Exception as e:
+            # 状态上报失败，忽略错误
+            pass
     
     def check_new_messages(self):
         """检查新消息"""
-        if not self.power_on or not self.registered:
-            # 设备未开机或未注册，不检查消息
+        if not self.registered:
+            # 设备未注册，不检查消息
+            self.start_message_check()
+            return
+        
+        # 上报设备状态
+        self.report_status()
+        
+        if not self.power_on:
+            # 设备未开机，只上报状态，不检查消息
             self.start_message_check()
             return
         

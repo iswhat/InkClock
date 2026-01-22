@@ -1154,7 +1154,7 @@
             const user = JSON.parse(userStr);
 
             try {
-                const response = await fetch('/api/message/send?api_key=' + apiKey, {
+                const response = await fetch('/api/message?api_key=' + apiKey, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
