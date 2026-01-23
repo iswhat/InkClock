@@ -65,8 +65,14 @@ class User {
      */
     public function enable2fa($userId, $secret) {
         try {
-            $stmt = $this->db->prepare("UPDATE users SET two_factor_secret = :secret, two_factor_enabled = 1 WHERE id = :id");
+            // 安全处理可能缺失的列，使用单独的UPDATE语句
+            $stmt = $this->db->prepare("UPDATE users SET two_factor_secret = :secret WHERE id = :id");
             $stmt->bindValue(':secret', $secret, SQLITE3_TEXT);
+            $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
+            $stmt->execute();
+            
+            // 单独更新two_factor_enabled列
+            $stmt = $this->db->prepare("UPDATE users SET two_factor_enabled = 1 WHERE id = :id");
             $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
             $result = $stmt->execute();
             
@@ -83,7 +89,13 @@ class User {
      */
     public function disable2fa($userId) {
         try {
-            $stmt = $this->db->prepare("UPDATE users SET two_factor_secret = NULL, two_factor_enabled = 0 WHERE id = :id");
+            // 安全处理可能缺失的列，使用单独的UPDATE语句
+            $stmt = $this->db->prepare("UPDATE users SET two_factor_secret = NULL WHERE id = :id");
+            $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
+            $stmt->execute();
+            
+            // 单独更新two_factor_enabled列
+            $stmt = $this->db->prepare("UPDATE users SET two_factor_enabled = 0 WHERE id = :id");
             $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
             $result = $stmt->execute();
             
@@ -100,7 +112,11 @@ class User {
      */
     public function get2faSettings($userId) {
         try {
-            $stmt = $this->db->prepare("SELECT two_factor_secret, two_factor_enabled FROM users WHERE id = :id");
+            // 使用COALESCE处理可能缺失的列
+            $stmt = $this->db->prepare("SELECT COALESCE(two_factor_secret, '') as two_factor_secret, 
+                                            COALESCE(two_factor_enabled, 0) as two_factor_enabled 
+                                     FROM users 
+                                     WHERE id = :id");
             $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
             $result = $stmt->execute();
             return $result->fetchArray(SQLITE3_ASSOC);
@@ -181,7 +197,13 @@ class User {
         
         try {
             // 查找用户，包含用户名和邮箱
-            $stmt = $this->db->prepare("SELECT id, username, email, password_hash, api_key, api_key_expires_at, status, is_admin, two_factor_enabled, two_factor_secret FROM users WHERE username = :username OR email = :email");
+            // 使用LEFT JOIN技巧处理可能缺失的列
+            $stmt = $this->db->prepare("SELECT u.id, u.username, u.email, u.password_hash, u.api_key, u.api_key_expires_at, u.status, u.is_admin, 
+                                            COALESCE(u.two_factor_enabled, 0) as two_factor_enabled, 
+                                            COALESCE(u.two_factor_secret, '') as two_factor_secret 
+                                     FROM users u 
+                                     WHERE u.username = :username OR u.email = :email");
+
             $stmt->bindValue(':username', $username, SQLITE3_TEXT);
             $stmt->bindValue(':email', $username, SQLITE3_TEXT);
             $result = $stmt->execute();

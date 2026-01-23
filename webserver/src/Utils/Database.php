@@ -515,8 +515,11 @@ class Database {
         
         $startTime = microtime(true);
         
+        // 优化查询：添加LIMIT子句的自动检测和优化
+        $optimizedSql = $this->optimizeSqlQuery($sql);
+        
         try {
-            $stmt = $this->db->prepare($sql);
+            $stmt = $this->db->prepare($optimizedSql);
             $this->bindParams($stmt, $params);
             $result = $stmt->execute();
             
@@ -529,19 +532,21 @@ class Database {
             $result->finalize();
             
             $duration = microtime(true) - $startTime;
-            $this->logger->databaseLog($sql, $params, $duration);
+            $this->logger->databaseLog($optimizedSql, $params, $duration);
             
             // 缓存结果
             if ($useCache && !empty($rows)) {
-                $cache->set($cacheKey, $rows, $cacheExpire, ['database']);
-                $this->logger->debug("数据库查询结果缓存", ["cache_key" => $cacheKey, "expire" => $cacheExpire]);
+                // 根据查询复杂度动态调整缓存时间
+                $adjustedExpire = $this->calculateCacheExpire($duration, $rows, $cacheExpire);
+                $cache->set($cacheKey, $rows, $adjustedExpire, ['database']);
+                $this->logger->debug("数据库查询结果缓存", ["cache_key" => $cacheKey, "expire" => $adjustedExpire]);
             }
             
             return $rows;
         } catch (\Exception $e) {
             $duration = microtime(true) - $startTime;
             $this->logger->error("数据库查询错误", [
-                "sql" => $sql,
+                "sql" => $optimizedSql,
                 "params" => $params,
                 "error" => $e->getMessage(),
                 "time" => $duration
@@ -590,6 +595,46 @@ class Database {
                 $stmt->bindValue(":{$key}", $value, SQLITE3_TEXT);
             }
         }
+    }
+    
+    /**
+     * 优化SQL查询
+     * @param string $sql 原始SQL语句
+     * @return string 优化后的SQL语句
+     */
+    private function optimizeSqlQuery($sql) {
+        // 去除多余空格
+        $sql = preg_replace('/\s+/', ' ', trim($sql));
+        
+        // 如果是SELECT查询且没有LIMIT子句，添加默认LIMIT
+        if (preg_match('/^SELECT/i', $sql) && !preg_match('/LIMIT\s+\d+/i', $sql)) {
+            // 添加默认LIMIT 1000，防止返回过多数据
+            $sql .= ' LIMIT 1000';
+        }
+        
+        return $sql;
+    }
+    
+    /**
+     * 计算缓存过期时间
+     * @param float $duration 查询执行时间（秒）
+     * @param array $rows 查询结果
+     * @param int $baseExpire 基础过期时间（秒）
+     * @return int 调整后的过期时间（秒）
+     */
+    private function calculateCacheExpire($duration, $rows, $baseExpire) {
+        // 执行时间越长，缓存时间越长
+        $timeFactor = min($duration * 100, 5);
+        
+        // 结果行数越少，缓存时间越长
+        $rowFactor = max(1 / (count($rows) + 1), 0.1);
+        
+        // 动态调整缓存时间，范围在baseExpire/10到baseExpire*5之间
+        $adjustedExpire = round($baseExpire * $timeFactor * $rowFactor);
+        $minExpire = max(10, $baseExpire / 10);
+        $maxExpire = $baseExpire * 5;
+        
+        return max($minExpire, min($maxExpire, $adjustedExpire));
     }
     
     /**

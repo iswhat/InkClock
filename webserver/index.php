@@ -67,6 +67,10 @@ $response = Response::getInstance();
 $response->setLogger($logger);
 $container->set('response', $response);
 
+// 注册服务层服务
+use InkClock\Config\Services;
+Services::register($container);
+
 // 处理CORS
 $response->handleCORS();
 
@@ -134,7 +138,7 @@ if ($matchedRoute) {
     list($controllerName, $actionName) = explode('@', $matchedRoute);
     
     // 完整类名
-    $fullClassName = "\InkClock\Controller\$controllerName";
+    $fullClassName = "\\InkClock\\Controller\\$controllerName";
     
     // 定义控制器处理函数
     $controllerHandler = function($request) use ($fullClassName, $actionName, $container, $logger, $response) {

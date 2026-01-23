@@ -291,18 +291,19 @@ class MonitoringController extends BaseController {
      * @return array API性能指标
      */
     private function collectApiMetrics() {
-        // 从数据库或缓存中读取历史性能数据
-        // 这里使用模拟数据，实际项目中应该从持久化存储中读取
+        // 从数据库中读取真实的性能数据
+        $db = $this->container->get('db');
         
         $metrics = [
-            'requests_total' => $this->getTotalRequests(),
-            'requests_per_minute' => $this->getRequestsPerMinute(),
-            'average_response_time' => $this->getAverageResponseTime(),
-            'slow_requests' => $this->getSlowRequests(),
-            'error_rate' => $this->getErrorRate(),
-            'top_endpoints' => $this->getTopEndpoints(),
-            'status_codes' => $this->getStatusCodes(),
-            'response_times' => $this->getResponseTimes()
+            'requests_total' => $this->getTotalRequests($db),
+            'requests_per_minute' => $this->getRequestsPerMinute($db),
+            'average_response_time' => $this->getAverageResponseTime($db),
+            'slow_requests' => $this->getSlowRequests($db),
+            'error_rate' => $this->getErrorRate($db),
+            'top_endpoints' => $this->getTopEndpoints($db),
+            'status_codes' => $this->getStatusCodes($db),
+            'response_times' => $this->getResponseTimes($db),
+            'recent_requests' => $this->getRecentRequests($db)
         ];
         
         return $metrics;
@@ -310,93 +311,178 @@ class MonitoringController extends BaseController {
     
     /**
      * 获取总请求数
+     * @param SQLite3 $db 数据库连接
      * @return int 总请求数
      */
-    private function getTotalRequests() {
-        // 模拟数据，实际应该从日志或数据库中统计
-        return rand(1000, 5000);
+    private function getTotalRequests($db) {
+        try {
+            $result = $db->query('SELECT COUNT(*) AS total FROM api_requests');
+            $row = $result->fetchArray(SQLITE3_ASSOC);
+            return $row['total'] ?? 0;
+        } catch (\Exception $e) {
+            return 0;
+        }
     }
     
     /**
      * 获取每分钟请求数
+     * @param SQLite3 $db 数据库连接
      * @return int 每分钟请求数
      */
-    private function getRequestsPerMinute() {
-        // 模拟数据，实际应该从日志或数据库中统计
-        return rand(10, 50);
+    private function getRequestsPerMinute($db) {
+        try {
+            $result = $db->query('SELECT COUNT(*) AS count FROM api_requests WHERE created_at >= datetime(now, -1 minute)');
+            $row = $result->fetchArray(SQLITE3_ASSOC);
+            return $row['count'] ?? 0;
+        } catch (\Exception $e) {
+            return 0;
+        }
     }
     
     /**
      * 获取平均响应时间
+     * @param SQLite3 $db 数据库连接
      * @return float 平均响应时间（毫秒）
      */
-    private function getAverageResponseTime() {
-        // 模拟数据，实际应该从日志或数据库中统计
-        return round(rand(50, 200) / 10, 1);
+    private function getAverageResponseTime($db) {
+        try {
+            $result = $db->query('SELECT AVG(response_time) AS avg_time FROM api_requests WHERE created_at >= datetime(now, -5 minute)');
+            $row = $result->fetchArray(SQLITE3_ASSOC);
+            return round($row['avg_time'] ?? 0, 1);
+        } catch (\Exception $e) {
+            return 0;
+        }
     }
     
     /**
      * 获取慢请求数
+     * @param SQLite3 $db 数据库连接
      * @return int 慢请求数
      */
-    private function getSlowRequests() {
-        // 模拟数据，实际应该从日志或数据库中统计
-        return rand(0, 10);
+    private function getSlowRequests($db) {
+        try {
+            $result = $db->query('SELECT COUNT(*) AS count FROM api_requests WHERE response_time > 1000 AND created_at >= datetime(now, -1 hour)');
+            $row = $result->fetchArray(SQLITE3_ASSOC);
+            return $row['count'] ?? 0;
+        } catch (\Exception $e) {
+            return 0;
+        }
     }
     
     /**
      * 获取错误率
+     * @param SQLite3 $db 数据库连接
      * @return float 错误率（百分比）
      */
-    private function getErrorRate() {
-        // 模拟数据，实际应该从日志或数据库中统计
-        return round(rand(0, 5) / 10, 2);
+    private function getErrorRate($db) {
+        try {
+            $result = $db->query('SELECT COUNT(*) AS total FROM api_requests WHERE created_at >= datetime(now, -1 hour)');
+            $total = $result->fetchArray(SQLITE3_ASSOC)['total'] ?? 0;
+            
+            $result = $db->query('SELECT COUNT(*) AS errors FROM api_requests WHERE status_code >= 400 AND created_at >= datetime(now, -1 hour)');
+            $errors = $result->fetchArray(SQLITE3_ASSOC)['errors'] ?? 0;
+            
+            return $total > 0 ? round(($errors / $total) * 100, 2) : 0;
+        } catch (\Exception $e) {
+            return 0;
+        }
     }
     
     /**
      * 获取热门端点
+     * @param SQLite3 $db 数据库连接
      * @return array 热门端点
      */
-    private function getTopEndpoints() {
-        // 模拟数据，实际应该从日志或数据库中统计
-        return [
-            ['endpoint' => '/api/device', 'requests' => rand(100, 500), 'avg_time' => round(rand(50, 150) / 10, 1)],
-            ['endpoint' => '/api/user/login', 'requests' => rand(50, 200), 'avg_time' => round(rand(100, 250) / 10, 1)],
-            ['endpoint' => '/api/message', 'requests' => rand(30, 150), 'avg_time' => round(rand(80, 200) / 10, 1)],
-            ['endpoint' => '/api/status', 'requests' => rand(20, 100), 'avg_time' => round(rand(30, 100) / 10, 1)],
-            ['endpoint' => '/api/plugin', 'requests' => rand(10, 50), 'avg_time' => round(rand(150, 300) / 10, 1)]
-        ];
+    private function getTopEndpoints($db) {
+        try {
+            $result = $db->query('SELECT path, method, COUNT(*) AS requests, AVG(response_time) AS avg_time FROM api_requests WHERE created_at >= datetime(now, -24 hour) GROUP BY path, method ORDER BY requests DESC LIMIT 5');
+            $endpoints = [];
+            while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+                $endpoints[] = [
+                    'endpoint' => $row['path'],
+                    'method' => $row['method'],
+                    'requests' => $row['requests'],
+                    'avg_time' => round($row['avg_time'], 1)
+                ];
+            }
+            return $endpoints;
+        } catch (\Exception $e) {
+            return [];
+        }
     }
     
     /**
      * 获取状态码统计
+     * @param SQLite3 $db 数据库连接
      * @return array 状态码统计
      */
-    private function getStatusCodes() {
-        // 模拟数据，实际应该从日志或数据库中统计
-        return [
-            '200' => rand(800, 4000),
-            '400' => rand(10, 50),
-            '401' => rand(5, 30),
-            '403' => rand(2, 10),
-            '404' => rand(10, 40),
-            '500' => rand(1, 20)
-        ];
+    private function getStatusCodes($db) {
+        try {
+            $result = $db->query('SELECT status_code, COUNT(*) AS count FROM api_requests WHERE created_at >= datetime(now, -24 hour) GROUP BY status_code ORDER BY status_code');
+            $statusCodes = [];
+            while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+                $statusCodes[(string)$row['status_code']] = $row['count'];
+            }
+            return $statusCodes;
+        } catch (\Exception $e) {
+            return [];
+        }
     }
     
     /**
      * 获取响应时间分布
+     * @param SQLite3 $db 数据库连接
      * @return array 响应时间分布
      */
-    private function getResponseTimes() {
-        // 模拟数据，实际应该从日志或数据库中统计
-        return [
-            '<50ms' => rand(40, 60),
-            '50-100ms' => rand(20, 30),
-            '100-200ms' => rand(10, 20),
-            '200-500ms' => rand(5, 10),
-            '>500ms' => rand(1, 5)
-        ];
+    private function getResponseTimes($db) {
+        try {
+            $result = $db->query('SELECT 
+                SUM(CASE WHEN response_time < 50 THEN 1 ELSE 0 END) AS lt50,
+                SUM(CASE WHEN response_time >= 50 AND response_time < 100 THEN 1 ELSE 0 END) AS bt50_100,
+                SUM(CASE WHEN response_time >= 100 AND response_time < 200 THEN 1 ELSE 0 END) AS bt100_200,
+                SUM(CASE WHEN response_time >= 200 AND response_time < 500 THEN 1 ELSE 0 END) AS bt200_500,
+                SUM(CASE WHEN response_time >= 500 THEN 1 ELSE 0 END) AS gt500,
+                COUNT(*) AS total
+                FROM api_requests WHERE created_at >= datetime(now, -24 hour)');
+            $row = $result->fetchArray(SQLITE3_ASSOC);
+            $total = $row['total'] ?? 0;
+            
+            return [
+                '<50ms' => $total > 0 ? round(($row['lt50'] ?? 0) / $total * 100, 2) : 0,
+                '50-100ms' => $total > 0 ? round(($row['bt50_100'] ?? 0) / $total * 100, 2) : 0,
+                '100-200ms' => $total > 0 ? round(($row['bt100_200'] ?? 0) / $total * 100, 2) : 0,
+                '200-500ms' => $total > 0 ? round(($row['bt200_500'] ?? 0) / $total * 100, 2) : 0,
+                '>500ms' => $total > 0 ? round(($row['gt500'] ?? 0) / $total * 100, 2) : 0
+            ];
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+    
+    /**
+     * 获取最近请求记录
+     * @param SQLite3 $db 数据库连接
+     * @return array 最近请求记录
+     */
+    private function getRecentRequests($db) {
+        try {
+            $result = $db->query('SELECT request_id, method, path, status_code, response_time, ip, created_at FROM api_requests ORDER BY created_at DESC LIMIT 10');
+            $requests = [];
+            while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+                $requests[] = [
+                    'request_id' => $row['request_id'],
+                    'method' => $row['method'],
+                    'path' => $row['path'],
+                    'status_code' => $row['status_code'],
+                    'response_time' => round($row['response_time'], 1),
+                    'ip' => $row['ip'],
+                    'created_at' => $row['created_at']
+                ];
+            }
+            return $requests;
+        } catch (\Exception $e) {
+            return [];
+        }
     }
     
     /**

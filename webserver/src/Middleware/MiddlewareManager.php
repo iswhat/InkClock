@@ -119,6 +119,12 @@ class MiddlewareManager {
         // 反转中间件数组，从最后一个到第一个执行
         foreach (array_reverse($this->middlewares) as $middleware) {
             $currentMiddleware = $middleware;
+            
+            // 检查是否是命名中间件，如果是，获取对应的实际中间件
+            if (is_string($currentMiddleware) && isset($this->namedMiddlewares[$currentMiddleware])) {
+                $currentMiddleware = $this->namedMiddlewares[$currentMiddleware];
+            }
+            
             $chain = function($request) use ($currentMiddleware, $chain) {
                 // 如果是中间件类名，使用依赖注入容器创建实例
                 if (is_string($currentMiddleware)) {

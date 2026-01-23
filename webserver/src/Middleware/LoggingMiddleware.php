@@ -6,6 +6,7 @@
 namespace InkClock\Middleware;
 
 use InkClock\Utils\Logger;
+use InkClock\Utils\Database;
 
 class LoggingMiddleware implements MiddlewareInterface {
     private $logger;
@@ -177,17 +178,60 @@ class LoggingMiddleware implements MiddlewareInterface {
      * @param int $statusCode 状态码
      */
     private function recordPerformanceMetrics($request, $executionTime, $statusCode) {
-        // 这里可以实现性能指标的记录，如写入数据库或缓存
-        // 例如：
-        // $this->metrics->record([
-        //     'endpoint' => $request['path'],
-        //     'method' => $request['method'],
-        //     'execution_time' => $executionTime,
-        //     'status_code' => $statusCode,
-        //     'timestamp' => time()
-        // ]);
+        try {
+            // 获取数据库连接
+            $db = Database::getInstance()?->getConnection();
+            if (!$db) {
+                return;
+            }
+            
+            // 记录API请求到数据库
+            $query = "INSERT INTO api_requests (
+                request_id, method, path, query, ip, user_agent, 
+                api_version, content_type, status_code, response_time, 
+                request_size, response_size
+            ) VALUES (
+                :request_id, :method, :path, :query, :ip, :user_agent, 
+                :api_version, :content_type, :status_code, :response_time, 
+                :request_size, :response_size
+            )";
+            
+            $stmt = $db->prepare($query);
+            $stmt->bindValue(':request_id', uniqid('req_', true));
+            $stmt->bindValue(':method', $request['method']);
+            $stmt->bindValue(':path', $request['path']);
+            $stmt->bindValue(':query', json_encode($request['query'] ?? []));
+            $stmt->bindValue(':ip', $request['ip']);
+            $stmt->bindValue(':user_agent', $request['headers']['User-Agent'] ?? 'Unknown');
+            $stmt->bindValue(':api_version', $request['api_version'] ?? 'unknown');
+            $stmt->bindValue(':content_type', $request['headers']['Content-Type'] ?? 'unknown');
+            $stmt->bindValue(':status_code', $statusCode);
+            $stmt->bindValue(':response_time', $executionTime);
+            $stmt->bindValue(':request_size', strlen($request['body'] ?? ''));
+            $stmt->bindValue(':response_size', $this->extractResponseSize($request));
+            
+            $stmt->execute();
+            
+            // 记录性能指标
+            $this->recordToMetricsTable('api_response_time', $executionTime, [
+                'endpoint' => $request['path'],
+                'method' => $request['method'],
+                'status_code' => $statusCode
+            ]);
+            
+            $this->recordToMetricsTable('api_request_count', 1, [
+                'endpoint' => $request['path'],
+                'method' => $request['method'],
+                'status_code' => $statusCode
+            ]);
+        } catch (\Exception $e) {
+            // 记录失败时，只记录到日志
+            $this->logger->warning('记录性能指标失败', [
+                'error' => $e->getMessage()
+            ]);
+        }
         
-        // 暂时只记录到日志
+        // 性能警告日志
         if ($executionTime > 1000) { // 超过1秒的请求
             $this->logger->warning('性能警告', [
                 'method' => $request['method'],
@@ -196,5 +240,46 @@ class LoggingMiddleware implements MiddlewareInterface {
                 'threshold' => '1000ms'
             ]);
         }
+    }
+    
+    /**
+     * 记录指标到performance_metrics表
+     * @param string $metricName 指标名称
+     * @param float $metricValue 指标值
+     * @param array $labels 指标标签
+     */
+    private function recordToMetricsTable($metricName, $metricValue, $labels = []) {
+        try {
+            $db = Database::getInstance()?->getConnection();
+            if (!$db) {
+                return;
+            }
+            
+            $query = "INSERT INTO performance_metrics (
+                metric_name, metric_value, metric_labels
+            ) VALUES (
+                :metric_name, :metric_value, :metric_labels
+            )";
+            
+            $stmt = $db->prepare($query);
+            $stmt->bindValue(':metric_name', $metricName);
+            $stmt->bindValue(':metric_value', $metricValue);
+            $stmt->bindValue(':metric_labels', json_encode($labels));
+            $stmt->execute();
+        } catch (\Exception $e) {
+            $this->logger->warning('记录性能指标到表失败', [
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+    
+    /**
+     * 提取响应大小
+     * @param array $request 请求信息
+     * @return int 响应大小
+     */
+    private function extractResponseSize($request) {
+        // 简单实现，实际项目中应该从响应对象中获取
+        return 0;
     }
 }

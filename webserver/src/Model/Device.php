@@ -232,7 +232,7 @@ class Device {
      */
     public function updateLastActive($deviceId) {
         $lastActive = date('Y-m-d H:i:s');
-        $ipAddress = $_SERVER['REMOTE_ADDR'];
+        $ipAddress = $_SERVER['REMOTE_ADDR'] ?? '';
         
         $stmt = $this->db->prepare("UPDATE devices SET last_active = :lastActive, ip_address = :ipAddress WHERE device_id = :deviceId");
         $stmt->bindValue(':lastActive', $lastActive, SQLITE3_TEXT);

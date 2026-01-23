@@ -136,25 +136,45 @@ class BaseController {
     protected function checkApiPermission($required = false) {
         try {
             if ($required && !$this->currentUser) {
+                $errorDetails = [
+                    'has_api_key' => isset($_GET['api_key']) || isset($_SERVER['HTTP_X_API_KEY']),
+                    'api_key_provided' => isset($_GET['api_key']) ? 'GET参数' : (isset($_SERVER['HTTP_X_API_KEY']) ? 'X_API_KEY头' : '未提供'),
+                    'client_ip' => $this->getClientIpAddress()
+                ];
+                
                 if (isset($this->response)) {
-                    $this->response->unauthorized();
+                    $this->response->unauthorized('未授权访问', 'UNAUTHORIZED', $errorDetails);
                 } else {
                     http_response_code(401);
-                    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+                    echo json_encode([
+                        'success' => false, 
+                        'message' => '未授权访问',
+                        'error_code' => 'UNAUTHORIZED',
+                        'error_details' => $errorDetails
+                    ]);
                     exit;
                 }
             }
             
             return $this->currentUser;
         } catch (\Exception $e) {
+            $errorDetails = [
+                'exception' => $e->getMessage(),
+                'exception_type' => get_class($e),
+                'client_ip' => $this->getClientIpAddress()
+            ];
+            
             if (isset($this->logger)) {
-                $this->logger->warning('Error checking API permission', [
-                    'error' => $e->getMessage()
-                ]);
+                $this->logger->warning('Error checking API permission', $errorDetails);
             }
             if ($required) {
                 http_response_code(401);
-                echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+                echo json_encode([
+                    'success' => false, 
+                    'message' => '权限检查失败',
+                    'error_code' => 'PERMISSION_CHECK_FAILED',
+                    'error_details' => $errorDetails
+                ]);
                 exit;
             }
             return null;
@@ -173,11 +193,36 @@ class BaseController {
             
             $data = json_decode($body, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
+                $jsonError = json_last_error();
+                $errorMessages = [
+                    JSON_ERROR_DEPTH => 'JSON数据嵌套过深',
+                    JSON_ERROR_STATE_MISMATCH => 'JSON数据状态不匹配',
+                    JSON_ERROR_CTRL_CHAR => 'JSON数据包含非法控制字符',
+                    JSON_ERROR_SYNTAX => 'JSON数据语法错误',
+                    JSON_ERROR_UTF8 => 'JSON数据包含无效UTF-8字符',
+                    JSON_ERROR_RECURSION => 'JSON数据包含循环引用',
+                    JSON_ERROR_INF_OR_NAN => 'JSON数据包含无穷大或NaN值',
+                    JSON_ERROR_UNSUPPORTED_TYPE => 'JSON数据包含不支持的数据类型'
+                ];
+                $errorMessage = $errorMessages[$jsonError] ?? '无效的JSON数据';
+                
                 if (isset($this->response)) {
-                    $this->response->error('无效的JSON数据', 400);
+                    $this->response->error($errorMessage, 400, 'INVALID_JSON', [
+                        'error_code' => $jsonError,
+                        'error_message' => json_last_error_msg(),
+                        'raw_body' => substr($body, 0, 100) // 只返回前100个字符，避免泄露敏感信息
+                    ]);
                 } else {
                     http_response_code(400);
-                    echo json_encode(['success' => false, 'message' => 'Invalid JSON data']);
+                    echo json_encode([
+                        'success' => false, 
+                        'message' => $errorMessage,
+                        'error_code' => 'INVALID_JSON',
+                        'error_details' => [
+                            'error_code' => $jsonError,
+                            'error_message' => json_last_error_msg()
+                        ]
+                    ]);
                     exit;
                 }
             }
@@ -185,14 +230,25 @@ class BaseController {
         } catch (\Exception $e) {
             if (isset($this->logger)) {
                 $this->logger->warning('Error parsing request body', [
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
+                    'exception_type' => get_class($e)
                 ]);
             }
             if (isset($this->response)) {
-                $this->response->error('解析请求数据失败', 400);
+                $this->response->error('解析请求数据失败', 400, 'REQUEST_PARSE_ERROR', [
+                    'exception' => $e->getMessage(),
+                    'exception_type' => get_class($e)
+                ]);
             } else {
                 http_response_code(400);
-                echo json_encode(['success' => false, 'message' => 'Failed to parse request data']);
+                echo json_encode([
+                    'success' => false, 
+                    'message' => '解析请求数据失败',
+                    'error_code' => 'REQUEST_PARSE_ERROR',
+                    'error_details' => [
+                        'exception' => $e->getMessage()
+                    ]
+                ]);
                 exit;
             }
         }

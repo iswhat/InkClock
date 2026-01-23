@@ -52,7 +52,7 @@ class DeviceController extends BaseController {
             $firmwareVersion = $data['firmware_version'];
         }
         
-        // 验证设备ID格式（假设设备ID是字母数字组合）
+        // 验证设备ID格式（允许字母数字组合或纯数字，长度12位）
         if (!preg_match('/^[a-zA-Z0-9_-]+$/', $data['device_id'])) {
             $this->response->error('设备ID格式无效', 400);
         }
@@ -66,13 +66,18 @@ class DeviceController extends BaseController {
             $extraInfo['description'] = $data['description'];
         }
         
-        $deviceModel = new Device($this->db);
+        // 获取实际的SQLite3连接实例
+        $sqlite3 = $this->db->getConnection();
+        $deviceModel = new Device($sqlite3);
+
         $result = $deviceModel->registerDevice($data['device_id'], $model, $firmwareVersion, $macAddress, $extraInfo);
         
         if ($result['success']) {
             // 如果是管理中心添加设备，自动绑定到当前用户
             if ($hasApiKey) {
-                $userModel = new User($this->db);
+                // 获取实际的SQLite3连接实例
+                $sqlite3 = $this->db->getConnection();
+                $userModel = new User($sqlite3);
                 // 绑定设备到当前用户
                 $bindResult = $userModel->bindDevice($user['id'], $data['device_id'], $data['device_name'] ?? '');
                 if (!$bindResult['success'] && strpos($bindResult['error'], '已绑定') === false) {
@@ -229,25 +234,47 @@ class DeviceController extends BaseController {
         
         // 验证必要参数
         if (!isset($data['device_id']) || !isset($data['connection_status'])) {
-            $this->response->error('缺少必要参数', 400);
+            $this->response->error('缺少必要参数', 400, 'MISSING_REQUIRED_PARAMS', [
+                'required' => ['device_id', 'connection_status'],
+                'provided' => array_keys($data)
+            ]);
         }
         
         $deviceId = $data['device_id'];
         $connectionStatus = $data['connection_status'];
         
+        // 验证连接状态值
+        $validStatuses = ['online', 'offline', 'sleeping', 'updating'];
+        if (!in_array($connectionStatus, $validStatuses)) {
+            $this->response->error('无效的连接状态', 400, 'INVALID_CONNECTION_STATUS', [
+                'valid_statuses' => $validStatuses,
+                'provided' => $connectionStatus
+            ]);
+        }
+        
         // 更新设备状态
-        $deviceModel = new Device($this->db);
         $stmt = $this->db->prepare("UPDATE devices SET connection_status = :connection_status, last_active = :last_active WHERE device_id = :device_id");
         $stmt->bindValue(':connection_status', $connectionStatus, SQLITE3_TEXT);
         $stmt->bindValue(':last_active', date('Y-m-d H:i:s'), SQLITE3_TEXT);
         $stmt->bindValue(':device_id', $deviceId, SQLITE3_TEXT);
         
-        $result = $stmt->execute();
-        
-        if ($result) {
-            $this->response->success('设备状态更新成功');
-        } else {
-            $this->response->error('设备状态更新失败', 500);
+        try {
+            $result = $stmt->execute();
+            
+            if ($result) {
+                // 清除设备相关缓存
+                $this->cache->flushByTags(['devices', 'device:' . $deviceId]);
+                $this->response->success('设备状态更新成功');
+            } else {
+                $error = $this->db->lastErrorMsg();
+                $this->response->error('设备状态更新失败', 500, 'DATABASE_ERROR', [
+                    'database_error' => $error
+                ]);
+            }
+        } catch (\Exception $e) {
+            $this->response->error('设备状态更新失败', 500, 'INTERNAL_ERROR', [
+                'exception' => $e->getMessage()
+            ]);
         }
     }
 }

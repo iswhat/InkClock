@@ -17,17 +17,53 @@ class MessageController extends BaseController {
         
         $data = $this->parseRequestBody();
         
+        // 验证必要参数
+        $requiredFields = ['device_id', 'title', 'content'];
+        $missingFields = [];
+        foreach ($requiredFields as $field) {
+            if (!isset($data[$field]) || empty(trim($data[$field]))) {
+                $missingFields[] = $field;
+            }
+        }
+        
+        if (!empty($missingFields)) {
+            $this->response->error('缺少必要参数', 400, 'MISSING_REQUIRED_PARAMS', [
+                'required' => $requiredFields,
+                'missing' => $missingFields,
+                'provided' => array_keys($data)
+            ]);
+        }
+        
         // 添加发送者信息
         $data['sender'] = 'user_' . $user['id'];
         $data['user_id'] = $user['id'];
+        
+        // 验证消息类型
+        $validMessageTypes = ['text', 'image', 'notification'];
+        if (isset($data['type']) && !in_array($data['type'], $validMessageTypes)) {
+            $this->response->error('无效的消息类型', 400, 'INVALID_MESSAGE_TYPE', [
+                'valid_types' => $validMessageTypes,
+                'provided' => $data['type']
+            ]);
+        }
         
         // 使用服务层发送消息
         $result = $this->messageService->sendMessage($data);
         
         if ($result['success']) {
-            $this->response->success('发送成功');
+            $this->response->success('发送成功', [
+                'message_id' => $result['message_id'] ?? null,
+                'device_id' => $data['device_id']
+            ]);
         } else {
-            $this->response->error($result['error'], 400);
+            $errorCode = $result['error_code'] ?? 'MESSAGE_SEND_FAILED';
+            $this->response->error($result['error'], 400, $errorCode, [
+                'device_id' => $data['device_id'],
+                'message_details' => [
+                    'title' => substr($data['title'], 0, 50),
+                    'type' => $data['type'] ?? 'text'
+                ]
+            ]);
         }
     }
     

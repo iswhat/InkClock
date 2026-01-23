@@ -61,7 +61,17 @@ class Services {
         // 注册日志服务
         $container->register('logger', function() {
             $logger = Logger::getInstance();
+            
+            // 从配置中加载日志设置
             $logger->setLevel(Config::get('log.level', 'info'));
+            $logger->setLogFormat(Config::get('log.format', 'text'));
+            $logger->setLogRotation(Config::get('log.rotation', true));
+            $logger->setRotationStrategy(Config::get('log.rotation_strategy', 'size'));
+            $logger->setMaxFileSize(Config::get('log.max_file_size', 10485760));
+            $logger->setMaxBackupFiles(Config::get('log.max_backup_files', 7));
+            $logger->setConsoleOutput(Config::get('log.console_output', false));
+            $logger->setDateFormat(Config::get('log.date_format', 'Y-m-d H:i:s.u'));
+            
             return $logger;
         });
 

@@ -52,7 +52,7 @@ class CsrfMiddleware implements MiddlewareInterface {
         $csrfToken = $this->getCsrfTokenFromRequest($request);
         
         // 验证CSRF令牌
-        if (!$this->validateCsrfToken($csrfToken, $request)) {
+        if (!$this->validateCsrfToken($csrfToken, $request, $method)) {
             $this->logger->warning('CSRF令牌验证失败', ['token' => $csrfToken]);
             $this->response->error('Invalid or missing CSRF token', 403, 'CSRF_TOKEN_INVALID');
         }
@@ -94,21 +94,27 @@ class CsrfMiddleware implements MiddlewareInterface {
      * 验证CSRF令牌
      * @param string $token CSRF令牌
      * @param array $request 请求信息
+     * @param string $method 请求方法
      * @return bool 验证结果
      */
-    private function validateCsrfToken($token, $request) {
+    private function validateCsrfToken($token, $request, $method = 'GET') {
         // 在实际应用中，应该验证令牌是否有效
         // 这里简单实现，后续可以扩展为更复杂的验证逻辑
+        
+        // 对于API请求，我们可以使用API密钥验证代替CSRF
+        // 如果已经通过了AuthMiddleware的API密钥验证，直接放行
+        if (isset($request['current_user'])) {
+            return true;
+        }
+        
+        // 设备自注册请求不需要CSRF验证（没有API密钥）
+        if ($request['path'] === '/api/device' && $method === 'POST') {
+            return true;
+        }
         
         // 检查令牌是否存在
         if (empty($token)) {
             return false;
-        }
-        
-        // 对于API请求，我们可以使用API密钥验证代替CSRF
-        // 如果已经通过了AuthMiddleware的API密钥验证，直接放行
-        if (isset($request['user'])) {
-            return true;
         }
         
         // 简单的令牌格式验证（至少16个字符）

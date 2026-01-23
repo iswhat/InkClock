@@ -58,7 +58,14 @@ $config = array(
     ),
     'log' => array(
         'level' => env('LOG_LEVEL', 'info'),
-        'file_path' => env('LOG_FILE', __DIR__ . '/../logs/app.log')
+        'file_path' => env('LOG_FILE', __DIR__ . '/../logs/app.log'),
+        'format' => env('LOG_FORMAT', 'text'), // text, json
+        'rotation' => env('LOG_ROTATION', true),
+        'rotation_strategy' => env('LOG_ROTATION_STRATEGY', 'size'), // size, daily, hourly
+        'max_file_size' => (int)env('LOG_MAX_FILE_SIZE', 10485760), // 10MB
+        'max_backup_files' => (int)env('LOG_MAX_BACKUP_FILES', 7),
+        'console_output' => env('LOG_CONSOLE_OUTPUT', false),
+        'date_format' => env('LOG_DATE_FORMAT', 'Y-m-d H:i:s.u')
     ),
     'cache' => array(
         'dir' => env('CACHE_DIR', __DIR__ . '/../cache'),

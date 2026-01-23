@@ -92,19 +92,24 @@ class DIContainer {
         foreach ($parameters as $parameter) {
             $parameterType = $parameter->getType();
             
-            // 如果参数没有类型提示，无法自动注入
-            if (!$parameterType || $parameterType instanceof \ReflectionNamedType === false) {
+            // 检查参数是否有默认值
+            if ($parameter->isOptional() && $parameter->isDefaultValueAvailable()) {
+                // 如果有默认值，使用默认值
+                $dependencies[] = $parameter->getDefaultValue();
+            } elseif (!$parameterType || $parameterType instanceof \ReflectionNamedType === false) {
+                // 如果参数没有类型提示且没有默认值，无法自动注入
                 throw new \Exception("Cannot resolve dependency for parameter {$parameter->getName()} in {$className}");
-            }
-            
-            $dependencyClass = $parameterType->getName();
-            
-            // 检查是否可以从容器中获取依赖
-            try {
-                $dependencies[] = $this->get($dependencyClass);
-            } catch (\Exception $e) {
-                // 如果直接获取失败，尝试创建实例
-                $dependencies[] = $this->createInstance($dependencyClass);
+            } else {
+                // 如果有类型提示，尝试从容器中获取或创建实例
+                $dependencyClass = $parameterType->getName();
+                
+                // 检查是否可以从容器中获取依赖
+                try {
+                    $dependencies[] = $this->get($dependencyClass);
+                } catch (\Exception $e) {
+                    // 如果直接获取失败，尝试创建实例
+                    $dependencies[] = $this->createInstance($dependencyClass);
+                }
             }
         }
         

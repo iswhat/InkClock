@@ -224,7 +224,8 @@ class RequestValidationMiddleware implements MiddlewareInterface {
         // 模式匹配
         foreach ($this->validationRules as $pattern => $methods) {
             // 将模式转换为正则表达式
-            $regex = str_replace('*', '.*', $pattern);
+            $escapedPattern = preg_quote($pattern, '/');
+            $regex = str_replace('\*', '.*', $escapedPattern);
             $regex = '/^' . $regex . '$/';
             
             if (preg_match($regex, $path) && isset($methods[$method])) {
