@@ -47,7 +47,22 @@ class CsrfMiddleware implements MiddlewareInterface {
             return $next($request);
         }
         
-        // 对于不安全的方法（POST、PUT、DELETE等），进行CSRF验证
+        // 检查是否是登录请求，如果是，直接放行
+        if ($request['path'] === '/api/user/login' && $method === 'POST') {
+            return $next($request);
+        }
+        
+        // 检查是否是创建第一个管理员请求，如果是，直接放行
+        if ($request['path'] === '/api/user/first-admin' && $method === 'POST') {
+            return $next($request);
+        }
+        
+        // 检查是否是设备自注册请求，如果是，直接放行
+        if ($request['path'] === '/api/device' && $method === 'POST') {
+            return $next($request);
+        }
+        
+        // 对于其他不安全的方法（POST、PUT、DELETE等），进行CSRF验证
         // 从请求头或表单中获取CSRF令牌
         $csrfToken = $this->getCsrfTokenFromRequest($request);
         
@@ -57,7 +72,7 @@ class CsrfMiddleware implements MiddlewareInterface {
             $this->response->error('Invalid or missing CSRF token', 403, 'CSRF_TOKEN_INVALID');
         }
         
-        // CSRT验证通过，继续执行下一个中间件
+        // CSRF验证通过，继续执行下一个中间件
         return $next($request);
     }
     

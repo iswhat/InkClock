@@ -446,6 +446,15 @@ class Database {
         // 延迟连接，首次使用时才连接
         $this->connect();
         
+        // 检查数据库连接是否成功
+        if (!$this->connected || $this->db === null) {
+            $this->logger->error("数据库连接失败，无法执行SQL", [
+                "sql" => $sql,
+                "params" => $params
+            ]);
+            return false;
+        }
+        
         $startTime = microtime(true);
         
         try {
@@ -512,6 +521,15 @@ class Database {
         
         // 延迟连接，首次使用时才连接
         $this->connect();
+        
+        // 检查数据库连接是否成功
+        if (!$this->connected || $this->db === null) {
+            $this->logger->error("数据库连接失败，无法执行查询", [
+                "sql" => $sql,
+                "params" => $params
+            ]);
+            return [];
+        }
         
         $startTime = microtime(true);
         

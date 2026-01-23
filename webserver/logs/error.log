@@ -125,3 +125,37 @@
 [2026-01-23 03:03:06.000000] ERROR: Invalid or missing CSRF token {"status_code":403,"error_code":"CSRF_TOKEN_INVALID","details":null,"request_id":"3a5ea47f038fbed4","client_ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36 Edg\/144.0.0.0"}
 [2026-01-23 03:03:13.000000] ERROR: Invalid or missing CSRF token {"status_code":403,"error_code":"CSRF_TOKEN_INVALID","details":null,"request_id":"6dc0260733f6c4db","client_ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36 Edg\/144.0.0.0"}
 [2026-01-23 03:04:59.000000] ERROR: 数据库连接失败，请联系管理员 {"status_code":401,"error_code":"ERROR","details":null,"request_id":"e4f9f4cca15678ae","client_ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT; Windows NT 10.0; zh-CN) WindowsPowerShell\/5.1.26100.7462"}
+[2026-01-23 03:16:25.000000] ERROR: API路径不存在 {"status_code":404,"error_code":"NOT_FOUND","details":null,"request_id":"c51228362475f0a3","client_ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) TraeCN\/1.104.3 Chrome\/138.0.7204.251 Electron\/37.6.1 Safari\/537.36"}
+[2026-01-23 03:16:25.000000] ERROR: API路径不存在 {"status_code":404,"error_code":"NOT_FOUND","details":null,"request_id":"591a2d3a22011c63","client_ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) TraeCN\/1.104.3 Chrome\/138.0.7204.251 Electron\/37.6.1 Safari\/537.36"}
+[2026-01-23 03:16:49.000000] ERROR: 数据库连接失败，请联系管理员 {"status_code":401,"error_code":"ERROR","details":null,"request_id":"eb6c2da9e83d22a8","client_ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT; Windows NT 10.0; zh-CN) WindowsPowerShell\/5.1.26100.7462"}
+[2026-01-23 03:17:11.000000] ERROR: SQLite3扩展未启用，请在php.ini中启用sqlite3扩展
+[2026-01-23 03:17:11.000000] ERROR: 启用SQLite3扩展的方法：1. 打开php.ini文件 2. 找到;extension=sqlite3 3. 移除前面的分号 4. 重启服务器
+[2026-01-23 03:26:51.000000] ERROR: 数据库连接失败，请联系管理员 {"status_code":401,"error_code":"ERROR","details":null,"request_id":"cf2d069fa04d0c90","client_ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT; Windows NT 10.0; zh-CN) WindowsPowerShell\/5.1.26100.7462"}
+[2026-01-23 03:27:06.000000] ERROR: Invalid or missing CSRF token {"status_code":403,"error_code":"CSRF_TOKEN_INVALID","details":null,"request_id":"e748ce4a36070a51","client_ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT; Windows NT 10.0; zh-CN) WindowsPowerShell\/5.1.26100.7462"}
+[2026-01-23 03:27:43.000000] ERROR: 数据库连接失败，请联系管理员 {"status_code":400,"error_code":"ERROR","details":null,"request_id":"56945da93095d27e","client_ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT; Windows NT 10.0; zh-CN) WindowsPowerShell\/5.1.26100.7462"}
+[2026-01-23 03:28:35.000000] ERROR: 数据库连接失败，请联系管理员 {"status_code":401,"error_code":"ERROR","details":null,"request_id":"1391cd0ec28804b1","client_ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT; Windows NT 10.0; zh-CN) WindowsPowerShell\/5.1.26100.7462"}
+[2026-01-23 03:39:27.000000] ERROR: 数据库连接失败，请联系管理员 {"status_code":401,"error_code":"ERROR","details":null,"request_id":"89477eba12b32c99","client_ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36 Edg\/144.0.0.0"}
+[2026-01-23 03:39:36.000000] ERROR: 数据库连接失败，请联系管理员 {"status_code":401,"error_code":"ERROR","details":null,"request_id":"015c5751bccd76de","client_ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36 Edg\/144.0.0.0"}
+[2026-01-23 03:39:39.000000] ERROR: 数据库连接失败，请联系管理员 {"status_code":401,"error_code":"ERROR","details":null,"request_id":"96fb94e56839b4ac","client_ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36 Edg\/144.0.0.0"}
+[2026-01-23 03:39:56.000000] ERROR: 数据库连接失败，请联系管理员 {"status_code":401,"error_code":"ERROR","details":null,"request_id":"20e2b571eff0c7c0","client_ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36 Edg\/144.0.0.0"}
+[2026-01-23 03:40:41.000000] ERROR: SQLite3扩展未启用，请在php.ini中启用sqlite3扩展
+[2026-01-23 03:40:41.000000] ERROR: 启用SQLite3扩展的方法：1. 打开php.ini文件 2. 找到;extension=sqlite3 3. 移除前面的分号 4. 重启服务器
+[2026-01-23 03:40:41.000000] ERROR: 数据库连接失败，无法执行查询 {"sql":"SELECT COUNT(*) as count FROM users","params":[]}
+[2026-01-23 03:41:19.000000] ERROR: SQLite3扩展未启用，请在php.ini中启用sqlite3扩展
+[2026-01-23 03:41:19.000000] ERROR: 启用SQLite3扩展的方法：1. 打开php.ini文件 2. 找到;extension=sqlite3 3. 移除前面的分号 4. 重启服务器
+[2026-01-23 03:41:19.000000] ERROR: 数据库连接失败，无法执行查询 {"sql":"SELECT COUNT(*) as count FROM users","params":[]}
+[2026-01-23 03:41:38.000000] ERROR: 数据库连接失败，请联系管理员 {"status_code":400,"error_code":"ERROR","details":null,"request_id":"6d35180d54393ec4","client_ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT; Windows NT 10.0; zh-CN) WindowsPowerShell\/5.1.26100.7462"}
+[2026-01-23 03:42:29.000000] ERROR: SQLite3扩展未启用，请在php.ini中启用sqlite3扩展
+[2026-01-23 03:42:29.000000] ERROR: 启用SQLite3扩展的方法：1. 打开php.ini文件 2. 找到;extension=sqlite3 3. 移除前面的分号 4. 重启服务器
+[2026-01-23 03:42:29.000000] ERROR: 数据库连接失败，无法执行查询 {"sql":"SELECT COUNT(*) as count FROM users","params":[]}
+[2026-01-23 03:42:29.000000] ERROR: SQLite3扩展未启用，请在php.ini中启用sqlite3扩展
+[2026-01-23 03:42:29.000000] ERROR: 启用SQLite3扩展的方法：1. 打开php.ini文件 2. 找到;extension=sqlite3 3. 移除前面的分号 4. 重启服务器
+[2026-01-23 03:42:29.000000] ERROR: 数据库连接失败，无法执行SQL {"sql":"INSERT INTO users (username, email, password_hash, api_key, created_at, is_admin) VALUES (?, ?, ?, ?, ?, 1)","params":["admin","admin@example.com","$2y$10$i\/L7nosghEct6jcj05QeNeFXVLbsPAeTNCL1j6bEBphONUDTpZanW","ac27d2e10cfc87b8027744803c7a99d436ae4cd313f40653e358db9d99d2b6fe","2026-01-23 03:42:29"]}
+[2026-01-23 03:42:29.000000] ERROR: 管理员创建失败 {"status_code":400,"error_code":"ERROR","details":null,"request_id":"94845f1d921c19d0","client_ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT; Windows NT 10.0; zh-CN) WindowsPowerShell\/5.1.26100.7462"}
+[2026-01-23 03:43:32.000000] ERROR: SQLite3扩展未启用，请在php.ini中启用sqlite3扩展
+[2026-01-23 03:43:32.000000] ERROR: 启用SQLite3扩展的方法：1. 打开php.ini文件 2. 找到;extension=sqlite3 3. 移除前面的分号 4. 重启服务器
+[2026-01-23 03:43:32.000000] ERROR: 数据库连接失败，无法执行查询 {"sql":"SELECT COUNT(*) as count FROM users","params":[]}
+[2026-01-23 03:43:32.000000] ERROR: SQLite3扩展未启用，请在php.ini中启用sqlite3扩展
+[2026-01-23 03:43:32.000000] ERROR: 启用SQLite3扩展的方法：1. 打开php.ini文件 2. 找到;extension=sqlite3 3. 移除前面的分号 4. 重启服务器
+[2026-01-23 03:43:32.000000] ERROR: 数据库连接失败，无法执行SQL {"sql":"INSERT INTO users (username, email, password_hash, api_key, created_at, is_admin) VALUES (:username, :email, :password_hash, :api_key, :created_at, 1)","params":{"username":"admin","email":"admin@example.com","password_hash":"$2y$10$ABVoP8v1ewDADiCKbGMgjuFC47WGhDNRL7\/j1xX694ecP8\/i0D8SW","api_key":"3c143fa5c0ab2f968b4325ba479f4427a348edb607e2dff408e4a9f755422a45","created_at":"2026-01-23 03:43:32"}}
+[2026-01-23 03:43:32.000000] ERROR: 管理员创建失败 {"status_code":400,"error_code":"ERROR","details":null,"request_id":"176c9fe8e5b5fe1a","client_ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT; Windows NT 10.0; zh-CN) WindowsPowerShell\/5.1.26100.7462"}
