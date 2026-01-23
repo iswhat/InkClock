@@ -571,28 +571,77 @@ class InkClockSimulator:
             self.registered = True
             self.status_var.set(f"设备状态: 开机 | 设备已成功注册到管理系统，编码: {self.device_code}")
     
-    def report_status(self):
-        """上报设备状态到管理系统"""
-        if not self.registered:
-            self.status_var.set(f"设备状态: 开机 | 设备未注册，无法上报状态")
-            return
+    def on_screen_size_change(self, event):
+        """墨水屏尺寸变化处理"""
+        self.current_screen_size = self.screen_size_var.get()
+        self.screen_width = self.screen_sizes[self.current_screen_size][0]
+        self.screen_height = self.screen_sizes[self.current_screen_size][1]
         
-        # 模拟API调用 - 上报状态
-        self.status_var.set(f"设备状态: 开机 | 设备状态已上报到管理系统")
+        # 根据屏幕尺寸调整显示标签的字体大小
+        font_size = max(8, min(16, int(self.screen_width / 30)))
+        self.display_label.config(font=('Arial', font_size))
+        
+        self.update_display()
+        self.status_var.set(f"设备状态: {'开机' if self.power_on else '关机'} | 墨水屏尺寸: {self.current_screen_size}英寸 ({self.screen_width}x{self.screen_height})")
     
-    def check_device_code(self):
-        """检查设备编码是否冲突"""
-        if not self.device_code:
-            self.status_var.set(f"设备状态: 开机 | 请先生成设备编码")
-            return
+    def generate_device_code(self):
+        """生成12位纯数字设备编码"""
+        # 模拟设备硬件信息 - 使用随机数模拟不同设备的硬件差异
+        import random
+        hardware_info = [
+            random.randint(0x000000, 0xFFFFFF),  # 模拟MAC地址部分
+            random.randint(0x000000, 0xFFFFFF),  # 模拟CPU ID部分
+            random.randint(0x000000, 0xFFFFFF)   # 模拟其他硬件标识
+        ]
         
-        # 模拟API调用 - 检查设备编码
-        conflict = random.choice([True, False, False])  # 30%概率冲突
+        # 根据硬件信息生成基础编码
+        base_code = 0
+        for info in hardware_info:
+            base_code = (base_code * 1000000) + (info & 0xFFFFFF)
         
-        if conflict:
-            self.status_var.set(f"设备状态: 开机 | 设备编码冲突: {self.device_code}")
-        else:
-            self.status_var.set(f"设备状态: 开机 | 设备编码有效: {self.device_code}")
+        # 添加时间戳确保唯一性
+        now = datetime.datetime.now()
+        timestamp = int(now.timestamp()) % 1000000  # 6位时间戳
+        
+        # 生成12位设备编码：硬件基础编码(6位) + 时间戳(6位)
+        device_code = f"{base_code % 1000000:06d}{timestamp:06d}"
+        
+        # 确保设备编码为12位纯数字
+        self.device_code = device_code[:12]
+        
+        self.device_code_var.set(self.device_code)
+        self.status_var.set(f"设备状态: {'开机' if self.power_on else '关机'} | 设备编码已生成: {self.device_code}")
+    
+    def on_key_press(self, event):
+        """处理键盘事件"""
+        # 键盘数字键映射到设备按钮
+        key_mapping = {
+            "1": "up",        # 1键：上键
+            "2": "down",      # 2键：下键
+            "3": "left",      # 3键：左键
+            "4": "right",     # 4键：右键
+            "5": "ok",        # 5键：确认键
+            "6": "menu",      # 6键：菜单键
+            "7": "back",      # 7键：返回键
+            "8": "next",      # 8键：模式切换键
+            "0": "power"      # 0键：电源开关
+        }
+        
+        key = event.char
+        if key in key_mapping:
+            mapped_button = key_mapping[key]
+            
+            if mapped_button == "power":
+                # 电源开关特殊处理
+                self.power_on = not self.power_on
+                self.power_var.set(self.power_on)
+                self.update_display()
+            else:
+                # 其他按键处理
+                self.on_device_button(mapped_button)
+                
+            # 更新状态显示
+            self.status_var.set(f"设备状态: {'开机' if self.power_on else '关机'} | 亮度: {self.brightness}% | 更新间隔: {self.update_interval}秒 | 电池: {self.battery_level}% | 按键: {key} = {mapped_button}")
     
     def on_device_button(self, button):
         """处理设备按键事件"""
@@ -693,78 +742,6 @@ class InkClockSimulator:
         self.temp_entry.insert(0, str(self.temperature))
         self.humi_entry.delete(0, tk.END)
         self.humi_entry.insert(0, str(self.humidity))
-    
-    def on_key_press(self, event):
-        """处理键盘事件"""
-        # 键盘数字键映射到设备按钮
-        key_mapping = {
-            "1": "up",        # 1键：上键
-            "2": "down",      # 2键：下键
-            "3": "left",      # 3键：左键
-            "4": "right",     # 4键：右键
-            "5": "ok",        # 5键：确认键
-            "6": "menu",      # 6键：菜单键
-            "7": "back",      # 7键：返回键
-            "8": "next",      # 8键：模式切换键
-            "0": "power"      # 0键：电源开关
-        }
-        
-        key = event.char
-        if key in key_mapping:
-            mapped_button = key_mapping[key]
-            
-            if mapped_button == "power":
-                # 电源开关特殊处理
-                self.power_on = not self.power_on
-                self.power_var.set(self.power_on)
-                self.update_display()
-            else:
-                # 其他按键处理
-                self.on_device_button(mapped_button)
-                
-            # 更新状态显示
-            self.status_var.set(f"设备状态: {'开机' if self.power_on else '关机'} | 亮度: {self.brightness}% | 更新间隔: {self.update_interval}秒 | 电池: {self.battery_level}% | 按键: {key} = {mapped_button}")
-    
-    def on_screen_size_change(self, event):
-        """墨水屏尺寸变化处理"""
-        self.current_screen_size = self.screen_size_var.get()
-        self.screen_width = self.screen_sizes[self.current_screen_size][0]
-        self.screen_height = self.screen_sizes[self.current_screen_size][1]
-        
-        # 根据屏幕尺寸调整显示标签的字体大小
-        font_size = max(8, min(16, int(self.screen_width / 30)))
-        self.display_label.config(font=('Arial', font_size))
-        
-        self.update_display()
-        self.status_var.set(f"设备状态: {'开机' if self.power_on else '关机'} | 墨水屏尺寸: {self.current_screen_size}英寸 ({self.screen_width}x{self.screen_height})")
-    
-    def generate_device_code(self):
-        """生成12位纯数字设备编码"""
-        # 模拟设备硬件信息 - 使用随机数模拟不同设备的硬件差异
-        import random
-        hardware_info = [
-            random.randint(0x000000, 0xFFFFFF),  # 模拟MAC地址部分
-            random.randint(0x000000, 0xFFFFFF),  # 模拟CPU ID部分
-            random.randint(0x000000, 0xFFFFFF)   # 模拟其他硬件标识
-        ]
-        
-        # 根据硬件信息生成基础编码
-        base_code = 0
-        for info in hardware_info:
-            base_code = (base_code * 1000000) + (info & 0xFFFFFF)
-        
-        # 添加时间戳确保唯一性
-        now = datetime.datetime.now()
-        timestamp = int(now.timestamp()) % 1000000  # 6位时间戳
-        
-        # 生成12位设备编码：硬件基础编码(6位) + 时间戳(6位)
-        device_code = f"{base_code % 1000000:06d}{timestamp:06d}"
-        
-        # 确保设备编码为12位纯数字
-        self.device_code = device_code[:12]
-        
-        self.device_code_var.set(self.device_code)
-        self.status_var.set(f"设备状态: {'开机' if self.power_on else '关机'} | 设备编码已生成: {self.device_code}")    
     
     def report_status(self):
         """上报设备状态到管理系统"""
