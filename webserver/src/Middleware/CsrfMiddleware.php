@@ -112,6 +112,11 @@ class CsrfMiddleware implements MiddlewareInterface {
             return true;
         }
         
+        // 用户登录请求不需要CSRF验证（没有API密钥）
+        if ($request['path'] === '/api/user/login' && $method === 'POST') {
+            return true;
+        }
+        
         // 检查令牌是否存在
         if (empty($token)) {
             return false;

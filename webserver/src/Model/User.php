@@ -197,10 +197,10 @@ class User {
         
         try {
             // 查找用户，包含用户名和邮箱
-            // 使用LEFT JOIN技巧处理可能缺失的列
+            // 先尝试包含双因素认证字段的查询
             $stmt = $this->db->prepare("SELECT u.id, u.username, u.email, u.password_hash, u.api_key, u.api_key_expires_at, u.status, u.is_admin, 
-                                            COALESCE(u.two_factor_enabled, 0) as two_factor_enabled, 
-                                            COALESCE(u.two_factor_secret, '') as two_factor_secret 
+                                            u.two_factor_enabled, 
+                                            u.two_factor_secret 
                                      FROM users u 
                                      WHERE u.username = :username OR u.email = :email");
 
@@ -213,6 +213,34 @@ class User {
             if (!$user) {
                 return array('success' => false, 'error' => '用户名或密码错误');
             }
+            
+            // 添加默认值（如果需要）
+            if (!isset($user['two_factor_enabled'])) {
+                $user['two_factor_enabled'] = 0;
+            }
+            if (!isset($user['two_factor_secret'])) {
+                $user['two_factor_secret'] = '';
+            }
+        } catch (\Exception $e) {
+            // 如果双因素认证字段不存在，使用不带这些字段的查询
+            $stmt = $this->db->prepare("SELECT u.id, u.username, u.email, u.password_hash, u.api_key, u.api_key_expires_at, u.status, u.is_admin 
+                                     FROM users u 
+                                     WHERE u.username = :username OR u.email = :email");
+
+            $stmt->bindValue(':username', $username, SQLITE3_TEXT);
+            $stmt->bindValue(':email', $username, SQLITE3_TEXT);
+            $result = $stmt->execute();
+            
+            $user = $result->fetchArray(SQLITE3_ASSOC);
+            
+            if (!$user) {
+                return array('success' => false, 'error' => '用户名或密码错误');
+            }
+            
+            // 设置默认值
+            $user['two_factor_enabled'] = 0;
+            $user['two_factor_secret'] = '';
+        }
             
             // 检查用户状态
             if ($user['status'] === 0) {
