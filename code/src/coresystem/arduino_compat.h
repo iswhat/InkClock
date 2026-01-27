@@ -90,19 +90,11 @@ public:
     }
 
     int toInt() {
-        try {
-            return std::stoi(_str);
-        } catch (...) {
-            return 0;
-        }
+        return atoi(_str.c_str());
     }
 
     float toFloat() {
-        try {
-            return std::stof(_str);
-        } catch (...) {
-            return 0.0f;
-        }
+        return atof(_str.c_str());
     }
 
     // 转换为std::string

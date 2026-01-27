@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 #include "../coresystem/config.h"
-#include "../drivers/sensors/sensor_driver.h"
+#include "../drivers/peripherals/sensor_driver.h"
 #include "../coresystem/event_bus.h"
 
 
@@ -113,6 +113,22 @@ private:
   void filterData();
   void checkAlarmConditions();
   void triggerAlarm(String alarmType);
+  
+  // 传感器读取方法
+  bool readDHT22();
+  bool readSHT30();
+  bool readDHT11();
+  bool readSHT21();
+  bool readAM2302();
+  bool readHDC1080();
+  bool readDHT12();
+  bool readSHT40();
+  bool readBME280();
+  bool readBME680();
+  bool readGasSensor();
+  bool readFlameSensor();
+  bool readLightSensor();
+  bool readPIRSensor();
 };
 
 #endif // SENSOR_MANAGER_H

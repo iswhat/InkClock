@@ -1,0 +1,23 @@
+adafruit/Adafruit SHT31 Library@^2.2.4
+adafruit/Adafruit Unified Sensor@^1.1.14
+adafruit/Adafruit GFX Library@^1.11.9
+me-no-dev/ESP Async WebServer@^1.2.3
+bblanchon/ArduinoJson@^7.2.0
+adafruit/Adafruit BMP3XX Library@^1.3.4
+adafruit/Adafruit TSL2561 Library@^1.2.4
+adafruit/Adafruit Si7021 Library@^1.4.0
+adafruit/Adafruit SHT4x Library@^1.1.0
+adafruit/Adafruit HDC1080 Library@^1.3.1
+adafruit/Adafruit BME280 Library@^2.2.5
+mobizt/Firebase ESP Client@^4.4.1
+Bodmer/TFT_eSPI@^2.5.43
+greiman/SdFat@^2.2.2
+adafruit/Adafruit LPS2X Library@^1.1.3
+adafruit/Adafruit BME680 Library@^2.0.3
+adafruit/Adafruit SHT21 Library@^2.1.0
+me-no-dev/AsyncTCP@^1.1.4
+ThingPulse/ESP8266 and ESP32 OLED driver for SSD1306 displays@^4.5.1
+adafruit/DHT sensor library@^1.4.6
+pla1/ESP32-audioI2S@^2.0.7
+adafruit/Adafruit SGP30 Library@^1.3.3
+adafruit/Adafruit HTU21DF Library@^1.1.0

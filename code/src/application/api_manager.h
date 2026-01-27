@@ -20,6 +20,7 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <time.h>
+#include <map>
 
 // API类型枚举
 enum ApiType {
@@ -189,7 +190,7 @@ private:
     HTTPClient *httpClient;
     
     // 缓存相关
-    std::unordered_map<String, CacheItem> cache; // 使用unordered_map提高查找效率
+    std::map<String, CacheItem> cache; // 使用map替换unordered_map以解决兼容性问题
     unsigned long lastCacheCleanup;
     unsigned long maxCacheSize; // 最大缓存大小
     

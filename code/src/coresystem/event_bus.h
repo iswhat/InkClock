@@ -10,6 +10,8 @@
 #include <vector>
 #include <functional>
 #include <memory>
+#include "data_types.h"
+#include "../drivers/peripherals/sensor_driver.h"
 
 // 事件类型枚举
 enum EventType {
@@ -40,6 +42,7 @@ enum EventType {
   
   // 传感器事件
   EVENT_SENSOR_DATA_UPDATED,
+  EVENT_SENSOR_CONFIG_UPDATED,
   EVENT_SENSOR_DISCOVERED,
   EVENT_SENSOR_CONNECTED,
   EVENT_SENSOR_DISCONNECTED,
@@ -261,6 +264,34 @@ public:
     batteryPercentage(battery), isCharging(charging), isLowPower(lowPower) {}
 };
 
+// 时间更新事件数据
+class TimeDataEventData : public EventData {
+public:
+  TimeData timeData;
+  TimeDataEventData(TimeData data) : timeData(data) {}
+};
+
+// 天气更新事件数据
+class WeatherDataEventData : public EventData {
+public:
+  WeatherData weatherData;
+  WeatherDataEventData(WeatherData data) : weatherData(data) {}
+};
+
+// 传感器更新事件数据
+class SensorDataEventData : public EventData {
+public:
+  SensorData sensorData;
+  SensorDataEventData(SensorData data) : sensorData(data) {}
+};
+
+// 传感器配置更新事件数据
+class SensorConfigEventData : public EventData {
+public:
+  SensorConfig config;
+  SensorConfigEventData(SensorConfig cfg) : config(cfg) {}
+};
+
 // 事件处理器类型
 typedef std::function<void(EventType, std::shared_ptr<EventData>)> EventHandler;
 
@@ -297,11 +328,7 @@ public:
   void publish(EventType type, std::shared_ptr<EventData> data = nullptr) {
     for (const auto& sub : subscriptions) {
       if (sub.type == type) {
-        try {
-          sub.handler(type, data);
-        } catch (const std::exception& e) {
-          Serial.printf("Event handler error for module %s: %s\n", sub.moduleName, e.what());
-        }
+        sub.handler(type, data);
       }
     }
   }
@@ -310,7 +337,7 @@ public:
   void unsubscribe(EventType type, EventHandler handler) {
     auto it = subscriptions.begin();
     while (it != subscriptions.end()) {
-      if (it->type == type && it->handler.target_type() == handler.target_type()) {
+      if (it->type == type) {
         it = subscriptions.erase(it);
       } else {
         ++it;

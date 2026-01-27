@@ -1,6 +1,6 @@
 #include "lunar_manager.h"
 #include <ArduinoJson.h>
-#include "../services/api_manager.h"
+#include "application/api_manager.h"
 
 // 外部全局对象
 extern WiFiManager wifiManager;
@@ -165,7 +165,7 @@ LunarInfo LunarManager::parseLunarData(const String& jsonData) {
   LunarInfo lunarInfo;
   
   // 解析JSON响应
-  DynamicJsonDocument doc(2048);
+  JsonDocument doc;
   DeserializationError error = deserializeJson(doc, jsonData);
   
   if (error) {
@@ -268,7 +268,7 @@ LunarInfo LunarManager::parseLunarDataBackup(const String& jsonData) {
   LunarInfo lunarInfo;
   
   // 解析JSON响应（备用API格式）
-  DynamicJsonDocument doc(2048);
+  JsonDocument doc;
   DeserializationError error = deserializeJson(doc, jsonData);
   
   if (error) {
@@ -338,7 +338,7 @@ LunarInfo LunarManager::parseLunarDataSecondaryBackup(const String& jsonData) {
   LunarInfo lunarInfo;
   
   // 解析JSON响应（次备用API格式，api.66mz8.com）
-  DynamicJsonDocument doc(2048);
+  JsonDocument doc;
   DeserializationError error = deserializeJson(doc, jsonData);
   
   if (error) {

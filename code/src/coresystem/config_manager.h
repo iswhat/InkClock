@@ -162,6 +162,10 @@ public:
 
     // 从JSON导入配置
     bool importConfigFromJson(const String& json);
+    
+private:
+    // 注册默认配置项
+    void registerDefaultConfigItems();
 };
 
 // SPIFFS配置存储实现

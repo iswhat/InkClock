@@ -150,7 +150,7 @@ bool FontManager::validateFont(String path) {
   }
   
   // 验证文件格式（GxFonts格式验证）
-  File file = fs.open(path, FILE_READ);
+  file = fs.open(path, FILE_READ);
   if (!file) {
     DEBUG_PRINTF("打开字体文件失败: %s\n", path.c_str());
     return false;

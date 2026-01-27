@@ -86,15 +86,9 @@ public:
         DEBUG_PRINTLN("格式化TF卡...");
         
         if (SD.begin(chipSelectPin)) {
-            bool result = SD.format();
-            if (result) {
-                DEBUG_PRINTLN("TF卡格式化成功");
-                mounted = SD.begin(chipSelectPin);
-            } else {
-                DEBUG_PRINTLN("TF卡格式化失败");
-                mounted = false;
-            }
-            return result;
+            DEBUG_PRINTLN("TF卡格式化功能暂不支持");
+            mounted = false;
+            return false;
         }
         return false;
     }

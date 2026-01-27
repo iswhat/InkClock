@@ -24,7 +24,7 @@ public:
   int getSignalStrength() { return WiFi.RSSI(); }
   String getIPAddress() { return WiFi.localIP().toString(); }
   String getIPv6Address() { return WiFi.localIPv6().toString(); }
-  bool hasIPv6() { return WiFi.localIPv6() != IPAddress(0, 0, 0, 0, 0, 0, 0, 0); }
+  bool hasIPv6() { return WiFi.localIPv6().toString() != "::" && WiFi.localIPv6().toString() != "0000:0000:0000:0000:0000:0000:0000:0000"; }
   
   // AP模式相关方法
   void startAP();
@@ -60,6 +60,9 @@ private:
   void printWiFiStatus();
   void loadConfiguredWiFi();
   void saveConfiguredWiFi(String ssid, String password);
+  void checkSignalStrength(); // 检查WiFi信号强度
+  String getWiFiStatusString(wl_status_t status); // 获取WiFi状态字符串
+  String getSignalQuality(int rssi); // 获取WiFi信号质量字符串
 };
 
 #endif // WIFI_MANAGER_H

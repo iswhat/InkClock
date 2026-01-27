@@ -87,7 +87,6 @@ bool ModuleRegistry::loadModule(const String& moduleName) {
     if (module.name == moduleName && !module.loaded) {
       updateModuleStatus(moduleName, MODULE_STATUS_INITIALIZING);
       
-      try {
         IModule* modulePtr = static_cast<IModule*>(module.modulePtr);
         modulePtr->init();
         
@@ -101,11 +100,6 @@ bool ModuleRegistry::loadModule(const String& moduleName) {
         
         Serial.printf("Module loaded: %s\n", moduleName.c_str());
         return true;
-      } catch (const std::exception& e) {
-        Serial.printf("Error loading module %s: %s\n", moduleName.c_str(), e.what());
-        updateModuleStatus(moduleName, MODULE_STATUS_ERROR);
-        return false;
-      }
     }
   }
   
@@ -203,17 +197,11 @@ std::vector<ModuleInfo> ModuleRegistry::getModulesInfo() {
 void ModuleRegistry::runModules() {
   for (auto& module : modules) {
     if (module.loaded && module.enabled && module.status == MODULE_STATUS_READY) {
-      try {
-        IModule* modulePtr = static_cast<IModule*>(module.modulePtr);
-        if (modulePtr->shouldRun()) {
-          modulePtr->loop();
-          module.lastActiveTime = millis();
-          updateModuleStatus(module.name, MODULE_STATUS_RUNNING);
-        }
-      } catch (const std::exception& e) {
-        Serial.printf("Error running module %s: %s\n", module.name.c_str(), e.what());
-        module.errorCount++;
-        updateModuleStatus(module.name, MODULE_STATUS_ERROR);
+      IModule* modulePtr = static_cast<IModule*>(module.modulePtr);
+      if (modulePtr->shouldRun()) {
+        modulePtr->loop();
+        module.lastActiveTime = millis();
+        updateModuleStatus(module.name, MODULE_STATUS_RUNNING);
       }
     }
   }

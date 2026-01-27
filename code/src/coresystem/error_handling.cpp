@@ -18,7 +18,7 @@ ErrorInfo::ErrorInfo(
     recoveryStrategy(strategy), retryCount(0), lastRetryTime(0) {
     // 生成错误ID
     unsigned long timestamp = millis();
-    Stringstream ss;
+    std::stringstream ss;
     ss << "ERR_" << timestamp << "_" << random(1000, 9999);
     errorId = ss.str().c_str();
     
@@ -28,9 +28,9 @@ ErrorInfo::ErrorInfo(
     unsigned long hour = min / 60;
     unsigned long day = hour / 24;
     
-    Stringstream ts;
+    std::stringstream ts;
     ts << day << "d " << (hour % 24) << ":" << (min % 60) << ":" << (sec % 60);
-    timestamp = ts.str().c_str();
+    this->timestamp = String(ts.str().c_str());
 }
 
 // ErrorInfo 方法实现
@@ -87,7 +87,7 @@ void ErrorInfo::updateLastRetryTime() {
 }
 
 String ErrorInfo::toString() const {
-    Stringstream ss;
+    std::stringstream ss;
     ss << "[" << ErrorHandlingManager::errorLevelToString(level) << "] "
        << "[" << ErrorHandlingManager::errorTypeToString(type) << "] "
        << "[" << module << "] "
@@ -102,7 +102,7 @@ String ErrorInfo::toString() const {
 }
 
 String ErrorInfo::toJson() const {
-    Stringstream ss;
+    std::stringstream ss;
     ss << "{";
     ss << "\"errorId\":\"" << errorId << "\",";
     ss << "\"level\":\"" << ErrorHandlingManager::errorLevelToString(level) << "\",";

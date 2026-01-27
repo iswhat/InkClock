@@ -2,8 +2,8 @@
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include <SPIFFS.h>
-#include "../services/wifi_manager.h"
-#include "../services/time_manager.h"
+#include "application/wifi_manager.h"
+#include "application/time_manager.h"
 
 // 外部全局对象
 extern WiFiManager wifiManager;
@@ -40,9 +40,8 @@ StockManager::StockManager() {
     }
     
     // 初始化默认股票代码
-    const char* defaultCodes[] = STOCK_CODES;
-    if (i < sizeof(defaultCodes)/sizeof(defaultCodes[0])) {
-      String code = String(defaultCodes[i]);
+    if (i < sizeof(STOCK_CODES)/sizeof(STOCK_CODES[0])) {
+      String code = String(STOCK_CODES[i]);
       stockCodes[i] = code;
       // 解析股票市场（默认处理）
       if (code.startsWith("6") || code.startsWith("sh")) {
@@ -271,7 +270,7 @@ bool StockManager::fetchStockChartData(String code, String market, StockData &da
   }
   
   // 解析曲线数据
-  DynamicJsonDocument doc(4096);
+  JsonDocument doc;
   DeserializationError error = deserializeJson(doc, response);
   
   if (error) {
@@ -415,7 +414,7 @@ bool StockManager::saveStockList() {
   DEBUG_PRINTLN("保存股票列表到文件...");
   
   // 创建JSON文档
-  DynamicJsonDocument doc(2048);
+  JsonDocument doc;
   
   // 添加股票代码数组
   JsonArray codeArray = doc.createNestedArray("stockCodes");
@@ -465,7 +464,7 @@ bool StockManager::loadStockList() {
   }
   
   // 创建JSON文档
-  DynamicJsonDocument doc(2048);
+  JsonDocument doc;
   
   // 从文件反序列化JSON
   DeserializationError error = deserializeJson(doc, file);
@@ -538,7 +537,7 @@ bool StockManager::fetchStockData(String code, StockData &data) {
     if (!primaryResponse.response.isEmpty()) {
       if (parseStockData(primaryResponse.response, data, 1)) {
         // 更新时间
-        data.time = timeManager.getDateTimeString();
+        data.time = timeManager.getTimeString();
         
         DEBUG_PRINT("股票数据获取成功: " + data.name + " (" + data.code + ") ");
         DEBUG_PRINT(data.price);
@@ -565,7 +564,7 @@ bool StockManager::fetchStockData(String code, StockData &data) {
     if (!backupResponse.response.isEmpty()) {
       if (parseStockData(backupResponse.response, data, 2)) {
         // 更新时间
-        data.time = timeManager.getDateTimeString();
+        data.time = timeManager.getTimeString();
         
         DEBUG_PRINT("股票数据获取成功: " + data.name + " (" + data.code + ") ");
         DEBUG_PRINT(data.price);
@@ -592,7 +591,7 @@ bool StockManager::fetchStockData(String code, StockData &data) {
     if (!secondaryBackupResponse.response.isEmpty()) {
       if (parseStockData(secondaryBackupResponse.response, data, 3)) {
         // 更新时间
-        data.time = timeManager.getDateTimeString();
+        data.time = timeManager.getTimeString();
         
         DEBUG_PRINT("股票数据获取成功: " + data.name + " (" + data.code + ") ");
         DEBUG_PRINT(data.price);
@@ -627,7 +626,7 @@ bool StockManager::parseStockData(String response, StockData &data, int apiType)
         
         // 优化：直接使用响应的子字符串，避免创建新的String对象
         // 优化：减少JSON文档大小，只使用必要的大小
-        DynamicJsonDocument doc(1024);
+        JsonDocument doc;
         DeserializationError error = deserializeJson(doc, response.substring(jsonIndex, endIndex + 1));
         
         if (error) {
@@ -693,7 +692,7 @@ bool StockManager::parseStockData(String response, StockData &data, int apiType)
         data.low = fields[3].toFloat();
         data.price = fields[4].toFloat();
         data.close = fields[4].toFloat(); // 新浪财经返回的是当前价，没有单独的收盘价
-        data.volume = fields[5].toLong();
+        data.volume = fields[5].toInt();
         data.change = data.price - data.close;
         data.changePercent = data.close > 0 ? (data.change / data.close) * 100 : 0;
         data.amount = 0; // 新浪财经API没有直接提供成交额
@@ -705,7 +704,7 @@ bool StockManager::parseStockData(String response, StockData &data, int apiType)
       {
         // 解析JSON响应
         // 优化：减少JSON文档大小，只使用必要的大小
-        DynamicJsonDocument doc(1024);
+        JsonDocument doc;
         DeserializationError error = deserializeJson(doc, response);
         
         if (error) {

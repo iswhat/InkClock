@@ -3,6 +3,17 @@
 #include "../coresystem/event_bus.h"
 #include "../coresystem/config_manager.h"
 
+// 电池更新间隔（毫秒）
+#define BATTERY_UPDATE_INTERVAL 2000
+
+#if defined(ESP32) || defined(ESP8266)
+#include <WiFi.h>
+#endif
+
+#if defined(ESP32)
+#include "driver/gpio.h"
+#endif
+
 PowerManager::PowerManager() {
   batteryVoltage = 0.0;
   batteryPercentage = 0;
@@ -52,7 +63,7 @@ void PowerManager::init() {
   
   // 订阅电源相关事件
   EVENT_SUBSCRIBE(EVENT_POWER_STATE_CHANGED, [this](EventType type, std::shared_ptr<EventData> data) {
-    auto powerData = std::dynamic_pointer_cast<PowerStateEventData>(data);
+    auto powerData = static_cast<PowerStateEventData*>(data.get());
     if (powerData) {
       this->batteryPercentage = powerData->batteryPercentage;
       this->isCharging = powerData->isCharging;
@@ -222,34 +233,36 @@ void PowerManager::enterLowPowerMode() {
     // 关闭WiFi扫描
       // 关闭WiFi（如果支持）
       #if defined(ESP32) || defined(ESP8266)
-        WiFi.mode(WIFI_MODE_NONE);
-        DEBUG_PRINTLN("WiFi mode set to NONE");
+        #if defined(ESP32)
+          WiFi.mode(WIFI_OFF);
+        #elif defined(ESP8266)
+          WiFi.mode(WIFI_OFF);
+        #endif
+        DEBUG_PRINTLN("WiFi disabled");
       #endif
     
     // 3. 关闭不必要的外设时钟，但保留报警相关传感器
     #if defined(ESP32)
       // 关闭不需要的外设时钟
-      // 关闭不需要的外设时钟，但保留报警相关传感器
-      #if defined(ESP32)
-        rtc_gpio_hold_en(GPIO_NUM_0);
-        rtc_gpio_hold_en(GPIO_NUM_1);
-        rtc_gpio_hold_en(GPIO_NUM_2);
-        rtc_gpio_hold_en(GPIO_NUM_3);
-        DEBUG_PRINTLN("GPIO hold enabled for unused pins");
-        
-        // 确保报警相关传感器引脚不被关闭
-        int gasSensorPin = CONFIG_GET_INT("pins.gas_sensor", -1);
-        int flameSensorPin = CONFIG_GET_INT("pins.flame_sensor", -1);
-        int pirSensorPin = CONFIG_GET_INT("pins.pir_sensor", -1);
-        int lightSensorPin = CONFIG_GET_INT("pins.light_sensor", -1);
-        
-        if (gasSensorPin != -1) rtc_gpio_hold_dis(gasSensorPin);
-        if (flameSensorPin != -1) rtc_gpio_hold_dis(flameSensorPin);
-        if (pirSensorPin != -1) rtc_gpio_hold_dis(pirSensorPin);
-        if (lightSensorPin != -1) rtc_gpio_hold_dis(lightSensorPin);
-        
-        DEBUG_PRINTLN("保留报警相关传感器引脚功能");
-      #endif
+      
+      gpio_hold_en(GPIO_NUM_0);
+      gpio_hold_en(GPIO_NUM_1);
+      gpio_hold_en(GPIO_NUM_2);
+      gpio_hold_en(GPIO_NUM_3);
+      DEBUG_PRINTLN("GPIO hold enabled for unused pins");
+      
+      // 确保报警相关传感器引脚不被关闭
+      int gasSensorPin = CONFIG_GET_INT("pins.gas_sensor", -1);
+      int flameSensorPin = CONFIG_GET_INT("pins.flame_sensor", -1);
+      int pirSensorPin = CONFIG_GET_INT("pins.pir_sensor", -1);
+      int lightSensorPin = CONFIG_GET_INT("pins.light_sensor", -1);
+      
+      if (gasSensorPin != -1) gpio_hold_dis((gpio_num_t)gasSensorPin);
+      if (flameSensorPin != -1) gpio_hold_dis((gpio_num_t)flameSensorPin);
+      if (pirSensorPin != -1) gpio_hold_dis((gpio_num_t)pirSensorPin);
+      if (lightSensorPin != -1) gpio_hold_dis((gpio_num_t)lightSensorPin);
+      
+      DEBUG_PRINTLN("保留报警相关传感器引脚功能");
     #endif
     
     // 4. 优化显示刷新策略
@@ -287,29 +300,29 @@ void PowerManager::exitLowPowerMode() {
     // 2. 恢复WiFi连接
       // 恢复WiFi连接
       #if defined(ESP32) || defined(ESP8266)
-        WiFi.mode(WIFI_STA);
+        #if defined(ESP32)
+          WiFi.mode(WIFI_MODE_STA);
+        #elif defined(ESP8266)
+          WiFi.mode(WIFI_STA);
+        #endif
         DEBUG_PRINTLN("WiFi mode set to STA");
       #endif
     
     // 恢复蓝牙（如果支持）
     #if defined(CONFIG_BT_ENABLED)
-      // 恢复蓝牙（如果支持）
-      #if defined(CONFIG_BT_ENABLED)
-        btStart();
-        DEBUG_PRINTLN("Bluetooth enabled");
-      #endif
+      btStart();
+      DEBUG_PRINTLN("Bluetooth enabled");
     #endif
     
     // 3. 恢复GPIO状态
     #if defined(ESP32)
       // 恢复GPIO状态
-      #if defined(ESP32)
-        rtc_gpio_hold_dis(GPIO_NUM_0);
-        rtc_gpio_hold_dis(GPIO_NUM_1);
-        rtc_gpio_hold_dis(GPIO_NUM_2);
-        rtc_gpio_hold_dis(GPIO_NUM_3);
-        DEBUG_PRINTLN("GPIO hold disabled");
-      #endif
+      
+      gpio_hold_dis(GPIO_NUM_0);
+      gpio_hold_dis(GPIO_NUM_1);
+      gpio_hold_dis(GPIO_NUM_2);
+      gpio_hold_dis(GPIO_NUM_3);
+      DEBUG_PRINTLN("GPIO hold disabled");
     #endif
     
     // 4. 恢复显示刷新频率

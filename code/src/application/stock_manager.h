@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 #include "../coresystem/config.h"
-#include "../services/api_manager.h"
+#include "api_manager.h"
 
 // 大盘曲线数据点结构
 typedef struct {

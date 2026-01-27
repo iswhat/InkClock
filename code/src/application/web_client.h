@@ -3,9 +3,11 @@
 
 #include <Arduino.h>
 #include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
 #include "../coresystem/config.h"
-#include "../modules/message_manager.h"
-#include "../services/api_manager.h"
+#include "message_manager.h"
+#include "api_manager.h"
 
 class WebClient {
 public:
@@ -52,7 +54,7 @@ private:
   void saveDeviceId(String id);
   
   // 解析JSON响应
-  bool parseJsonResponse(String response, DynamicJsonDocument& doc);
+  bool parseJsonResponse(String response, JsonDocument& doc);
   
   // 处理获取到的消息
   void processMessages(JsonArray messages);

@@ -190,39 +190,22 @@ class User {
      * @return array 登录结果
      */
     public function login($username, $password, $twoFactorCode = null) {
-        // 检查数据库连接是否有效
-        if (!method_exists($this->db, 'prepare')) {
-            // 数据库连接失败，使用模拟登录
-            // 这是一个临时解决方案，用于测试目的
-            if ($username === 'admin' && $password === 'admin123') {
-                return array(
-                    'success' => true, 
-                    'user_id' => 1,
-                    'username' => 'admin',
-                    'email' => 'admin@example.com',
-                    'api_key' => 'test_api_key_' . time(),
-                    'is_admin' => 1,
-                    'role' => 'admin'
-                );
-            }
-            return array('success' => false, 'error' => '用户名或密码错误');
-        }
-        
         try {
-            // 使用简单的查询，不带双因素字段
-            $stmt = $this->db->prepare("SELECT u.id, u.username, u.email, u.password_hash, u.api_key, u.api_key_expires_at, u.status, u.is_admin 
-                                     FROM users u 
-                                     WHERE u.username = :username OR u.email = :email");
-
-            $stmt->bindValue(':username', $username, SQLITE3_TEXT);
-            $stmt->bindValue(':email', $username, SQLITE3_TEXT);
-            $result = $stmt->execute();
+            // 使用Database::query方法查询用户
+            $sql = "SELECT u.id, u.username, u.email, u.password_hash, u.api_key, u.api_key_expires_at, u.status, u.is_admin 
+                     FROM users u 
+                     WHERE u.username = :username OR u.email = :email";
+            $params = [
+                'username' => $username,
+                'email' => $username
+            ];
+            $result = $this->db->query($sql, $params);
             
-            $user = $result->fetchArray(SQLITE3_ASSOC);
-            
-            if (!$user) {
+            if (empty($result)) {
                 return array('success' => false, 'error' => '用户名或密码错误');
             }
+            
+            $user = $result[0];
             
             // 检查用户状态
             if ($user['status'] === 0) {
@@ -247,20 +230,24 @@ class User {
                 $apiKeyExpiresAt = date('Y-m-d H:i:s', strtotime('+365 days'));
                 
                 // 更新API密钥信息
-                $stmt = $this->db->prepare("UPDATE users SET api_key = :apiKey, api_key_created_at = :apiKeyCreatedAt, api_key_expires_at = :apiKeyExpiresAt WHERE id = :id");
-                $stmt->bindValue(':apiKey', $apiKey, SQLITE3_TEXT);
-                $stmt->bindValue(':apiKeyCreatedAt', $apiKeyCreatedAt, SQLITE3_TEXT);
-                $stmt->bindValue(':apiKeyExpiresAt', $apiKeyExpiresAt, SQLITE3_TEXT);
-                $stmt->bindValue(':id', $user['id'], SQLITE3_INTEGER);
-                $stmt->execute();
+                $updateSql = "UPDATE users SET api_key = :apiKey, api_key_created_at = :apiKeyCreatedAt, api_key_expires_at = :apiKeyExpiresAt WHERE id = :id";
+                $updateParams = [
+                    'apiKey' => $apiKey,
+                    'apiKeyCreatedAt' => $apiKeyCreatedAt,
+                    'apiKeyExpiresAt' => $apiKeyExpiresAt,
+                    'id' => $user['id']
+                ];
+                $this->db->execute($updateSql, $updateParams);
             }
             
             // 更新最后登录时间
             $lastLogin = date('Y-m-d H:i:s');
-            $stmt = $this->db->prepare("UPDATE users SET last_login = :last_login WHERE id = :id");
-            $stmt->bindValue(':last_login', $lastLogin, SQLITE3_TEXT);
-            $stmt->bindValue(':id', $user['id'], SQLITE3_INTEGER);
-            $stmt->execute();
+            $loginSql = "UPDATE users SET last_login = :last_login WHERE id = :id";
+            $loginParams = [
+                'last_login' => $lastLogin,
+                'id' => $user['id']
+            ];
+            $this->db->execute($loginSql, $loginParams);
             
             // 构建返回数据
             $returnData = array(
@@ -275,19 +262,6 @@ class User {
             
             return $returnData;
         } catch (\Exception $e) {
-            // 数据库操作失败，使用模拟登录
-            // 这是一个临时解决方案，用于测试目的
-            if ($username === 'admin' && $password === 'admin123') {
-                return array(
-                    'success' => true, 
-                    'user_id' => 1,
-                    'username' => 'admin',
-                    'email' => 'admin@example.com',
-                    'api_key' => 'test_api_key_' . time(),
-                    'is_admin' => 1,
-                    'role' => 'admin'
-                );
-            }
             return array('success' => false, 'error' => '数据库操作失败: ' . $e->getMessage());
         }
     }
@@ -421,15 +395,10 @@ class User {
         }
         
         try {
-            $result = $this->db->query("SELECT COUNT(*) as count FROM users");
-            // 检查$result是否是数组（来自Database::query）
-            if (is_array($result)) {
-                // 如果是数组，直接返回数组长度大于0
-                return count($result) > 0;
-            }
-            // 否则，假设它是SQLite3Result对象
-            $row = $result->fetchArray(SQLITE3_ASSOC);
-            return $row['count'] > 0;
+            // 使用Database::query方法，它返回数组
+            $result = $this->db->query("SELECT * FROM users LIMIT 1");
+            // 检查结果数组长度
+            return count($result) > 0;
         } catch (\Exception $e) {
             return false;
         }

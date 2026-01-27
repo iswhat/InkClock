@@ -20,7 +20,7 @@ typedef struct {
   String description;
   bool isReadOnly;
   unsigned long lastModified;
-} ConfigItem;
+} CoreConfigItem;
 
 // 定时器结构体
 typedef struct {
@@ -80,13 +80,8 @@ private:
     }
     
     // 初始化核心组件
-    try {
-      eventBus = EventBus::getInstance();
-      driverRegistry = DriverRegistry::getInstance();
-    } catch (const std::exception& e) {
-      Serial.printf("Failed to initialize core components: %s\n", e.what());
-      state = SYSTEM_STATE_ERROR;
-    }
+    eventBus = EventBus::getInstance();
+    driverRegistry = DriverRegistry::getInstance();
     
     nextTimerId = 0;
   }
@@ -125,7 +120,7 @@ private:
   
   // 配置管理
   bool configLoaded;
-  std::vector<ConfigItem> configItems;
+  std::vector<CoreConfigItem> configItems;
   
   // 定时器管理
   std::vector<TimerItem> timers;
@@ -194,7 +189,7 @@ private:
     // 默认实现，返回模拟读取值
     #ifdef BATTERY_ADC_PIN
       int adcValue = analogRead(BATTERY_ADC_PIN);
-      float voltage = adcValue * (BATTERY_MAX_VOLTAGE / 4096.0);
+      float voltage = adcValue * (FULL_BATTERY_VOLTAGE / 4096.0);
       return voltage;
     #else
       return 0.0;
@@ -226,11 +221,7 @@ private:
       if (it->enabled && (now - it->lastTriggerTime >= it->interval)) {
         // 触发定时器回调
         if (it->callback) {
-          try {
-            it->callback(it->timerId);
-          } catch (const std::exception& e) {
-            sendError("Timer callback exception", 3001, "CoreSystem");
-          }
+          it->callback(it->timerId);
         }
         
         // 更新最后触发时间
@@ -344,22 +335,11 @@ public:
     
     // 4. 初始化驱动注册表
     Serial.println("Initializing Driver Registry...");
-    try {
-      driverRegistry->init();
-    } catch (const std::exception& e) {
-      Serial.printf("Driver Registry initialization failed: %s\n", e.what());
-      state = SYSTEM_STATE_ERROR;
-      return false;
-    }
+    driverRegistry->init();
     
     // 5. 扫描设备
     Serial.println("Scanning for devices...");
-    try {
-      driverRegistry->scanDevices();
-    } catch (const std::exception& e) {
-      Serial.printf("Device scanning failed: %s\n", e.what());
-      // 不返回错误，继续运行
-    }
+    driverRegistry->scanDevices();
     
     // 6. 系统自检：驱动与硬件匹配检测
     Serial.println("====================================");
@@ -367,46 +347,26 @@ public:
     Serial.println("====================================");
     
     // 6.1 执行驱动硬件匹配检测
-    bool hardwareMatch = false;
-    try {
-      hardwareMatch = driverRegistry->performHardwareMatch();
-      if (!hardwareMatch) {
-        Serial.println("Warning: Some drivers do not match hardware");
-      }
-    } catch (const std::exception& e) {
-      Serial.printf("Hardware match detection failed: %s\n", e.what());
+    bool hardwareMatch = driverRegistry->performHardwareMatch();
+    if (!hardwareMatch) {
+      Serial.println("Warning: Some drivers do not match hardware");
     }
     
     // 6.2 根据检测结果启用/禁用功能模块
-    try {
-      driverRegistry->enableCompatibleModules();
-      
-      // 6.3 禁用不支持的功能模块
-      driverRegistry->disableIncompatibleModules();
-      
-      // 6.4 打印自检结果
-      driverRegistry->printSelfCheckResult();
-    } catch (const std::exception& e) {
-      Serial.printf("Module configuration failed: %s\n", e.what());
-      // 不返回错误，继续运行
-    }
+    driverRegistry->enableCompatibleModules();
+    
+    // 6.3 禁用不支持的功能模块
+    driverRegistry->disableIncompatibleModules();
+    
+    // 6.4 打印自检结果
+    driverRegistry->printSelfCheckResult();
     
     // 7. 初始化电源管理
     Serial.println("Initializing Power Management...");
-    try {
-      updatePowerState();
-    } catch (const std::exception& e) {
-      Serial.printf("Power management initialization failed: %s\n", e.what());
-      // 不返回错误，继续运行
-    }
+    updatePowerState();
     
     // 8. 发布系统启动事件
-    try {
-      eventBus->publish(EVENT_SYSTEM_STARTUP, nullptr);
-    } catch (const std::exception& e) {
-      Serial.printf("Failed to publish system startup event: %s\n", e.what());
-      // 不返回错误，继续运行
-    }
+    eventBus->publish(EVENT_SYSTEM_STARTUP, nullptr);
     
     state = SYSTEM_STATE_RUNNING;
     
@@ -432,37 +392,17 @@ public:
     }
     
     // 运行驱动注册中心的循环
-    try {
-      driverRegistry->loop();
-    } catch (const std::exception& e) {
-      sendError("Driver Registry loop failed", 2001, "CoreSystem");
-      // 继续运行，因为驱动注册中心可能只是部分功能失效
-    }
+    driverRegistry->loop();
     
     // 处理定时器
-    try {
-      processTimers();
-    } catch (const std::exception& e) {
-      sendError("Timer processing failed", 2002, "CoreSystem");
-      // 继续运行，因为定时器可能只是部分功能失效
-    }
+    processTimers();
     
     // 更新电源状态
-    try {
-      updatePowerState();
-    } catch (const std::exception& e) {
-      sendError("Power state update failed", 2003, "CoreSystem");
-      // 继续运行，因为电源状态更新可能只是部分功能失效
-    }
+    updatePowerState();
     
     // 动态调整CPU频率
-    try {
-      if (dynamicCpuFreqEnabled) {
-        adjustCpuFreqBasedOnLoad();
-      }
-    } catch (const std::exception& e) {
-      sendError("CPU frequency adjustment failed", 2004, "CoreSystem");
-      // 继续运行，因为CPU频率调整可能只是部分功能失效
+    if (dynamicCpuFreqEnabled) {
+      adjustCpuFreqBasedOnLoad();
     }
   }
   
@@ -584,13 +524,13 @@ public:
     }
     
     // 添加新配置项
-    ConfigItem newItem;
-    newItem.key = key;
-    newItem.value = value;
-    newItem.description = "";
-    newItem.isReadOnly = false;
-    newItem.lastModified = millis();
-    configItems.push_back(newItem);
+  CoreConfigItem newItem;
+  newItem.key = key;
+  newItem.value = value;
+  newItem.description = "";
+  newItem.isReadOnly = false;
+  newItem.lastModified = millis();
+  configItems.push_back(newItem);
     
     // 发布配置更新事件
     auto configData = std::make_shared<ConfigEventData>(key, value);
@@ -662,6 +602,28 @@ public:
   }
   
   bool isTimerRunning(uint32_t timerId) {
+    for (const auto& timer : timers) {
+      if (timer.timerId == timerId) {
+        return timer.enabled;
+      }
+    }
+    return false;
+  }
+  
+  // ICoreSystem接口实现
+  uint32_t addTimer(uint32_t intervalMs, TimerCallback callback, bool isOneShot = false, int priority = 5) {
+    return createTimer(intervalMs, callback, isOneShot);
+  }
+  
+  bool removeTimer(uint32_t timerId) {
+    return deleteTimer(timerId);
+  }
+  
+  bool enableTimer(uint32_t timerId, bool enable = true) {
+    return enable ? startTimer(timerId) : stopTimer(timerId);
+  }
+  
+  bool isTimerEnabled(uint32_t timerId) const {
     for (const auto& timer : timers) {
       if (timer.timerId == timerId) {
         return timer.enabled;
@@ -1118,7 +1080,7 @@ public:
     
     // 清理事件总线订阅
     if (eventBus != nullptr) {
-      eventBus->unsubscribeAll(this);
+      eventBus->clear();
     }
     
     // 清理驱动注册表

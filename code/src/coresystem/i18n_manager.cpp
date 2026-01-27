@@ -801,7 +801,7 @@ bool I18NManager::init() {
     }
     
     // 设置默认语言
-    setLanguage(LANG_EN);
+    setLanguage(LANG_ZH_CN);
     
     // 设置回退语言包
     fallbackLanguagePack = englishPack;
@@ -942,15 +942,24 @@ String I18NManager::format(const String& key, const std::vector<String>& params,
 }
 
 String I18NManager::format(const String& key, const String& param1, const String& defaultValue) const {
-    return format(key, {param1}, defaultValue);
+    std::vector<String> params;
+    params.push_back(param1);
+    return format(key, params, defaultValue);
 }
 
 String I18NManager::format(const String& key, const String& param1, const String& param2, const String& defaultValue) const {
-    return format(key, {param1, param2}, defaultValue);
+    std::vector<String> params;
+    params.push_back(param1);
+    params.push_back(param2);
+    return format(key, params, defaultValue);
 }
 
 String I18NManager::format(const String& key, const String& param1, const String& param2, const String& param3, const String& defaultValue) const {
-    return format(key, {param1, param2, param3}, defaultValue);
+    std::vector<String> params;
+    params.push_back(param1);
+    params.push_back(param2);
+    params.push_back(param3);
+    return format(key, params, defaultValue);
 }
 
 // 导出翻译为JSON
@@ -963,7 +972,7 @@ String I18NManager::exportTranslations(LanguageCode language) const {
     auto pack = it->second;
     std::vector<String> keys = pack->getKeys();
     
-    Stringstream ss;
+    std::stringstream ss;
     ss << "{";
     ss << "\"language_code\":" << language << ",";
     ss << "\"language_name\":\"" << pack->getLanguageName().c_str() << ",";

@@ -8,9 +8,9 @@
 #endif
 
 // 显示类型枚举
-enum class DisplayType {
-  DISPLAY_TYPE_UNKNOWN,
-  DISPLAY_TYPE_EINK,      // 电子墨水屏（支持黑白、三色、四色）
+enum class DisplayCategory {
+  DISPLAY_CATEGORY_UNKNOWN,
+  DISPLAY_CATEGORY_EINK,      // 电子墨水屏（支持黑白、三色、四色）
 };
 
 // 显示驱动抽象接口
@@ -67,7 +67,7 @@ public:
   virtual void wakeup() = 0;
   
   // 获取显示类型
-  virtual DisplayType getType() const = 0;
+  virtual DisplayCategory getDisplayType() const = 0;
   
   // 检测驱动与硬件是否匹配
   virtual bool matchHardware() = 0;

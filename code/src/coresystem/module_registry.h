@@ -139,7 +139,8 @@ public:
   T* getModule() {
     for (auto& module : modules) {
       if (module.loaded && module.enabled) {
-        T* castedModule = dynamic_cast<T*>(module.modulePtr);
+        // 使用static_cast替代dynamic_cast，因为编译选项是-fno-rtti
+        T* castedModule = static_cast<T*>(module.modulePtr);
         if (castedModule) {
           return castedModule;
         }

@@ -150,6 +150,6 @@ public:
 // 国际化宏
 #define _(key) I18NManager::getInstance()->translate(key)
 #define _F(key, ...) I18NManager::getInstance()->format(key, {__VA_ARGS__})
-#define _L(key, lang) I18NManager::getInstance()->translate(key)
+#define _LANG(key, lang) I18NManager::getInstance()->translate(key)
 
 #endif // I18N_MANAGER_H

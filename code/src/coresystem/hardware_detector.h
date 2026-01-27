@@ -71,7 +71,7 @@ typedef struct {
   float overallScore;           // 整体能力得分（0-100）
   std::vector<HardwareResourceInfo> resources; // 资源信息
   std::vector<HardwareCapabilityInfo> capabilities; // 能力信息
-  unsigned long评估时间;        // 评估时间
+  unsigned long evaluationTime;        // 评估时间
   bool isValid;                 // 评估结果是否有效
 } HardwareEvaluationResult;
 

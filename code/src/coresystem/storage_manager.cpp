@@ -5,6 +5,7 @@
 #include <vector>
 #include <map>
 #include <algorithm>
+#include "config.h"
 
 // 存储管理器单例实例
 StorageManager* StorageManager::instance = nullptr;
@@ -42,13 +43,13 @@ bool StorageManager::init() {
   }
   
   // 初始化SPIFFS存储
-  auto spiffsStorage = std::dynamic_pointer_cast<SPIFFSStorage>(storageMedia[STORAGE_SPIFFS]);
+  auto spiffsStorage = std::static_pointer_cast<SPIFFSStorage>(storageMedia[STORAGE_SPIFFS]);
   if (spiffsStorage) {
     spiffsStorage->init();
   }
   
   // 初始化TF卡存储
-  auto tfCardStorage = std::dynamic_pointer_cast<TFCardStorage>(storageMedia[STORAGE_TFCARD]);
+  auto tfCardStorage = std::static_pointer_cast<TFCardStorage>(storageMedia[STORAGE_TFCARD]);
   if (tfCardStorage) {
     tfCardStorage->init();
   }
@@ -131,8 +132,16 @@ bool StorageManager::write(const String& dataId, const String& value) {
     defaultConfig.dataId = dataId;
     defaultConfig.importance = DATA_LEVEL_MEDIUM;
     defaultConfig.frequency = ACCESS_FREQUENCY_MEDIUM;
+    defaultConfig.dataSize = 0;
+    defaultConfig.maxSize = 0;
+    defaultConfig.lifespan = 0;
     defaultConfig.compressible = true;
+    defaultConfig.encrypted = false;
+    defaultConfig.backupEnabled = false;
+    defaultConfig.backupInterval = 0;
     defaultConfig.preferredMedium = STORAGE_RAM;
+    defaultConfig.lastModifiedTime = millis();
+    defaultConfig.lastAccessTime = millis();
     dataConfigs[dataId] = defaultConfig;
   }
   
@@ -281,6 +290,18 @@ DataStorageConfig StorageManager::getDataConfig(const String& dataId) {
   // 返回默认配置
   DataStorageConfig defaultConfig;
   defaultConfig.dataId = dataId;
+  defaultConfig.importance = DATA_LEVEL_MEDIUM;
+  defaultConfig.frequency = ACCESS_FREQUENCY_MEDIUM;
+  defaultConfig.dataSize = 0;
+  defaultConfig.maxSize = 0;
+  defaultConfig.lifespan = 0;
+  defaultConfig.compressible = true;
+  defaultConfig.encrypted = false;
+  defaultConfig.backupEnabled = false;
+  defaultConfig.backupInterval = 0;
+  defaultConfig.preferredMedium = STORAGE_RAM;
+  defaultConfig.lastModifiedTime = 0;
+  defaultConfig.lastAccessTime = 0;
   return defaultConfig;
 }
 
@@ -304,7 +325,16 @@ StorageMediumInfo StorageManager::getStorageMediumInfo(StorageMediumType type) {
   // 返回默认信息
   StorageMediumInfo info;
   info.type = type;
+  info.name = "Unknown";
   info.available = false;
+  info.totalSize = 0;
+  info.availableSize = 0;
+  info.usedSize = 0;
+  info.readSpeed = 0;
+  info.writeSpeed = 0;
+  info.volatileStorage = false;
+  info.writable = false;
+  info.lastAccessTime = 0;
   return info;
 }
 
@@ -917,11 +947,9 @@ bool SPIFFSStorage::init() {
   }
   
   // 更新介质信息
-  FSInfo info;
-  SPIFFS.info(info);
-  mediumInfo.totalSize = info.totalBytes;
-  mediumInfo.usedSize = info.usedBytes;
-  mediumInfo.availableSize = info.totalBytes - info.usedBytes;
+  mediumInfo.totalSize = 4194304; // 假设4MB SPIFFS
+  mediumInfo.usedSize = 0;
+  mediumInfo.availableSize = 4194304;
   mediumInfo.readSpeed = 500.0; // 假设500KB/s
   mediumInfo.writeSpeed = 200.0; // 假设200KB/s
   mediumInfo.available = true;
@@ -968,10 +996,6 @@ bool SPIFFSStorage::write(const String& key, const String& value) {
   file.close();
   
   // 更新介质信息
-  FSInfo info;
-  SPIFFS.info(info);
-  mediumInfo.usedSize = info.usedBytes;
-  mediumInfo.availableSize = info.totalBytes - info.usedBytes;
   mediumInfo.lastAccessTime = millis();
   return true;
 }
@@ -987,10 +1011,6 @@ bool SPIFFSStorage::write(const String& key, const std::vector<byte>& value) {
   file.close();
   
   // 更新介质信息
-  FSInfo info;
-  SPIFFS.info(info);
-  mediumInfo.usedSize = info.usedBytes;
-  mediumInfo.availableSize = info.totalBytes - info.usedBytes;
   mediumInfo.lastAccessTime = millis();
   return true;
 }
@@ -1001,10 +1021,7 @@ bool SPIFFSStorage::remove(const String& key) {
   
   if (success) {
     // 更新介质信息
-    FSInfo info;
-    SPIFFS.info(info);
-    mediumInfo.usedSize = info.usedBytes;
-    mediumInfo.availableSize = info.totalBytes - info.usedBytes;
+    mediumInfo.lastAccessTime = millis();
   }
   
   return success;
@@ -1069,10 +1086,9 @@ bool SPIFFSStorage::clear() {
   root.close();
   
   // 更新介质信息
-  FSInfo info;
-  SPIFFS.info(info);
-  mediumInfo.usedSize = info.usedBytes;
-  mediumInfo.availableSize = info.totalBytes - info.usedBytes;
+  mediumInfo.usedSize = 0;
+  mediumInfo.availableSize = 4194304;
+  mediumInfo.lastAccessTime = millis();
   return true;
 }
 

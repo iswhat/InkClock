@@ -1,6 +1,68 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+// Debug macros
+#define DEBUG_MODE false
+#if DEBUG_MODE
+#define DEBUG_PRINT(x) Serial.print(x)
+#define DEBUG_PRINTLN(x) Serial.println(x)
+#define DEBUG_PRINTF(...) Serial.printf(__VA_ARGS__)
+#else
+#define DEBUG_PRINT(x)
+#define DEBUG_PRINTLN(x)
+#define DEBUG_PRINTF(...) 
+#endif
+
+// Message manager constants
+#define MAX_MESSAGES 100
+#define MESSAGE_UPDATE_INTERVAL 300000 // 5分钟更新一次消息
+
+// Time manager constants
+#define TIME_ZONE_OFFSET 8 // 时区偏移，东八区
+#define NTP_SERVER "pool.ntp.org" // 主NTP服务器
+#define NTP_SERVER_BACKUP "time.nist.gov" // 备用NTP服务器
+#define CLOCK_REFRESH_INTERVAL 60000 // 时钟刷新间隔，1分钟
+#define NTP_UPDATE_INTERVAL 3600000 // NTP更新间隔，1小时
+
+// WiFi manager constants
+#define WIFI_SSID "your_ssid" // WiFi名称
+#define WIFI_PASSWORD "your_password" // WiFi密码
+#define WIFI_RECONNECT_INTERVAL 5000 // WiFi重连间隔，5秒
+
+// API manager constants
+#define API_CACHE_CLEANUP_INTERVAL 300000 // API缓存清理间隔，5分钟
+#define API_DEFAULT_TIMEOUT 5000 // API默认超时时间，5秒
+#define API_MAX_CACHE_SIZE 20 // API最大缓存项数
+
+// Stock manager constants
+#define MAX_STOCKS 20
+#define STOCK_UPDATE_INTERVAL 300000 // 5分钟更新一次股票数据
+static const char* const STOCK_CODES[] = {"600000", "600519", "000858", "000001"}; // 默认股票代码列表
+
+// Geo manager constants
+#define GEO_CONFIG_API_URL "https://restapi.amap.com/v3/geocode/regeo"
+#define GEO_CITY_ID ""
+#define GEO_CITY_NAME ""
+#define GEO_LATITUDE 0.0
+#define GEO_LONGITUDE 0.0
+#define GEO_API_KEY ""
+#define AUTO_DETECT_LOCATION true // 是否自动检测地理位置
+
+// Weather manager constants
+#define WEATHER_API_URL ""
+#define WEATHER_API_URL_BACKUP ""
+#define WEATHER_API_URL_SECONDARY_BACKUP ""
+#define WEATHER_API_URL_TERTIARY_BACKUP ""
+#define WEATHER_API_KEY ""
+#define WEATHER_API_KEY_BACKUP ""
+#define WEATHER_UPDATE_INTERVAL 3600000 // 1小时更新一次天气数据
+
+// Web client constants
+#define WEB_SERVER_URL ""
+#define WEB_SERVER_URL_BACKUP ""
+#define WEB_SERVER_URL_SECONDARY_BACKUP ""
+#define API_KEY ""
+
 // Platform macros
 #define PLATFORM_ESP32 1
 #define PLATFORM_ESP8266 0
@@ -15,6 +77,8 @@ typedef enum {
     AUDIO_DRIVER_HEADPHONE
 } AudioDriverType;
 #define AUDIO_DRIVER_TYPE AUDIO_DRIVER_NONE
+#define AUDIO_VOLUME 70
+#define AUDIO_RECORD_DURATION 30
 
 // WiFi+Bluetooth module macros
 typedef enum {

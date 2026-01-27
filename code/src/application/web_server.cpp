@@ -1,10 +1,11 @@
 #include "web_server.h"
-#include "../services/wifi_manager.h"
+#include "application/wifi_manager.h"
 #include "../extensions/plugin_manager.h"
-#include "../modules/sensor_manager.h"
+#include "sensor_manager.h"
 #include "../coresystem/font_manager.h"
 #include "../coresystem/tf_card_manager.h"
 #include "../coresystem/core_system.h"
+#include "display_manager.h"
 #include <ArduinoJson.h>
 
 // 外部全局对象
@@ -15,7 +16,7 @@ extern WiFiManager wifiManager;
 extern PluginManager pluginManager;
 extern SensorManager sensorManager;
 extern MessageManager messageManager;
-extern GeoManager geoManager;
+
 extern DisplayManager displayManager;
 
 // 定义网页内容
@@ -124,8 +125,8 @@ const char* WebServerManager::index_html = R"(
             });
             
             // 激活当前选项卡和内容
-            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
-            document.getElementById(`${tabName}-tab`).classList.add('active');
+            document.querySelector('[onclick="switchTab(\'' + tabName + '\')"]').classList.add('active');
+            document.getElementById(tabName + '-tab').classList.add('active');
             
             // 如果切换到在线插件，加载在线插件列表
             if (tabName === 'online') {
@@ -157,19 +158,19 @@ const char* WebServerManager::index_html = R"(
                     // 生成在线插件列表HTML
                     let html = '<div class="plugin-grid">';
                     plugins.forEach(plugin => {
-                        html += `
-                            <div class="plugin-item">
-                                <h4>${plugin.name}</h4>
-                                <p>${plugin.description || '无描述'}</p>
-                                <div class="plugin-info">
-                                    <p><strong>刷新频率:</strong> ${plugin.refresh_interval || '默认'}</p>
-                                    ${plugin.settings_url ? `<p><strong>设置接口:</strong> <a href="${plugin.settings_url}" target="_blank">查看</a></p>` : ''}
-                                </div>
-                                <div class="plugin-actions">
-                                    <button class="btn btn-primary" onclick="addOnlinePlugin('${plugin.name}', '${plugin.url}')">添加</button>
-                                </div>
-                            </div>
-                        `;
+                        html += '<div class="plugin-item">';
+                        html += '<h4>' + plugin.name + '</h4>';
+                        html += '<p>' + (plugin.description || '无描述') + '</p>';
+                        html += '<div class="plugin-info">';
+                        html += '<p><strong>刷新频率:</strong> ' + (plugin.refresh_interval || '默认') + '</p>';
+                        if (plugin.settings_url) {
+                            html += '<p><strong>设置接口:</strong> <a href="' + plugin.settings_url + '" target="_blank">查看</a></p>';
+                        }
+                        html += '</div>';
+                        html += '<div class="plugin-actions">';
+                        html += '<button class="btn btn-primary" onclick="addOnlinePlugin(\'' + plugin.name + '\', \'' + plugin.url + '\')">添加</button>';
+                        html += '</div>';
+                        html += '</div>';
                     });
                     html += '</div>';
                     
@@ -195,7 +196,7 @@ const char* WebServerManager::index_html = R"(
         // 插件排序功能
         function changePluginOrder(pluginName, direction) {
             // 实际应该发送请求到服务器，更新插件排序
-            alert(`正在调整插件 ${pluginName} 的顺序，方向：${direction}`);
+            alert('正在调整插件 ' + pluginName + ' 的顺序，方向：' + direction);
         }
     </script>
     
@@ -739,6 +740,19 @@ const char* WebServerManager::settings_html = R"(
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- 语言设置 -->
+                    <div class="settings-card">
+                        <h3>语言设置</h3>
+                        <div class="form-group">
+                            <label for="language">界面语言:</label>
+                            <select id="language" name="language">
+                                <option value="zh-CN" %LANGUAGE_ZH_CN%>简体中文</option>
+                                <option value="en" %LANGUAGE_EN%>English</option>
+                                <option value="zh-TW" %LANGUAGE_ZH_TW%>繁體中文</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- 保存按钮 -->
@@ -1079,8 +1093,8 @@ const char* WebServerManager::plugin_html = R"(
             });
             
             // 激活当前选项卡和内容
-            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
-            document.getElementById(`${tabName}-tab`).classList.add('active');
+            document.querySelector('[onclick="switchTab(\'' + tabName + '\')"]').classList.add('active');
+            document.getElementById(tabName + '-tab').classList.add('active');
             
             // 如果切换到在线插件，加载在线插件列表
             if (tabName === 'online') {
@@ -1112,19 +1126,19 @@ const char* WebServerManager::plugin_html = R"(
                     // 生成在线插件列表HTML
                     let html = '<div class="plugin-grid">';
                     plugins.forEach(plugin => {
-                        html += `
-                            <div class="plugin-item">
-                                <h4>${plugin.name}</h4>
-                                <p>${plugin.description || '无描述'}</p>
-                                <div class="plugin-info">
-                                    <p><strong>刷新频率:</strong> ${plugin.refresh_interval || '默认'}</p>
-                                    ${plugin.settings_url ? `<p><strong>设置接口:</strong> <a href="${plugin.settings_url}" target="_blank">查看</a></p>` : ''}
-                                </div>
-                                <div class="plugin-actions">
-                                    <button class="btn btn-primary" onclick="addOnlinePlugin('${plugin.name}', '${plugin.url}')">添加</button>
-                                </div>
-                            </div>
-                        `;
+                        html += '<div class="plugin-item">';
+                        html += '<h4>' + plugin.name + '</h4>';
+                        html += '<p>' + (plugin.description || '无描述') + '</p>';
+                        html += '<div class="plugin-info">';
+                        html += '<p><strong>刷新频率:</strong> ' + (plugin.refresh_interval || '默认') + '</p>';
+                        if (plugin.settings_url) {
+                            html += '<p><strong>设置接口:</strong> <a href="' + plugin.settings_url + '" target="_blank">查看</a></p>';
+                        }
+                        html += '</div>';
+                        html += '<div class="plugin-actions">';
+                        html += '<button class="btn btn-primary" onclick="addOnlinePlugin(\'' + plugin.name + '\', \'' + plugin.url + '\')">添加</button>';
+                        html += '</div>';
+                        html += '</div>';
                     });
                     html += '</div>';
                     
@@ -1150,7 +1164,7 @@ const char* WebServerManager::plugin_html = R"(
         // 插件排序功能
         function changePluginOrder(pluginName, direction) {
             // 实际应该发送请求到服务器，更新插件排序
-            alert(`正在调整插件 ${pluginName} 的顺序，方向：${direction}`);
+            alert('正在调整插件 ' + pluginName + ' 的顺序，方向：' + direction);
         }
     </script>
 </body>
@@ -1190,37 +1204,37 @@ const char* WebServerManager::plugin_list_html = R"(
                 <p>以下是推荐的网络插件，您可以将其添加到您的设备设置中。点击"添加到设备"按钮即可快速添加。</p>
                 
                 <div class="recommended-plugins">
-                    <!-- 每日古诗插件 -->
+                    <!-- Daily Poem Plugin -->
                     <div class="plugin-item">
-                        <h3>每日古诗</h3>
+                        <h3>Daily Poem</h3>
                         <div class="plugin-info">
-                            <p><strong>类型:</strong> URL JSON插件</p>
-                            <p><strong>描述:</strong> 每天获取一首经典古诗，展示在您的万年历上</p>
-                            <p><strong>更新频率:</strong> 每天</p>
-                            <p><strong>作者:</strong> iswhat</p>
-                            <p><strong>插件URL:</strong> <span class="plugin-url">http://<device_ip>:8080/plugin/daily_poem/index.php</span></p>
+                            <p><strong>Type:</strong> URL JSON Plugin</p>
+                            <p><strong>Description:</strong> Get a classic poem every day to display on your calendar</p>
+                            <p><strong>Update Frequency:</strong> Daily</p>
+                            <p><strong>Author:</strong> iswhat</p>
+                            <p><strong>Plugin URL:</strong> <span class="plugin-url">http://<device_ip>:8080/plugin/daily_poem/index.php</span></p>
                         </div>
                         <div class="plugin-actions">
-                            <button class="btn btn-primary" onclick="copyUrl('http://<device_ip>:8080/plugin/daily_poem/index.php')">复制URL</button>
-                            <button class="btn btn-success" onclick="addPlugin('每日古诗', 'http://<device_ip>:8080/plugin/daily_poem/index.php', '86400', 'second')">添加到设备</button>
-                            <button class="btn btn-secondary" onclick="window.open('http://<device_ip>:8080/plugin/daily_poem/index.php', '_blank')">预览效果</button>
+                            <button class="btn btn-primary" onclick="copyUrl('http://<device_ip>:8080/plugin/daily_poem/index.php')">Copy URL</button>
+                            <button class="btn btn-success" onclick="addPlugin('Daily Poem', 'http://<device_ip>:8080/plugin/daily_poem/index.php', '86400', 'second')">Add to Device</button>
+                            <button class="btn btn-secondary" onclick="window.open('http://<device_ip>:8080/plugin/daily_poem/index.php', '_blank')">Preview</button>
                         </div>
                     </div>
                     
                     <!-- 每日英语单词插件 -->
                     <div class="plugin-item">
-                        <h3>每日英语单词</h3>
+                        <h3>Daily English Word</h3>
                         <div class="plugin-info">
                             <p><strong>类型:</strong> URL JSON插件</p>
-                            <p><strong>描述:</strong> 每天获取一个英语单词，包含发音、释义和例句</p>
-                            <p><strong>更新频率:</strong> 每天</p>
-                            <p><strong>作者:</strong> iswhat</p>
-                            <p><strong>插件URL:</strong> <span class="plugin-url">http://<device_ip>:8080/plugin/daily_word/index.php</span></p>
+                            <p><strong>Description:</strong> Get a daily English word with pronunciation, definition and example</p>
+                            <p><strong>Update Frequency:</strong> Daily</p>
+                             <p><strong>Author:</strong> iswhat</p>
+                             <p><strong>Plugin URL:</strong> <span class="plugin-url">http://<device_ip>:8080/plugin/daily_word/index.php</span></p>
                         </div>
                         <div class="plugin-actions">
-                            <button class="btn btn-primary" onclick="copyUrl('http://<device_ip>:8080/plugin/daily_word/index.php')">复制URL</button>
-                            <button class="btn btn-success" onclick="addPlugin('每日英语单词', 'http://<device_ip>:8080/plugin/daily_word/index.php', '86400', 'second')">添加到设备</button>
-                            <button class="btn btn-secondary" onclick="window.open('http://<device_ip>:8080/plugin/daily_word/index.php', '_blank')">预览效果</button>
+                            <button class="btn btn-primary" onclick="copyUrl('http://<device_ip>:8080/plugin/daily_word/index.php')">Copy URL</button>
+                            <button class="btn btn-success" onclick="addPlugin('Daily English Word', 'http://<device_ip>:8080/plugin/daily_word/index.php', '86400', 'second')">Add to Device</button>
+                            <button class="btn btn-secondary" onclick="window.open('http://<device_ip>:8080/plugin/daily_word/index.php', '_blank')">Preview</button>
                         </div>
                     </div>
                 </div>
@@ -1248,7 +1262,7 @@ const char* WebServerManager::plugin_list_html = R"(
             
             if (navigator.clipboard) {
                 navigator.clipboard.writeText(fullUrl).then(() => {
-                    alert('URL已复制到剪贴板！');
+                    alert('URL copied to clipboard!');
                 }).catch(err => {
                     fallbackCopyTextToClipboard(fullUrl);
                 });
@@ -1267,12 +1281,12 @@ const char* WebServerManager::plugin_list_html = R"(
             try {
                 const successful = document.execCommand('copy');
                 if (successful) {
-                    alert('URL已复制到剪贴板！');
+                    alert('URL copied to clipboard!');
                 } else {
-                    alert('复制失败，请手动复制');
+                    alert('Copy failed, please copy manually');
                 }
             } catch (err) {
-                alert('复制失败，请手动复制');
+                alert('Copy failed, please copy manually');
             }
             
             document.body.removeChild(textArea);
@@ -2089,6 +2103,34 @@ footer {
 }
 
 /* 响应式设计 - 移动端优化 */
+/* 大屏设备 (大于1200px) */
+@media (min-width: 1201px) {
+    .container {
+        max-width: 1140px;
+    }
+}
+
+/* 中屏设备 (769px - 1200px) */
+@media (max-width: 1200px) {
+    .container {
+        max-width: 95%;
+    }
+    
+    header h1 {
+        font-size: 2.2rem;
+    }
+    
+    nav ul {
+        gap: 6px;
+    }
+    
+    nav ul li a {
+        padding: 10px 16px;
+        font-size: 0.9rem;
+    }
+}
+
+/* 小屏设备 (481px - 768px) */
 @media (max-width: 768px) {
     body {
         padding: 12px;
@@ -2099,16 +2141,22 @@ footer {
     }
     
     header h1 {
-        font-size: 2rem;
+        font-size: 1.8rem;
+    }
+    
+    header p {
+        font-size: 1rem;
     }
     
     nav ul {
         flex-direction: column;
         align-items: stretch;
+        gap: 8px;
     }
     
     nav ul li a {
         text-align: center;
+        padding: 12px;
     }
     
     .plugin-header {
@@ -2118,10 +2166,12 @@ footer {
     
     .plugin-actions {
         justify-content: center;
+        flex-direction: column;
     }
     
     .btn-group {
         justify-content: center;
+        flex-direction: column;
     }
     
     .status-card ul li {
@@ -2144,6 +2194,71 @@ footer {
     .refresh-time select {
         width: 100%;
         min-width: auto;
+    }
+    
+    .card {
+        padding: 20px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group input,
+    .form-group select {
+        padding: 12px;
+    }
+    
+    .btn {
+        padding: 12px 20px;
+        font-size: 0.95rem;
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* 超小屏设备 (小于480px) */
+@media (max-width: 480px) {
+    body {
+        padding: 8px;
+    }
+    
+    header h1 {
+        font-size: 1.5rem;
+    }
+    
+    header p {
+        font-size: 0.9rem;
+    }
+    
+    .card {
+        padding: 16px;
+    }
+    
+    .status-card h3,
+    .add-plugin h3 {
+        font-size: 1.1rem;
+    }
+    
+    .status-card ul li {
+        padding: 8px;
+        font-size: 0.85rem;
+    }
+    
+    .form-group input,
+    .form-group select {
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+    
+    .btn {
+        padding: 10px 16px;
+        font-size: 0.9rem;
+    }
+    
+    footer {
+        font-size: 0.85rem;
+        padding: 12px;
     }
 }
 
@@ -2490,7 +2605,39 @@ void WebServerManager::handleSettings() {
         html.replace("%WEATHER_API_KEY_BACKUP%", ""); // 不显示密钥
         html.replace("%AUTO_UPDATE_PLUGINS%", ""); // 默认值
         
-        // 移除所有未替换的模板变量，避免泄露
+        // 语言设置模板变量
+        String languageZhCn = "";
+        String languageEn = "";
+        String languageZhTw = "";
+        
+        try {
+            I18NManager* i18nManager = I18NManager::getInstance();
+            LanguageCode currentLang = i18nManager->getCurrentLanguage();
+            
+            switch (currentLang) {
+                case LANG_ZH_CN:
+                    languageZhCn = "selected";
+                    break;
+                case LANG_EN:
+                    languageEn = "selected";
+                    break;
+                case LANG_ZH_TW:
+                    languageZhTw = "selected";
+                    break;
+                default:
+                    languageZhCn = "selected"; // 默认中文
+                    break;
+            }
+        } catch (const std::exception& e) {
+            DEBUG_PRINTF("获取语言设置异常: %s\n", e.what());
+            languageZhCn = "selected"; // 默认中文
+        }
+        
+        html.replace("%LANGUAGE_ZH_CN%", languageZhCn);
+        html.replace("%LANGUAGE_EN%", languageEn);
+        html.replace("%LANGUAGE_ZH_TW%", languageZhTw);
+        
+        // 确保所有模板变量都被替换
         html.replace("%", "--");
         
         server.send(200, "text/html", html);
@@ -2694,6 +2841,22 @@ void WebServerManager::handleUpdateSettings() {
     bool showSeconds = server.hasArg("show_seconds");
     displayManager.setShowSeconds(showSeconds);
     
+    // 处理语言设置
+    String language = server.arg("language");
+    try {
+        I18NManager* i18nManager = I18NManager::getInstance();
+        if (language == "zh-CN") {
+            i18nManager->setLanguage(LANG_ZH_CN);
+        } else if (language == "en") {
+            i18nManager->setLanguage(LANG_EN);
+        } else if (language == "zh-TW") {
+            i18nManager->setLanguage(LANG_ZH_TW);
+        }
+        DEBUG_PRINTF("语言设置已更新为: %s\n", language.c_str());
+    } catch (const std::exception& e) {
+        DEBUG_PRINTF("更新语言设置异常: %s\n", e.what());
+    }
+    
     // 重定向回设置页面
     server.sendHeader("Location", "/settings");
     server.send(302, "text/plain", "");
@@ -2830,8 +2993,9 @@ void WebServerManager::handleSensorData() {
     // 获取传感器数据
     SensorData data = sensorManager.getSensorData();
     
-    // 创建JSON响应
-    DynamicJsonDocument doc(512);
+    // 创建JSON响应，使用静态大小的JsonDocument以减少内存分配
+    static JsonDocument doc(1024);
+    doc.clear(); // 清除之前的内容
     doc["status"] = "success";
     doc["timestamp"] = data.timestamp;
     doc["data"]["temperature"] = data.temperature;
@@ -2859,8 +3023,9 @@ void WebServerManager::handleSensorData() {
 void WebServerManager::handleApi() {
     DEBUG_PRINTLN("处理API根请求");
     
-    // 创建JSON响应
-    DynamicJsonDocument doc(512);
+    // 创建JSON响应，使用静态大小的JsonDocument以减少内存分配
+    static JsonDocument doc(2048);
+    doc.clear(); // 清除之前的内容
     doc["status"] = "success";
     doc["name"] = "InkClock API";
     doc["version"] = "1.0";
@@ -2941,7 +3106,7 @@ void WebServerManager::handleMessagePush() {
     }
     
     // 解析JSON
-    DynamicJsonDocument doc(1024);
+    JsonDocument doc;
     DeserializationError error = deserializeJson(doc, body);
     if (error) {
         String errorStr = "{\"error\": \"Invalid JSON: ";
@@ -2987,7 +3152,7 @@ void WebServerManager::handleMessagePush() {
  * @note 返回设备当前状态信息
  */
 void WebServerManager::handleDeviceStatus() {
-    DynamicJsonDocument doc(1024);
+    JsonDocument doc;
     
     doc["status"] = "online";
     doc["ip_address"] = getIPAddress();
@@ -3193,7 +3358,7 @@ void WebServerManager::parseCommandAndParam(String& command, String& param) {
             String body = server.arg("plain");
             if (!body.isEmpty()) {
                 try {
-                    DynamicJsonDocument doc(512);
+                    JsonDocument doc;
                     DeserializationError error = deserializeJson(doc, body);
                     if (!error) {
                         if (doc.containsKey("command")) {
@@ -3219,7 +3384,7 @@ void WebServerManager::handleRemoteControl() {
     String command, param;
     parseCommandAndParam(command, param);
     
-    DynamicJsonDocument response(512); // 增加JSON文档大小
+    JsonDocument response;
     response["success"] = false;
     response["message"] = "未知命令";
     
@@ -3372,7 +3537,7 @@ void WebServerManager::handleDataSync() {
     DEBUG_PRINTLN("处理数据同步请求");
     
     // 增加JSON文档大小以支持更多数据
-    DynamicJsonDocument response(1024); // 增加JSON文档大小以支持更全面的数据
+    JsonDocument response;
     response["success"] = true;
     response["timestamp"] = platformGetMillis();
     response["api_version"] = "1.1";
@@ -3522,7 +3687,7 @@ void WebServerManager::handleRefreshDisplay() {
     
     unsigned long currentTime = platformGetMillis();
     if (currentTime - lastRefreshTime < MIN_REFRESH_INTERVAL) {
-        DynamicJsonDocument response(128);
+        JsonDocument response;
         response["success"] = false;
         response["message"] = "刷新频率过高，请稍后再试";
         response["next_available_time"] = lastRefreshTime + MIN_REFRESH_INTERVAL;
@@ -3533,7 +3698,7 @@ void WebServerManager::handleRefreshDisplay() {
         return;
     }
     
-    DynamicJsonDocument response(256); // 增加JSON文档大小
+    JsonDocument response;
     response["success"] = false;
     response["message"] = "刷新显示失败";
     

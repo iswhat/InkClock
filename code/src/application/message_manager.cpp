@@ -1,7 +1,7 @@
 #include "message_manager.h"
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
-#include "../services/time_manager.h"
+#include "application/time_manager.h"
 
 // 外部全局对象
 extern TimeManager timeManager;
@@ -9,14 +9,15 @@ extern TimeManager timeManager;
 MessageManager::MessageManager() {
   // 初始化消息数组
   for (int i = 0; i < MAX_MESSAGES; i++) {
-    messages[i].id = -1;
-    messages[i].sender = "";
+    messages[i].id = "";
     messages[i].content = "";
-    messages[i].type = MESSAGE_TEXT;
-    messages[i].status = MESSAGE_UNREAD;
+    messages[i].sender = "";
+    messages[i].receiver = "";
+    messages[i].timestamp = "";
     messages[i].priority = MESSAGE_PRIORITY_NORMAL;
     messages[i].category = MESSAGE_CATEGORY_GENERAL;
-    messages[i].time = "";
+    messages[i].read = false;
+    messages[i].archived = false;
     messages[i].valid = false;
   }
   
@@ -81,18 +82,19 @@ bool MessageManager::addMessage(String sender, String content, MessageType type,
   }
   
   // 获取当前时间
-  String timeStr = timeManager.getDateTimeString();
+  String timeStr = timeManager.getTimeString();
   
   // 创建新消息
   MessageData newMessage;
-  newMessage.id = nextId++;
+  newMessage.id = String(nextId++);
   newMessage.sender = sender;
   newMessage.content = content;
-  newMessage.type = type;
-  newMessage.status = MESSAGE_UNREAD;
+  newMessage.receiver = "";
+  newMessage.timestamp = timeStr;
   newMessage.priority = priority;
   newMessage.category = category;
-  newMessage.time = timeStr;
+  newMessage.read = false;
+  newMessage.archived = false;
   newMessage.valid = true;
   
   // 将新消息添加到数组开头
@@ -113,7 +115,7 @@ bool MessageManager::addMessage(String sender, String content, MessageType type,
   return true;
 }
 
-bool MessageManager::deleteMessage(int id) {
+bool MessageManager::deleteMessage(String id) {
   DEBUG_PRINT("删除消息，ID: ");
   DEBUG_PRINTLN(id);
   
@@ -130,12 +132,15 @@ bool MessageManager::deleteMessage(int id) {
   }
   
   // 清空最后一个消息
-  messages[messageCount - 1].id = -1;
-  messages[messageCount - 1].sender = "";
+  messages[messageCount - 1].id = "";
   messages[messageCount - 1].content = "";
-  messages[messageCount - 1].type = MESSAGE_TEXT;
-  messages[messageCount - 1].status = MESSAGE_UNREAD;
-  messages[messageCount - 1].time = "";
+  messages[messageCount - 1].sender = "";
+  messages[messageCount - 1].receiver = "";
+  messages[messageCount - 1].timestamp = "";
+  messages[messageCount - 1].priority = MESSAGE_PRIORITY_NORMAL;
+  messages[messageCount - 1].category = MESSAGE_CATEGORY_GENERAL;
+  messages[messageCount - 1].read = false;
+  messages[messageCount - 1].archived = false;
   messages[messageCount - 1].valid = false;
   
   // 更新消息计数
@@ -149,7 +154,7 @@ bool MessageManager::deleteMessage(int id) {
   return true;
 }
 
-bool MessageManager::markMessageAsRead(int id) {
+bool MessageManager::markMessageAsRead(String id) {
   DEBUG_PRINT("标记消息为已读，ID: ");
   DEBUG_PRINTLN(id);
   
@@ -161,7 +166,7 @@ bool MessageManager::markMessageAsRead(int id) {
   }
   
   // 更新消息状态
-  messages[index].status = MESSAGE_READ;
+  messages[index].read = true;
   
   // 设置数据更新标志
   dataUpdated = true;
@@ -174,14 +179,14 @@ bool MessageManager::markMessageAsRead(int id) {
 bool MessageManager::hasNewMessage() {
   // 检查是否有未读消息
   for (int i = 0; i < messageCount; i++) {
-    if (messages[i].status == MESSAGE_UNREAD) {
+    if (!messages[i].read && !messages[i].archived) {
       return true;
     }
   }
   return false;
 }
 
-MessageData MessageManager::getMessage(int id) {
+MessageData MessageManager::getMessage(String id) {
   // 查找消息
   int index = findMessageIndex(id);
   if (index != -1) {
@@ -190,12 +195,15 @@ MessageData MessageManager::getMessage(int id) {
   
   // 返回无效消息
   MessageData invalidMessage;
-  invalidMessage.id = -1;
-  invalidMessage.sender = "";
+  invalidMessage.id = "";
   invalidMessage.content = "";
-  invalidMessage.type = MESSAGE_TEXT;
-  invalidMessage.status = MESSAGE_UNREAD;
-  invalidMessage.time = "";
+  invalidMessage.sender = "";
+  invalidMessage.receiver = "";
+  invalidMessage.timestamp = "";
+  invalidMessage.priority = MESSAGE_PRIORITY_NORMAL;
+  invalidMessage.category = MESSAGE_CATEGORY_GENERAL;
+  invalidMessage.read = false;
+  invalidMessage.archived = false;
   invalidMessage.valid = false;
   
   return invalidMessage;
@@ -204,15 +212,15 @@ MessageData MessageManager::getMessage(int id) {
 MessageData MessageManager::getLatestMessage() {
   if (messageCount > 0) {
     // 优先返回优先级最高的未读消息
-    int highestPriorityIndex = 0;
-    int highestPriority = -1;
-    
-    for (int i = 0; i < messageCount; i++) {
-      if (messages[i].status == MESSAGE_UNREAD && messages[i].priority > highestPriority) {
-        highestPriority = messages[i].priority;
-        highestPriorityIndex = i;
-      }
+  int highestPriorityIndex = 0;
+  int highestPriority = -1;
+  
+  for (int i = 0; i < messageCount; i++) {
+    if (!messages[i].read && !messages[i].archived && messages[i].priority > highestPriority) {
+      highestPriority = messages[i].priority;
+      highestPriorityIndex = i;
     }
+  }
     
     // 如果有未读消息，返回优先级最高的
     if (highestPriority >= 0) {
@@ -225,13 +233,15 @@ MessageData MessageManager::getLatestMessage() {
   
   // 返回无效消息
   MessageData invalidMessage;
-  invalidMessage.id = -1;
-  invalidMessage.sender = "";
+  invalidMessage.id = "";
   invalidMessage.content = "";
-  invalidMessage.type = MESSAGE_TEXT;
-  invalidMessage.status = MESSAGE_UNREAD;
+  invalidMessage.sender = "";
+  invalidMessage.receiver = "";
+  invalidMessage.timestamp = "";
   invalidMessage.priority = MESSAGE_PRIORITY_NORMAL;
-  invalidMessage.time = "";
+  invalidMessage.category = MESSAGE_CATEGORY_GENERAL;
+  invalidMessage.read = false;
+  invalidMessage.archived = false;
   invalidMessage.valid = false;
   
   return invalidMessage;
@@ -244,7 +254,7 @@ int MessageManager::getMessageCount() {
 int MessageManager::getUnreadMessageCount() {
   int count = 0;
   for (int i = 0; i < messageCount; i++) {
-    if (messages[i].status == MESSAGE_UNREAD) {
+    if (!messages[i].read && !messages[i].archived) {
       count++;
     }
   }
@@ -255,7 +265,7 @@ bool MessageManager::saveMessages() {
   DEBUG_PRINTLN("保存消息到文件...");
   
   // 创建JSON文档
-  DynamicJsonDocument doc(4096);
+  JsonDocument doc;
   
   // 添加消息数组
   JsonArray messageArray = doc.createNestedArray("messages");
@@ -265,11 +275,11 @@ bool MessageManager::saveMessages() {
     messageObj["id"] = messages[i].id;
     messageObj["sender"] = messages[i].sender;
     messageObj["content"] = messages[i].content;
-    messageObj["type"] = messages[i].type;
-    messageObj["status"] = messages[i].status;
     messageObj["priority"] = messages[i].priority;
     messageObj["category"] = messages[i].category;
-    messageObj["time"] = messages[i].time;
+    messageObj["timestamp"] = messages[i].timestamp;
+    messageObj["read"] = messages[i].read;
+    messageObj["archived"] = messages[i].archived;
   }
   
   // 添加元数据
@@ -314,7 +324,7 @@ bool MessageManager::loadMessages() {
   }
   
   // 创建JSON文档
-  DynamicJsonDocument doc(4096);
+  JsonDocument doc;
   
   // 从文件反序列化JSON
   DeserializationError error = deserializeJson(doc, file);
@@ -339,14 +349,14 @@ bool MessageManager::loadMessages() {
     
     // 解析消息
     MessageData message;
-    message.id = messageObj["id"];
+    message.id = messageObj["id"].as<String>();
     message.sender = messageObj["sender"].as<String>();
     message.content = messageObj["content"].as<String>();
-    message.type = (MessageType)messageObj["type"];
-    message.status = (MessageStatus)messageObj["status"];
     message.priority = messageObj.containsKey("priority") ? (MessagePriority)messageObj["priority"] : MESSAGE_PRIORITY_NORMAL;
     message.category = messageObj.containsKey("category") ? (MessageCategory)messageObj["category"] : MESSAGE_CATEGORY_GENERAL;
-    message.time = messageObj["time"].as<String>();
+    message.timestamp = messageObj.containsKey("timestamp") ? messageObj["timestamp"].as<String>() : String(millis());
+    message.read = messageObj.containsKey("read") ? messageObj["read"].as<bool>() : false;
+    message.archived = messageObj.containsKey("archived") ? messageObj["archived"].as<bool>() : false;
     message.valid = true;
     
     // 添加到消息数组
@@ -370,7 +380,7 @@ void MessageManager::sortMessages() {
   // 如果需要，可以实现冒泡排序或其他排序算法
 }
 
-int MessageManager::findMessageIndex(int id) {
+int MessageManager::findMessageIndex(String id) {
   // 查找消息索引
   for (int i = 0; i < messageCount; i++) {
     if (messages[i].id == id) {
@@ -380,7 +390,7 @@ int MessageManager::findMessageIndex(int id) {
   return -1;
 }
 
-bool MessageManager::isValidMessageId(int id) {
+bool MessageManager::isValidMessageId(String id) {
   // 检查消息ID是否有效
   return findMessageIndex(id) != -1;
 }
@@ -419,7 +429,8 @@ MessageData* MessageManager::getMessagesByStatus(MessageStatus status, int& coun
   count = 0;
   
   for (int i = 0; i < messageCount; i++) {
-    if (messages[i].status == status) {
+    bool isRead = messages[i].read;
+    if ((status == MESSAGE_READ && isRead) || (status == MESSAGE_UNREAD && !isRead)) {
       filteredMessages[count++] = messages[i];
     }
   }
@@ -435,7 +446,9 @@ MessageData* MessageManager::filterMessages(MessageCategory category, MessagePri
   for (int i = 0; i < messageCount; i++) {
     bool matchCategory = (category == MESSAGE_CATEGORY_GENERAL) || (messages[i].category == category);
     bool matchPriority = (priority == MESSAGE_PRIORITY_NORMAL) || (messages[i].priority == priority);
-    bool matchStatus = (status == MESSAGE_UNREAD) || (messages[i].status == status);
+    bool matchStatus = (status == MESSAGE_UNREAD) || 
+                      ((status == MESSAGE_READ && messages[i].read) || 
+                       (status == MESSAGE_UNREAD && !messages[i].read));
     
     if (matchCategory && matchPriority && matchStatus) {
       filteredMessages[count++] = messages[i];

@@ -230,7 +230,7 @@ bool FirmwareManager::checkTFValidity() {
   }
   
   // 解析固件信息JSON
-  DynamicJsonDocument jsonDoc(1024);
+  JsonDocument jsonDoc;
   DeserializationError error = deserializeJson(jsonDoc, infoFile);
   infoFile.close();
   

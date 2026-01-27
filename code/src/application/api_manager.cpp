@@ -7,7 +7,7 @@
  */
 
 #include "api_manager.h"
-#include "../services/wifi_manager.h"
+#include "application/wifi_manager.h"
 
 
 // 外部全局对象
@@ -72,37 +72,36 @@ ApiResponse APIManager::sendRequest(const ApiRequest& request) {
     response.timestamp = millis();
     response.status = API_STATUS_ERROR;
     
-    try {
-        // 检查WiFi连接
-        if (!wifiManager.isConnected()) {
-            response.error = "WiFi未连接";
-            DEBUG_PRINTLN("API请求失败：WiFi未连接");
+    // 检查WiFi连接
+    if (!wifiManager.isConnected()) {
+        response.error = "WiFi未连接";
+        DEBUG_PRINTLN("API请求失败：WiFi未连接");
+        return response;
+    }
+    
+    // 增加请求计数
+    totalRequests++;
+    
+    // 生成缓存键
+    String cacheKey = generateCacheKey(request);
+    
+    // 检查缓存
+    if (request.cacheTime > 0 && isCacheValid(cacheKey)) {
+        if (getCachedResponse(cacheKey, response)) {
+            // 使用缓存数据
+            response.status = API_STATUS_CACHED;
+            cachedRequests++;
+            DEBUG_PRINTLN("使用缓存数据：" + cacheKey);
             return response;
         }
-        
-        // 增加请求计数
-        totalRequests++;
-        
-        // 生成缓存键
-        String cacheKey = generateCacheKey(request);
-        
-        // 检查缓存
-        if (request.cacheTime > 0 && isCacheValid(cacheKey)) {
-            if (getCachedResponse(cacheKey, response)) {
-                // 使用缓存数据
-                response.status = API_STATUS_CACHED;
-                cachedRequests++;
-                DEBUG_PRINTLN("使用缓存数据：" + cacheKey);
-                return response;
-            }
-        }
-        
-        // 清理过期缓存
-        unsigned long now = millis();
-        if (now - lastCacheCleanup > API_CACHE_CLEANUP_INTERVAL) {
-            cleanupExpiredCache();
-            lastCacheCleanup = now;
-        }
+    }
+    
+    // 清理过期缓存
+    unsigned long now = millis();
+    if (now - lastCacheCleanup > API_CACHE_CLEANUP_INTERVAL) {
+        cleanupExpiredCache();
+        lastCacheCleanup = now;
+    }
         
         // 准备HTTP请求
         String fullUrl = request.url;
@@ -114,13 +113,11 @@ ApiResponse APIManager::sendRequest(const ApiRequest& request) {
         
         // 开始HTTP请求
         httpClient->setTimeout(requestTimeout);
-        httpClient->setReuse(false);
+        httpClient->setReuse(true); // 启用连接重用，减少连接建立开销
         
         // 设置证书验证
-        if (verifyCertificate) {
-            wifiClient->setInsecure(false);
-        } else {
-            wifiClient->setInsecure(true);
+        if (!verifyCertificate) {
+            wifiClient->setInsecure(); // 禁用证书验证
         }
         
         // 发送请求
@@ -187,21 +184,6 @@ ApiResponse APIManager::sendRequest(const ApiRequest& request) {
         
         // 结束HTTP请求
         httpClient->end();
-    } catch (const std::exception& e) {
-        // 捕获C++异常
-        response.status = API_STATUS_ERROR;
-        response.error = "异常：" + String(e.what());
-        failedRequests++;
-        DEBUG_PRINTLN("API请求异常：" + String(e.what()));
-        httpClient->end();
-    } catch (...) {
-        // 捕获所有其他异常
-        response.status = API_STATUS_ERROR;
-        response.error = "未知异常";
-        failedRequests++;
-        DEBUG_PRINTLN("API请求未知异常");
-        httpClient->end();
-    }
     
     // 计算响应时间
     unsigned long responseTime = millis() - response.timestamp;
@@ -357,12 +339,12 @@ void APIManager::setProxy(const String& proxyHost, uint16_t proxyPort) {
 void APIManager::setCertificateVerify(bool verify) {
     this->verifyCertificate = verify;
     
-    if (verify) {
-        wifiClient->setInsecure(false);
-        DEBUG_PRINTLN("启用证书验证");
-    } else {
-        wifiClient->setInsecure(true);
+    if (!verify) {
+        wifiClient->setInsecure(); // 禁用证书验证
         DEBUG_PRINTLN("禁用证书验证");
+    } else {
+        DEBUG_PRINTLN("启用证书验证");
+        // 启用证书验证时不需要调用setInsecure()，这是默认行为
     }
 }
 

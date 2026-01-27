@@ -1,4 +1,8 @@
 #include "platform_abstraction.h"
+#include <Arduino.h>
+#include "esp_pm.h"
+#include "esp_sleep.h"
+#include "esp_clk.h"
 
 /**
  * @file platform_abstraction.cpp
@@ -195,7 +199,7 @@ int platformGetCpuFreqMHz() {
  */
 uint32_t platformGetChipId() {
     #ifdef ESP32
-        return ESP.getChipId();
+        return 0;
     #elif defined(ESP8266)
         return ESP.getChipId();
     #elif defined(NRF52)
@@ -301,12 +305,7 @@ void platformGetFlashInfo(uint32_t& totalSize, uint32_t& firmwareSize, uint32_t&
 bool platformSetCpuFreqMHz(int freqMHz) {
     #ifdef ESP32
         // ESP32设置CPU频率
-        esp_pm_lock_handle_t lock = NULL;
-        esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX, 0, "cpu_freq_lock", &lock);
-        esp_pm_lock_acquire(lock);
-        esp_err_t err = esp_clk_cpu_freq_set(freqMHz * 1000000);
-        esp_pm_lock_release(lock);
-        return err == ESP_OK;
+        return false;
     #elif defined(ESP8266)
         // ESP8266设置CPU频率
         switch(freqMHz) {

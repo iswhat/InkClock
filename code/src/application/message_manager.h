@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include "../coresystem/config.h"
+#include "../coresystem/data_types.h"
 
 // 消息类型枚举
 enum MessageType {
@@ -17,40 +18,6 @@ enum MessageStatus {
   MESSAGE_READ
 };
 
-// 消息优先级枚举
-enum MessagePriority {
-  MESSAGE_PRIORITY_LOW,    // 低优先级
-  MESSAGE_PRIORITY_NORMAL, // 普通优先级
-  MESSAGE_PRIORITY_HIGH,   // 高优先级
-  MESSAGE_PRIORITY_URGENT  // 紧急优先级
-};
-
-// 消息分类枚举
-enum MessageCategory {
-  MESSAGE_CATEGORY_GENERAL,   // 通用消息
-  MESSAGE_CATEGORY_ALARM,     // 报警消息
-  MESSAGE_CATEGORY_NOTIFICATION, // 通知消息
-  MESSAGE_CATEGORY_SYSTEM,    // 系统消息
-  MESSAGE_CATEGORY_USER,      // 用户消息
-  MESSAGE_CATEGORY_WEATHER,   // 天气消息
-  MESSAGE_CATEGORY_SENSOR,    // 传感器消息
-  MESSAGE_CATEGORY_STOCK,     // 股票消息
-  MESSAGE_CATEGORY_CALENDAR   // 日历消息
-};
-
-// 消息数据结构
-typedef struct {
-  int id;                     // 消息ID
-  String sender;              // 发送者
-  String content;             // 消息内容（文本消息）或文件名（音频消息）
-  MessageType type;           // 消息类型
-  MessageStatus status;       // 消息状态
-  MessagePriority priority;   // 消息优先级
-  MessageCategory category;   // 消息分类
-  String time;                // 发送时间
-  bool valid;                 // 数据是否有效
-} MessageData;
-
 class MessageManager {
 public:
   MessageManager();
@@ -62,12 +29,12 @@ public:
   
   // 消息管理功能
   bool addMessage(String sender, String content, MessageType type = MESSAGE_TEXT, MessagePriority priority = MESSAGE_PRIORITY_NORMAL, MessageCategory category = MESSAGE_CATEGORY_GENERAL);
-  bool deleteMessage(int id);
-  bool markMessageAsRead(int id);
+  bool deleteMessage(String id);
+  bool markMessageAsRead(String id);
   bool hasNewMessage();
   
   // 获取消息
-  MessageData getMessage(int id);
+  MessageData getMessage(String id);
   MessageData getLatestMessage();
   int getMessageCount();
   int getUnreadMessageCount();
@@ -96,8 +63,8 @@ private:
   
   // 私有方法
   void sortMessages();
-  int findMessageIndex(int id);
-  bool isValidMessageId(int id);
+  int findMessageIndex(String id);
+  bool isValidMessageId(String id);
 };
 
 #endif // MESSAGE_MANAGER_H

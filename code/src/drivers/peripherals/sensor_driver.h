@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include "../../coresystem/config.h"
+#include "../../coresystem/data_types.h"
 
 // 传感器类型枚举
 enum SensorType {
@@ -57,28 +58,7 @@ enum SensorType {
   SENSOR_TYPE_LPS25HB       // STMicroelectronics LPS25HB 气压传感器
 };
 
-// 传感器数据结构
-typedef struct {
-  // 基本状态
-  bool valid;        // 数据是否有效
-  unsigned long timestamp; // 数据采集时间戳
-  
-  // 温湿度数据
-  float temperature; // 温度（摄氏度）
-  float humidity;    // 湿度（%）
-  
-  // 人体感应数据
-  bool motionDetected; // 是否检测到人体移动
-  
-  // 气体传感器数据
-  int gasLevel;      // 气体浓度（0-1023）
-  
-  // 火焰传感器数据
-  bool flameDetected; // 是否检测到火焰
-  
-  // 光照传感器数据
-  int lightLevel;    // 光照强度（0-1023）
-} SensorData;
+
 
 // 传感器配置结构
 typedef struct {

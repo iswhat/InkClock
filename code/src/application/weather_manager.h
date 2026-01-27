@@ -5,27 +5,10 @@
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include "../coresystem/config.h"
-#include "../services/api_manager.h"
+#include "../coresystem/data_types.h"
+#include "api_manager.h"
 
-// 天气数据结构
-typedef struct {
-  String city;          // 城市名称
-  float temp;           // 当前温度（摄氏度）
-  int humidity;         // 湿度（%）
-  String condition;     // 天气状况（如"晴"、"多云"等）
-  String wind;          // 风力风向
-  float tempMin;        // 最低温度
-  float tempMax;        // 最高温度
-  int pressure;         // 气压
-  int visibility;       // 能见度
-  long sunrise;         // 日出时间（Unix时间戳）
-  long sunset;          // 日落时间（Unix时间戳）
-  int airQuality;       // 空气质量指数（AQI）
-  String airQualityLevel; // 空气质量级别
-  float uvIndex;        // 紫外线指数
-  String uvIndexLevel;  // 紫外线指数级别
-  bool valid;           // 数据是否有效
-} WeatherData;
+
 
 // 天气预报数据结构
 typedef struct {
@@ -56,6 +39,11 @@ public:
   // 检查数据是否需要更新
   bool isDataStale();
   
+  // 公共方法
+  String getWeatherIcon(String condition);
+  bool hasValidData();
+  void setDefaultWeatherData();
+  
 private:
   // HTTPS客户端
   WiFiClientSecure client;
@@ -72,8 +60,7 @@ private:
   // 私有方法
   bool fetchWeatherData();
   void parseWeatherData(String json);
-  void parseWeatherDataBackup(String json);
-  String getWeatherIcon(String condition);
+  bool parseWeatherDataBackup(String json);
   String convertWindSpeed(float speed);
   String convertWindDirection(float deg);
 };

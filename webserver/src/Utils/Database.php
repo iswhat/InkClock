@@ -546,8 +546,8 @@ class Database {
                 $rows[] = $row;
             }
             
-            $stmt->close();
             $result->finalize();
+            $stmt->close();
             
             $duration = microtime(true) - $startTime;
             $this->logger->databaseLog($optimizedSql, $params, $duration);

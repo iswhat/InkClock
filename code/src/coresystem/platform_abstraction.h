@@ -10,6 +10,26 @@
  */
 
 // 平台类型定义
+#ifdef PLATFORM_ESP32
+#undef PLATFORM_ESP32
+#endif
+
+#ifdef PLATFORM_ESP8266
+#undef PLATFORM_ESP8266
+#endif
+
+#ifdef PLATFORM_NRF52
+#undef PLATFORM_NRF52
+#endif
+
+#ifdef PLATFORM_STM32
+#undef PLATFORM_STM32
+#endif
+
+#ifdef PLATFORM_RP2040
+#undef PLATFORM_RP2040
+#endif
+
 enum class PlatformType {
     PLATFORM_ESP32,
     PLATFORM_ESP8266,

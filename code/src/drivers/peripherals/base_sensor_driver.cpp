@@ -1,4 +1,6 @@
 #include "base_sensor_driver.h"
+#include "../../coresystem/platform_abstraction.h"
+#include "../../coresystem/config.h"
 
 BaseSensorDriver::BaseSensorDriver() {
   initialized = false;
@@ -91,40 +93,39 @@ void BaseSensorDriver::recordSuccess() {
 bool BaseSensorDriver::matchHardware() {
   DEBUG_PRINTLN("检测传感器硬件匹配...");
   
-  try {
-    // 创建一个默认配置用于硬件检测
-    SensorConfig defaultConfig;
-    defaultConfig.type = getType();
-    defaultConfig.pin = -1; // 默认值，子类可以根据需要修改
-    defaultConfig.address = 0; // 默认值，子类可以根据需要修改
-    defaultConfig.updateInterval = 60000;
-    defaultConfig.tempOffset = 0.0;
-    defaultConfig.humOffset = 0.0;
+  // 创建一个默认配置用于硬件检测
+  SensorConfig defaultConfig;
+  defaultConfig.type = getType();
+  defaultConfig.pin = -1; // 默认值，子类可以根据需要修改
+  defaultConfig.address = 0; // 默认值，子类可以根据需要修改
+  defaultConfig.updateInterval = 60000;
+  defaultConfig.tempOffset = 0.0;
+  defaultConfig.humOffset = 0.0;
+  defaultConfig.tempMinThreshold = -40.0;
+  defaultConfig.tempMaxThreshold = 85.0;
+  defaultConfig.humidityMinThreshold = 0.0;
+  defaultConfig.humidityMaxThreshold = 100.0;
+  defaultConfig.gasThreshold = 0;
+  defaultConfig.flameThreshold = 0;
+  defaultConfig.lightThreshold = 0;
+  
+  // 尝试初始化传感器来检测硬件
+  bool initResult = init(defaultConfig);
+  
+  if (initResult) {
+    // 初始化成功，尝试读取一次数据
+    SensorData testData;
+    bool readResult = readData(testData);
     
-    // 尝试初始化传感器来检测硬件
-    bool initResult = init(defaultConfig);
+    // 重置传感器状态，因为这只是检测，不是真正的初始化
+    initialized = false;
+    working = false;
     
-    if (initResult) {
-      // 初始化成功，尝试读取一次数据
-      SensorData testData;
-      bool readResult = readData(testData);
-      
-      // 重置传感器状态，因为这只是检测，不是真正的初始化
-      initialized = false;
-      working = false;
-      
-      // 如果初始化成功且能读取到有效数据，说明硬件匹配
-      return readResult && testData.valid;
-    }
-    
-    return false;
-  } catch (const std::exception& e) {
-    DEBUG_PRINTLN("传感器硬件匹配失败: " + String(e.what()));
-    return false;
-  } catch (...) {
-    DEBUG_PRINTLN("传感器硬件匹配失败: 未知异常");
-    return false;
+    // 如果初始化成功且能读取到有效数据，说明硬件匹配
+    return readResult && testData.valid;
   }
+  
+  return false;
 }
 
 // 填充传感器数据的通用方法
@@ -132,7 +133,6 @@ void BaseSensorDriver::fillSensorData(SensorData& data, float temperature, float
                                      bool motionDetected, float gasLevel,
                                      bool flameDetected, float lightLevel) {
   data.valid = true;
-  data.timestamp = platformGetMillis();
   data.temperature = temperature;
   data.humidity = humidity;
   data.motionDetected = motionDetected;

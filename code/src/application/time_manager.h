@@ -5,20 +5,9 @@
 #include <WiFiUdp.h>
 #include <time.h>
 #include "../coresystem/config.h"
-#include "../services/api_manager.h"
-// 时间数据结构
-typedef struct {
-  int year;
-  int month;
-  int day;
-  int hour;
-  int minute;
-  int second;
-  int weekday; // 0-6, 0表示周日
-  bool isLeapYear; // 是否是闰年
-  String lunarDate; // 农历日期
-  String solarTerm; // 节气
-} TimeData;
+#include "../coresystem/data_types.h"
+#include "api_manager.h"
+
 
 class TimeManager {
 public:
@@ -34,6 +23,7 @@ public:
   String getTimeString(); // 获取格式化时间字符串，如"12:34:56"
   String getDateString(); // 获取格式化日期字符串，如"2023-01-01 星期日"
   String getLunarDateString(); // 获取农历日期字符串
+  String getDateTimeString(); // 获取格式化日期时间字符串，如"2023-01-01 星期日 12:34:56"
   
   // 设置时间
   void setTime(int hour, int minute, int second);

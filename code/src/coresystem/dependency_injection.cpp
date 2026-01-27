@@ -1,4 +1,19 @@
 #include "dependency_injection.h"
+#include "error_handling.h"
+#include "config_manager.h"
+#include "../application/wifi_manager.h"
+#include "network_manager.h"
+#include "../application/api_manager.h"
+#include "../application/time_manager.h"
+#include "../application/geo_manager.h"
+#include "../application/lunar_manager.h"
+#include "../application/weather_manager.h"
+#include "../application/sensor_manager.h"
+#include "../application/stock_manager.h"
+#include "../application/message_manager.h"
+#include "../application/power_manager.h"
+#include "plugin_manager.h"
+#include "../application/display_manager.h"
 
 // 前向声明所有管理器类
 class WiFiManager;

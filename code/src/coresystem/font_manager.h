@@ -3,8 +3,12 @@
 
 #include <Arduino.h>
 #include <vector>
-#include <GxFonts/GxFonts.h>
 #include "config.h"
+
+// 字体相关常量
+#define DEFAULT_FONT "default"
+#define FONT_DIR "/fonts"
+#define MAX_FONTS 20
 
 struct FontInfo {
   String name;        // 字体名称

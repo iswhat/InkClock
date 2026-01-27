@@ -5,9 +5,10 @@
 #include <vector>
 #include <functional>
 #include <memory>
+#include <map>
 #include "event_bus.h"
-#include "../drivers/sensors/sensor_driver.h"
-#include "../drivers/displays/display_driver.h"
+#include "../drivers/peripherals/sensor_driver.h"
+#include "../drivers/peripherals/display_driver.h"
 #include "../drivers/audio_driver.h"
 
 // 驱动类型枚举
@@ -268,7 +269,7 @@ public:
     info.driverType = DRIVER_TYPE_DISPLAY;
     info.status = DRIVER_STATUS_UNINITIALIZED;
     info.enabled = false;
-    info.deviceId = String(driver->getType());
+    info.deviceId = "eink_display";
     info.deviceName = "EinkDisplay";
     info.deviceType = "display";
     info.firmwareVersion = "1.0.0";
@@ -443,9 +444,9 @@ public:
   }
   
   // 根据显示类型获取驱动
-  IDisplayDriver* getDisplayDriver(DisplayType type) {
+  IDisplayDriver* getDisplayDriver(DisplayCategory type) {
     for (auto driver : displayDrivers) {
-      if (driver->getType() == type) {
+      if (driver->getDisplayType() == type) {
         return driver;
       }
     }
@@ -503,34 +504,29 @@ public:
       String driverName = "Eink_Driver";
       updateDriverStatus(driverName, DRIVER_STATUS_INITIALIZING);
       
-      try {
-        // 先使用matchHardware()快速检测硬件，减少不必要的完整初始化
-        if (driver->matchHardware()) {
-          // 硬件匹配成功，进行完整初始化
-          if (driver->init()) {
-            updateDriverStatus(driverName, DRIVER_STATUS_READY);
-            
-            // 创建设备信息
-            String deviceId = String(driver->getType());
-            DeviceInfo deviceInfo = createDeviceInfo(deviceId, "EinkDisplay", "display", 
-                                                   driverName, DEVICE_STATUS_DISCOVERED, "Auto-detected");
-            deviceInfos.push_back(deviceInfo);
-            
-            // 发布设备发现事件
-            publishDeviceDiscovered(deviceInfo);
-            
-            return driver;
-          }
+      // 先使用matchHardware()快速检测硬件，减少不必要的完整初始化
+      if (driver->matchHardware()) {
+        // 硬件匹配成功，进行完整初始化
+        if (driver->init()) {
+          updateDriverStatus(driverName, DRIVER_STATUS_READY);
+          
+          // 创建设备信息
+          String deviceId = "eink_display";
+          DeviceInfo deviceInfo = createDeviceInfo(deviceId, "EinkDisplay", "display", 
+                                                 driverName, DEVICE_STATUS_DISCOVERED, "Auto-detected");
+          deviceInfos.push_back(deviceInfo);
+          
+          // 发布设备发现事件
+          publishDeviceDiscovered(deviceInfo);
+          
+          return driver;
         }
-      } catch (const std::exception& e) {
-        Serial.printf("Display driver detection failed: %s\n", e.what());
-        publishDriverError(driverName, String("Eink driver initialization failed: ") + e.what(), 2002);
-      } catch (...) {
-        Serial.println("Display driver detection failed with unknown error");
-        publishDriverError(driverName, "Eink driver initialization failed with unknown error", 2002);
       }
       
       updateDriverStatus(driverName, DRIVER_STATUS_ERROR);
+      
+      // 发布驱动错误事件
+      publishDriverError(driverName, "Eink driver initialization failed", 2002);
     }
     
     return nullptr;
@@ -547,34 +543,29 @@ public:
       String driverName = String(driver->getType());
       updateDriverStatus(driverName, DRIVER_STATUS_INITIALIZING);
       
-      try {
-        // 先使用matchHardware()快速检测硬件，减少不必要的完整初始化
-        if (driver->matchHardware()) {
-          // 硬件匹配成功，进行完整初始化
-          if (driver->init()) {
-            updateDriverStatus(driverName, DRIVER_STATUS_READY);
-            
-            // 创建设备信息
-            String deviceId = String(driver->getType());
-            DeviceInfo deviceInfo = createDeviceInfo(deviceId, "AudioDevice", "audio", 
-                                                   driverName, DEVICE_STATUS_DISCOVERED, "Auto-detected");
-            deviceInfos.push_back(deviceInfo);
-            
-            // 发布设备发现事件
-            publishDeviceDiscovered(deviceInfo);
-            
-            return driver;
-          }
+      // 先使用matchHardware()快速检测硬件，减少不必要的完整初始化
+      if (driver->matchHardware()) {
+        // 硬件匹配成功，进行完整初始化
+        if (driver->init()) {
+          updateDriverStatus(driverName, DRIVER_STATUS_READY);
+          
+          // 创建设备信息
+          String deviceId = String(driver->getType());
+          DeviceInfo deviceInfo = createDeviceInfo(deviceId, "AudioDevice", "audio", 
+                                                 driverName, DEVICE_STATUS_DISCOVERED, "Auto-detected");
+          deviceInfos.push_back(deviceInfo);
+          
+          // 发布设备发现事件
+          publishDeviceDiscovered(deviceInfo);
+          
+          return driver;
         }
-      } catch (const std::exception& e) {
-        Serial.printf("Audio driver detection failed: %s\n", e.what());
-        publishDriverError(driverName, String("Audio driver initialization failed: ") + e.what(), 2003);
-      } catch (...) {
-        Serial.println("Audio driver detection failed with unknown error");
-        publishDriverError(driverName, "Audio driver initialization failed with unknown error", 2003);
       }
       
       updateDriverStatus(driverName, DRIVER_STATUS_ERROR);
+      
+      // 发布驱动错误事件
+      publishDriverError(driverName, "Audio driver initialization failed", 2003);
     }
     
     return nullptr;
@@ -728,7 +719,8 @@ public:
     // 扫描显示设备（只支持EINK）
     for (auto driver : displayDrivers) {
       String driverName = "Eink_Driver";
-      String deviceId = String(driver->getType());
+      // 使用DisplayCategory枚举值作为deviceId
+      String deviceId = String(static_cast<int>(driver->getDisplayType()));
       String deviceName = "EinkDisplay";
       
       updateDriverStatus(driverName, DRIVER_STATUS_INITIALIZING);

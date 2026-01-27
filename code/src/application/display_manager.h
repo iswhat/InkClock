@@ -8,9 +8,15 @@
 #endif
 #include "../coresystem/config.h"
 #include "../coresystem/event_bus.h"
+#include "../coresystem/data_types.h"
 
-// 前向声明驱动接口
-class IDisplayDriver;
+// 包含显示驱动接口头文件
+#include "../drivers/peripherals/display_driver.h"
+// 包含GxEPD颜色常量定义
+#include "../coresystem/gxepd_colors.h"
+
+// 包含农历管理器头文件
+#include "lunar_manager.h"
 
 // 右侧页面类型枚举
 enum RightPageType {
@@ -99,6 +105,9 @@ public:
   
   // 获取屏幕高度
   int16_t getHeight() const;
+  
+  // 设置刷新间隔
+  void setRefreshInterval(unsigned long interval) { /* 空实现，用于兼容 */ }
   
   // 布局管理
   void setLayoutMode(LayoutMode mode);
@@ -229,7 +238,7 @@ private:
   void drawDigitalClock(int x, int y, String time, String date);
   
   // 绘制时钟（模拟模式）
-  void drawAnalogClock(int x, int y, int hour, int minute, int second);
+  void drawAnalogClock(int x, int y, int hour, int minute, int second, int millisecond = 0);
   
   // 绘制时钟（文字模式）
   void drawTextClock(int x, int y, int hour, int minute, int second);

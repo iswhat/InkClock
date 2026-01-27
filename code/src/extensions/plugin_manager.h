@@ -2,8 +2,11 @@
 #define PLUGIN_MANAGER_H
 
 #include <Arduino.h>
-#include "../core/config.h"
-#include "../core/event_bus.h"
+#include "../coresystem/config.h"
+#include "../coresystem/event_bus.h"
+
+// 插件配置常量
+#define MAX_PLUGINS 10 // 最大插件数量
 
 // 插件状态枚举
 enum PluginStatus {

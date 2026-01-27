@@ -362,15 +362,11 @@ bool ConfigManager::setString(const String& key, const String& value, ConfigLeve
 }
 
 bool ConfigManager::setInt(const String& key, int value, ConfigLevel level) {
-    Stringstream ss;
-    ss << value;
-    return setString(key, ss.str().c_str(), level);
+    return setString(key, String(value), level);
 }
 
 bool ConfigManager::setFloat(const String& key, float value, ConfigLevel level) {
-    Stringstream ss;
-    ss << value;
-    return setString(key, ss.str().c_str(), level);
+    return setString(key, String(value), level);
 }
 
 bool ConfigManager::setBool(const String& key, bool value, ConfigLevel level) {
@@ -497,26 +493,25 @@ bool ConfigManager::validateAllConfig() const {
 
 // 导出配置为JSON
 String ConfigManager::exportConfigToJson() const {
-    Stringstream ss;
-    ss << "{";
+    String result = "{";
     
     bool first = true;
     for (const auto& pair : configItems) {
         if (!first) {
-            ss << ",";
+            result += ",";
         }
-        ss << "\"" << pair.first.c_str() << "\":{";
-        ss << "\"value\":\"" << pair.second->getValue().c_str() << "\",";
-        ss << "\"description\":\"" << pair.second->getDescription().c_str() << "\",";
-        ss << "\"level\":" << pair.second->getLevel() << ",";
-        ss << "\"editable\":" << (pair.second->isEditable() ? "true" : "false") << ",";
-        ss << "\"defaultValue\":\"" << pair.second->getDefaultValue().c_str() << "\"";
-        ss << "}";
+        result += "\"" + pair.first + "\":{";
+        result += "\"value\":\"" + pair.second->getValue() + "\",";
+        result += "\"description\":\"" + pair.second->getDescription() + "\",";
+        result += "\"level\":" + String(pair.second->getLevel()) + ",";
+        result += "\"editable\":" + String(pair.second->isEditable() ? "true" : "false") + ",";
+        result += "\"defaultValue\":\"" + pair.second->getDefaultValue() + "\"";
+        result += "}";
         first = false;
     }
     
-    ss << "}";
-    return ss.str().c_str();
+    result += "}";
+    return result;
 }
 
 // 从JSON导入配置

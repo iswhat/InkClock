@@ -2,7 +2,7 @@
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
 #include "../app/web_client.h"
-#include "../services/wifi_manager.h"
+#include "application/wifi_manager.h"
 
 PluginManager::PluginManager() {
   // 初始化插件数组
@@ -436,7 +436,7 @@ bool PluginManager::savePlugins() {
   DEBUG_PRINTLN("保存插件配置到文件...");
   
   // 创建JSON文档
-  DynamicJsonDocument doc(4096);
+  JsonDocument doc;
   
   // 添加插件数组
   JsonArray pluginArray = doc.createNestedArray("plugins");
@@ -490,7 +490,7 @@ bool PluginManager::loadPlugins() {
   }
   
   // 创建JSON文档
-  DynamicJsonDocument doc(4096);
+  JsonDocument doc;
   
   // 从文件反序列化JSON
   DeserializationError error = deserializeJson(doc, file);
@@ -647,7 +647,7 @@ bool PluginManager::updateURLPlugin(String name) {
         case PLUGIN_TYPE_URL_JSON:
             // 解析JSON数据
             try {
-                DynamicJsonDocument doc(2048);
+                JsonDocument doc;
                 DeserializationError error = deserializeJson(doc, response);
                 if (error) {
                     DEBUG_PRINT("JSON解析失败: ");

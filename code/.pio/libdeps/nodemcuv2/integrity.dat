@@ -1,0 +1,8 @@
+adafruit/Adafruit GFX Library@^1.12.4
+greiman/SdFat@^2.3.1
+tesla809/ESPAsyncTCP@^2.0.0
+mathieucarbou/ESP Async WebServer@^3.0.6
+thingpulse/ESP8266 and ESP32 OLED driver for SSD1306 displays@^4.6.2
+adafruit/Adafruit Unified Sensor@^1.1.15
+bblanchon/ArduinoJson@^7.4.2
+bodmer/TFT_eSPI@^2.5.43

@@ -2,8 +2,9 @@
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
-#include "../services/wifi_manager.h"
-#include "../modules/message_manager.h"
+#include "application/wifi_manager.h"
+#include "application/message_manager.h"
+#include "application/api_manager.h"
 
 // 外部全局对象
 extern WiFiManager wifiManager;
@@ -93,7 +94,7 @@ bool WebClient::registerDevice() {
     // 检查请求结果
     if (apiResponse.status == API_STATUS_SUCCESS) {
       // 解析响应
-      DynamicJsonDocument doc(1024);
+      JsonDocument doc;
       if (parseJsonResponse(apiResponse.response, doc)) {
         if (doc["success"] == true) {
           deviceId = doc["device_id"].as<String>();
@@ -132,7 +133,7 @@ bool WebClient::fetchMessages() {
     // 检查请求结果
     if (apiResponse.status == API_STATUS_SUCCESS || apiResponse.status == API_STATUS_CACHED) {
       // 解析响应
-      DynamicJsonDocument doc(2048);
+      JsonDocument doc;
       if (parseJsonResponse(apiResponse.response, doc)) {
         if (doc.containsKey("messages")) {
           JsonArray messages = doc["messages"];
@@ -156,7 +157,7 @@ bool WebClient::fetchMessages() {
 
 bool WebClient::sendMessage(String content, String type) {
   // 构建消息内容
-  DynamicJsonDocument doc(512);
+  JsonDocument doc;
   doc["device_id"] = deviceId;
   doc["content"] = content;
   doc["type"] = type;
@@ -179,7 +180,7 @@ bool WebClient::sendMessage(String content, String type) {
     // 检查请求结果
     if (apiResponse.status == API_STATUS_SUCCESS) {
       // 解析响应
-      DynamicJsonDocument respDoc(512);
+      JsonDocument respDoc;
       if (parseJsonResponse(apiResponse.response, respDoc)) {
         if (respDoc["success"] == true) {
           DEBUG_PRINTLN("消息发送成功");
@@ -198,7 +199,7 @@ bool WebClient::sendMessage(String content, String type) {
 }
 
 String WebClient::getDeviceInfo() {
-  DynamicJsonDocument doc(1024);
+  JsonDocument doc;
   
   // 设备信息
   doc["mac_address"] = WiFi.macAddress();
@@ -264,7 +265,7 @@ void WebClient::saveDeviceId(String id) {
   }
 }
 
-bool WebClient::parseJsonResponse(String response, DynamicJsonDocument& doc) {
+bool WebClient::parseJsonResponse(String response, JsonDocument& doc) {
   // 找到JSON响应开始位置
   int jsonStart = response.indexOf('{');
   if (jsonStart == -1) {

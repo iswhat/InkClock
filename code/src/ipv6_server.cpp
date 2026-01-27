@@ -73,7 +73,7 @@ void IPv6Server::handleMessagePush() {
   }
   
   // 解析JSON
-  DynamicJsonDocument doc(1024);
+  JsonDocument doc;
   DeserializationError error = deserializeJson(doc, body);
   if (error) {
     String errorStr = "{\"error\": \"Invalid JSON: ";
@@ -115,7 +115,7 @@ void IPv6Server::handleMessagePush() {
 }
 
 void IPv6Server::handleStatus() {
-  DynamicJsonDocument doc(1024);
+  JsonDocument doc;
   
   doc["status"] = "online";
   doc["ip_address"] = wifiManager.getIPAddress();

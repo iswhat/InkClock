@@ -7,8 +7,8 @@
  */
 
 #include "geo_manager.h"
-#include "../services/wifi_manager.h"
-#include "../services/api_manager.h"
+#include "application/wifi_manager.h"
+#include "application/api_manager.h"
 #include <ArduinoJson.h>
 
 // 外部全局对象
@@ -170,7 +170,7 @@ bool GeoManager::tryDetectLocation(const char* apiUrl) {
     }
     
     // 解析JSON响应
-    DynamicJsonDocument doc(1024);
+    JsonDocument doc;
     DeserializationError error = deserializeJson(doc, response);
     
     if (error) {

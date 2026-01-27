@@ -8,7 +8,6 @@ extern WiFiManager wifiManager;
 // NTP配置
 const int NTP_PACKET_SIZE = 48;
 byte packetBuffer[NTP_PACKET_SIZE];
-const unsigned int NTP_UPDATE_INTERVAL = 3600000; // 1小时
 const int NTP_PORT = 123;
 
 TimeManager::TimeManager() {
@@ -28,17 +27,10 @@ TimeManager::TimeManager() {
   lastUpdate = 0;
   calculationPrecision = 3; // 默认最高精度
   
-  // 订阅农历数据更新事件
-  EVENT_SUBSCRIBE(EVENT_LUNAR_DATA_UPDATED, [this](EventType type, std::shared_ptr<EventData> data) {
-    auto lunarData = std::dynamic_pointer_cast<LunarDataEventData>(data);
-    if (lunarData) {
-      if (lunarData->year == currentTime.year && 
-          lunarData->month == currentTime.month && 
-          lunarData->day == currentTime.day) {
-        currentTime.lunarDate = lunarData->lunarDate;
-        currentTime.solarTerm = lunarData->solarTerm;
-      }
-    }
+  // 订阅时间更新事件
+  EVENT_SUBSCRIBE(EVENT_TIME_UPDATED, [this](EventType type, std::shared_ptr<EventData> data) {
+    // 时间更新时，标记时间数据需要更新
+    timeUpdated = true;
   }, "TimeManager");
 }
 
@@ -108,13 +100,7 @@ void TimeManager::update() {
       }
       
       // 发布时间更新事件
-      auto timeData = std::make_shared<TimeDataEventData>(currentTime);
-      EVENT_PUBLISH(EVENT_TIME_UPDATED, timeData);
-      
-      // 如果日期改变，发布日期更新事件
-      if (dayChanged) {
-        EVENT_PUBLISH(EVENT_DATE_CHANGED, timeData);
-      }
+      EVENT_PUBLISH(EVENT_TIME_UPDATED, nullptr);
     }
   }
 }
@@ -309,14 +295,8 @@ void TimeManager::parseNTPTime(uint32_t unixTime) {
   currentTime.weekday = weekday;
   currentTime.isLeapYear = isLeapYear(years);
   
-  // 请求农历数据
-  auto requestData = std::make_shared<LunarRequestEventData>(years, month, days + 1);
-  EVENT_PUBLISH(EVENT_LUNAR_DATA_REQUESTED, requestData);
-  
   // 发布时间更新事件
-  auto timeData = std::make_shared<TimeDataEventData>(currentTime);
-  EVENT_PUBLISH(EVENT_TIME_UPDATED, timeData);
-  EVENT_PUBLISH(EVENT_DATE_CHANGED, timeData);
+  EVENT_PUBLISH(EVENT_TIME_UPDATED, nullptr);
 }
 
 String TimeManager::getWeekdayName(int weekday) {
@@ -361,23 +341,13 @@ String TimeManager::getDateTimeString() {
 
 // 获取系统负载等级
 int TimeManager::getSystemLoadLevel() {
-  // 获取核心系统实例
-  CoreSystem* coreSystem = CoreSystem::getInstance();
-  
-  // 获取内存信息
-  size_t freeHeap, minFreeHeap;
-  coreSystem->getMemoryInfo(freeHeap, minFreeHeap);
-  
-  // 计算内存使用率
-  size_t totalHeap = minFreeHeap * 10; // 估算总堆内存
-  size_t usedHeap = totalHeap - freeHeap;
-  int memoryUsage = (usedHeap * 100) / totalHeap;
+  // 使用ESP32内置API获取系统信息
+  size_t freeHeap = ESP.getFreeHeap();
+  size_t totalHeap = ESP.getMaxAllocHeap();
+  int memoryUsage = (totalHeap - freeHeap) * 100 / totalHeap;
   
   // 获取CPU频率
-  uint32_t cpuFreq = coreSystem->getCpuFrequencyMhz();
-  
-  // 获取电池电量
-  int batteryLevel = coreSystem->getBatteryPercentage();
+  uint32_t cpuFreq = ESP.getCpuFreqMHz();
   
   // 综合计算负载等级
   int loadLevel = 0;
@@ -393,12 +363,6 @@ int TimeManager::getSystemLoadLevel() {
   if (cpuFreq < 120) {
     loadLevel += 2;
   } else if (cpuFreq < 180) {
-    loadLevel += 1;
-  }
-  
-  if (batteryLevel < 20) {
-    loadLevel += 2;
-  } else if (batteryLevel < 50) {
     loadLevel += 1;
   }
   

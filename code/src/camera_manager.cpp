@@ -1,6 +1,11 @@
 #include "camera_manager.h"
 #include "coresystem/tf_card_manager.h"
 
+// 相机库包含
+#if CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1
+#include "esp_camera.h"
+#endif
+
 // 摄像头管理类实现
 CameraManager::CameraManager() {
   currentStatus = CAMERA_STATUS_IDLE;
@@ -66,23 +71,23 @@ bool CameraManager::initCamera() {
     camera_config_t config;
     config.ledc_channel = LEDC_CHANNEL_0;
     config.ledc_timer = LEDC_TIMER_0;
-    config.pin_pwdn = CAMERA_PIN_PWDN;
-    config.pin_reset = CAMERA_PIN_RESET;
-    config.pin_xclk = CAMERA_PIN_XCLK;
-    config.pin_sscb_sda = CAMERA_PIN_SIOD;
-    config.pin_sscb_scl = CAMERA_PIN_SIOC;
+    config.pin_pwdn = -1;
+    config.pin_reset = -1;
+    config.pin_xclk = 21;
+    config.pin_sscb_sda = 26;
+    config.pin_sscb_scl = 27;
     
-    config.pin_d7 = CAMERA_PIN_D7;
-    config.pin_d6 = CAMERA_PIN_D6;
-    config.pin_d5 = CAMERA_PIN_D5;
-    config.pin_d4 = CAMERA_PIN_D4;
-    config.pin_d3 = CAMERA_PIN_D3;
-    config.pin_d2 = CAMERA_PIN_D2;
-    config.pin_d1 = CAMERA_PIN_D1;
-    config.pin_d0 = CAMERA_PIN_D0;
-    config.pin_vsync = CAMERA_PIN_VSYNC;
-    config.pin_href = CAMERA_PIN_HREF;
-    config.pin_pclk = CAMERA_PIN_PCLK;
+    config.pin_d7 = 35;
+    config.pin_d6 = 34;
+    config.pin_d5 = 39;
+    config.pin_d4 = 36;
+    config.pin_d3 = 19;
+    config.pin_d2 = 18;
+    config.pin_d1 = 5;
+    config.pin_d0 = 4;
+    config.pin_vsync = 25;
+    config.pin_href = 23;
+    config.pin_pclk = 22;
     
     // 设置像素格式
     config.pixel_format = PIXFORMAT_JPEG;

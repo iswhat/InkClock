@@ -1,5 +1,5 @@
 #include "eink_display.h"
-#include "../../services/time_manager.h"
+#include "../../application/time_manager.h"
 #include "../../modules/weather_manager.h"
 #include "../../modules/sensor_manager.h"
 #include "../../modules/stock_manager.h"

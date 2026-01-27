@@ -1,5 +1,5 @@
 #include "feedback_manager.h"
-#include "display_driver.h"
+#include "../drivers/peripherals/display_driver.h"
 
 FeedbackManager::FeedbackManager() {
   // 初始化LED引脚
@@ -66,9 +66,7 @@ void FeedbackManager::triggerFeedback(FeedbackType type, FeedbackMode mode) {
   };
   
   // 更新反馈模式
-  if (mode != FEEDBACK_MODE_NONE) {
-    feedbackMode = mode;
-  }
+  feedbackMode = mode;
   
   // 立即更新反馈
   update();
@@ -290,14 +288,14 @@ void FeedbackManager::updateScreenFeedback() {
       // 警告：屏幕中央显示黄色感叹号
       driver->fillRect(width/2 - 30, height/2 - 30, 60, 60, 0xFFFF); // 白色背景
       driver->fillRect(width/2 - 5, height/2 - 20, 10, 40, 0x0000); // 黑色
-      driver->fillCircle(width/2, height/2 + 20, 5, 0x0000); // 黑色
+      driver->fillRect(width/2 - 5, height/2 + 15, 10, 10, 0x0000); // 黑色（用矩形替代圆形）
       driver->update(width/2 - 35, height/2 - 35, 70, 70);
       break;
       
     case FEEDBACK_INFO:
       // 信息：屏幕中央显示蓝色信息图标
       driver->fillRect(width/2 - 30, height/2 - 30, 60, 60, 0xFFFF); // 白色背景
-      driver->fillCircle(width/2, height/2 - 10, 10, 0x0000); // 黑色
+      driver->fillRect(width/2 - 10, height/2 - 20, 20, 20, 0x0000); // 黑色（用矩形替代圆形）
       driver->fillRect(width/2 - 5, height/2, 10, 20, 0x0000); // 黑色
       driver->update(width/2 - 35, height/2 - 35, 70, 70);
       break;

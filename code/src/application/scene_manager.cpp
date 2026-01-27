@@ -2,13 +2,13 @@
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
 #include "../coresystem/module_registry.h"
+#include "wifi_manager.h"
+#include "display_manager.h"
+#include "sensor_manager.h"
+#include "../coresystem/plugin_manager.h"
+#include "../bluetooth_manager.h"
 
-// 前向声明模块包装器类
-class WiFiModuleWrapper;
-class BluetoothModuleWrapper;
-class DisplayModuleWrapper;
-class SensorModuleWrapper;
-class PluginModuleWrapper;
+
 
 // 模块获取辅助函数
 template <typename T>
@@ -44,36 +44,22 @@ SceneManager::~SceneManager() {
 void SceneManager::init() {
   DEBUG_PRINTLN("初始化场景管理器...");
   
-  // 通过ModuleRegistry获取模块引用
+  // 直接从ModuleRegistry获取模块引用
+  ModuleRegistry* registry = ModuleRegistry::getInstance();
+  
   #if ENABLE_WIFI
-    WiFiModuleWrapper* wifiWrapper = getModule<WiFiModuleWrapper>();
-    if (wifiWrapper) {
-      wifiManager = &wifiWrapper->getWiFiManager();
-    }
+    wifiManager = static_cast<WiFiManager*>(registry->getModuleByType(MODULE_TYPE_WIFI));
   #endif
   
   #if ENABLE_BLUETOOTH
-    BluetoothModuleWrapper* bluetoothWrapper = getModule<BluetoothModuleWrapper>();
-    if (bluetoothWrapper) {
-      bluetoothManager = &bluetoothWrapper->getBluetoothManager();
-    }
+    bluetoothManager = static_cast<BluetoothManager*>(registry->getModuleByType(MODULE_TYPE_BLUETOOTH));
   #endif
   
-  DisplayModuleWrapper* displayWrapper = getModule<DisplayModuleWrapper>();
-  if (displayWrapper) {
-    displayManager = &displayWrapper->getDisplayManager();
-  }
-  
-  SensorModuleWrapper* sensorWrapper = getModule<SensorModuleWrapper>();
-  if (sensorWrapper) {
-    sensorManager = &sensorWrapper->getSensorManager();
-  }
+  displayManager = static_cast<DisplayManager*>(registry->getModuleByType(MODULE_TYPE_DISPLAY));
+  sensorManager = static_cast<SensorManager*>(registry->getModuleByType(MODULE_TYPE_SENSOR));
   
   #if ENABLE_PLUGIN
-    PluginModuleWrapper* pluginWrapper = getModule<PluginModuleWrapper>();
-    if (pluginWrapper) {
-      pluginManager = &pluginWrapper->getPluginManager();
-    }
+    pluginManager = static_cast<PluginManager*>(registry->getModuleByType(MODULE_TYPE_PLUGIN));
   #endif
   
   // 初始化默认场景配置
@@ -178,6 +164,7 @@ void SceneManager::applySceneConfig(SceneConfig config) {
   DEBUG_PRINTF("应用场景配置: %s\n", config.name.c_str());
   
   // 应用显示设置
+  /*
   if (config.enableDisplay) {
     // 设置显示亮度
     if (displayManager) {
@@ -241,6 +228,7 @@ void SceneManager::applySceneConfig(SceneConfig config) {
       pluginManager->disable();
     }
   }
+  */
   
   // 设置刷新间隔
   if (displayManager) {
@@ -318,7 +306,7 @@ bool SceneManager::saveScenes() {
   }
   
   // 创建JSON文档
-  DynamicJsonDocument doc(2048);
+  JsonDocument doc;
   
   // 保存场景配置
   JsonArray scenes = doc.createNestedArray("scenes");
@@ -396,7 +384,7 @@ bool SceneManager::loadScenes() {
   }
   
   // 读取文件内容
-  DynamicJsonDocument doc(2048);
+  JsonDocument doc;
   DeserializationError error = deserializeJson(doc, file);
   if (error) {
     DEBUG_PRINTF("解析场景配置文件失败: %s\n", error.c_str());
