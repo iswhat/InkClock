@@ -186,10 +186,9 @@ class User {
      * 用户登录
      * @param string $username 用户名或邮箱
      * @param string $password 密码
-     * @param string $twoFactorCode 双因素认证验证码（可选）
      * @return array 登录结果
      */
-    public function login($username, $password, $twoFactorCode = null) {
+    public function login($username, $password) {
         try {
             // 使用Database::query方法查询用户
             $sql = "SELECT u.id, u.username, u.email, u.password_hash, u.api_key, u.api_key_expires_at, u.status, u.is_admin 
@@ -237,7 +236,11 @@ class User {
                     'apiKeyExpiresAt' => $apiKeyExpiresAt,
                     'id' => $user['id']
                 ];
-                $this->db->execute($updateSql, $updateParams);
+                $stmt = $this->db->prepare($updateSql);
+                foreach ($updateParams as $key => $value) {
+                    $stmt->bindValue($key, $value);
+                }
+                $stmt->execute();
             }
             
             // 更新最后登录时间
@@ -247,7 +250,11 @@ class User {
                 'last_login' => $lastLogin,
                 'id' => $user['id']
             ];
-            $this->db->execute($loginSql, $loginParams);
+            $stmt = $this->db->prepare($loginSql);
+            foreach ($loginParams as $key => $value) {
+                $stmt->bindValue($key, $value);
+            }
+            $stmt->execute();
             
             // 构建返回数据
             $returnData = array(
@@ -389,16 +396,15 @@ class User {
      * @return bool 是否有用户
      */
     public function hasUsers() {
-        // 检查数据库连接是否有效
-        if (!method_exists($this->db, 'query')) {
-            return false;
-        }
-        
         try {
-            // 使用Database::query方法，它返回数组
+            // 直接使用SQLite3的query方法
             $result = $this->db->query("SELECT * FROM users LIMIT 1");
-            // 检查结果数组长度
-            return count($result) > 0;
+            if ($result) {
+                // 尝试获取第一行数据
+                $row = $result->fetchArray(SQLITE3_ASSOC);
+                return $row !== false;
+            }
+            return false;
         } catch (\Exception $e) {
             return false;
         }
@@ -445,31 +451,21 @@ class User {
                 'created_at' => $createdAt
             ];
             
-            // 根据$db对象类型选择执行方式
-            if (method_exists($this->db, 'execute')) {
-                // 如果是Database类实例，使用execute方法
-                $result = $this->db->execute($sql, $params);
-                if ($result) {
-                    // 对于Database类，我们无法获取lastInsertRowID，所以返回null
-                    return ['success' => true, 'user_id' => null, 'api_key' => $apiKey];
-                }
-            } else {
-                // 否则，假设是直接的SQLite3连接
-                $stmt = $this->db->prepare($sql);
-                if ($stmt) {
-                    // 绑定参数
-                    $stmt->bindValue(':username', $username, SQLITE3_TEXT);
-                    $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-                    $stmt->bindValue(':password_hash', $passwordHash, SQLITE3_TEXT);
-                    $stmt->bindValue(':api_key', $apiKey, SQLITE3_TEXT);
-                    $stmt->bindValue(':created_at', $createdAt, SQLITE3_TEXT);
+            // 假设是直接的SQLite3连接
+            $stmt = $this->db->prepare($sql);
+            if ($stmt) {
+                // 绑定参数
+                $stmt->bindValue(':username', $username, SQLITE3_TEXT);
+                $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+                $stmt->bindValue(':password_hash', $passwordHash, SQLITE3_TEXT);
+                $stmt->bindValue(':api_key', $apiKey, SQLITE3_TEXT);
+                $stmt->bindValue(':created_at', $createdAt, SQLITE3_TEXT);
                     
                     $result = $stmt->execute();
                     if ($result) {
                         $userId = $this->db->lastInsertRowID();
                         return ['success' => true, 'user_id' => $userId, 'api_key' => $apiKey];
                     }
-                }
             }
             
             return ['success' => false, 'error' => '管理员创建失败'];
@@ -555,7 +551,7 @@ class User {
         $stmt = $this->db->prepare("DELETE FROM user_devices WHERE user_id = :user_id AND device_id = :device_id");
         $stmt->bindValue(':user_id', $userId, SQLITE3_INTEGER);
         $stmt->bindValue(':device_id', $deviceId, SQLITE3_TEXT);
-        $result = $stmt->execute();
+        $stmt->execute();
         
         return ['success' => $this->db->changes() > 0];
     }
@@ -572,7 +568,7 @@ class User {
         $stmt->bindValue(':nickname', $nickname, SQLITE3_TEXT);
         $stmt->bindValue(':user_id', $userId, SQLITE3_INTEGER);
         $stmt->bindValue(':device_id', $deviceId, SQLITE3_TEXT);
-        $result = $stmt->execute();
+        $stmt->execute();
         
         return ['success' => $this->db->changes() > 0];
     }
@@ -585,7 +581,6 @@ class User {
     public function getAllUsers($search = '') {
         try {
             $query = "SELECT id, username, email, is_admin, created_at, last_login, status FROM users";
-            $params = [];
             
             if (!empty($search)) {
                 $query .= " WHERE username LIKE :search OR email LIKE :search";

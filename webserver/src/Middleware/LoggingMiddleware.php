@@ -180,7 +180,11 @@ class LoggingMiddleware implements MiddlewareInterface {
     private function recordPerformanceMetrics($request, $executionTime, $statusCode) {
         try {
             // 获取数据库连接
-            $db = Database::getInstance()?->getConnection();
+            $dbInstance = Database::getInstance();
+            if (!$dbInstance) {
+                return;
+            }
+            $db = $dbInstance->getConnection();
             if (!$db) {
                 return;
             }
@@ -250,7 +254,11 @@ class LoggingMiddleware implements MiddlewareInterface {
      */
     private function recordToMetricsTable($metricName, $metricValue, $labels = []) {
         try {
-            $db = Database::getInstance()?->getConnection();
+            $dbInstance = Database::getInstance();
+            if (!$dbInstance) {
+                return;
+            }
+            $db = $dbInstance->getConnection();
             if (!$db) {
                 return;
             }
