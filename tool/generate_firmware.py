@@ -108,21 +108,26 @@ def check_platformio_installation():
 def install_platformio():
     """自动安装PlatformIO"""
     print("   正在自动安装PlatformIO...")
-    
+
     try:
         # 使用pip安装PlatformIO，添加--user参数确保安装到用户目录
+        # 设置5分钟超时，避免安装命令永久挂起
         print("   执行命令: pip install --user platformio")
-        result = subprocess.run([sys.executable, '-m', 'pip', 'install', '--user', 'platformio'], 
-                              capture_output=True, text=True, check=True)
+        result = subprocess.run([sys.executable, '-m', 'pip', 'install', '--user', 'platformio'],
+                              capture_output=True, text=True, check=True, timeout=300)
         print("   PlatformIO安装成功!")
-        
+
         # 安装完成后，使用python -m platformio来检测是否安装成功
         print("   验证PlatformIO安装...")
-        verify_result = subprocess.run([sys.executable, '-m', 'platformio', '--version'], 
-                                     capture_output=True, text=True, check=True)
+        verify_result = subprocess.run([sys.executable, '-m', 'platformio', '--version'],
+                                     capture_output=True, text=True, check=True, timeout=30)
         verify_output = verify_result.stdout.strip()
         print(f"   PlatformIO版本: {verify_output}")
         return True
+    except subprocess.TimeoutExpired as e:
+        print(f"   错误: PlatformIO安装超时（超过5分钟）")
+        print(f"   请检查网络连接或手动安装PlatformIO")
+        return False
     except subprocess.CalledProcessError as e:
         print(f"   错误: PlatformIO安装失败")
         print(f"   错误信息: {e.stderr}")
@@ -151,8 +156,8 @@ def check_platform_support(platform_name):
     
     for pio_cmd in pio_commands:
         try:
-            # 检查是否已安装该平台
-            result = subprocess.run(pio_cmd, capture_output=True, text=True, check=True)
+            # 检查是否已安装该平台，添加超时防止挂起
+            result = subprocess.run(pio_cmd, capture_output=True, text=True, check=True, timeout=60)
             
             # 映射平台名称到PlatformIO平台ID
             platform_id_mapping = {

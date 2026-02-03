@@ -1221,11 +1221,11 @@ const char* WebServerManager::plugin_list_html = R"(
                         </div>
                     </div>
                     
-                    <!-- 每日英语单词插件 -->
+                    <!-- Daily English Word Plugin -->
                     <div class="plugin-item">
                         <h3>Daily English Word</h3>
                         <div class="plugin-info">
-                            <p><strong>类型:</strong> URL JSON插件</p>
+                            <p><strong>Type:</strong> URL JSON Plugin</p>
                             <p><strong>Description:</strong> Get a daily English word with pronunciation, definition and example</p>
                             <p><strong>Update Frequency:</strong> Daily</p>
                              <p><strong>Author:</strong> iswhat</p>

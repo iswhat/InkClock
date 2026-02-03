@@ -8,6 +8,30 @@
 #include <ESP8266WiFi.h>
 #endif
 
+// 电池检测配置 - 可根据实际硬件修改
+// 注意：BATTERY_ADC_PIN在config.h中已定义，这里只定义其他参数
+#ifndef BATTERY_REF_VOLTAGE
+  #define BATTERY_REF_VOLTAGE 3.3   // ADC参考电压（伏特）
+#endif
+
+#ifndef BATTERY_ADC_RESOLUTION
+  #ifdef ESP32
+    #define BATTERY_ADC_RESOLUTION 4096.0  // ESP32 ADC分辨率
+  #elif defined(ESP8266)
+    #define BATTERY_ADC_RESOLUTION 1024.0  // ESP8266 ADC分辨率
+  #else
+    #define BATTERY_ADC_RESOLUTION 1024.0  // 默认ADC分辨率
+  #endif
+#endif
+
+#ifndef BATTERY_FULL_VOLTAGE
+  #define BATTERY_FULL_VOLTAGE 4.2   // 满电电压（伏特）
+#endif
+
+#ifndef BATTERY_EMPTY_VOLTAGE
+  #define BATTERY_EMPTY_VOLTAGE 3.0  // 空电电压（伏特）
+#endif
+
 // 静态实例初始化
 HardwareDetector* HardwareDetector::instance = nullptr;
 
@@ -1286,14 +1310,15 @@ bool PowerDetector::detectResources() {
   // 更新电源使用情况
   #ifdef ESP32
     // 在ESP32上，可以通过读取ADC值来检测电池电压
-    // 假设使用GPIO34作为电池电压检测引脚
-    int adcValue = analogRead(34);
-    float voltage = adcValue * (3.3 / 4096.0);
-    // 假设电池满电为4.2V，低电为3.0V
-    float batteryPercentage = ((voltage - 3.0) / (4.2 - 3.0)) * 100;
+    // 使用配置的电池ADC引脚和电压参数
+    int adcValue = analogRead(BATTERY_ADC_PIN);
+    float voltage = adcValue * (BATTERY_REF_VOLTAGE / BATTERY_ADC_RESOLUTION);
+
+    // 根据配置的电压范围计算电池百分比
+    float batteryPercentage = ((voltage - BATTERY_EMPTY_VOLTAGE) / (BATTERY_FULL_VOLTAGE - BATTERY_EMPTY_VOLTAGE)) * 100;
     if (batteryPercentage < 0) batteryPercentage = 0;
     if (batteryPercentage > 100) batteryPercentage = 100;
-    
+
     powerInfo.used = 100 - batteryPercentage;
     powerInfo.usage = powerInfo.used;
   #elif defined(ESP8266)

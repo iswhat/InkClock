@@ -1,6 +1,14 @@
 #include "config_manager.h"
 #include <sstream>
 #include <regex>
+#include <ArduinoJson.h>  // 用于JSON配置序列化
+
+// 包含SPIFFS头文件（根据平台选择）
+#if defined(ESP32)
+#include <SPIFFS.h>
+#elif defined(ESP8266)
+#include <FS.h>
+#endif
 
 // 静态实例初始化
 ConfigManager* ConfigManager::instance = nullptr;
@@ -528,27 +536,134 @@ SPIFFSConfigStorage::SPIFFSConfigStorage(const String& fileName) : configFileNam
 
 // SPIFFSConfigStorage 方法实现
 bool SPIFFSConfigStorage::init() {
-    // 这里可以添加SPIFFS初始化逻辑
-    // 注意：在Arduino环境中，需要使用SPIFFS库
+    // 尝试挂载SPIFFS文件系统
+    if (!SPIFFS.begin(false)) {
+        Serial.println("[CONFIG] SPIFFS mount failed");
+        return false;
+    }
     Serial.println("[CONFIG] SPIFFS storage initialized");
     return true;
 }
 
 bool SPIFFSConfigStorage::load(const String& key, String& value) {
-    // 这里可以添加SPIFFS加载逻辑
-    Serial.printf("[CONFIG] Load from SPIFFS: %s\n", key.c_str());
+    // 检查SPIFFS是否已挂载
+    if (!SPIFFS.begin(false)) {
+        Serial.println("[CONFIG] SPIFFS not mounted");
+        return false;
+    }
+
+    // 读取配置文件
+    File configFile = SPIFFS.open(configFileName, "r");
+    if (!configFile) {
+        Serial.printf("[CONFIG] Config file not found: %s\n", configFileName.c_str());
+        return false;
+    }
+
+    // 解析JSON配置
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, configFile);
+    configFile.close();
+
+    if (error) {
+        Serial.printf("[CONFIG] Failed to parse config: %s\n", error.c_str());
+        return false;
+    }
+
+    // 查找指定的key
+    if (doc.containsKey(key)) {
+        value = doc[key].as<String>();
+        Serial.printf("[CONFIG] Loaded from SPIFFS: %s = %s\n", key.c_str(), value.c_str());
+        return true;
+    }
+
     return false;
 }
 
 bool SPIFFSConfigStorage::save(const String& key, const String& value) {
-    // 这里可以添加SPIFFS保存逻辑
-    Serial.printf("[CONFIG] Save to SPIFFS: %s = %s\n", key.c_str(), value.c_str());
-    return false;
+    // 检查SPIFFS是否已挂载
+    if (!SPIFFS.begin(false)) {
+        Serial.println("[CONFIG] SPIFFS not mounted");
+        return false;
+    }
+
+    // 先读取现有配置
+    JsonDocument doc;
+    File configFile = SPIFFS.open(configFileName, "r");
+    if (configFile) {
+        DeserializationError error = deserializeJson(doc, configFile);
+        configFile.close();
+        if (error) {
+            Serial.printf("[CONFIG] Failed to parse existing config: %s\n", error.c_str());
+            // 继续使用空的doc
+        }
+    }
+
+    // 更新配置
+    doc[key] = value;
+
+    // 写回文件
+    configFile = SPIFFS.open(configFileName, "w");
+    if (!configFile) {
+        Serial.println("[CONFIG] Failed to open config file for writing");
+        return false;
+    }
+
+    size_t bytesWritten = serializeJson(doc, configFile);
+    configFile.close();
+
+    if (bytesWritten == 0) {
+        Serial.println("[CONFIG] Failed to write config");
+        return false;
+    }
+
+    Serial.printf("[CONFIG] Saved to SPIFFS: %s = %s\n", key.c_str(), value.c_str());
+    return true;
 }
 
 bool SPIFFSConfigStorage::remove(const String& key) {
-    // 这里可以添加SPIFFS删除逻辑
-    Serial.printf("[CONFIG] Remove from SPIFFS: %s\n", key.c_str());
+    // 检查SPIFFS是否已挂载
+    if (!SPIFFS.begin(false)) {
+        Serial.println("[CONFIG] SPIFFS not mounted");
+        return false;
+    }
+
+    // 读取现有配置
+    JsonDocument doc;
+    File configFile = SPIFFS.open(configFileName, "r");
+    if (configFile) {
+        DeserializationError error = deserializeJson(doc, configFile);
+        configFile.close();
+        if (error) {
+            Serial.printf("[CONFIG] Failed to parse existing config: %s\n", error.c_str());
+            return false;
+        }
+    } else {
+        return false;
+    }
+
+    // 删除指定的key
+    if (doc.containsKey(key)) {
+        doc.remove(key);
+        // 写回文件
+        configFile = SPIFFS.open(configFileName, "w");
+        if (!configFile) {
+            Serial.println("[CONFIG] Failed to open config file for writing");
+            return false;
+        }
+
+        size_t bytesWritten = serializeJson(doc, configFile);
+        configFile.close();
+
+        if (bytesWritten == 0) {
+            Serial.println("[CONFIG] Failed to write config");
+            return false;
+        }
+
+        Serial.printf("[CONFIG] Removed from SPIFFS: %s\n", key.c_str());
+        return true;
+    }
+
+    Serial.println("[CONFIG] Key not found, nothing to remove");
     return false;
 }
 

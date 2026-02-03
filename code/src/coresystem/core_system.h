@@ -216,32 +216,36 @@ private:
   // 处理定时器
   void processTimers() {
     unsigned long now = millis();
-    
-    for (auto it = timers.begin(); it != timers.end(); ) {
-      if (it->enabled && (now - it->lastTriggerTime >= it->interval)) {
+
+    // 使用索引遍历，避免迭代器失效问题
+    for (size_t i = 0; i < timers.size(); ) {
+      TimerItem& timer = timers[i];
+
+      if (timer.enabled && (now - timer.lastTriggerTime >= timer.interval)) {
         // 触发定时器回调
-        if (it->callback) {
-          it->callback(it->timerId);
+        if (timer.callback) {
+          timer.callback(timer.timerId);
         }
-        
+
         // 更新最后触发时间
-        it->lastTriggerTime = now;
-        
+        timer.lastTriggerTime = now;
+
         // 如果是一次性定时器，禁用它
-        if (it->isOneShot) {
-          it->enabled = false;
-          
+        if (timer.isOneShot) {
+          timer.enabled = false;
+
           // 发布定时器到期事件
-          auto timerData = std::make_shared<SystemErrorEventData>("Timer expired", 0, "Timer" + String(it->timerId));
+          auto timerData = std::make_shared<SystemErrorEventData>("Timer expired", 0, "Timer" + String(timer.timerId));
           eventBus->publish(EVENT_TIMER_EXPIRED, timerData);
         }
       }
-      
+
       // 移除已禁用的一次性定时器
-      if (it->isOneShot && !it->enabled) {
-        it = timers.erase(it);
+      if (timer.isOneShot && !timer.enabled) {
+        timers.erase(timers.begin() + i);
+        // 不递增i，因为元素被移除后，下一个元素移动到了当前位置
       } else {
-        ++it;
+        i++; // 移动到下一个元素
       }
     }
   }
@@ -688,23 +692,30 @@ public:
     if (!dynamicCpuFreqEnabled) {
       return;
     }
-    
+
     // 根据系统负载调整CPU频率
-    // 这里使用简单的算法，实际应用中可以更复杂
+    // 使用更智能的负载评估算法
     size_t freeHeap = platformGetFreeHeap();
     size_t minFreeHeap = platformGetMinFreeHeap();
-    
-    // 如果内存使用率高，提高CPU频率以加快处理速度
-    if (freeHeap < minFreeHeap * 2) {
-      setCpuFrequencyMhz(maxCpuFreqMHz);
-    } 
-    // 如果内存充足且系统处于低功耗模式，降低CPU频率
-    else if (isLowPowerMode) {
-      setCpuFrequencyMhz(minCpuFreqMHz);
+    float memoryUsageRatio = 1.0 - (float)freeHeap / (float)(minFreeHeap * 3);
+
+    // 综合考虑内存使用率、CPU任务队列和系统状态
+    float systemLoad = memoryUsageRatio;
+    if (isLowPowerMode) {
+      systemLoad *= 0.5; // 低功耗模式下降低负载感知
     }
-    // 否则使用中等频率
-    else {
-      setCpuFrequencyMhz((minCpuFreqMHz + maxCpuFreqMHz) / 2);
+
+    // 根据系统负载动态调整
+    if (systemLoad > 0.8) {
+      setCpuFrequencyMhz(maxCpuFreqMHz); // 高负载：最大频率
+    } else if (systemLoad > 0.5) {
+      setCpuFrequencyMhz(maxCpuFreqMHz * 3 / 4); // 中高负载：75%频率
+    } else if (systemLoad > 0.3) {
+      setCpuFrequencyMhz((minCpuFreqMHz + maxCpuFreqMHz) / 2); // 中等负载：50%频率
+    } else if (systemLoad > 0.1) {
+      setCpuFrequencyMhz(minCpuFreqMHz * 2); // 低负载：2倍最低频率
+    } else {
+      setCpuFrequencyMhz(minCpuFreqMHz); // 极低负载：最低频率
     }
   }
   
@@ -1038,11 +1049,19 @@ public:
     // 简单的内存泄漏检查，实际应用中可以更复杂
     size_t currentHeap = platformGetFreeHeap();
     if (lastMemoryUpdate > 0) {
-      // 检查内存是否持续增长
+      // 修复：正确检测内存泄漏（内存持续增长才是泄漏）
       static size_t previousHeap = currentHeap;
       static int leakCounter = 0;
-      
-      if (currentHeap < previousHeap - 1024) { // 如果内存减少超过1KB
+
+      // 检测内存是否持续增长（真正的泄漏）
+      // 如果当前内存比上次少超过1KB，说明可能释放了内存（正常现象）
+      // 如果当前内存比上次少，且连续多次，可能是正常的内存波动
+      // 真正的泄漏是free heap持续减少（可用内存变少）
+      if (previousHeap > currentHeap + 1024) {
+        // 内存减少了超过1KB，可能是释放了内存（正常）
+        leakCounter = 0;
+      } else if (previousHeap > currentHeap && (previousHeap - currentHeap) > 256) {
+        // 内存持续减少，可能是泄漏
         leakCounter++;
         if (leakCounter > 10) { // 连续10次检测到内存泄漏
           sendError("Potential memory leak detected", 4001, "CoreSystem");

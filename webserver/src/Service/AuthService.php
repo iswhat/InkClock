@@ -33,11 +33,15 @@ class AuthService implements AuthServiceInterface {
      */
     public function registerUser($userInfo) {
         $this->logger->info('用户注册请求', $userInfo);
-        
+
         // 验证用户信息
-        if (!$this->validateUserInfo($userInfo)) {
-            $this->logger->warning('用户注册信息验证失败', $userInfo);
-            return ['success' => false, 'error' => '无效的用户信息'];
+        $validationResult = $this->validateUserInfo($userInfo);
+        if ($validationResult !== true) {
+            $this->logger->warning('用户注册信息验证失败', [
+                'error' => $validationResult,
+                'userInfo' => $userInfo
+            ]);
+            return ['success' => false, 'error' => $validationResult];
         }
         
         // 调用模型进行注册
@@ -99,24 +103,55 @@ class AuthService implements AuthServiceInterface {
     /**
      * 验证用户信息
      * @param array $userInfo 用户信息
-     * @return bool 验证结果
+     * @return bool|string 验证结果，成功返回true，失败返回错误信息
      */
     private function validateUserInfo($userInfo) {
-        // 验证用户名
-        if (empty($userInfo['username']) || strlen($userInfo['username']) < 3) {
-            return false;
+        // 验证用户名 - 只允许字母、数字、下划线，长度3-30
+        if (empty($userInfo['username'])) {
+            return '用户名不能为空';
         }
-        
+        // 添加用户名格式验证，防止特殊字符注入
+        $username = $userInfo['username'];
+        if (!preg_match('/^[a-zA-Z0-9_]{3,30}$/', $username)) {
+            return '用户名只能包含字母、数字、下划线，长度3-30个字符';
+        }
+        // 检查用户名是否使用保留名称
+        $reservedNames = ['admin', 'root', 'system', 'test', 'guest'];
+        if (in_array(strtolower($username), $reservedNames)) {
+            return '用户名不能使用保留名称';
+        }
+
         // 验证邮箱
         if (empty($userInfo['email']) || !filter_var($userInfo['email'], FILTER_VALIDATE_EMAIL)) {
-            return false;
+            return '邮箱格式无效';
         }
-        
-        // 验证密码
-        if (empty($userInfo['password']) || strlen($userInfo['password']) < 6) {
-            return false;
+
+        // 验证密码 - 加强强度验证
+        if (empty($userInfo['password'])) {
+            return '密码不能为空';
         }
-        
+        $password = $userInfo['password'];
+        if (strlen($password) < 8) {
+            return '密码长度至少8个字符';
+        }
+
+        // 检查密码复杂度：至少包含3种字符类型（大写、小写、数字、特殊字符）
+        $hasUpper = preg_match('/[A-Z]/', $password) ? 1 : 0;
+        $hasLower = preg_match('/[a-z]/', $password) ? 1 : 0;
+        $hasNumber = preg_match('/[0-9]/', $password) ? 1 : 0;
+        $hasSpecial = preg_match('/[^A-Za-z0-9]/', $password) ? 1 : 0;
+
+        $complexity = $hasUpper + $hasLower + $hasNumber + $hasSpecial;
+        if ($complexity < 3) {
+            return '密码必须包含至少3种字符类型：大写字母、小写字母、数字、特殊字符';
+        }
+
+        // 检查常见弱密码
+        $commonPasswords = ['password', '12345678', 'qwerty', 'admin', 'root'];
+        if (in_array(strtolower($password), $commonPasswords)) {
+            return '密码不能使用常见弱密码';
+        }
+
         return true;
     }
     

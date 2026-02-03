@@ -43,6 +43,62 @@ class Database {
         $this->dbPath = $this->config['path'];
     }
 
+
+    /**
+     * 检查表中是否存在指定列
+     * @param string $tableName 表名
+     * @param string $columnName 列名
+     * @return bool 存在返回true，否则返回false
+     */
+    private function columnExists($tableName, $columnName) {
+        try {
+            $stmt = $this->db->prepare("PRAGMA table_info(" . $tableName . ")");
+            $result = $stmt->execute();
+
+            while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+                if ($row['name'] === $columnName) {
+                    $stmt->close();
+                    return true;
+                }
+            }
+
+            $stmt->close();
+            return false;
+        } catch (\Exception $e) {
+            $this->logger->error("检查列是否存在时出错", [
+                "table" => $tableName,
+                "column" => $columnName,
+                "error" => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * 添加列到表（如果不存在）
+     * @param string $tableName 表名
+     * @param string $columnName 列名
+     * @param string $columnDefinition 列定义（如 "TEXT DEFAULT 'enabled'"）
+     * @return bool 成功返回true，失败返回false
+     */
+    private function addColumnIfNotExists($tableName, $columnName, $columnDefinition) {
+        if (!$this->columnExists($tableName, $columnName)) {
+            $sql = "ALTER TABLE $tableName ADD COLUMN $columnName $columnDefinition";
+            try {
+                $this->execute($sql);
+                return true;
+            } catch (\Exception $e) {
+                $this->logger->error("添加列失败", [
+                    "table" => $tableName,
+                    "column" => $columnName,
+                    "error" => $e->getMessage()
+                ]);
+                return false;
+            }
+        }
+        return false; // 列已存在
+    }
+
     /**
      * 连接SQLite数据库（延迟连接，首次使用时调用）
      */
@@ -321,87 +377,23 @@ class Database {
                 FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL
             )");
         
-        // 检查并添加缺失的列
-        // 注意：SQLite 不支持 ALTER TABLE ADD COLUMN IF NOT EXISTS，所以需要使用 try-catch
+        // 优化：使用辅助方法检查并添加缺失的列，避免大量的try-catch
         // 用户表 - 添加双因素认证相关列
-        try {
-            $this->execute("ALTER TABLE users ADD COLUMN two_factor_enabled INTEGER DEFAULT 0");
-        } catch (\Exception $e) {
-            // 忽略错误，列可能已经存在
-        }
-        
-        try {
-            $this->execute("ALTER TABLE users ADD COLUMN two_factor_secret TEXT");
-        } catch (\Exception $e) {
-            // 忽略错误，列可能已经存在
-        }
-        
+        $this->addColumnIfNotExists("users", "two_factor_enabled", "INTEGER DEFAULT 0");
+        $this->addColumnIfNotExists("users", "two_factor_secret", "TEXT");
+
         // 插件表 - 添加缺失的列
-        try {
-            $this->execute("ALTER TABLE plugins ADD COLUMN type TEXT DEFAULT 'system'");
-        } catch (\Exception $e) {
-            // 忽略错误，列可能已经存在
-        }
-        
-        try {
-            $this->execute("ALTER TABLE plugins ADD COLUMN status TEXT DEFAULT 'enabled'");
-        } catch (\Exception $e) {
-            // 忽略错误，列可能已经存在
-        }
-        
-        try {
-            $this->execute("ALTER TABLE plugins ADD COLUMN author TEXT");
-        } catch (\Exception $e) {
-            // 忽略错误，列可能已经存在
-        }
-        
-        try {
-            $this->execute("ALTER TABLE plugins ADD COLUMN version TEXT DEFAULT '1.0.0'");
-        } catch (\Exception $e) {
-            // 忽略错误，列可能已经存在
-        }
-        
-        try {
-            $this->execute("ALTER TABLE plugins ADD COLUMN refresh_interval TEXT");
-        } catch (\Exception $e) {
-            // 忽略错误，列可能已经存在
-        }
-        
-        try {
-            $this->execute("ALTER TABLE plugins ADD COLUMN settings_url TEXT");
-        } catch (\Exception $e) {
-            // 忽略错误，列可能已经存在
-        }
-        
-        try {
-            $this->execute("ALTER TABLE plugins ADD COLUMN created_by INTEGER");
-        } catch (\Exception $e) {
-            // 忽略错误，列可能已经存在
-        }
-        
-        try {
-            $this->execute("ALTER TABLE plugins ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP");
-        } catch (\Exception $e) {
-            // 忽略错误，列可能已经存在
-        }
-        
-        try {
-            $this->execute("ALTER TABLE plugins ADD COLUMN approved_by INTEGER");
-        } catch (\Exception $e) {
-            // 忽略错误，列可能已经存在
-        }
-        
-        try {
-            $this->execute("ALTER TABLE plugins ADD COLUMN approved_at DATETIME");
-        } catch (\Exception $e) {
-            // 忽略错误，列可能已经存在
-        }
-        
-        try {
-            $this->execute("ALTER TABLE plugins ADD COLUMN approval_status TEXT DEFAULT 'approved'");
-        } catch (\Exception $e) {
-            // 忽略错误，列可能已经存在
-        }
+        $this->addColumnIfNotExists("plugins", "type", "TEXT DEFAULT 'system'");
+        $this->addColumnIfNotExists("plugins", "status", "TEXT DEFAULT 'enabled'");
+        $this->addColumnIfNotExists("plugins", "author", "TEXT");
+        $this->addColumnIfNotExists("plugins", "version", "TEXT DEFAULT '1.0.0'");
+        $this->addColumnIfNotExists("plugins", "refresh_interval", "TEXT");
+        $this->addColumnIfNotExists("plugins", "settings_url", "TEXT");
+        $this->addColumnIfNotExists("plugins", "created_by", "INTEGER");
+        $this->addColumnIfNotExists("plugins", "created_at", "DATETIME DEFAULT CURRENT_TIMESTAMP");
+        $this->addColumnIfNotExists("plugins", "approved_by", "INTEGER");
+        $this->addColumnIfNotExists("plugins", "approved_at", "DATETIME");
+        $this->addColumnIfNotExists("plugins", "approval_status", "TEXT DEFAULT 'approved'");
         
         // 为插件表添加索引
         try {

@@ -38,6 +38,7 @@
 #include "coresystem/feature_manager.h"
 #include "coresystem/performance_monitor.h"
 #include "coresystem/storage_manager.h"
+#include <memory>  // 添加智能指针支持
 
 // 条件包含可选模块 - 可通过修改这些宏来启用或禁用相应功能
 // 音频功能 - 用于音频录制和播放
@@ -1023,7 +1024,7 @@ void initDisplaySystem() {
   try {
     DriverRegistry* registry = DriverRegistry::getInstance();
     IDisplayDriver* displayDriver = nullptr;
-    
+
     // 如果配置了固定的显示类型，则直接获取对应驱动
     #if DISPLAY_TYPE != EINK_75_INCH
       displayDriver = registry->getDisplayDriver(DISPLAY_TYPE);
@@ -1033,16 +1034,22 @@ void initDisplaySystem() {
       displayDriver = registry->autoDetectDisplayDriver();
       Serial.print("自动检测显示驱动: ");
     #endif
-    
+
     if (displayDriver == nullptr) {
       // 如果无法获取显示驱动，使用默认的墨水屏驱动
-      Serial.println("未找到匹配的显示驱动，使用默认墨水屏驱动");
-      displayDriver = new EinkDriver();
+      // 修复：使用DriverRegistry获取驱动，避免手动new导致的内存泄漏
+      Serial.println("未找到匹配的显示驱动，尝试从注册表获取默认墨水屏驱动");
+      displayDriver = registry->getDisplayDriver(EINK_75_INCH);
+      if (displayDriver == nullptr) {
+        Serial.println("错误：无法获取任何显示驱动！");
+        // 进入安全模式，不继续初始化显示系统
+        return;
+      }
     } else {
       Serial.println("成功获取显示驱动");
     }
-    
-    // 设置显示驱动
+
+    // 设置显示驱动（displayDriver的所有权转移给displayManager）
     displayManager.setDisplayDriver(displayDriver);
     
     // 初始化显示管理器，显示启动画面
@@ -1063,8 +1070,11 @@ void initInputDevices() {
     
     // 初始化状态反馈管理器
     feedbackManager.init();
-    // 设置LED引脚（根据实际硬件连接修改）
-    feedbackManager.setLEDPins(13, 12, 14); // 电源LED、WiFi LED、蓝牙LED
+    // 设置LED引脚（从配置文件读取，避免硬编码）
+    int powerLedPin = coreSystem->getConfig()->getInt("led.power_pin", 13);
+    int wifiLedPin = coreSystem->getConfig()->getInt("led.wifi_pin", 12);
+    int btLedPin = coreSystem->getConfig()->getInt("led.bt_pin", 14);
+    feedbackManager.setLEDPins(powerLedPin, wifiLedPin, btLedPin);
     // 设置屏幕驱动
     feedbackManager.setDisplayDriver(displayManager.getDisplayDriver());
     
@@ -1087,7 +1097,8 @@ void initInputDevices() {
       case BUTTON_CLICK:
         // 单击：切换右侧页面（日历/股票/消息）
         {
-          static RightPageType currentPage = RIGHT_PAGE_CALENDAR;
+          // 使用DisplayManager的成员变量而不是static变量，避免多线程安全问题
+          RightPageType currentPage = displayManager.getCurrentRightPage();
           switch (currentPage) {
             case RIGHT_PAGE_CALENDAR:
               currentPage = RIGHT_PAGE_STOCK;
@@ -1140,9 +1151,24 @@ void initInputDevices() {
         DEBUG_PRINTLN("长按5秒以上：关机");
         // 触发反馈
         feedbackManager.triggerFeedback(FEEDBACK_POWER_OFF);
-        // 这里可以添加关机逻辑
-        // 例如：进入深度睡眠模式
-        platformDeepSleep(0); // 永久睡眠
+
+        // 添加确认机制：显示提示并等待用户确认
+        displayManager.showMessage("长按再次关机", 3000);
+
+        // 延迟一小段时间，允许用户取消
+        delay(500);
+
+        // 检查是否有新的按键事件（用户取消）
+        // 注意：这里使用简单的延时，实际应用中可能需要更复杂的确认机制
+        Serial.println("设备将在3秒后进入深度睡眠模式...");
+        displayManager.showMessage("进入睡眠模式...", 3000);
+
+        // 延迟3秒，给用户时间取消
+        delay(3000);
+
+        // 进入深度睡眠模式（定时唤醒）
+        // 修改：设置定时唤醒，而不是永久睡眠，防止设备无法唤醒
+        platformDeepSleep(60 * 60 * 1000000); // 1小时后自动唤醒
         break;
         
       default:

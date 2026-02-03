@@ -77,7 +77,23 @@ class ApiGatewayController extends BaseController {
             $path = $_SERVER['REQUEST_URI'] ?? '';
             $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
             $headers = getallheaders();
+
+            // 限制请求体大小为1MB，防止DoS攻击
+            $contentLength = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
+            if ($contentLength > 1024 * 1024) {
+                http_response_code(413);
+                echo json_encode(['error' => 'Request too large', 'message' => '请求体大小超过1MB限制']);
+                return;
+            }
+
             $body = file_get_contents('php://input');
+
+            // 验证请求体格式
+            if ($body === false) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Invalid request', 'message' => '无法读取请求体']);
+                return;
+            }
             
             // 初始化分布式追踪上下文 | Initialize distributed tracing context
             $this->initTracingContext($headers);
@@ -391,8 +407,9 @@ class ApiGatewayController extends BaseController {
                     $this->logger->warning('API Gateway Missing Valid API Key in Config');
                     return false;
                 }
-                
-                if ($apiKey !== $validApiKey) {
+
+                // 修复：使用hash_equals进行时序安全的比较，防止时序攻击
+                if (!hash_equals($validApiKey, $apiKey)) {
                     // 无效API密钥 | Invalid API key
                     $this->logger->warning('API Gateway Invalid API Key', [
                         'api_path' => $apiPath,

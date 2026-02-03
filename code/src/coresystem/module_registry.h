@@ -62,24 +62,89 @@ typedef struct {
 class IModule {
 public:
   virtual ~IModule() {}
-  
+
   // 初始化模块
   virtual void init() = 0;
-  
+
   // 运行模块
   virtual void loop() = 0;
-  
+
   // 获取模块名称
   virtual String getName() const = 0;
-  
+
   // 获取模块类型
   virtual ModuleType getModuleType() const = 0;
-  
+
   // 检查模块是否需要运行
   virtual bool shouldRun() const {
     return true;
   }
 };
+
+// 通用模块包装器模板类，用于减少重复代码
+// T: 具体的管理器类型（如DisplayManager, WiFiManager等）
+template <typename T>
+class GenericModuleWrapper : public IModule {
+public:
+  GenericModuleWrapper(const String& name, ModuleType type)
+      : managerName(name), moduleType(type) {}
+
+  void init() override {
+    manager.init();
+  }
+
+  void loop() override {
+    manager.loop();
+  }
+
+  String getName() const override {
+    return managerName;
+  }
+
+  ModuleType getModuleType() const override {
+    return moduleType;
+  }
+
+  // 获取包装的管理器引用
+  T& getManager() {
+    return manager;
+  }
+
+  const T& getManager() const {
+    return manager;
+  }
+
+private:
+  T manager;
+  String managerName;
+  ModuleType moduleType;
+};
+
+/*
+ * GenericModuleWrapper使用示例：
+ *
+ * // 方式1：使用typedef简化类型名称
+ * typedef GenericModuleWrapper<DisplayManager> DisplayModuleWrapper;
+ * DisplayModuleWrapper displayModule("DisplayManager", MODULE_TYPE_DISPLAY);
+ *
+ * // 方式2：直接使用模板类
+ * GenericModuleWrapper<WiFiManager> wifiModule("WiFiManager", MODULE_TYPE_WIFI);
+ *
+ * // 访问管理器
+ * DisplayManager& displayManager = displayModule.getManager();
+ *
+ * // 旧的重复代码（可以替换）：
+ * class DisplayModuleWrapper : public IModule {
+ * public:
+ *   void init() override { displayManager.init(); }
+ *   void loop() override { displayManager.loop(); }
+ *   String getName() const override { return "DisplayManager"; }
+ *   ModuleType getModuleType() const override { return MODULE_TYPE_DISPLAY; }
+ *   DisplayManager& getDisplayManager() { return displayManager; }
+ * private:
+ *   DisplayManager displayManager;
+ * };
+ */
 
 // 模块注册中心类
 class ModuleRegistry {

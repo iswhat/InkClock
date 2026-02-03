@@ -133,4 +133,9 @@
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/spi_flash/include/esp_spi_flash_counters.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/esp_hw_support/include/soc/esp32/spiram.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/cores/esp32/io_pin_remap.h \
- C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/cores/esp32/Arduino.h
+ C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/cores/esp32/Arduino.h \
+ .pio/libdeps/esp32-wroom-32/ArduinoJson/src/ArduinoJson.h \
+ .pio/libdeps/esp32-wroom-32/ArduinoJson/src/ArduinoJson.hpp \
+ .pio/libdeps/esp32-wroom-32/ArduinoJson/src/ArduinoJson/Configuration.hpp \
+ C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/SPIFFS/src/SPIFFS.h \
+ C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/FS/src/FS.h
