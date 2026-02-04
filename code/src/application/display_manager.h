@@ -144,8 +144,8 @@ public:
   void updateAlarmDisplay();
   
 private:
-  // 显示驱动
-  IDisplayDriver* displayDriver;
+  // Security: Use smart pointer to prevent memory leaks and double-free
+  std::unique_ptr<IDisplayDriver> displayDriver;
   
   // 当前右侧页面
   RightPageType currentRightPage;

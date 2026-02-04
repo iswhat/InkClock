@@ -73,10 +73,8 @@ SensorManager::SensorManager() : sensorDriver(nullptr) {
       DriverRegistry* registry = DriverRegistry::getInstance();
       ISensorDriver* newDriver = registry->autoDetectSensorDriver();
       if (newDriver != nullptr) {
-        if (sensorDriver != nullptr) {
-          delete sensorDriver;
-        }
-        sensorDriver = newDriver;
+        // Security: Use reset() instead of manual delete with unique_ptr
+        sensorDriver.reset(newDriver);
         currentConfig = sensorDriver->getConfig();
         currentData.valid = true;
       }
@@ -87,9 +85,9 @@ SensorManager::SensorManager() : sensorDriver(nullptr) {
     auto driverData = static_cast<DriverEventData*>(data.get());
     if (driverData && driverData->driverType == "sensor") {
       // 传感器驱动注销，重置传感器驱动
+      // Security: Use reset() instead of manual delete with unique_ptr
       if (sensorDriver != nullptr) {
-        delete sensorDriver;
-        sensorDriver = nullptr;
+        sensorDriver.reset();
         currentData.valid = false;
       }
     }
@@ -131,10 +129,10 @@ SensorManager::SensorManager() : sensorDriver(nullptr) {
 }
 
 SensorManager::~SensorManager() {
-  // 清理传感器驱动资源
+  // Security: unique_ptr will automatically delete sensorDriver
+  // No manual delete needed with smart pointer
   if (sensorDriver != nullptr) {
-    delete sensorDriver;
-    sensorDriver = nullptr;
+    sensorDriver.reset();
     DEBUG_PRINTLN("传感器驱动资源已清理");
   }
 }
@@ -255,10 +253,8 @@ void SensorManager::update() {
           // 重新检测传感器驱动
           ISensorDriver* newDriver = registry->autoDetectSensorDriver();
           if (newDriver != nullptr) {
-            // 清理旧驱动
-            delete sensorDriver;
-            // 使用新驱动
-            sensorDriver = newDriver;
+            // Security: Use reset() instead of manual delete with unique_ptr
+            sensorDriver.reset(newDriver);
             DEBUG_PRINTLN("传感器驱动重新检测成功: " + sensorDriver->getTypeName());
           } else {
             DEBUG_PRINTLN("传感器驱动重新检测失败");
@@ -586,22 +582,20 @@ void SensorManager::setSensorConfig(SensorConfig config) {
   DriverRegistry* registry = DriverRegistry::getInstance();
   ISensorDriver* newDriver = registry->getSensorDriver(config.type);
   if (newDriver != nullptr) {
-    if (sensorDriver != nullptr) {
-      delete sensorDriver;
-    }
-    sensorDriver = newDriver;
-    
+    // Security: Use reset() instead of manual delete with unique_ptr
+    sensorDriver.reset(newDriver);
+
     // 初始化传感器驱动
     if (sensorDriver->init(config)) {
       currentConfig = sensorDriver->getConfig();
       currentData.valid = true;
-      
+
       // 发布传感器配置更新事件
       auto sensorConfigData = std::make_shared<SensorConfigEventData>(currentConfig);
       EVENT_PUBLISH(EVENT_SENSOR_CONFIG_UPDATED, sensorConfigData);
     } else {
-      delete sensorDriver;
-      sensorDriver = nullptr;
+      // Security: Use reset() instead of manual delete with unique_ptr
+      sensorDriver.reset();
       currentData.valid = false;
     }
   }

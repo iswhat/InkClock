@@ -136,14 +136,19 @@
 
 /**
  * @brief 全局对象实例
- * 
+ *
  * 所有功能模块的全局实例，用于在setup和loop函数中访问各个模块
- */// 模块注册中心实例
-ModuleRegistry* moduleRegistry;
+ */
+// Security: Use smart pointer instead of raw pointer to prevent memory leaks and dangling pointers
+std::unique_ptr<ModuleRegistry> moduleRegistry;
 
 // 模块获取辅助函数
 template <typename T>
 T* getModule() {
+  if (!moduleRegistry) {
+    Serial.println("Error: moduleRegistry is null!");
+    return nullptr;
+  }
   return moduleRegistry->getModule<T>();
 }
 
@@ -837,10 +842,23 @@ void initSystem() {
   // 初始化串口通信，用于调试输出
   Serial.begin(115200);
   platformDelay(1000);
-  
+
   // 打印启动信息
-  Serial.println("===== 家用网络智能墨水屏万年历 ====");
-  
+  Serial.println("===== 家用网络智能墨水屏万年历 =====");
+
+  // Security: Initialize moduleRegistry before use to prevent null pointer access
+  try {
+    moduleRegistry = std::unique_ptr<ModuleRegistry>(ModuleRegistry::getInstance());
+    if (moduleRegistry) {
+      Serial.println("ModuleRegistry initialized");
+    } else {
+      Serial.println("Warning: ModuleRegistry initialization returned null");
+    }
+  } catch (const std::exception& e) {
+    Serial.print("ModuleRegistry initialization failed: ");
+    Serial.println(e.what());
+  }
+
   // 初始化SPIFFS，确保在其他模块之前初始化
   try {
     initSPIFFS();

@@ -1,6 +1,7 @@
 #include "error_handling.h"
 #include <sstream>
 #include <iomanip>
+#include <new>  // For std::nothrow
 
 // 静态实例初始化
 ErrorHandlingManager* ErrorHandlingManager::instance = nullptr;
@@ -125,7 +126,15 @@ ErrorHandlingManager::ErrorHandlingManager() : maxErrorHistorySize(100), initial
 // ErrorHandlingManager 单例获取
 ErrorHandlingManager* ErrorHandlingManager::getInstance() {
     if (instance == nullptr) {
-        instance = new ErrorHandlingManager();
+        // Security: Use nothrow to handle memory allocation failure gracefully
+        instance = new (std::nothrow) ErrorHandlingManager();
+        if (instance == nullptr) {
+            // Fallback: Critical error - cannot allocate error handler
+            // In embedded system, use static allocation or memory pool
+            static ErrorHandlingManager staticInstance;
+            instance = &staticInstance;
+            Serial.println("Error: Failed to allocate ErrorHandlingManager, using static instance");
+        }
     }
     return instance;
 }

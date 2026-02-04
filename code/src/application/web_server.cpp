@@ -112,6 +112,17 @@ const char* WebServerManager::index_html = R"(
     </div>
     
     <script>
+        // Security: HTML escaping function to prevent XSS
+        function escapeHtml(unsafe) {
+            if (!unsafe) return '';
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+        
         // 插件管理选项卡切换功能
         function switchTab(tabName) {
             // 移除所有选项卡的活动状态
@@ -137,7 +148,12 @@ const char* WebServerManager::index_html = R"(
         // 加载在线插件列表
         function loadOnlinePlugins() {
             const onlinePluginsContainer = document.querySelector('.online-plugins');
-            onlinePluginsContainer.innerHTML = '<div class="loading">正在加载在线插件列表...</div>';
+            // Security: Use textContent or createElement instead of innerHTML
+            onlinePluginsContainer.textContent = '';
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'loading';
+            loadingDiv.textContent = '正在加载在线插件列表...';
+            onlinePluginsContainer.appendChild(loadingDiv);
             
             // 从服务器获取在线插件列表
             const pluginUrl = 'http://localhost:80/plugin/plugin.json';
@@ -151,34 +167,81 @@ const char* WebServerManager::index_html = R"(
                 })
                 .then(plugins => {
                     if (!plugins || !plugins.length) {
-                        onlinePluginsContainer.innerHTML = '<div class="loading">暂无在线插件</div>';
+                        onlinePluginsContainer.textContent = '';
+                        const noPluginDiv = document.createElement('div');
+                        noPluginDiv.className = 'loading';
+                        noPluginDiv.textContent = '暂无在线插件';
+                        onlinePluginsContainer.appendChild(noPluginDiv);
                         return;
                     }
                     
-                    // 生成在线插件列表HTML
-                    let html = '<div class="plugin-grid">';
-                    plugins.forEach(plugin => {
-                        html += '<div class="plugin-item">';
-                        html += '<h4>' + plugin.name + '</h4>';
-                        html += '<p>' + (plugin.description || '无描述') + '</p>';
-                        html += '<div class="plugin-info">';
-                        html += '<p><strong>刷新频率:</strong> ' + (plugin.refresh_interval || '默认') + '</p>';
-                        if (plugin.settings_url) {
-                            html += '<p><strong>设置接口:</strong> <a href="' + plugin.settings_url + '" target="_blank">查看</a></p>';
-                        }
-                        html += '</div>';
-                        html += '<div class="plugin-actions">';
-                        html += '<button class="btn btn-primary" onclick="addOnlinePlugin(\'' + plugin.name + '\', \'' + plugin.url + '\')">添加</button>';
-                        html += '</div>';
-                        html += '</div>';
-                    });
-                    html += '</div>';
+                    // Security: Create elements using DOM API instead of innerHTML
+                    onlinePluginsContainer.textContent = '';
+                    const pluginGrid = document.createElement('div');
+                    pluginGrid.className = 'plugin-grid';
                     
-                    onlinePluginsContainer.innerHTML = html;
+                    plugins.forEach(plugin => {
+                        // Security: Escape plugin name and description to prevent XSS
+                        const pluginName = escapeHtml(plugin.name || '');
+                        const pluginDesc = escapeHtml(plugin.description || '无描述');
+                        const pluginInterval = escapeHtml(plugin.refresh_interval || '默认');
+                        const pluginUrl = escapeHtml(plugin.url || '');
+                        const settingsUrl = plugin.settings_url ? escapeHtml(plugin.settings_url) : '';
+                        
+                        const pluginItem = document.createElement('div');
+                        pluginItem.className = 'plugin-item';
+                        
+                        const h4 = document.createElement('h4');
+                        h4.textContent = pluginName;
+                        pluginItem.appendChild(h4);
+                        
+                        const pDesc = document.createElement('p');
+                        pDesc.textContent = pluginDesc;
+                        pluginItem.appendChild(pDesc);
+                        
+                        const pluginInfo = document.createElement('div');
+                        pluginInfo.className = 'plugin-info';
+                        
+                        const pInterval = document.createElement('p');
+                        pInterval.innerHTML = '<strong>刷新频率:</strong> ' + pluginInterval;
+                        pluginInfo.appendChild(pInterval);
+                        
+                        if (settingsUrl) {
+                            const pSettings = document.createElement('p');
+                            const link = document.createElement('a');
+                            link.href = settingsUrl;
+                            link.target = '_blank';
+                            link.rel = 'noopener noreferrer';
+                            link.textContent = '查看';
+                            pSettings.innerHTML = '<strong>设置接口:</strong> ';
+                            pSettings.appendChild(link);
+                            pluginInfo.appendChild(pSettings);
+                        }
+                        
+                        pluginItem.appendChild(pluginInfo);
+                        
+                        const pluginActions = document.createElement('div');
+                        pluginActions.className = 'plugin-actions';
+                        
+                        const addBtn = document.createElement('button');
+                        addBtn.className = 'btn btn-primary';
+                        addBtn.textContent = '添加';
+                        addBtn.onclick = function() { addOnlinePlugin(pluginName, pluginUrl); };
+                        pluginActions.appendChild(addBtn);
+                        
+                        pluginItem.appendChild(pluginActions);
+                        pluginGrid.appendChild(pluginItem);
+                    });
+                    
+                    onlinePluginsContainer.appendChild(pluginGrid);
                 })
                 .catch(error => {
                     console.error('加载在线插件失败:', error);
-                    onlinePluginsContainer.innerHTML = '<div class="loading error">加载在线插件失败，请检查网络连接或稍后重试</div>';
+                    onlinePluginsContainer.textContent = '';
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'loading error';
+                    errorDiv.textContent = '加载在线插件失败，请检查网络连接或稍后重试';
+                    onlinePluginsContainer.appendChild(errorDiv);
                 });
         }
         
@@ -1080,6 +1143,17 @@ const char* WebServerManager::plugin_html = R"(
     </div>
     
     <script>
+        // Security: HTML escaping function to prevent XSS
+        function escapeHtml(unsafe) {
+            if (!unsafe) return '';
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+        
         // 插件管理选项卡切换功能
         function switchTab(tabName) {
             // 移除所有选项卡的活动状态
@@ -1105,7 +1179,12 @@ const char* WebServerManager::plugin_html = R"(
         // 加载在线插件列表
         function loadOnlinePlugins() {
             const onlinePluginsContainer = document.querySelector('.online-plugins');
-            onlinePluginsContainer.innerHTML = '<div class="loading">正在加载在线插件列表...</div>';
+            // Security: Use textContent or createElement instead of innerHTML
+            onlinePluginsContainer.textContent = '';
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'loading';
+            loadingDiv.textContent = '正在加载在线插件列表...';
+            onlinePluginsContainer.appendChild(loadingDiv);
             
             // 从服务器获取在线插件列表
             const pluginUrl = 'http://localhost:80/plugin/plugin.json';
@@ -1119,34 +1198,81 @@ const char* WebServerManager::plugin_html = R"(
                 })
                 .then(plugins => {
                     if (!plugins || !plugins.length) {
-                        onlinePluginsContainer.innerHTML = '<div class="loading">暂无在线插件</div>';
+                        onlinePluginsContainer.textContent = '';
+                        const noPluginDiv = document.createElement('div');
+                        noPluginDiv.className = 'loading';
+                        noPluginDiv.textContent = '暂无在线插件';
+                        onlinePluginsContainer.appendChild(noPluginDiv);
                         return;
                     }
                     
-                    // 生成在线插件列表HTML
-                    let html = '<div class="plugin-grid">';
-                    plugins.forEach(plugin => {
-                        html += '<div class="plugin-item">';
-                        html += '<h4>' + plugin.name + '</h4>';
-                        html += '<p>' + (plugin.description || '无描述') + '</p>';
-                        html += '<div class="plugin-info">';
-                        html += '<p><strong>刷新频率:</strong> ' + (plugin.refresh_interval || '默认') + '</p>';
-                        if (plugin.settings_url) {
-                            html += '<p><strong>设置接口:</strong> <a href="' + plugin.settings_url + '" target="_blank">查看</a></p>';
-                        }
-                        html += '</div>';
-                        html += '<div class="plugin-actions">';
-                        html += '<button class="btn btn-primary" onclick="addOnlinePlugin(\'' + plugin.name + '\', \'' + plugin.url + '\')">添加</button>';
-                        html += '</div>';
-                        html += '</div>';
-                    });
-                    html += '</div>';
+                    // Security: Create elements using DOM API instead of innerHTML
+                    onlinePluginsContainer.textContent = '';
+                    const pluginGrid = document.createElement('div');
+                    pluginGrid.className = 'plugin-grid';
                     
-                    onlinePluginsContainer.innerHTML = html;
+                    plugins.forEach(plugin => {
+                        // Security: Escape plugin name and description to prevent XSS
+                        const pluginName = escapeHtml(plugin.name || '');
+                        const pluginDesc = escapeHtml(plugin.description || '无描述');
+                        const pluginInterval = escapeHtml(plugin.refresh_interval || '默认');
+                        const pluginUrl = escapeHtml(plugin.url || '');
+                        const settingsUrl = plugin.settings_url ? escapeHtml(plugin.settings_url) : '';
+                        
+                        const pluginItem = document.createElement('div');
+                        pluginItem.className = 'plugin-item';
+                        
+                        const h4 = document.createElement('h4');
+                        h4.textContent = pluginName;
+                        pluginItem.appendChild(h4);
+                        
+                        const pDesc = document.createElement('p');
+                        pDesc.textContent = pluginDesc;
+                        pluginItem.appendChild(pDesc);
+                        
+                        const pluginInfo = document.createElement('div');
+                        pluginInfo.className = 'plugin-info';
+                        
+                        const pInterval = document.createElement('p');
+                        pInterval.innerHTML = '<strong>刷新频率:</strong> ' + pluginInterval;
+                        pluginInfo.appendChild(pInterval);
+                        
+                        if (settingsUrl) {
+                            const pSettings = document.createElement('p');
+                            const link = document.createElement('a');
+                            link.href = settingsUrl;
+                            link.target = '_blank';
+                            link.rel = 'noopener noreferrer';
+                            link.textContent = '查看';
+                            pSettings.innerHTML = '<strong>设置接口:</strong> ';
+                            pSettings.appendChild(link);
+                            pluginInfo.appendChild(pSettings);
+                        }
+                        
+                        pluginItem.appendChild(pluginInfo);
+                        
+                        const pluginActions = document.createElement('div');
+                        pluginActions.className = 'plugin-actions';
+                        
+                        const addBtn = document.createElement('button');
+                        addBtn.className = 'btn btn-primary';
+                        addBtn.textContent = '添加';
+                        addBtn.onclick = function() { addOnlinePlugin(pluginName, pluginUrl); };
+                        pluginActions.appendChild(addBtn);
+                        
+                        pluginItem.appendChild(pluginActions);
+                        pluginGrid.appendChild(pluginItem);
+                    });
+                    
+                    onlinePluginsContainer.appendChild(pluginGrid);
                 })
                 .catch(error => {
                     console.error('加载在线插件失败:', error);
-                    onlinePluginsContainer.innerHTML = '<div class="loading error">加载在线插件失败，请检查网络连接或稍后重试</div>';
+                    onlinePluginsContainer.textContent = '';
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'loading error';
+                    errorDiv.textContent = '加载在线插件失败，请检查网络连接或稍后重试';
+                    onlinePluginsContainer.appendChild(errorDiv);
                 });
         }
         
@@ -3008,7 +3134,12 @@ void WebServerManager::handleSensorData() {
     
     // 设置响应头
     server.sendHeader("Content-Type", "application/json");
-    server.sendHeader("Access-Control-Allow-Origin", "*");
+    // Security: Restrict CORS to same-origin only for embedded device
+    // In production, use specific allowed origins instead of wildcard
+    server.sendHeader("Access-Control-Allow-Origin", getIPAddress());
+    server.sendHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    server.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+    server.sendHeader("Access-Control-Max-Age", "86400");
     
     // 发送响应
     String jsonResponse;
@@ -3048,7 +3179,11 @@ void WebServerManager::handleApi() {
     
     // 设置响应头
     server.sendHeader("Content-Type", "application/json");
-    server.sendHeader("Access-Control-Allow-Origin", "*");
+    // Security: Restrict CORS to same-origin only for embedded device
+    server.sendHeader("Access-Control-Allow-Origin", getIPAddress());
+    server.sendHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    server.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+    server.sendHeader("Access-Control-Max-Age", "86400");
     
     // 发送响应
     String jsonResponse;
@@ -3669,7 +3804,11 @@ void WebServerManager::handleDataSync() {
     
     // 设置响应头
     server.sendHeader("Content-Type", "application/json");
-    server.sendHeader("Access-Control-Allow-Origin", "*");
+    // Security: Restrict CORS to same-origin only for embedded device
+    server.sendHeader("Access-Control-Allow-Origin", getIPAddress());
+    server.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    server.sendHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    server.sendHeader("Access-Control-Max-Age", "86400");
     server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     server.sendHeader("Pragma", "no-cache");
     server.sendHeader("Expires", "0");

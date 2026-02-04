@@ -11,7 +11,47 @@ import json
 import shutil
 import subprocess
 import platform
+import re
+import shlex
 from pathlib import Path
+
+
+# Security: Command execution security functions
+def sanitize_command_arg(arg):
+    """Sanitize command arguments to prevent injection"""
+    if not isinstance(arg, str):
+        raise ValueError(f"Invalid argument type: {type(arg)}")
+    # Remove dangerous characters
+    dangerous_chars = [';', '&', '|', '$', '`', '(', ')', '<', '>']
+    for char in dangerous_chars:
+        if char in arg:
+            raise ValueError(f"Argument contains dangerous character: {char}")
+    return arg
+
+def execute_safely(cmd, cwd=None, timeout=None, check=False):
+    """Execute command safely with proper input validation"""
+    # Security: Ensure cmd is a list, not a string
+    if isinstance(cmd, str):
+        # Parse safely
+        try:
+            cmd = shlex.split(cmd)
+        except ValueError as e:
+            raise ValueError(f"Invalid command format: {e}")
+    
+    # Security: Validate all arguments
+    for arg in cmd:
+        sanitize_command_arg(str(arg))
+    
+    # Security: Never use shell=True
+    return subprocess.run(
+        cmd,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=check,
+        timeout=timeout,
+        shell=False  # Explicitly disable shell
+    )
 
 
 
@@ -110,17 +150,23 @@ def install_platformio():
     print("   正在自动安装PlatformIO...")
 
     try:
-        # 使用pip安装PlatformIO，添加--user参数确保安装到用户目录
+        # Security: 使用pip安装PlatformIO，添加--user参数确保安装到用户目录
         # 设置5分钟超时，避免安装命令永久挂起
         print("   执行命令: pip install --user platformio")
-        result = subprocess.run([sys.executable, '-m', 'pip', 'install', '--user', 'platformio'],
-                              capture_output=True, text=True, check=True, timeout=300)
+        result = execute_safely(
+            [sys.executable, '-m', 'pip', 'install', '--user', 'platformio'],
+            timeout=300,
+            check=True
+        )
         print("   PlatformIO安装成功!")
 
         # 安装完成后，使用python -m platformio来检测是否安装成功
         print("   验证PlatformIO安装...")
-        verify_result = subprocess.run([sys.executable, '-m', 'platformio', '--version'],
-                                     capture_output=True, text=True, check=True, timeout=30)
+        verify_result = execute_safely(
+            [sys.executable, '-m', 'platformio', '--version'],
+            timeout=30,
+            check=True
+        )
         verify_output = verify_result.stdout.strip()
         print(f"   PlatformIO版本: {verify_output}")
         return True
@@ -156,9 +202,9 @@ def check_platform_support(platform_name):
     
     for pio_cmd in pio_commands:
         try:
-            # 检查是否已安装该平台，添加超时防止挂起
-            result = subprocess.run(pio_cmd, capture_output=True, text=True, check=True, timeout=60)
-            
+            # Security: 检查是否已安装该平台，添加超时防止挂起
+            result = execute_safely(pio_cmd, timeout=60, check=True)
+
             # 映射平台名称到PlatformIO平台ID
             platform_id_mapping = {
                 'ESP32': 'espressif32',
@@ -167,7 +213,7 @@ def check_platform_support(platform_name):
                 'STM32': 'ststm32',
                 'RP2040': 'raspberrypi'
             }
-            
+
             platform_id = platform_id_mapping.get(platform_name.upper())
             if platform_id and platform_id in result.stdout:
                 print(f"   {platform_name}平台支持已安装")
@@ -1513,16 +1559,14 @@ def generate_firmware(config):
         try:
             cmd = base_cmd + ['--environment', env]
             print(f"   尝试使用命令编译: {' '.join(cmd)}")
-            
-            # 使用PlatformIO编译固件
-            result = subprocess.run(
+
+            # Security: 使用安全函数执行PlatformIO编译
+            result = execute_safely(
                 cmd,
                 cwd=code_dir,
-                capture_output=True,
-                text=True,
                 check=True
             )
-            
+
             pio_cmd = cmd
             pio_success = True
             print("   固件编译成功！")

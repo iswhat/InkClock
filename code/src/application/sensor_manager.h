@@ -2,6 +2,7 @@
 #define SENSOR_MANAGER_H
 
 #include <Arduino.h>
+#include <memory>  // For smart pointers
 #include "../coresystem/config.h"
 #include "../drivers/peripherals/sensor_driver.h"
 #include "../coresystem/event_bus.h"
@@ -78,7 +79,8 @@ private:
   SensorData currentData;
   
   // 传感器驱动
-  ISensorDriver* sensorDriver;
+  // Security: Use smart pointer to prevent memory leaks and double-free
+  std::unique_ptr<ISensorDriver> sensorDriver;
   
   // 更新标志
   unsigned long lastUpdate;

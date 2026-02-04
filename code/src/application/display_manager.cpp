@@ -150,11 +150,9 @@ DisplayManager::DisplayManager() {
 }
 
 DisplayManager::~DisplayManager() {
-  // 清理资源
-  if (displayDriver != nullptr) {
-    delete displayDriver;
-    displayDriver = nullptr;
-  }
+  // Resource cleanup: unique_ptr will automatically delete displayDriver
+  // No manual delete needed with smart pointer
+  displayDriver.reset();
 }
 
 bool DisplayManager::init() {
@@ -198,10 +196,8 @@ bool DisplayManager::init() {
 }
 
 void DisplayManager::setDisplayDriver(IDisplayDriver* driver) {
-  if (displayDriver != nullptr) {
-    delete displayDriver;
-  }
-  displayDriver = driver;
+  // Security: Use reset() instead of manual delete with unique_ptr
+  displayDriver.reset(driver);
 }
 
 void DisplayManager::showSplashScreen() {

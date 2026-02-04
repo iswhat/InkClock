@@ -43,23 +43,51 @@ bool MemoryPool::init(MemoryPoolConfig config) {
 
 // 分配内存块
 bool MemoryPool::allocateBlocks(int count, size_t blockSize) {
+  // Security: Parameter validation
+  if (count <= 0 || blockSize == 0) {
+    Serial.println("MemoryPool: Invalid parameters");
+    return false;
+  }
+
+  // Security: Check for overflow
+  if (static_cast<size_t>(count) > SIZE_MAX / blockSize) {
+    Serial.println("MemoryPool: Potential integer overflow");
+    return false;
+  }
+
+  // Security: Emergency release if needed
+  if (usedSize >= totalSize * 0.9) {
+    Serial.println("MemoryPool: Emergency release triggered");
+    emergencyRelease();
+  }
+
   for (int i = 0; i < count; i++) {
-    void* address = malloc(blockSize);
+    // For ESP32, prefer ps_malloc (PSRAM) if available
+    void* address = ps_malloc(blockSize);
     if (address == nullptr) {
-      return false;
+      // Fallback to regular malloc
+      address = malloc(blockSize);
+      if (address == nullptr) {
+        Serial.println("MemoryPool: Memory allocation failed");
+        // Call emergency callback if configured
+        if (emergencyCallback) {
+          emergencyCallback();
+        }
+        return false;
+      }
     }
-    
+
     MemoryBlock block;
     block.address = address;
     block.size = blockSize;
     block.status = BLOCK_STATUS_FREE;
     block.allocTime = 0;
     block.owner = "";
-    
+
     blocks.push_back(block);
     totalSize += blockSize;
   }
-  
+
   return true;
 }
 

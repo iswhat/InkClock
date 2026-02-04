@@ -1,7 +1,7 @@
 #include "plugin_manager.h"
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
-#include "../app/web_client.h"
+#include "../application/web_client.h"
 #include "application/wifi_manager.h"
 
 PluginManager::PluginManager() {
