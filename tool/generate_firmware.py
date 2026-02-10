@@ -121,8 +121,8 @@ def check_platformio_installation():
     
     for method in detection_methods:
         try:
-            # 尝试运行PlatformIO命令
-            result = subprocess.run(method, capture_output=True, text=True, check=True)
+            # Security: 使用安全函数执行PlatformIO版本检查
+            result = execute_safely(method, check=True)
             version_output = result.stdout.strip()
             print(f"   PlatformIO已安装: {version_output}")
             print(f"   使用命令: {' '.join(method)}")
@@ -130,8 +130,8 @@ def check_platformio_installation():
         except subprocess.CalledProcessError:
             # 命令执行失败，尝试下一种方法
             continue
-        except FileNotFoundError:
-            # 命令未找到，尝试下一种方法
+        except ValueError:
+            # 命令验证失败，尝试下一种方法
             continue
         except Exception as e:
             # 其他异常，尝试下一种方法
@@ -263,7 +263,8 @@ def check_ota_tools():
     
     try:
         # 检查是否有espota.py工具（PlatformIO通常会提供）
-        result = subprocess.run(['pio', 'home', '--version'], capture_output=True, text=True, check=True)
+        # Security: 使用安全函数执行OTA工具检查
+        result = execute_safely(['pio', 'home', '--version'], check=True)
         print("   OTA工具已安装")
         return True
     except Exception as e:
@@ -1602,12 +1603,11 @@ def generate_firmware(config):
         # 使用相同的成功命令生成OTA包
         ota_cmd = pio_cmd + ['--target', 'upload']
         print(f"   尝试使用命令生成OTA包: {' '.join(ota_cmd)}")
-        
-        ota_result = subprocess.run(
+
+        # Security: 使用安全函数执行OTA包生成
+        ota_result = execute_safely(
             ota_cmd,
             cwd=code_dir,
-            capture_output=True,
-            text=True,
             check=False  # 不检查是否成功，因为我们只是需要生成OTA包
         )
         
