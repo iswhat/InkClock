@@ -332,40 +332,7 @@ bool SPIFFSConfigStorage::save(const String& key, const String& value) {
 
 ---
 
-### 问题 #8: [AuthService.php] - 密码强度验证不足
 
-**严重程度**: 高
-**类型**: 安全
-**文件**: webserver/src/Service/AuthService.php
-**代码位置**: validateUserInfo()方法，第104-121行
-**问题描述**: 密码验证只检查长度(>=6)，没有验证密码复杂度（大小写字母、数字、特殊字符），容易设置弱密码，增加安全风险。
-**代码片段**:
-```php
-if (strlen($password) < 6) {
-    return "Password must be at least 6 characters";
-}
-```
-**建议修复**:
-```php
-if (strlen($password) < 8) {
-    return "Password must be at least 8 characters";
-}
-
-// 检查密码复杂度
-$hasUpper = preg_match('/[A-Z]/', $password);
-$hasLower = preg_match('/[a-z]/', $password);
-$hasNumber = preg_match('/[0-9]/', $password);
-$hasSpecial = preg_match('/[^A-Za-z0-9]/', $password);
-
-$complexity = ($hasUpper ? 1 : 0) + ($hasLower ? 1 : 0) +
-              ($hasNumber ? 1 : 0) + ($hasSpecial ? 1 : 0);
-
-if ($complexity < 3) {
-    return "Password must contain at least 3 of: uppercase, lowercase, numbers, special characters";
-}
-```
-
----
 
 ### 问题 #9: [core_system.h] - 内存池分配未检查返回值
 
