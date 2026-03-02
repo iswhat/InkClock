@@ -112,6 +112,11 @@ void EinkDisplay::clear() {
     
     // 设置默认文本颜色
     display.setTextColor(GxEPD_BLACK);
+    
+    // 如果启用了刷新区域管理，更新刷新区域为整个屏幕
+    if (refreshRegionEnabled) {
+      updateRefreshRegion(0, 0, width, height);
+    }
   } catch (const std::exception& e) {
     DEBUG_PRINTLN("清空屏幕异常:");
     DEBUG_PRINTLN(e.what());
@@ -255,12 +260,17 @@ void EinkDisplay::drawString(int16_t x, int16_t y, const String& text, uint16_t 
     // 处理多行文本
     int16_t currentX = x;
     int16_t currentY = y;
+    int16_t minX = x;
+    int16_t minY = y;
+    int16_t maxX = x;
+    int16_t maxY = y + lineHeight;
     
     for (unsigned int i = 0; i < text.length(); i++) {
       if (text[i] == '\n') {
         // 换行
         currentX = x;
         currentY += lineHeight;
+        maxY = max(maxY, currentY + lineHeight);
       } else {
         // 检查是否需要换行（如果文本超出屏幕宽度）
         int16_t charWidth = display.charWidth(text[i]);
@@ -268,6 +278,7 @@ void EinkDisplay::drawString(int16_t x, int16_t y, const String& text, uint16_t 
           // 自动换行
           currentX = x;
           currentY += lineHeight;
+          maxY = max(maxY, currentY + lineHeight);
         }
         
         // 绘制字符
@@ -276,6 +287,16 @@ void EinkDisplay::drawString(int16_t x, int16_t y, const String& text, uint16_t 
         
         // 更新X坐标
         currentX += charWidth;
+        maxX = max(maxX, currentX);
+      }
+    }
+    
+    // 如果启用了刷新区域管理，更新刷新区域
+    if (refreshRegionEnabled) {
+      int16_t w = maxX - minX;
+      int16_t h = maxY - minY;
+      if (w > 0 && h > 0) {
+        updateRefreshRegion(minX, minY, w, h);
       }
     }
     
@@ -380,6 +401,10 @@ void EinkDisplay::drawChar(int16_t x, int16_t y, unsigned char c, uint16_t color
       size = 1;
     }
     
+    // 保存当前设置
+    uint8_t oldTextSize = display.getTextSize();
+    uint16_t oldTextColor = display.getTextColor();
+    
     // 设置文本颜色和大小
     display.setTextColor(color, bg);
     display.setTextSize(size);
@@ -390,8 +415,16 @@ void EinkDisplay::drawChar(int16_t x, int16_t y, unsigned char c, uint16_t color
     // 绘制字符
     display.write(c);
     
-    // 恢复默认颜色
+    // 如果启用了刷新区域管理，更新刷新区域
+    if (refreshRegionEnabled) {
+      int16_t charWidth = display.charWidth(c);
+      int16_t charHeight = display.fontHeight();
+      updateRefreshRegion(x, y, charWidth, charHeight);
+    }
+    
+    // 恢复默认设置
     display.setTextColor(GxEPD_BLACK, GxEPD_WHITE);
+    display.setTextSize(oldTextSize);
   } catch (const std::exception& e) {
     DEBUG_PRINTLN("绘制字符异常:");
     DEBUG_PRINTLN(e.what());
