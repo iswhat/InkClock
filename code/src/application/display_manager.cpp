@@ -81,6 +81,19 @@ DisplayManager::DisplayManager() {
   }
   sensorHistoryIndex = 0;
   
+  // 初始化GIF播放相关变量
+  gifPlaying = false;
+  gifStopped = false;
+  gifLoopCount = -1;
+  gifCurrentLoop = 0;
+  gifLastFrameTime = 0;
+  gifFrameInterval = 100;
+  gifCurrentFrame = 0;
+  gifTotalFrames = 0;
+  currentGifPath = "";
+  gifBuffer = nullptr;
+  gifBufferSize = 0;
+  
   // 初始化布局配置
   layoutMode = LAYOUT_MODE_STANDARD;
   currentLayout = {
@@ -1438,6 +1451,137 @@ void DisplayManager::updateMessageAnimation() {
       stopMessageAnimation();
     }
   }
+}
+
+// 图片显示功能实现
+bool DisplayManager::drawImage(String imagePath, int x, int y, int width, int height) {
+  if (displayDriver == nullptr) {
+    return false;
+  }
+  
+  DEBUG_PRINT("绘制图片: ");
+  DEBUG_PRINTLN(imagePath);
+  
+  // 实现从SPIFFS绘制图片
+  // 注意：实际实现需要使用合适的图片解码库，如TJpgDec或PNGdec
+  
+  // 这里只是一个示例实现，实际使用时需要根据图片格式和解码库调整
+  DEBUG_PRINTLN("图片绘制功能待实现");
+  return false;
+}
+
+bool DisplayManager::drawImageFromBuffer(uint8_t* buffer, int bufferSize, int x, int y, int width, int height) {
+  if (displayDriver == nullptr) {
+    return false;
+  }
+  
+  DEBUG_PRINTLN("从缓冲区绘制图片");
+  
+  // 实现从缓冲区绘制图片
+  // 注意：实际实现需要使用合适的图片解码库，如TJpgDec或PNGdec
+  
+  DEBUG_PRINTLN("缓冲区图片绘制功能待实现");
+  return false;
+}
+
+bool DisplayManager::drawImageFromURL(String url, int x, int y, int width, int height) {
+  if (displayDriver == nullptr) {
+    return false;
+  }
+  
+  DEBUG_PRINT("从URL绘制图片: ");
+  DEBUG_PRINTLN(url);
+  
+  // 实现从URL绘制图片
+  // 注意：需要先下载图片到缓冲区，然后调用drawImageFromBuffer
+  
+  DEBUG_PRINTLN("URL图片绘制功能待实现");
+  return false;
+}
+
+// GIF显示功能实现
+bool DisplayManager::drawGIF(String gifPath, int x, int y, int width, int height) {
+  if (displayDriver == nullptr) {
+    return false;
+  }
+  
+  DEBUG_PRINT("绘制GIF图片: ");
+  DEBUG_PRINTLN(gifPath);
+  
+  // 实现从SPIFFS绘制GIF
+  // 注意：需要引入GIF解码库，如GIFDecoder或TFT_eSPI的GIF功能
+  
+  DEBUG_PRINTLN("GIF绘制功能待实现");
+  return false;
+}
+
+bool DisplayManager::drawGIFFromBuffer(uint8_t* buffer, int bufferSize, int x, int y, int width, int height) {
+  if (displayDriver == nullptr) {
+    return false;
+  }
+  
+  DEBUG_PRINTLN("从缓冲区绘制GIF图片");
+  
+  // 实现从缓冲区绘制GIF
+  // 注意：需要引入GIF解码库，如GIFDecoder或TFT_eSPI的GIF功能
+  
+  DEBUG_PRINTLN("缓冲区GIF绘制功能待实现");
+  return false;
+}
+
+bool DisplayManager::drawGIFFromURL(String url, int x, int y, int width, int height) {
+  if (displayDriver == nullptr) {
+    return false;
+  }
+  
+  DEBUG_PRINT("从URL绘制GIF图片: ");
+  DEBUG_PRINTLN(url);
+  
+  // 实现从URL绘制GIF
+  // 注意：需要先下载GIF到缓冲区，然后调用drawGIFFromBuffer
+  
+  DEBUG_PRINTLN("URL GIF绘制功能待实现");
+  return false;
+}
+
+bool DisplayManager::drawAnimatedGIF(String gifPath, int x, int y, int width, int height, int loopCount) {
+  if (displayDriver == nullptr) {
+    return false;
+  }
+  
+  DEBUG_PRINT("绘制动画GIF: ");
+  DEBUG_PRINTLN(gifPath);
+  
+  // 初始化GIF播放参数
+  gifPlaying = true;
+  gifStopped = false;
+  this->gifLoopCount = loopCount;
+  gifCurrentLoop = 0;
+  gifCurrentFrame = 0;
+  gifLastFrameTime = platformGetMillis();
+  currentGifPath = gifPath;
+  
+  // 实现动画GIF绘制
+  // 1. 使用GIF解码库解析GIF文件
+  // 2. 获取GIF总帧数和每帧间隔
+  // 3. 循环绘制每一帧，使用局部刷新提高效率
+  // 4. 根据loopCount控制循环次数
+  
+  DEBUG_PRINTLN("动画GIF绘制功能待实现");
+  
+  // 目前未引入GIF解码库，直接返回
+  gifPlaying = false;
+  return false;
+}
+
+void DisplayManager::stopGIF() {
+  DEBUG_PRINTLN("停止GIF播放");
+  gifStopped = true;
+  gifPlaying = false;
+}
+
+bool DisplayManager::isGIFPlaying() {
+  return gifPlaying;
 }
 
 // 传感器异常检测和报警方法实现

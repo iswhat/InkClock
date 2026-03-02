@@ -12,6 +12,9 @@
 #include "config.h"
 #include "spiffs_manager.h"
 #include "platform_abstraction.h"
+#include "power_manager.h"
+#include "timer_manager.h"
+#include "memory_manager.h"
 
 // 配置项结构体
 typedef struct {
@@ -38,7 +41,7 @@ private:
   static CoreSystem* instance;
   
   // 私有构造函数
-  CoreSystem() {    
+  CoreSystem() {
     // 初始化系统状态
     state = SYSTEM_STATE_UNINITIALIZED;
     
@@ -47,20 +50,13 @@ private:
     driverRegistry = nullptr;
     systemMutex = nullptr;
     
-    // 初始化电源管理
-    batteryVoltage = 0.0;
-    batteryPercentage = 0;
-    isCharging = false;
-    isLowPowerMode = false;
-    lastPowerUpdate = 0;
+    // 初始化子系统引用
+    powerManager = nullptr;
+    timerManager = nullptr;
+    memoryManager = nullptr;
     
     // 初始化配置管理
     configLoaded = false;
-    
-    // 初始化内存管理
-    totalAllocatedMemory = 0;
-    peakAllocatedMemory = 0;
-    lastMemoryUpdate = 0;
     
     // 初始化运算资源管理
     currentCpuFreqMHz = platformGetCpuFreqMHz();
@@ -83,7 +79,10 @@ private:
     eventBus = EventBus::getInstance();
     driverRegistry = DriverRegistry::getInstance();
     
-    nextTimerId = 0;
+    // 初始化子系统
+    powerManager = PowerManager::getInstance();
+    timerManager = TimerManager::getInstance();
+    memoryManager = MemoryManager::getInstance();
   }
   
   // 系统状态
@@ -95,13 +94,6 @@ private:
   
   // 初始化时间
   unsigned long startTime;
-  
-  // 电源管理
-  float batteryVoltage;
-  int batteryPercentage;
-  bool isCharging;
-  bool isLowPowerMode;
-  unsigned long lastPowerUpdate;
   
   // 运算资源管理
   int currentCpuFreqMHz;
@@ -122,23 +114,10 @@ private:
   bool configLoaded;
   std::vector<CoreConfigItem> configItems;
   
-  // 定时器管理
-  std::vector<TimerItem> timers;
-  uint32_t nextTimerId;
-  
-  // 内存管理
-  struct MemoryPool {
-    void* pool;          // 内存池指针
-    size_t blockSize;    // 块大小
-    size_t blockCount;   // 块数量
-    size_t freeBlocks;   // 空闲块数量
-    void** freeList;     // 空闲块链表
-  };
-  
-  std::vector<MemoryPool> memoryPools;  // 内存池列表
-  size_t totalAllocatedMemory;           // 总分配内存大小
-  size_t peakAllocatedMemory;            // 峰值分配内存大小
-  unsigned long lastMemoryUpdate;        // 上次内存更新时间
+  // 子系统引用
+  PowerManager* powerManager;
+  TimerManager* timerManager;
+  MemoryManager* memoryManager;
   
   // 资源监控和性能分析
   struct SystemStats {
@@ -365,9 +344,11 @@ public:
     // 6.4 打印自检结果
     driverRegistry->printSelfCheckResult();
     
-    // 7. 初始化电源管理
-    Serial.println("Initializing Power Management...");
-    updatePowerState();
+    // 7. 初始化子系统
+  Serial.println("Initializing Subsystems...");
+  powerManager->init();
+  timerManager->init();
+  memoryManager->init();
     
     // 8. 发布系统启动事件
     eventBus->publish(EVENT_SYSTEM_STARTUP, nullptr);
@@ -398,11 +379,9 @@ public:
     // 运行驱动注册中心的循环
     driverRegistry->loop();
     
-    // 处理定时器
-    processTimers();
-    
-    // 更新电源状态
-    updatePowerState();
+    // 运行子系统
+    timerManager->run();
+    powerManager->updatePowerState();
     
     // 动态调整CPU频率
     if (dynamicCpuFreqEnabled) {
@@ -413,26 +392,16 @@ public:
   // 进入低功耗模式
   void enterLowPowerMode() {
     if (state == SYSTEM_STATE_RUNNING) {
-      isLowPowerMode = true;
+      powerManager->setLowPowerMode(true);
       state = SYSTEM_STATE_LOW_POWER;
-      
-      // 发布低功耗进入事件
-      eventBus->publish(EVENT_LOW_POWER_ENTER, nullptr);
-      
-      Serial.println("Entering low power mode");
     }
   }
   
   // 退出低功耗模式
   void exitLowPowerMode() {
     if (state == SYSTEM_STATE_LOW_POWER) {
-      isLowPowerMode = false;
+      powerManager->setLowPowerMode(false);
       state = SYSTEM_STATE_RUNNING;
-      
-      // 发布低功耗退出事件
-      eventBus->publish(EVENT_LOW_POWER_EXIT, nullptr);
-      
-      Serial.println("Exiting low power mode");
     }
   }
   
@@ -485,19 +454,19 @@ public:
   
   // 电源管理API
   float getBatteryVoltage() const {
-    return batteryVoltage;
+    return powerManager->getBatteryVoltage();
   }
   
   int getBatteryPercentage() const {
-    return batteryPercentage;
+    return powerManager->getBatteryPercentage();
   }
   
   bool isChargingState() const {
-    return isCharging;
+    return powerManager->isChargingState();
   }
   
   bool isInLowPowerMode() const {
-    return isLowPowerMode;
+    return powerManager->isInLowPowerMode();
   }
   
   // 配置管理API
@@ -562,56 +531,23 @@ public:
   
   // 定时器管理API
   uint32_t createTimer(unsigned long interval, std::function<void(uint32_t)> callback, bool isOneShot = false) {
-    TimerItem timer;
-    timer.timerId = nextTimerId++;
-    timer.interval = interval;
-    timer.lastTriggerTime = millis();
-    timer.enabled = true;
-    timer.isOneShot = isOneShot;
-    timer.callback = callback;
-    
-    timers.push_back(timer);
-    return timer.timerId;
+    return timerManager->createTimer(interval, callback, isOneShot);
   }
   
   bool startTimer(uint32_t timerId) {
-    for (auto& timer : timers) {
-      if (timer.timerId == timerId) {
-        timer.enabled = true;
-        timer.lastTriggerTime = millis();
-        return true;
-      }
-    }
-    return false;
+    return timerManager->startTimer(timerId);
   }
   
   bool stopTimer(uint32_t timerId) {
-    for (auto& timer : timers) {
-      if (timer.timerId == timerId) {
-        timer.enabled = false;
-        return true;
-      }
-    }
-    return false;
+    return timerManager->stopTimer(timerId);
   }
   
   bool deleteTimer(uint32_t timerId) {
-    for (auto it = timers.begin(); it != timers.end(); ++it) {
-      if (it->timerId == timerId) {
-        timers.erase(it);
-        return true;
-      }
-    }
-    return false;
+    return timerManager->deleteTimer(timerId);
   }
   
   bool isTimerRunning(uint32_t timerId) {
-    for (const auto& timer : timers) {
-      if (timer.timerId == timerId) {
-        return timer.enabled;
-      }
-    }
-    return false;
+    return timerManager->isTimerRunning(timerId);
   }
   
   // ICoreSystem接口实现
@@ -628,23 +564,12 @@ public:
   }
   
   bool isTimerEnabled(uint32_t timerId) const {
-    for (const auto& timer : timers) {
-      if (timer.timerId == timerId) {
-        return timer.enabled;
-      }
-    }
-    return false;
+    return timerManager->isTimerRunning(timerId);
   }
   
   // 设置定时器间隔
   bool setTimerInterval(uint32_t timerId, unsigned long interval) {
-    for (auto& timer : timers) {
-      if (timer.timerId == timerId) {
-        timer.interval = interval;
-        return true;
-      }
-    }
-    return false;
+    return timerManager->setTimerInterval(timerId, interval);
   }
   
   // 获取系统内存信息
@@ -701,7 +626,7 @@ public:
 
     // 综合考虑内存使用率、CPU任务队列和系统状态
     float systemLoad = memoryUsageRatio;
-    if (isLowPowerMode) {
+    if (powerManager->isInLowPowerMode()) {
       systemLoad *= 0.5; // 低功耗模式下降低负载感知
     }
 
@@ -808,92 +733,33 @@ public:
   
   // 进入深度睡眠模式
   void enterDeepSleep(uint64_t sleepTimeMs) {
-    // 发布深度睡眠事件
-    eventBus->publish(EVENT_SYSTEM_DEEP_SLEEP, nullptr);
-    
-    // 清理资源
-    cleanupMemory();
-    
-    // 进入深度睡眠
-    platformDeepSleep(sleepTimeMs);
+    powerManager->enterDeepSleep(sleepTimeMs);
   }
   
   // 进入轻度睡眠模式
   void enterLightSleep(uint64_t sleepTimeMs) {
-    // 发布轻度睡眠事件
-    eventBus->publish(EVENT_SYSTEM_LIGHT_SLEEP, nullptr);
-    
-    // 进入轻度睡眠
-    platformLightSleep(sleepTimeMs);
-    
-    // 唤醒后恢复
-    eventBus->publish(EVENT_SYSTEM_WAKEUP, nullptr);
+    powerManager->enterLightSleep(sleepTimeMs);
   }
   
   // 设置低功耗模式
   void setLowPowerMode(bool enable) {
-    if (isLowPowerMode != enable) {
-      isLowPowerMode = enable;
-      
-      if (enable) {
-        // 进入低功耗模式
-        eventBus->publish(EVENT_SYSTEM_LOW_POWER, nullptr);
-        
-        // 降低CPU频率
-        setCpuFrequencyMhz(minCpuFreqMHz);
-        
-        // 关闭不必要的外设
-        // 这里可以添加具体的外设关闭逻辑
-      } else {
-        // 退出低功耗模式
-        eventBus->publish(EVENT_SYSTEM_NORMAL_POWER, nullptr);
-        
-        // 恢复CPU频率
-        adjustCpuFreqBasedOnLoad();
-        
-        // 重新初始化必要的外设
-        // 这里可以添加具体的外设初始化逻辑
-      }
-    }
+    powerManager->setLowPowerMode(enable);
   }
   
   // 优化功耗的周期性任务
   void optimizePowerConsumption() {
-    // 根据电池电量调整功耗策略
-    if (batteryPercentage <= CRITICAL_BATTERY_THRESHOLD) {
-      // 电量极低时，进入深度低功耗模式
-      setLowPowerMode(true);
-      // 延长传感器读取间隔
-      // 减少WiFi/BLE活动
-      // 降低CPU频率
-      setCpuFrequencyMhz(minCpuFreqMHz);
-    } else if (batteryPercentage < 20) {
-      // 电量低于20%，进入中度低功耗模式
-      setLowPowerMode(true);
-      // 延长传感器读取间隔
-      // 减少WiFi/BLE活动
-      setCpuFrequencyMhz((minCpuFreqMHz + maxCpuFreqMHz) / 3);
-    } else if (batteryPercentage < 50) {
-      // 电量低于50%，进入轻度低功耗模式
-      setLowPowerMode(true);
-      setCpuFrequencyMhz((minCpuFreqMHz + maxCpuFreqMHz) / 2);
-    } else {
-      // 电量充足，使用正常模式
-      setLowPowerMode(false);
-      // 动态调整CPU频率
-      adjustCpuFreqBasedOnLoad();
-    }
+    powerManager->optimizePowerConsumption();
     
     // 动态调整CPU频率
-    if (dynamicCpuFreqEnabled && !isLowPowerMode) {
+    if (dynamicCpuFreqEnabled && !powerManager->isInLowPowerMode()) {
       adjustCpuFreqBasedOnLoad();
     }
     
     // 清理内存，减少内存占用
-    cleanupMemory();
+    memoryManager->cleanupMemory();
     
     // 根据当前状态调整系统任务优先级
-    if (isLowPowerMode) {
+    if (powerManager->isInLowPowerMode()) {
       // 低功耗模式下，降低非关键任务的优先级
       defaultTaskPriority = 3;
     } else {
@@ -941,160 +807,46 @@ public:
   
   // 创建内存池
   void* createMemoryPool(size_t blockSize, size_t blockCount) {
-    MemoryPool pool;
-    pool.blockSize = blockSize;
-    pool.blockCount = blockCount;
-    pool.freeBlocks = blockCount;
-    
-    // 分配内存池
-    pool.pool = malloc(blockSize * blockCount);
-    if (pool.pool == nullptr) {
-      return nullptr;
-    }
-    
-    // 初始化空闲块链表
-    pool.freeList = (void**)malloc(sizeof(void*) * blockCount);
-    if (pool.freeList == nullptr) {
-      free(pool.pool);
-      return nullptr;
-    }
-    
-    // 填充空闲块链表
-    for (size_t i = 0; i < blockCount; i++) {
-      pool.freeList[i] = (uint8_t*)pool.pool + (i * blockSize);
-    }
-    
-    memoryPools.push_back(pool);
-    totalAllocatedMemory += blockSize * blockCount + sizeof(void*) * blockCount;
-    if (totalAllocatedMemory > peakAllocatedMemory) {
-      peakAllocatedMemory = totalAllocatedMemory;
-    }
-    
-    return pool.pool;
+    return memoryManager->createMemoryPool(blockSize, blockCount);
   }
   
   // 从内存池分配内存
   void* allocateFromPool(void* poolPtr, size_t size) {
-    for (auto& pool : memoryPools) {
-      if (pool.pool == poolPtr && size <= pool.blockSize && pool.freeBlocks > 0) {
-        void* ptr = pool.freeList[--pool.freeBlocks];
-        memset(ptr, 0, pool.blockSize);
-        return ptr;
-      }
-    }
-    return nullptr;
+    return memoryManager->allocateFromPool(poolPtr, size);
   }
   
   // 释放内存回内存池
   void freeToPool(void* poolPtr, void* ptr) {
-    for (auto& pool : memoryPools) {
-      if (pool.pool == poolPtr) {
-        // 检查ptr是否属于该内存池
-        if (ptr >= pool.pool && ptr < (uint8_t*)pool.pool + (pool.blockSize * pool.blockCount)) {
-          pool.freeList[pool.freeBlocks++] = ptr;
-          return;
-        }
-        break;
-      }
-    }
+    memoryManager->freeToPool(poolPtr, ptr);
   }
   
   // 销毁内存池
   void destroyMemoryPool(void* poolPtr) {
-    for (auto it = memoryPools.begin(); it != memoryPools.end(); ++it) {
-      if (it->pool == poolPtr) {
-        totalAllocatedMemory -= it->blockSize * it->blockCount + sizeof(void*) * it->blockCount;
-        free(it->freeList);
-        free(it->pool);
-        memoryPools.erase(it);
-        return;
-      }
-    }
+    memoryManager->destroyMemoryPool(poolPtr);
   }
   
   // 获取内存池使用情况
   void getMemoryPoolInfo(void* poolPtr, size_t& totalBlocks, size_t& freeBlocks) {
-    for (auto& pool : memoryPools) {
-      if (pool.pool == poolPtr) {
-        totalBlocks = pool.blockCount;
-        freeBlocks = pool.freeBlocks;
-        return;
-      }
-    }
-    totalBlocks = 0;
-    freeBlocks = 0;
+    memoryManager->getMemoryPoolInfo(poolPtr, totalBlocks, freeBlocks);
   }
   
   // 执行内存清理
   void cleanupMemory() {
     // 清理定时器
-    auto it = timers.begin();
-    while (it != timers.end()) {
-      if (!it->enabled && it->isOneShot) {
-        it = timers.erase(it);
-      } else {
-        ++it;
-      }
-    }
+    timerManager->clearAllTimers();
     
-    // 检查并清理内存泄漏
-    checkMemoryLeaks();
-    
-    // 更新内存使用统计
-    updateMemoryStats();
-  }
-  
-  // 检查内存泄漏
-  void checkMemoryLeaks() {
-    // 简单的内存泄漏检查，实际应用中可以更复杂
-    size_t currentHeap = platformGetFreeHeap();
-    if (lastMemoryUpdate > 0) {
-      // 修复：正确检测内存泄漏（内存持续增长才是泄漏）
-      static size_t previousHeap = currentHeap;
-      static int leakCounter = 0;
-
-      // 检测内存是否持续增长（真正的泄漏）
-      // 如果当前内存比上次少超过1KB，说明可能释放了内存（正常现象）
-      // 如果当前内存比上次少，且连续多次，可能是正常的内存波动
-      // 真正的泄漏是free heap持续减少（可用内存变少）
-      if (previousHeap > currentHeap + 1024) {
-        // 内存减少了超过1KB，可能是释放了内存（正常）
-        leakCounter = 0;
-      } else if (previousHeap > currentHeap && (previousHeap - currentHeap) > 256) {
-        // 内存持续减少，可能是泄漏
-        leakCounter++;
-        if (leakCounter > 10) { // 连续10次检测到内存泄漏
-          sendError("Potential memory leak detected", 4001, "CoreSystem");
-          leakCounter = 0;
-        }
-      } else {
-        leakCounter = 0;
-      }
-      previousHeap = currentHeap;
-    }
-  }
-  
-  // 更新内存统计信息
-  void updateMemoryStats() {
-    lastMemoryUpdate = millis();
-    
-    // 可以在这里添加更详细的内存统计
+    // 清理内存
+    memoryManager->cleanupMemory();
   }
   
   // 获取内存使用统计
   void getMemoryStats(size_t& totalMemory, size_t& usedMemory, size_t& peakMemory) {
-    size_t freeHeap = platformGetFreeHeap();
-    size_t totalHeap = platformGetFlashChipSize(); // 近似值，实际应该使用芯片总RAM
-    
-    totalMemory = totalHeap;
-    usedMemory = totalHeap - freeHeap + totalAllocatedMemory;
-    peakMemory = peakAllocatedMemory;
+    memoryManager->getMemoryStats(totalMemory, usedMemory, peakMemory);
   }
   
   // 析构函数
   ~CoreSystem() {
     // 清理资源
-    timers.clear();
     configItems.clear();
     
     // 清理事件总线订阅
@@ -1107,12 +859,14 @@ public:
       driverRegistry->clear();
     }
     
-    // 释放内存池资源
-    for (auto& pool : memoryPools) {
-      free(pool.freeList);
-      free(pool.pool);
+    // 清理子系统
+    if (timerManager != nullptr) {
+      timerManager->clearAllTimers();
     }
-    memoryPools.clear();
+    
+    if (memoryManager != nullptr) {
+      memoryManager->clearAllMemoryPools();
+    }
     
     // 清理线程资源
     for (auto& mutex : threadMutexes) {

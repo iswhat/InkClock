@@ -302,15 +302,32 @@ typedef struct EventSubscriptionStruct {
   const char* moduleName;
 } EventSubscription;
 
-// 事件总线类
+/**
+ * @brief 事件总线类
+ * 
+ * 负责事件的发布和订阅，是系统各模块之间通信的核心组件。
+ * 使用单例模式，确保系统中只有一个事件总线实例。
+ */
 class EventBus {
 private:
-  static EventBus* instance;
-  std::vector<EventSubscription> subscriptions;
+  static EventBus* instance;                                 // 单例实例
+  std::unordered_map<EventType, std::vector<EventSubscription>> subscriptionsMap; // 事件订阅映射
+  bool isProcessingEvents = false;                           // 是否正在处理事件
+  std::vector<std::pair<EventType, std::shared_ptr<EventData>>> eventQueue; // 事件队列，用于处理递归事件
   
+  /**
+   * @brief 构造函数
+   * 
+   * 私有构造函数，用于初始化事件总线。
+   */
   EventBus() {}
   
 public:
+  /**
+   * @brief 获取单例实例
+   * 
+   * @return EventBus* 事件总线的单例实例
+   */
   static EventBus* getInstance() {
     if (instance == nullptr) {
       instance = new EventBus();
@@ -318,44 +335,120 @@ public:
     return instance;
   }
   
-  // 订阅事件
+  /**
+   * @brief 订阅事件
+   * 
+   * @param type 事件类型
+   * @param handler 事件处理函数
+   * @param moduleName 模块名称，用于标识订阅者
+   */
   void subscribe(EventType type, EventHandler handler, const char* moduleName) {
     EventSubscription sub = { type, handler, moduleName };
-    subscriptions.push_back(sub);
+    subscriptionsMap[type].push_back(sub);
   }
   
-  // 发布事件
+  /**
+   * @brief 发布事件
+   * 
+   * @param type 事件类型
+   * @param data 事件数据，默认为nullptr
+   */
   void publish(EventType type, std::shared_ptr<EventData> data = nullptr) {
-    for (const auto& sub : subscriptions) {
-      if (sub.type == type) {
+    if (isProcessingEvents) {
+      // 如果正在处理事件，将事件加入队列，避免递归调用
+      eventQueue.emplace_back(type, data);
+      return;
+    }
+    
+    isProcessingEvents = true;
+    
+    // 处理当前事件
+    auto it = subscriptionsMap.find(type);
+    if (it != subscriptionsMap.end()) {
+      for (const auto& sub : it->second) {
         sub.handler(type, data);
       }
     }
+    
+    // 处理队列中的事件
+    while (!eventQueue.empty()) {
+      auto& event = eventQueue.front();
+      auto eventIt = subscriptionsMap.find(event.first);
+      if (eventIt != subscriptionsMap.end()) {
+        for (const auto& sub : eventIt->second) {
+          sub.handler(event.first, event.second);
+        }
+      }
+      eventQueue.erase(eventQueue.begin());
+    }
+    
+    isProcessingEvents = false;
   }
   
-  // 取消订阅
+  /**
+   * @brief 取消订阅
+   * 
+   * @param type 事件类型
+   * @param handler 事件处理函数
+   */
   void unsubscribe(EventType type, EventHandler handler) {
-    auto it = subscriptions.begin();
-    while (it != subscriptions.end()) {
-      if (it->type == type) {
-        it = subscriptions.erase(it);
-      } else {
-        ++it;
+    auto it = subscriptionsMap.find(type);
+    if (it != subscriptionsMap.end()) {
+      auto& subs = it->second;
+      subs.erase(std::remove_if(subs.begin(), subs.end(), 
+        [&handler](const EventSubscription& sub) {
+          return sub.handler.target_type() == handler.target_type();
+        }), subs.end());
+      
+      // 如果该事件类型没有订阅者了，从映射中移除
+      if (subs.empty()) {
+        subscriptionsMap.erase(it);
       }
     }
   }
   
-  // 取消所有订阅
+  /**
+   * @brief 取消所有订阅
+   * 
+   * 清空所有事件订阅和事件队列。
+   */
   void clear() {
-    subscriptions.clear();
+    subscriptionsMap.clear();
+    eventQueue.clear();
   }
   
-  // 获取订阅数量
+  /**
+   * @brief 获取订阅数量
+   * 
+   * @return size_t 总订阅数量
+   */
   size_t getSubscriptionCount() const {
-    return subscriptions.size();
+    size_t count = 0;
+    for (const auto& pair : subscriptionsMap) {
+      count += pair.second.size();
+    }
+    return count;
   }
   
-  // 析构函数
+  /**
+   * @brief 获取特定事件类型的订阅数量
+   * 
+   * @param type 事件类型
+   * @return size_t 该事件类型的订阅数量
+   */
+  size_t getSubscriptionCount(EventType type) const {
+    auto it = subscriptionsMap.find(type);
+    if (it != subscriptionsMap.end()) {
+      return it->second.size();
+    }
+    return 0;
+  }
+  
+  /**
+   * @brief 析构函数
+   * 
+   * 清理所有订阅和事件队列。
+   */
   ~EventBus() {
     clear();
   }
