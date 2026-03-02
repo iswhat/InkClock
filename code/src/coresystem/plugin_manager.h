@@ -5,6 +5,8 @@
 #include <vector>
 #include <memory>
 #include <map>
+#include <set>
+#include <Arduino.h>
 
 class IPlugin {
 public:
@@ -20,6 +22,33 @@ public:
     
     virtual bool isEnabled() const = 0;
     virtual void setEnabled(bool enabled) = 0;
+    
+    // 插件优先级，数值越大优先级越高
+    virtual int getPriority() const {
+        return 5; // 默认中等优先级
+    }
+    
+    // 获取插件依赖
+    virtual std::vector<std::string> getDependencies() const {
+        return {}; // 默认无依赖
+    }
+    
+    // 检查插件是否就绪
+    virtual bool isReady() const {
+        return isEnabled();
+    }
+};
+
+// 插件信息结构
+struct PluginInfo {
+    std::string name;
+    std::string version;
+    std::string description;
+    bool enabled;
+    bool initialized;
+    int priority;
+    std::vector<std::string> dependencies;
+    std::vector<std::string> dependents;
 };
 
 class PluginManager {
@@ -36,18 +65,42 @@ public:
     IPlugin* getPlugin(const std::string& name);
     std::vector<IPlugin*> getAllPlugins();
     std::vector<IPlugin*> getEnabledPlugins();
+    std::vector<PluginInfo> getPluginInfos();
     
     bool enablePlugin(const std::string& name);
     bool disablePlugin(const std::string& name);
     
+    // 检查插件依赖
+    bool checkDependencies(const std::string& pluginName);
+    
+    // 按优先级排序插件
+    std::vector<IPlugin*> getPluginsByPriority();
+    
 private:
-    PluginManager() = default;
-    ~PluginManager() = default;
+    PluginManager();
+    ~PluginManager();
     
     PluginManager(const PluginManager&) = delete;
     PluginManager& operator=(const PluginManager&) = delete;
     
     std::map<std::string, std::unique_ptr<IPlugin>> plugins;
+    std::map<std::string, PluginInfo> pluginInfos;
+    SemaphoreHandle_t pluginMutex;
+    
+    // 更新插件信息
+    void updatePluginInfo(const std::string& name, IPlugin* plugin);
+    
+    // 解析插件依赖
+    void resolveDependencies();
+    
+    // 检查插件是否可以启用
+    bool canEnablePlugin(const std::string& pluginName);
+    
+    // 启用插件及其依赖
+    bool enablePluginWithDependencies(const std::string& pluginName);
+    
+    // 禁用插件及其依赖
+    bool disablePluginWithDependents(const std::string& pluginName);
 };
 
 #define REGISTER_PLUGIN(PluginClass) \

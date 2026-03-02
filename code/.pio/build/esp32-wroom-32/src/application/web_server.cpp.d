@@ -232,6 +232,9 @@
  src/application/../coresystem/spiffs_manager.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/SPIFFS/src/SPIFFS.h \
  src/application/../coresystem/platform_abstraction.h \
+ src/application/../coresystem/power_manager.h \
+ src/application/../coresystem/timer_manager.h \
+ src/application/../coresystem/memory_manager.h \
  src/application/display_manager.h \
  src/application/../coresystem/data_types.h \
  src/application/../drivers/peripherals/display_driver.h \

@@ -225,6 +225,72 @@ public:
   
 
   
+public:
+  /**
+   * @brief 刷新模式
+   */
+  enum RefreshMode {
+    REFRESH_MODE_FULL,     // 全屏刷新
+    REFRESH_MODE_PARTIAL,  // 局部刷新
+    REFRESH_MODE_FAST      // 快速刷新（如果支持）
+  };
+  
+  /**
+   * @brief 设置刷新模式
+   * 
+   * @param mode 刷新模式
+   */
+  void setRefreshMode(RefreshMode mode);
+  
+  /**
+   * @brief 获取当前刷新模式
+   * 
+   * @return RefreshMode 当前刷新模式
+   */
+  RefreshMode getRefreshMode() const;
+  
+  /**
+   * @brief 启用自动刷新管理
+   * 
+   * 启用后，系统会根据内容变化自动决定何时刷新
+   */
+  void enableAutoRefresh();
+  
+  /**
+   * @brief 禁用自动刷新管理
+   * 
+   * 禁用后，需要手动调用update()或updateRefreshRegion()进行刷新
+   */
+  void disableAutoRefresh();
+  
+  /**
+   * @brief 设置自动刷新间隔
+   * 
+   * @param interval 自动刷新间隔（毫秒）
+   */
+  void setAutoRefreshInterval(unsigned long interval);
+  
+  /**
+   * @brief 获取显示状态
+   * 
+   * @return bool 显示是否就绪
+   */
+  bool isDisplayReady() const;
+  
+  /**
+   * @brief 获取最后刷新时间
+   * 
+   * @return unsigned long 最后刷新时间（毫秒）
+   */
+  unsigned long getLastRefreshTime() const;
+  
+  /**
+   * @brief 强制全屏刷新
+   * 
+   * 忽略刷新区域管理，强制进行全屏刷新
+   */
+  void forceFullRefresh();
+  
 private:
   // 墨水屏对象
   #if DISPLAY_TYPE == EINK_42_INCH
@@ -247,11 +313,32 @@ private:
   uint16_t refreshX2;           // 刷新区域右下角X坐标
   uint16_t refreshY2;           // 刷新区域右下角Y坐标
   
+  // 刷新模式
+  RefreshMode currentRefreshMode; // 当前刷新模式
+  
+  // 自动刷新管理
+  bool autoRefreshEnabled;      // 是否启用自动刷新
+  unsigned long autoRefreshInterval; // 自动刷新间隔
+  unsigned long lastRefreshTime; // 最后刷新时间
+  unsigned long lastDrawTime;    // 最后绘制时间
+  
+  // 显示状态
+  bool displayReady;             // 显示是否就绪
+  
+  // 性能统计
+  unsigned long refreshCount;    // 刷新次数
+  unsigned long totalRefreshTime; // 总刷新时间
+  
   // 私有方法
   void displayFullRefresh();                    // 全屏刷新
   void displayPartialRefresh(uint16_t x, uint16_t y, uint16_t w, uint16_t h); // 局部刷新
+  void displayFastRefresh(uint16_t x, uint16_t y, uint16_t w, uint16_t h);    // 快速刷新
   void resetRefreshRegion();                    // 重置刷新区域
   void updateRefreshRegion(uint16_t x, uint16_t y, uint16_t w, uint16_t h);   // 更新刷新区域
+  void checkAutoRefresh();                      // 检查自动刷新
+  void mergeRefreshRegions();                   // 合并刷新区域
+  void optimizeRefreshRegion();                 // 优化刷新区域
+  void updateDisplayState();                    // 更新显示状态
 };
 
 #endif // EINK_DISPLAY_H

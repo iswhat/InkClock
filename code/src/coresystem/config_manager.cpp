@@ -92,6 +92,13 @@ void ConfigItem::resetToDefault() {
 
 // ConfigManager 构造函数
 ConfigManager::ConfigManager() : initialized(false) {
+    configMutex = xSemaphoreCreateMutex();
+    // 默认存储后端优先级
+    storagePriority = {
+        STORAGE_TYPE_SPIFFS,
+        STORAGE_TYPE_SD_CARD,
+        STORAGE_TYPE_RAM
+    };
 }
 
 // ConfigManager 单例获取
@@ -108,33 +115,54 @@ bool ConfigManager::init() {
         return true;
     }
     
+    if (configMutex) {
+        xSemaphoreTake(configMutex, portMAX_DELAY);
+    }
+    
     // 注册默认的RAM存储后端
     auto ramStorage = std::make_shared<RAMConfigStorage>();
     if (!registerStorageBackend(ramStorage)) {
+        if (configMutex) {
+            xSemaphoreGive(configMutex);
+        }
         return false;
     }
     
     // 注册SPIFFS存储后端
     auto spiffsStorage = std::make_shared<SPIFFSConfigStorage>();
     if (!registerStorageBackend(spiffsStorage)) {
-        return false;
+        Serial.println("[CONFIG] SPIFFS storage registration failed, continuing with other backends");
     }
     
     // 注册SD卡存储后端
     auto sdStorage = std::make_shared<SDCardConfigStorage>();
     if (!registerStorageBackend(sdStorage)) {
-        return false;
+        Serial.println("[CONFIG] SD card storage registration failed, continuing with other backends");
     }
     
-    // 设置默认的活动存储后端为RAM
-    if (!setActiveStorage(STORAGE_TYPE_RAM)) {
-        return false;
+    // 自动选择最佳存储后端
+    if (!selectBestStorageBackend()) {
+        // 如果自动选择失败，使用RAM作为 fallback
+        if (!setActiveStorage(STORAGE_TYPE_RAM)) {
+            if (configMutex) {
+                xSemaphoreGive(configMutex);
+            }
+            return false;
+        }
     }
     
     // 注册默认配置项
     registerDefaultConfigItems();
     
+    // 加载配置
+    loadConfig();
+    
     initialized = true;
+    
+    if (configMutex) {
+        xSemaphoreGive(configMutex);
+    }
+    
     return true;
 }
 
@@ -272,18 +300,90 @@ bool ConfigManager::registerStorageBackend(std::shared_ptr<IConfigStorage> stora
         return false;
     }
     
+    if (configMutex) {
+        xSemaphoreTake(configMutex, portMAX_DELAY);
+    }
+    
     storageBackends.push_back(storage);
+    
+    if (configMutex) {
+        xSemaphoreGive(configMutex);
+    }
+    
     return true;
+}
+
+// 设置存储后端优先级
+void ConfigManager::setStoragePriority(const std::vector<ConfigStorageType>& priority) {
+    if (configMutex) {
+        xSemaphoreTake(configMutex, portMAX_DELAY);
+    }
+    
+    storagePriority = priority;
+    
+    if (configMutex) {
+        xSemaphoreGive(configMutex);
+    }
+}
+
+// 获取存储后端优先级
+std::vector<ConfigStorageType> ConfigManager::getStoragePriority() const {
+    return storagePriority;
+}
+
+// 自动选择最佳存储后端
+bool ConfigManager::selectBestStorageBackend() {
+    if (configMutex) {
+        xSemaphoreTake(configMutex, portMAX_DELAY);
+    }
+    
+    // 按照优先级顺序尝试选择存储后端
+    for (ConfigStorageType type : storagePriority) {
+        for (const auto& storage : storageBackends) {
+            if (storage->getType() == type) {
+                // 尝试保存一个测试配置来验证存储后端是否可用
+                if (storage->save("test", "test")) {
+                    activeStorage = storage;
+                    Serial.printf("[CONFIG] Selected storage backend: %d\n", type);
+                    
+                    if (configMutex) {
+                        xSemaphoreGive(configMutex);
+                    }
+                    return true;
+                }
+            }
+        }
+    }
+    
+    if (configMutex) {
+        xSemaphoreGive(configMutex);
+    }
+    
+    return false;
 }
 
 // 设置活动存储后端
 bool ConfigManager::setActiveStorage(ConfigStorageType type) {
+    if (configMutex) {
+        xSemaphoreTake(configMutex, portMAX_DELAY);
+    }
+    
     for (const auto& storage : storageBackends) {
         if (storage->getType() == type) {
             activeStorage = storage;
+            Serial.printf("[CONFIG] Set active storage backend: %d\n", type);
+            
+            if (configMutex) {
+                xSemaphoreGive(configMutex);
+            }
             return true;
         }
     }
+    
+    if (configMutex) {
+        xSemaphoreGive(configMutex);
+    }
+    
     return false;
 }
 
@@ -297,19 +397,45 @@ bool ConfigManager::registerConfigItem(
     const String& defaultValue,
     const String& validationPattern
 ) {
+    if (configMutex) {
+        xSemaphoreTake(configMutex, portMAX_DELAY);
+    }
+    
     if (configItems.find(key) != configItems.end()) {
+        if (configMutex) {
+            xSemaphoreGive(configMutex);
+        }
         return false;
     }
     
     auto configItem = std::make_shared<ConfigItem>(key, value, description, level, editable, defaultValue, validationPattern);
     configItems[key] = configItem;
     
-    // 如果是持久化配置，尝试从存储加载
-    if (level == CONFIG_LEVEL_PERSISTENT && activeStorage) {
+    // 如果是持久化配置，尝试从所有可用存储后端加载
+    if (level == CONFIG_LEVEL_PERSISTENT) {
         String loadedValue;
-        if (activeStorage->load(key, loadedValue)) {
-            configItem->setValue(loadedValue);
+        bool loaded = false;
+        
+        // 按照优先级顺序尝试从存储后端加载
+        for (ConfigStorageType type : storagePriority) {
+            for (const auto& storage : storageBackends) {
+                if (storage->getType() == type) {
+                    if (storage->load(key, loadedValue)) {
+                        configItem->setValue(loadedValue);
+                        loaded = true;
+                        Serial.printf("[CONFIG] Loaded config from %d: %s = %s\n", type, key.c_str(), loadedValue.c_str());
+                        break;
+                    }
+                }
+            }
+            if (loaded) {
+                break;
+            }
         }
+    }
+    
+    if (configMutex) {
+        xSemaphoreGive(configMutex);
     }
     
     return true;
@@ -317,36 +443,76 @@ bool ConfigManager::registerConfigItem(
 
 // 获取配置值
 String ConfigManager::getString(const String& key, const String& defaultValue) {
-    auto it = configItems.find(key);
-    if (it != configItems.end()) {
-        return it->second->getValue();
+    if (configMutex) {
+        xSemaphoreTake(configMutex, portMAX_DELAY);
     }
-    return defaultValue;
+    
+    auto it = configItems.find(key);
+    String result = defaultValue;
+    if (it != configItems.end()) {
+        result = it->second->getValue();
+    }
+    
+    if (configMutex) {
+        xSemaphoreGive(configMutex);
+    }
+    
+    return result;
 }
 
 int ConfigManager::getInt(const String& key, int defaultValue) {
-    auto it = configItems.find(key);
-    if (it != configItems.end()) {
-        return it->second->getValue().toInt();
+    if (configMutex) {
+        xSemaphoreTake(configMutex, portMAX_DELAY);
     }
-    return defaultValue;
+    
+    auto it = configItems.find(key);
+    int result = defaultValue;
+    if (it != configItems.end()) {
+        result = it->second->getValue().toInt();
+    }
+    
+    if (configMutex) {
+        xSemaphoreGive(configMutex);
+    }
+    
+    return result;
 }
 
 float ConfigManager::getFloat(const String& key, float defaultValue) {
-    auto it = configItems.find(key);
-    if (it != configItems.end()) {
-        return it->second->getValue().toFloat();
+    if (configMutex) {
+        xSemaphoreTake(configMutex, portMAX_DELAY);
     }
-    return defaultValue;
+    
+    auto it = configItems.find(key);
+    float result = defaultValue;
+    if (it != configItems.end()) {
+        result = it->second->getValue().toFloat();
+    }
+    
+    if (configMutex) {
+        xSemaphoreGive(configMutex);
+    }
+    
+    return result;
 }
 
 bool ConfigManager::getBool(const String& key, bool defaultValue) {
+    if (configMutex) {
+        xSemaphoreTake(configMutex, portMAX_DELAY);
+    }
+    
     auto it = configItems.find(key);
+    bool result = defaultValue;
     if (it != configItems.end()) {
         String value = it->second->getValue();
-        return value == "true" || value == "1" || value == "yes";
+        result = value == "true" || value == "1" || value == "yes";
     }
-    return defaultValue;
+    
+    if (configMutex) {
+        xSemaphoreGive(configMutex);
+    }
+    
+    return result;
 }
 
 // 设置配置值

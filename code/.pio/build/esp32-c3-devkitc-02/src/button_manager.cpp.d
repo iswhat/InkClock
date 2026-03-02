@@ -174,8 +174,9 @@
  src/coresystem/config.h src/coresystem/spiffs_manager.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/FS/src/FS.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/SPIFFS/src/SPIFFS.h \
- src/coresystem/platform_abstraction.h src/application/display_manager.h \
- src/application/../coresystem/config.h \
+ src/coresystem/platform_abstraction.h src/coresystem/power_manager.h \
+ src/coresystem/timer_manager.h src/coresystem/memory_manager.h \
+ src/application/display_manager.h src/application/../coresystem/config.h \
  src/application/../coresystem/event_bus.h \
  src/application/../coresystem/data_types.h \
  src/application/../drivers/peripherals/display_driver.h \

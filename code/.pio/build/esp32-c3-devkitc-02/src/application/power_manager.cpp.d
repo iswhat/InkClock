@@ -178,6 +178,9 @@
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/FS/src/FS.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/SPIFFS/src/SPIFFS.h \
  src/application/../coresystem/platform_abstraction.h \
+ src/application/../coresystem/power_manager.h \
+ src/application/../coresystem/timer_manager.h \
+ src/application/../coresystem/memory_manager.h \
  src/application/../coresystem/event_bus.h \
  src/application/../coresystem/config_manager.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFi.h \

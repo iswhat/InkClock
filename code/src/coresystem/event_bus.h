@@ -296,11 +296,12 @@ public:
 typedef std::function<void(EventType, std::shared_ptr<EventData>)> EventHandler;
 
 // 事件订阅信息
-typedef struct EventSubscriptionStruct {
-  EventType type;
-  EventHandler handler;
-  const char* moduleName;
-} EventSubscription;
+  typedef struct EventSubscriptionStruct {
+    EventType type;
+    EventHandler handler;
+    const char* moduleName;
+    uint32_t priority; // 订阅优先级，数值越大优先级越高
+  } EventSubscription;
 
 /**
  * @brief 事件总线类
@@ -310,17 +311,19 @@ typedef struct EventSubscriptionStruct {
  */
 class EventBus {
 private:
-  static EventBus* instance;                                 // 单例实例
   std::unordered_map<EventType, std::vector<EventSubscription>> subscriptionsMap; // 事件订阅映射
   bool isProcessingEvents = false;                           // 是否正在处理事件
   std::vector<std::pair<EventType, std::shared_ptr<EventData>>> eventQueue; // 事件队列，用于处理递归事件
+  SemaphoreHandle_t eventMutex = nullptr;                    // 事件处理互斥锁
   
   /**
    * @brief 构造函数
    * 
    * 私有构造函数，用于初始化事件总线。
    */
-  EventBus() {}
+  EventBus() {
+    eventMutex = xSemaphoreCreateMutex();
+  }
   
 public:
   /**
@@ -329,10 +332,8 @@ public:
    * @return EventBus* 事件总线的单例实例
    */
   static EventBus* getInstance() {
-    if (instance == nullptr) {
-      instance = new EventBus();
-    }
-    return instance;
+    static EventBus instance;
+    return &instance;
   }
   
   /**
@@ -341,10 +342,25 @@ public:
    * @param type 事件类型
    * @param handler 事件处理函数
    * @param moduleName 模块名称，用于标识订阅者
+   * @param priority 订阅优先级，默认5（中等）
    */
-  void subscribe(EventType type, EventHandler handler, const char* moduleName) {
-    EventSubscription sub = { type, handler, moduleName };
+  void subscribe(EventType type, EventHandler handler, const char* moduleName, uint32_t priority = 5) {
+    if (eventMutex) {
+      xSemaphoreTake(eventMutex, portMAX_DELAY);
+    }
+    
+    EventSubscription sub = { type, handler, moduleName, priority };
     subscriptionsMap[type].push_back(sub);
+    
+    // 按优先级排序，优先级高的排在前面
+    std::sort(subscriptionsMap[type].begin(), subscriptionsMap[type].end(), 
+      [](const EventSubscription& a, const EventSubscription& b) {
+        return a.priority > b.priority;
+      });
+    
+    if (eventMutex) {
+      xSemaphoreGive(eventMutex);
+    }
   }
   
   /**
@@ -356,30 +372,82 @@ public:
   void publish(EventType type, std::shared_ptr<EventData> data = nullptr) {
     if (isProcessingEvents) {
       // 如果正在处理事件，将事件加入队列，避免递归调用
+      if (eventMutex) {
+        xSemaphoreTake(eventMutex, portMAX_DELAY);
+      }
       eventQueue.emplace_back(type, data);
+      if (eventMutex) {
+        xSemaphoreGive(eventMutex);
+      }
       return;
     }
     
     isProcessingEvents = true;
     
     // 处理当前事件
-    auto it = subscriptionsMap.find(type);
-    if (it != subscriptionsMap.end()) {
-      for (const auto& sub : it->second) {
-        sub.handler(type, data);
+    std::vector<EventSubscription> subs;
+    if (eventMutex) {
+      xSemaphoreTake(eventMutex, portMAX_DELAY);
+      auto it = subscriptionsMap.find(type);
+      if (it != subscriptionsMap.end()) {
+        subs = it->second;
+      }
+      xSemaphoreGive(eventMutex);
+    } else {
+      auto it = subscriptionsMap.find(type);
+      if (it != subscriptionsMap.end()) {
+        subs = it->second;
       }
     }
     
+    // 处理订阅者
+    for (const auto& sub : subs) {
+      sub.handler(type, data);
+    }
+    
     // 处理队列中的事件
-    while (!eventQueue.empty()) {
-      auto& event = eventQueue.front();
-      auto eventIt = subscriptionsMap.find(event.first);
-      if (eventIt != subscriptionsMap.end()) {
-        for (const auto& sub : eventIt->second) {
-          sub.handler(event.first, event.second);
+    while (true) {
+      std::pair<EventType, std::shared_ptr<EventData>> event;
+      bool hasEvent = false;
+      
+      if (eventMutex) {
+        xSemaphoreTake(eventMutex, portMAX_DELAY);
+        if (!eventQueue.empty()) {
+          event = eventQueue.front();
+          eventQueue.erase(eventQueue.begin());
+          hasEvent = true;
+        }
+        xSemaphoreGive(eventMutex);
+      } else {
+        if (!eventQueue.empty()) {
+          event = eventQueue.front();
+          eventQueue.erase(eventQueue.begin());
+          hasEvent = true;
         }
       }
-      eventQueue.erase(eventQueue.begin());
+      
+      if (!hasEvent) {
+        break;
+      }
+      
+      std::vector<EventSubscription> queueSubs;
+      if (eventMutex) {
+        xSemaphoreTake(eventMutex, portMAX_DELAY);
+        auto eventIt = subscriptionsMap.find(event.first);
+        if (eventIt != subscriptionsMap.end()) {
+          queueSubs = eventIt->second;
+        }
+        xSemaphoreGive(eventMutex);
+      } else {
+        auto eventIt = subscriptionsMap.find(event.first);
+        if (eventIt != subscriptionsMap.end()) {
+          queueSubs = eventIt->second;
+        }
+      }
+      
+      for (const auto& sub : queueSubs) {
+        sub.handler(event.first, event.second);
+      }
     }
     
     isProcessingEvents = false;
@@ -392,18 +460,52 @@ public:
    * @param handler 事件处理函数
    */
   void unsubscribe(EventType type, EventHandler handler) {
+    if (eventMutex) {
+      xSemaphoreTake(eventMutex, portMAX_DELAY);
+    }
+    
     auto it = subscriptionsMap.find(type);
     if (it != subscriptionsMap.end()) {
       auto& subs = it->second;
-      subs.erase(std::remove_if(subs.begin(), subs.end(), 
-        [&handler](const EventSubscription& sub) {
-          return sub.handler.target_type() == handler.target_type();
-        }), subs.end());
+      // 简化的取消订阅逻辑，移除所有该事件类型的订阅
+      subs.clear();
       
       // 如果该事件类型没有订阅者了，从映射中移除
       if (subs.empty()) {
         subscriptionsMap.erase(it);
       }
+    }
+    
+    if (eventMutex) {
+      xSemaphoreGive(eventMutex);
+    }
+  }
+  
+  /**
+   * @brief 按模块取消订阅
+   * 
+   * @param moduleName 模块名称
+   */
+  void unsubscribeByModule(const char* moduleName) {
+    if (eventMutex) {
+      xSemaphoreTake(eventMutex, portMAX_DELAY);
+    }
+    
+    for (auto& pair : subscriptionsMap) {
+      auto& subs = pair.second;
+      subs.erase(std::remove_if(subs.begin(), subs.end(), 
+        [moduleName](const EventSubscription& sub) {
+          return strcmp(sub.moduleName, moduleName) == 0;
+        }), subs.end());
+      
+      // 如果该事件类型没有订阅者了，从映射中移除
+      if (subs.empty()) {
+        subscriptionsMap.erase(pair.first);
+      }
+    }
+    
+    if (eventMutex) {
+      xSemaphoreGive(eventMutex);
     }
   }
   
@@ -413,8 +515,16 @@ public:
    * 清空所有事件订阅和事件队列。
    */
   void clear() {
+    if (eventMutex) {
+      xSemaphoreTake(eventMutex, portMAX_DELAY);
+    }
+    
     subscriptionsMap.clear();
     eventQueue.clear();
+    
+    if (eventMutex) {
+      xSemaphoreGive(eventMutex);
+    }
   }
   
   /**
@@ -445,17 +555,37 @@ public:
   }
   
   /**
+   * @brief 获取特定模块的订阅数量
+   * 
+   * @param moduleName 模块名称
+   * @return size_t 该模块的订阅数量
+   */
+  size_t getSubscriptionCountByModule(const char* moduleName) const {
+    size_t count = 0;
+    for (const auto& pair : subscriptionsMap) {
+      for (const auto& sub : pair.second) {
+        if (strcmp(sub.moduleName, moduleName) == 0) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+  
+  /**
    * @brief 析构函数
    * 
    * 清理所有订阅和事件队列。
    */
   ~EventBus() {
     clear();
+    if (eventMutex) {
+      vSemaphoreDelete(eventMutex);
+    }
   }
 };
 
-// 初始化单例实例
-EventBus* EventBus::instance = nullptr;
+
 
 // 简化的事件发布宏
 #define EVENT_PUBLISH(type, data) EventBus::getInstance()->publish(type, data)

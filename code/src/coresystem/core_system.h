@@ -68,21 +68,31 @@ private:
     defaultTaskPriority = 5; // 默认任务优先级5
     
     // 初始化线程管理
-    systemMutex = xSemaphoreCreateMutex();
-    if (systemMutex == NULL) {
-      Serial.println("Failed to create system mutex");
-      // 在构造函数中无法返回错误，所以我们设置一个标志
-      state = SYSTEM_STATE_ERROR;
-    }
-    
-    // 初始化核心组件
-    eventBus = EventBus::getInstance();
-    driverRegistry = DriverRegistry::getInstance();
-    
-    // 初始化子系统
-    powerManager = PowerManager::getInstance();
-    timerManager = TimerManager::getInstance();
-    memoryManager = MemoryManager::getInstance();
+  systemMutex = xSemaphoreCreateMutex();
+  if (systemMutex == NULL) {
+    Serial.println("Failed to create system mutex");
+    // 在构造函数中无法返回错误，所以我们设置一个标志
+    state = SYSTEM_STATE_ERROR;
+  }
+  
+  // 初始化核心组件
+  eventBus = EventBus::getInstance();
+  driverRegistry = DriverRegistry::getInstance();
+  
+  // 初始化子系统
+  powerManager = PowerManager::getInstance();
+  timerManager = TimerManager::getInstance();
+  memoryManager = MemoryManager::getInstance();
+  
+  // 初始化定时器
+  timers = std::vector<TimerItem>();
+  
+  // 初始化电源状态
+  lastPowerUpdate = 0;
+  batteryVoltage = 0.0;
+  batteryPercentage = 0;
+  isCharging = false;
+  isLowPowerMode = false;
   }
   
   // 系统状态
@@ -118,6 +128,16 @@ private:
   PowerManager* powerManager;
   TimerManager* timerManager;
   MemoryManager* memoryManager;
+  
+  // 定时器管理
+  std::vector<TimerItem> timers;
+  
+  // 电源状态
+  unsigned long lastPowerUpdate;
+  float batteryVoltage;
+  int batteryPercentage;
+  bool isCharging;
+  bool isLowPowerMode;
   
   // 资源监控和性能分析
   struct SystemStats {
@@ -826,8 +846,8 @@ public:
   }
   
   // 获取内存池使用情况
-  void getMemoryPoolInfo(void* poolPtr, size_t& totalBlocks, size_t& freeBlocks) {
-    memoryManager->getMemoryPoolInfo(poolPtr, totalBlocks, freeBlocks);
+  void getMemoryPoolInfo(void* poolPtr, size_t& totalBlocks, size_t& freeBlocks, size_t& usedBlocks) {
+    memoryManager->getMemoryPoolInfo(poolPtr, totalBlocks, freeBlocks, usedBlocks);
   }
   
   // 执行内存清理
@@ -840,8 +860,8 @@ public:
   }
   
   // 获取内存使用统计
-  void getMemoryStats(size_t& totalMemory, size_t& usedMemory, size_t& peakMemory) {
-    memoryManager->getMemoryStats(totalMemory, usedMemory, peakMemory);
+  void getMemoryStats(size_t& totalMemory, size_t& usedMemory, size_t& peakMemory, size_t& freeMemory) {
+    memoryManager->getMemoryStats(totalMemory, usedMemory, peakMemory, freeMemory);
   }
   
   // 析构函数

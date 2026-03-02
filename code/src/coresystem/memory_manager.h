@@ -18,6 +18,15 @@ typedef struct {
  * 负责管理系统内存，包括内存池的创建、分配和释放，
  * 以及内存使用情况的监控和优化。
  */
+// 内存分配记录结构体
+typedef struct {
+  void* ptr;          // 内存指针
+  size_t size;        // 分配大小
+  const char* file;   // 分配文件
+  int line;           // 分配行号
+  unsigned long time; // 分配时间
+} MemoryAllocation;
+
 class MemoryManager {
 private:
   static MemoryManager* instance;         // 单例实例
@@ -27,6 +36,10 @@ private:
   size_t totalAllocatedMemory;            // 总分配内存大小
   size_t peakAllocatedMemory;             // 峰值分配内存大小
   unsigned long lastMemoryUpdate;         // 上次内存更新时间
+  size_t memoryWarningThreshold;          // 内存警告阈值
+  
+  // 内存分配跟踪
+  std::vector<MemoryAllocation> allocations;  // 内存分配记录
   
   /**
    * @brief 构造函数
@@ -37,6 +50,7 @@ private:
     totalAllocatedMemory = 0;
     peakAllocatedMemory = 0;
     lastMemoryUpdate = 0;
+    memoryWarningThreshold = 90; // 90% 内存使用率警告
   }
   
   /**
@@ -52,6 +66,27 @@ private:
    * 更新内存使用统计信息，包括总分配内存和峰值内存。
    */
   void updateMemoryStats();
+  
+  /**
+   * @brief 合并相似的内存池
+   * 
+   * 合并具有相同块大小的内存池，减少内存池数量。
+   */
+  void mergeSimilarPools();
+  
+  /**
+   * @brief 分割过大的内存池
+   * 
+   * 分割过大的内存池，提高内存利用率。
+   */
+  void splitLargePools();
+  
+  /**
+   * @brief 检查内存使用预警
+   * 
+   * 检查内存使用是否达到预警阈值。
+   */
+  void checkMemoryWarning();
   
 public:
   /**
@@ -82,9 +117,11 @@ public:
    * 
    * @param poolPtr 内存池指针
    * @param size 分配大小
+   * @param file 调用文件
+   * @param line 调用行号
    * @return void* 分配的内存指针
    */
-  void* allocateFromPool(void* poolPtr, size_t size);
+  void* allocateFromPool(void* poolPtr, size_t size, const char* file = nullptr, int line = 0);
   
   /**
    * @brief 释放内存回内存池
@@ -107,8 +144,9 @@ public:
    * @param poolPtr 内存池指针
    * @param totalBlocks 总块数
    * @param freeBlocks 空闲块数
+   * @param usedBlocks 已使用块数
    */
-  void getMemoryPoolInfo(void* poolPtr, size_t& totalBlocks, size_t& freeBlocks);
+  void getMemoryPoolInfo(void* poolPtr, size_t& totalBlocks, size_t& freeBlocks, size_t& usedBlocks);
   
   /**
    * @brief 执行内存清理
@@ -123,8 +161,9 @@ public:
    * @param totalMemory 总内存
    * @param usedMemory 已使用内存
    * @param peakMemory 峰值内存
+   * @param freeMemory 空闲内存
    */
-  void getMemoryStats(size_t& totalMemory, size_t& usedMemory, size_t& peakMemory);
+  void getMemoryStats(size_t& totalMemory, size_t& usedMemory, size_t& peakMemory, size_t& freeMemory);
   
   /**
    * @brief 获取内存池数量
@@ -144,9 +183,11 @@ public:
    * @brief 直接分配内存
    * 
    * @param size 分配大小
+   * @param file 调用文件
+   * @param line 调用行号
    * @return void* 分配的内存指针
    */
-  void* allocate(size_t size);
+  void* allocate(size_t size, const char* file = nullptr, int line = 0);
   
   /**
    * @brief 直接释放内存
@@ -168,6 +209,27 @@ public:
    * 清理未使用的内存池并执行内存碎片整理。
    */
   void optimizeMemoryUsage();
+  
+  /**
+   * @brief 设置内存警告阈值
+   * 
+   * @param threshold 内存使用率阈值（0-100）
+   */
+  void setMemoryWarningThreshold(size_t threshold);
+  
+  /**
+   * @brief 打印内存分配详情
+   * 
+   * 打印当前所有内存分配的详细信息。
+   */
+  void printMemoryAllocations();
+  
+  /**
+   * @brief 执行内存碎片整理
+   * 
+   * 尝试整理内存碎片，提高内存利用率。
+   */
+  void defragmentMemory();
 };
 
 #endif // MEMORY_MANAGER_H

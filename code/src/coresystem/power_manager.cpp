@@ -157,20 +157,112 @@ void PowerManager::enterLightSleep(uint64_t sleepTimeMs) {
   EventBus::getInstance()->publish(EVENT_SYSTEM_WAKEUP, nullptr);
 }
 
+// 调整功耗等级
+void PowerManager::adjustPowerLevel() {
+  if (isCharging) {
+    currentPowerLevel = POWER_LEVEL_NORMAL;
+    updateInterval = 5000; // 充电时更新频率降低
+  } else if (batteryPercentage <= 10) {
+    currentPowerLevel = POWER_LEVEL_DEEP_LOW;
+    updateInterval = 30000; // 深度低功耗时更新频率更低
+  } else if (batteryPercentage <= 20) {
+    currentPowerLevel = POWER_LEVEL_MEDIUM_LOW;
+    updateInterval = 15000; // 中度低功耗时更新频率降低
+  } else if (batteryPercentage <= 50) {
+    currentPowerLevel = POWER_LEVEL_LIGHT_LOW;
+    updateInterval = 5000; // 轻度低功耗时更新频率降低
+  } else {
+    currentPowerLevel = POWER_LEVEL_NORMAL;
+    updateInterval = 1000; // 正常模式时标准更新频率
+  }
+}
+
+// 执行功耗优化措施
+void PowerManager::applyPowerOptimizations() {
+  switch (currentPowerLevel) {
+    case POWER_LEVEL_DEEP_LOW:
+      // 深度低功耗模式：关闭所有非必要功能
+      EventBus::getInstance()->publish(EVENT_SYSTEM_DEEP_LOW_POWER, nullptr);
+      break;
+    case POWER_LEVEL_MEDIUM_LOW:
+      // 中度低功耗模式：减少网络连接和传感器采样
+      EventBus::getInstance()->publish(EVENT_SYSTEM_MEDIUM_LOW_POWER, nullptr);
+      break;
+    case POWER_LEVEL_LIGHT_LOW:
+      // 轻度低功耗模式：减少显示更新频率
+      EventBus::getInstance()->publish(EVENT_SYSTEM_LIGHT_LOW_POWER, nullptr);
+      break;
+    case POWER_LEVEL_NORMAL:
+      // 正常模式：所有功能正常运行
+      EventBus::getInstance()->publish(EVENT_SYSTEM_NORMAL_POWER, nullptr);
+      break;
+  }
+}
+
+// 获取当前功耗等级
+PowerManager::PowerConsumptionLevel PowerManager::getCurrentPowerLevel() const {
+  return currentPowerLevel;
+}
+
 // 优化功耗
 void PowerManager::optimizePowerConsumption() {
-  // 根据电池电量调整功耗策略
-  if (batteryPercentage <= CRITICAL_BATTERY_THRESHOLD) {
-    // 电量极低时，进入深度低功耗模式
-    setLowPowerMode(true);
-  } else if (batteryPercentage < 20) {
-    // 电量低于20%，进入中度低功耗模式
-    setLowPowerMode(true);
-  } else if (batteryPercentage < 50) {
-    // 电量低于50%，进入轻度低功耗模式
-    setLowPowerMode(true);
-  } else {
-    // 电量充足，使用正常模式
-    setLowPowerMode(false);
+  adjustPowerLevel();
+  applyPowerOptimizations();
+  
+  // 根据功耗等级设置低功耗模式
+  isLowPowerMode = (currentPowerLevel != POWER_LEVEL_NORMAL);
+}
+
+// 获取最佳睡眠模式和时间
+void PowerManager::getOptimalSleepParameters(uint64_t& sleepTimeMs, bool& useDeepSleep) {
+  switch (currentPowerLevel) {
+    case POWER_LEVEL_DEEP_LOW:
+      sleepTimeMs = 300000; // 5分钟
+      useDeepSleep = true;
+      break;
+    case POWER_LEVEL_MEDIUM_LOW:
+      sleepTimeMs = 180000; // 3分钟
+      useDeepSleep = true;
+      break;
+    case POWER_LEVEL_LIGHT_LOW:
+      sleepTimeMs = 60000; // 1分钟
+      useDeepSleep = false;
+      break;
+    case POWER_LEVEL_NORMAL:
+      sleepTimeMs = 30000; // 30秒
+      useDeepSleep = false;
+      break;
+  }
+}
+
+// 更新电源状态
+void PowerManager::updatePowerState() {
+  unsigned long now = platformGetMillis();
+  if (now - lastPowerUpdate > updateInterval) {
+    lastPowerUpdate = now;
+    
+    // 读取电池电压
+    batteryVoltage = readBatteryVoltage();
+    batteryPercentage = calculateBatteryPercentage(batteryVoltage);
+    isCharging = readChargingStatus();
+    
+    // 检查低电量
+    if (batteryPercentage <= 10 && !isCharging) {
+      auto lowPowerData = std::make_shared<PowerStateEventData>(batteryPercentage, isCharging, true);
+      EventBus::getInstance()->publish(EVENT_BATTERY_CRITICAL, lowPowerData);
+    } else if (batteryPercentage <= 20 && !isCharging) {
+      auto lowPowerData = std::make_shared<PowerStateEventData>(batteryPercentage, isCharging, true);
+      EventBus::getInstance()->publish(EVENT_BATTERY_LOW, lowPowerData);
+    } else if (batteryPercentage > 30 && isLowPowerMode) {
+      auto powerOkData = std::make_shared<PowerStateEventData>(batteryPercentage, isCharging, false);
+      EventBus::getInstance()->publish(EVENT_BATTERY_OK, powerOkData);
+    }
+    
+    // 优化功耗
+    optimizePowerConsumption();
+    
+    // 发布电源状态变化事件
+    auto powerData = std::make_shared<PowerStateEventData>(batteryPercentage, isCharging, isLowPowerMode);
+    EventBus::getInstance()->publish(EVENT_POWER_STATE_CHANGED, powerData);
   }
 }

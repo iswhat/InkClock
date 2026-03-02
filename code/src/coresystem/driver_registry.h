@@ -103,25 +103,16 @@ public:
 // 驱动注册中心类
 class DriverRegistry {
 private:
-  static DriverRegistry* instance;
-  
-  // 私有构造函数
-  DriverRegistry() {
-    scanningEnabled = true;
-    scanInterval = 30000; // 默认30秒扫描一次
-    lastScanTime = 0;
-  }
-  
   // 驱动列表
-  std::vector<ISensorDriver*> sensorDrivers;
-  std::vector<IDisplayDriver*> displayDrivers;
-  std::vector<AudioDriver*> audioDrivers;
+  std::unordered_map<String, ISensorDriver*> sensorDrivers;     // 传感器驱动，键为驱动名称
+  std::unordered_map<String, IDisplayDriver*> displayDrivers;   // 显示驱动，键为驱动名称
+  std::unordered_map<String, AudioDriver*> audioDrivers;        // 音频驱动，键为驱动名称
   
   // 设备信息列表
-  std::vector<DeviceInfo> deviceInfos;
+  std::unordered_map<String, DeviceInfo> deviceInfos;           // 设备信息，键为设备ID
   
   // 驱动信息列表
-  std::vector<DriverInfo> driverInfos;
+  std::unordered_map<String, DriverInfo> driverInfos;           // 驱动信息，键为驱动名称
   
   // 事件总线指针
   EventBus* eventBus;
@@ -131,33 +122,61 @@ private:
   unsigned long scanInterval;
   unsigned long lastScanTime;
   
+  // 互斥锁
+  SemaphoreHandle_t registryMutex;
+  
+  /**
+   * @brief 构造函数
+   * 
+   * 私有构造函数，用于初始化驱动注册中心。
+   */
+  DriverRegistry() {
+    scanningEnabled = true;
+    scanInterval = 30000; // 默认30秒扫描一次
+    lastScanTime = 0;
+    eventBus = EventBus::getInstance();
+    registryMutex = xSemaphoreCreateMutex();
+  }
+  
   // 私有方法：更新驱动状态
   void updateDriverStatus(const String& driverName, DriverStatus status) {
-    for (auto& info : driverInfos) {
-      if (info.name == driverName) {
-        info.status = status;
-        info.lastActiveTime = millis();
-        
-        // 发布驱动更新事件
-        auto driverData = std::make_shared<DriverEventData>(info.name, info.type);
-        eventBus->publish(EVENT_DRIVER_UPDATED, driverData);
-        break;
-      }
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    
+    auto it = driverInfos.find(driverName);
+    if (it != driverInfos.end()) {
+      it->second.status = status;
+      it->second.lastActiveTime = millis();
+      
+      // 发布驱动更新事件
+      auto driverData = std::make_shared<DriverEventData>(it->second.name, it->second.type);
+      eventBus->publish(EVENT_DRIVER_UPDATED, driverData);
+    }
+    
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
     }
   }
   
   // 私有方法：更新设备状态
   void updateDeviceStatus(const String& deviceId, DeviceStatus status) {
-    for (auto& info : deviceInfos) {
-      if (info.deviceId == deviceId) {
-        info.status = status;
-        info.lastUpdateTime = millis();
-        
-        // 发布设备状态变化事件
-        auto deviceData = std::make_shared<DeviceEventData>(info.deviceName, info.deviceType, deviceId);
-        eventBus->publish(EVENT_DEVICE_STATUS_CHANGED, deviceData);
-        break;
-      }
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    
+    auto it = deviceInfos.find(deviceId);
+    if (it != deviceInfos.end()) {
+      it->second.status = status;
+      it->second.lastUpdateTime = millis();
+      
+      // 发布设备状态变化事件
+      auto deviceData = std::make_shared<DeviceEventData>(it->second.deviceName, it->second.deviceType, deviceId);
+      eventBus->publish(EVENT_DEVICE_STATUS_CHANGED, deviceData);
+    }
+    
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
     }
   }
   
@@ -201,11 +220,8 @@ private:
 public:
   // 获取单例实例
   static DriverRegistry* getInstance() {
-    if (instance == nullptr) {
-      instance = new DriverRegistry();
-      instance->eventBus = EventBus::getInstance();
-    }
-    return instance;
+    static DriverRegistry instance;
+    return &instance;
   }
   
   // 初始化驱动注册中心
@@ -222,11 +238,24 @@ public:
       return false;
     }
     
-    sensorDrivers.push_back(driver);
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    
+    String driverName = driver->getTypeName();
+    if (sensorDrivers.find(driverName) != sensorDrivers.end()) {
+      Serial.printf("Error: Sensor driver already registered: %s\n", driverName.c_str());
+      if (registryMutex) {
+        xSemaphoreGive(registryMutex);
+      }
+      return false;
+    }
+    
+    sensorDrivers[driverName] = driver;
     
     // 创建驱动信息
     DriverInfo info;
-    info.name = driver->getTypeName();
+    info.name = driverName;
     info.type = "sensor";
     info.version = "1.0.0";
     info.vendor = "Unknown";
@@ -234,20 +263,25 @@ public:
     info.status = DRIVER_STATUS_UNINITIALIZED;
     info.enabled = false;
     info.deviceId = String(driver->getType());
-    info.deviceName = driver->getTypeName();
+    info.deviceName = driverName;
     info.deviceType = "sensor";
     info.firmwareVersion = "1.0.0";
     info.lastActiveTime = millis();
     info.startTime = millis();
     info.errorCount = 0;
     
-    driverInfos.push_back(info);
+    driverInfos[driverName] = info;
     
     // 发布驱动注册事件
     auto driverData = std::make_shared<DriverEventData>(info.name, info.type);
     eventBus->publish(EVENT_DRIVER_REGISTERED, driverData);
     
     Serial.printf("Sensor driver registered: %s\n", info.name.c_str());
+    
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
+    }
+    
     return true;
   }
   
@@ -258,11 +292,24 @@ public:
       return false;
     }
     
-    displayDrivers.push_back(driver);
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    
+    String driverName = "Eink_Driver";
+    if (displayDrivers.find(driverName) != displayDrivers.end()) {
+      Serial.printf("Error: Display driver already registered: %s\n", driverName.c_str());
+      if (registryMutex) {
+        xSemaphoreGive(registryMutex);
+      }
+      return false;
+    }
+    
+    displayDrivers[driverName] = driver;
     
     // 创建驱动信息（只支持EINK）
     DriverInfo info;
-    info.name = "Eink_Driver";
+    info.name = driverName;
     info.type = "display";
     info.version = "1.0.0";
     info.vendor = "Unknown";
@@ -277,13 +324,18 @@ public:
     info.startTime = millis();
     info.errorCount = 0;
     
-    driverInfos.push_back(info);
+    driverInfos[driverName] = info;
     
     // 发布驱动注册事件
     auto driverData = std::make_shared<DriverEventData>(info.name, info.type);
     eventBus->publish(EVENT_DRIVER_REGISTERED, driverData);
     
     Serial.printf("Display driver registered: %s\n", info.name.c_str());
+    
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
+    }
+    
     return true;
   }
   
@@ -294,11 +346,24 @@ public:
       return false;
     }
     
-    audioDrivers.push_back(driver);
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    
+    String driverName = String(driver->getType());
+    if (audioDrivers.find(driverName) != audioDrivers.end()) {
+      Serial.printf("Error: Audio driver already registered: %s\n", driverName.c_str());
+      if (registryMutex) {
+        xSemaphoreGive(registryMutex);
+      }
+      return false;
+    }
+    
+    audioDrivers[driverName] = driver;
     
     // 创建驱动信息
     DriverInfo info;
-    info.name = String(driver->getType());
+    info.name = driverName;
     info.type = "audio";
     info.version = "1.0.0";
     info.vendor = "Unknown";
@@ -313,150 +378,229 @@ public:
     info.startTime = millis();
     info.errorCount = 0;
     
-    driverInfos.push_back(info);
+    driverInfos[driverName] = info;
     
     // 发布驱动注册事件
     auto driverData = std::make_shared<DriverEventData>(info.name, info.type);
     eventBus->publish(EVENT_DRIVER_REGISTERED, driverData);
     
     Serial.printf("Audio driver registered: %s\n", info.name.c_str());
+    
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
+    }
+    
     return true;
   }
   
   // 卸载驱动
   bool unregisterDriver(const String& driverName) {
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    
     // 查找并移除传感器驱动
-    for (auto it = sensorDrivers.begin(); it != sensorDrivers.end(); ++it) {
-      if ((*it)->getTypeName() == driverName) {
-        // 发布驱动卸载事件
-        auto driverData = std::make_shared<DriverEventData>(driverName, "sensor");
-        eventBus->publish(EVENT_DRIVER_UNREGISTERED, driverData);
-        
-        // 更新驱动状态
-        updateDriverStatus(driverName, DRIVER_STATUS_UNREGISTERED);
-        
-        delete *it;
-        sensorDrivers.erase(it);
-        
-        // 移除驱动信息
-        for (auto infoIt = driverInfos.begin(); infoIt != driverInfos.end(); ++infoIt) {
-          if (infoIt->name == driverName) {
-            driverInfos.erase(infoIt);
-            break;
-          }
-        }
-        
-        Serial.printf("Sensor driver unregistered: %s\n", driverName.c_str());
-        return true;
+    auto sensorIt = sensorDrivers.find(driverName);
+    if (sensorIt != sensorDrivers.end()) {
+      // 发布驱动卸载事件
+      auto driverData = std::make_shared<DriverEventData>(driverName, "sensor");
+      eventBus->publish(EVENT_DRIVER_UNREGISTERED, driverData);
+      
+      // 更新驱动状态
+      updateDriverStatus(driverName, DRIVER_STATUS_UNREGISTERED);
+      
+      delete sensorIt->second;
+      sensorDrivers.erase(sensorIt);
+      
+      // 移除驱动信息
+      driverInfos.erase(driverName);
+      
+      Serial.printf("Sensor driver unregistered: %s\n", driverName.c_str());
+      
+      if (registryMutex) {
+        xSemaphoreGive(registryMutex);
       }
+      return true;
     }
     
     // 查找并移除显示驱动
-    for (auto it = displayDrivers.begin(); it != displayDrivers.end(); ++it) {
-      if (driverName == "Eink_Driver") {
-        // 发布驱动卸载事件
-        auto driverData = std::make_shared<DriverEventData>(driverName, "display");
-        eventBus->publish(EVENT_DRIVER_UNREGISTERED, driverData);
-        
-        // 更新驱动状态
-        updateDriverStatus(driverName, DRIVER_STATUS_UNREGISTERED);
-        
-        delete *it;
-        displayDrivers.erase(it);
-        
-        // 移除驱动信息
-        for (auto infoIt = driverInfos.begin(); infoIt != driverInfos.end(); ++infoIt) {
-          if (infoIt->name == driverName) {
-            driverInfos.erase(infoIt);
-            break;
-          }
-        }
-        
-        Serial.printf("Display driver unregistered: %s\n", driverName.c_str());
-        return true;
+    auto displayIt = displayDrivers.find(driverName);
+    if (displayIt != displayDrivers.end()) {
+      // 发布驱动卸载事件
+      auto driverData = std::make_shared<DriverEventData>(driverName, "display");
+      eventBus->publish(EVENT_DRIVER_UNREGISTERED, driverData);
+      
+      // 更新驱动状态
+      updateDriverStatus(driverName, DRIVER_STATUS_UNREGISTERED);
+      
+      delete displayIt->second;
+      displayDrivers.erase(displayIt);
+      
+      // 移除驱动信息
+      driverInfos.erase(driverName);
+      
+      Serial.printf("Display driver unregistered: %s\n", driverName.c_str());
+      
+      if (registryMutex) {
+        xSemaphoreGive(registryMutex);
       }
+      return true;
     }
     
     // 查找并移除音频驱动
-    for (auto it = audioDrivers.begin(); it != audioDrivers.end(); ++it) {
-      String audioDriverName = String((*it)->getType());
-      if (audioDriverName == driverName) {
-        // 发布驱动卸载事件
-        auto driverData = std::make_shared<DriverEventData>(driverName, "audio");
-        eventBus->publish(EVENT_DRIVER_UNREGISTERED, driverData);
-        
-        // 更新驱动状态
-        updateDriverStatus(driverName, DRIVER_STATUS_UNREGISTERED);
-        
-        delete *it;
-        audioDrivers.erase(it);
-        
-        // 移除驱动信息
-        for (auto infoIt = driverInfos.begin(); infoIt != driverInfos.end(); ++infoIt) {
-          if (infoIt->name == driverName) {
-            driverInfos.erase(infoIt);
-            break;
-          }
-        }
-        
-        Serial.printf("Audio driver unregistered: %s\n", driverName.c_str());
-        return true;
+    auto audioIt = audioDrivers.find(driverName);
+    if (audioIt != audioDrivers.end()) {
+      // 发布驱动卸载事件
+      auto driverData = std::make_shared<DriverEventData>(driverName, "audio");
+      eventBus->publish(EVENT_DRIVER_UNREGISTERED, driverData);
+      
+      // 更新驱动状态
+      updateDriverStatus(driverName, DRIVER_STATUS_UNREGISTERED);
+      
+      delete audioIt->second;
+      audioDrivers.erase(audioIt);
+      
+      // 移除驱动信息
+      driverInfos.erase(driverName);
+      
+      Serial.printf("Audio driver unregistered: %s\n", driverName.c_str());
+      
+      if (registryMutex) {
+        xSemaphoreGive(registryMutex);
       }
+      return true;
     }
     
     Serial.printf("Error: Driver not found for unregistration: %s\n", driverName.c_str());
+    
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
+    }
     return false;
   }
   
   // 获取所有传感器驱动
   std::vector<ISensorDriver*> getSensorDrivers() {
-    return sensorDrivers;
+    std::vector<ISensorDriver*> drivers;
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    for (const auto& pair : sensorDrivers) {
+      drivers.push_back(pair.second);
+    }
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
+    }
+    return drivers;
   }
   
   // 获取所有显示驱动
   std::vector<IDisplayDriver*> getDisplayDrivers() {
-    return displayDrivers;
+    std::vector<IDisplayDriver*> drivers;
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    for (const auto& pair : displayDrivers) {
+      drivers.push_back(pair.second);
+    }
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
+    }
+    return drivers;
   }
   
   // 获取所有音频驱动
   std::vector<AudioDriver*> getAudioDrivers() {
-    return audioDrivers;
+    std::vector<AudioDriver*> drivers;
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    for (const auto& pair : audioDrivers) {
+      drivers.push_back(pair.second);
+    }
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
+    }
+    return drivers;
   }
   
   // 根据传感器类型获取驱动
   ISensorDriver* getSensorDriver(SensorType type) {
-    for (auto driver : sensorDrivers) {
-      if (driver->getType() == type) {
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    for (const auto& pair : sensorDrivers) {
+      if (pair.second->getType() == type) {
+        ISensorDriver* driver = pair.second;
+        if (registryMutex) {
+          xSemaphoreGive(registryMutex);
+        }
         return driver;
       }
+    }
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
     }
     return nullptr;
   }
   
   // 根据驱动名称获取传感器驱动
   ISensorDriver* getSensorDriverByName(const String& name) {
-    for (auto driver : sensorDrivers) {
-      if (driver->getTypeName() == name) {
-        return driver;
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    auto it = sensorDrivers.find(name);
+    if (it != sensorDrivers.end()) {
+      ISensorDriver* driver = it->second;
+      if (registryMutex) {
+        xSemaphoreGive(registryMutex);
       }
+      return driver;
+    }
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
     }
     return nullptr;
   }
   
   // 根据显示类型获取驱动
   IDisplayDriver* getDisplayDriver(DisplayCategory type) {
-    for (auto driver : displayDrivers) {
-      if (driver->getDisplayType() == type) {
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    for (const auto& pair : displayDrivers) {
+      if (pair.second->getDisplayType() == type) {
+        IDisplayDriver* driver = pair.second;
+        if (registryMutex) {
+          xSemaphoreGive(registryMutex);
+        }
         return driver;
       }
+    }
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
     }
     return nullptr;
   }
   
   // 自动检测传感器驱动 - 优化版，减少初始化时间
   ISensorDriver* autoDetectSensorDriver() {
-    for (auto driver : sensorDrivers) {
-      updateDriverStatus(driver->getTypeName(), DRIVER_STATUS_INITIALIZING);
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    
+    std::vector<ISensorDriver*> drivers;
+    for (const auto& pair : sensorDrivers) {
+      drivers.push_back(pair.second);
+    }
+    
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
+    }
+    
+    for (auto driver : drivers) {
+      String driverName = driver->getTypeName();
+      updateDriverStatus(driverName, DRIVER_STATUS_INITIALIZING);
       
       // 先使用matchHardware()快速检测硬件，减少不必要的完整初始化
       if (driver->matchHardware()) {
@@ -470,13 +614,20 @@ public:
         config.humOffset = 0.0;
         
         if (driver->init(config)) {
-          updateDriverStatus(driver->getTypeName(), DRIVER_STATUS_READY);
+          updateDriverStatus(driverName, DRIVER_STATUS_READY);
           
           // 创建设备信息
           String deviceId = String(driver->getType());
-          DeviceInfo deviceInfo = createDeviceInfo(deviceId, driver->getTypeName(), "sensor", 
-                                                 driver->getTypeName(), DEVICE_STATUS_DISCOVERED, "Auto-detected");
-          deviceInfos.push_back(deviceInfo);
+          DeviceInfo deviceInfo = createDeviceInfo(deviceId, driverName, "sensor", 
+                                                 driverName, DEVICE_STATUS_DISCOVERED, "Auto-detected");
+          
+          if (registryMutex) {
+            xSemaphoreTake(registryMutex, portMAX_DELAY);
+          }
+          deviceInfos[deviceId] = deviceInfo;
+          if (registryMutex) {
+            xSemaphoreGive(registryMutex);
+          }
           
           // 发布传感器发现事件
           publishDeviceDiscovered(deviceInfo);
@@ -485,22 +636,38 @@ public:
         }
       }
       
-      updateDriverStatus(driver->getTypeName(), DRIVER_STATUS_ERROR);
+      updateDriverStatus(driverName, DRIVER_STATUS_ERROR);
       
       // 发布驱动错误事件
-      publishDriverError(driver->getTypeName(), "Driver initialization failed", 2001);
+      publishDriverError(driverName, "Driver initialization failed", 2001);
     }
     return nullptr;
   }
   
   // 自动检测显示驱动（只支持EINK）
   IDisplayDriver* autoDetectDisplayDriver() {
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    
     if (displayDrivers.empty()) {
+      if (registryMutex) {
+        xSemaphoreGive(registryMutex);
+      }
       Serial.println("No display drivers registered");
       return nullptr;
     }
     
-    for (auto driver : displayDrivers) {
+    std::vector<IDisplayDriver*> drivers;
+    for (const auto& pair : displayDrivers) {
+      drivers.push_back(pair.second);
+    }
+    
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
+    }
+    
+    for (auto driver : drivers) {
       String driverName = "Eink_Driver";
       updateDriverStatus(driverName, DRIVER_STATUS_INITIALIZING);
       
@@ -514,7 +681,14 @@ public:
           String deviceId = "eink_display";
           DeviceInfo deviceInfo = createDeviceInfo(deviceId, "EinkDisplay", "display", 
                                                  driverName, DEVICE_STATUS_DISCOVERED, "Auto-detected");
-          deviceInfos.push_back(deviceInfo);
+          
+          if (registryMutex) {
+            xSemaphoreTake(registryMutex, portMAX_DELAY);
+          }
+          deviceInfos[deviceId] = deviceInfo;
+          if (registryMutex) {
+            xSemaphoreGive(registryMutex);
+          }
           
           // 发布设备发现事件
           publishDeviceDiscovered(deviceInfo);
@@ -534,12 +708,28 @@ public:
   
   // 自动检测音频驱动
   AudioDriver* autoDetectAudioDriver() {
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    
     if (audioDrivers.empty()) {
+      if (registryMutex) {
+        xSemaphoreGive(registryMutex);
+      }
       Serial.println("No audio drivers registered");
       return nullptr;
     }
     
-    for (auto driver : audioDrivers) {
+    std::vector<AudioDriver*> drivers;
+    for (const auto& pair : audioDrivers) {
+      drivers.push_back(pair.second);
+    }
+    
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
+    }
+    
+    for (auto driver : drivers) {
       String driverName = String(driver->getType());
       updateDriverStatus(driverName, DRIVER_STATUS_INITIALIZING);
       
@@ -553,7 +743,14 @@ public:
           String deviceId = String(driver->getType());
           DeviceInfo deviceInfo = createDeviceInfo(deviceId, "AudioDevice", "audio", 
                                                  driverName, DEVICE_STATUS_DISCOVERED, "Auto-detected");
-          deviceInfos.push_back(deviceInfo);
+          
+          if (registryMutex) {
+            xSemaphoreTake(registryMutex, portMAX_DELAY);
+          }
+          deviceInfos[deviceId] = deviceInfo;
+          if (registryMutex) {
+            xSemaphoreGive(registryMutex);
+          }
           
           // 发布设备发现事件
           publishDeviceDiscovered(deviceInfo);
@@ -573,80 +770,155 @@ public:
   
   // 启用驱动
   bool enableDriver(const String& driverName) {
-    for (auto& info : driverInfos) {
-      if (info.name == driverName && !info.enabled) {
-        info.enabled = true;
-        info.status = DRIVER_STATUS_RUNNING;
-        info.lastActiveTime = millis();
-        
-        // 发布驱动启用事件
-        auto driverData = std::make_shared<DriverEventData>(driverName, info.type);
-        eventBus->publish(EVENT_DRIVER_ENABLED, driverData);
-        
-        Serial.printf("Driver enabled: %s\n", driverName.c_str());
-        return true;
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    
+    auto it = driverInfos.find(driverName);
+    if (it != driverInfos.end() && !it->second.enabled) {
+      it->second.enabled = true;
+      it->second.status = DRIVER_STATUS_RUNNING;
+      it->second.lastActiveTime = millis();
+      
+      // 发布驱动启用事件
+      auto driverData = std::make_shared<DriverEventData>(driverName, it->second.type);
+      eventBus->publish(EVENT_DRIVER_ENABLED, driverData);
+      
+      Serial.printf("Driver enabled: %s\n", driverName.c_str());
+      
+      if (registryMutex) {
+        xSemaphoreGive(registryMutex);
       }
+      return true;
+    }
+    
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
     }
     return false;
   }
   
   // 禁用驱动
   bool disableDriver(const String& driverName) {
-    for (auto& info : driverInfos) {
-      if (info.name == driverName && info.enabled) {
-        info.enabled = false;
-        info.status = DRIVER_STATUS_DISABLED;
-        
-        // 发布驱动禁用事件
-        auto driverData = std::make_shared<DriverEventData>(driverName, info.type);
-        eventBus->publish(EVENT_DRIVER_DISABLED, driverData);
-        
-        Serial.printf("Driver disabled: %s\n", driverName.c_str());
-        return true;
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    
+    auto it = driverInfos.find(driverName);
+    if (it != driverInfos.end() && it->second.enabled) {
+      it->second.enabled = false;
+      it->second.status = DRIVER_STATUS_DISABLED;
+      
+      // 发布驱动禁用事件
+      auto driverData = std::make_shared<DriverEventData>(driverName, it->second.type);
+      eventBus->publish(EVENT_DRIVER_DISABLED, driverData);
+      
+      Serial.printf("Driver disabled: %s\n", driverName.c_str());
+      
+      if (registryMutex) {
+        xSemaphoreGive(registryMutex);
       }
+      return true;
+    }
+    
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
     }
     return false;
   }
   
   // 获取驱动信息
   std::vector<DriverInfo> getDriverInfos() {
-    return driverInfos;
+    std::vector<DriverInfo> infos;
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    for (const auto& pair : driverInfos) {
+      infos.push_back(pair.second);
+    }
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
+    }
+    return infos;
   }
   
   // 获取设备信息
   std::vector<DeviceInfo> getDeviceInfos() {
-    return deviceInfos;
+    std::vector<DeviceInfo> infos;
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    for (const auto& pair : deviceInfos) {
+      infos.push_back(pair.second);
+    }
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
+    }
+    return infos;
   }
   
   // 根据设备ID获取设备信息
   DeviceInfo* getDeviceInfo(const String& deviceId) {
-    for (auto& info : deviceInfos) {
-      if (info.deviceId == deviceId) {
-        return &info;
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    auto it = deviceInfos.find(deviceId);
+    if (it != deviceInfos.end()) {
+      DeviceInfo* info = &(it->second);
+      if (registryMutex) {
+        xSemaphoreGive(registryMutex);
       }
+      return info;
+    }
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
     }
     return nullptr;
   }
   
   // 设置设备属性
   bool setDeviceProperty(const String& deviceId, const String& propertyName, const String& propertyValue) {
-    DeviceInfo* deviceInfo = getDeviceInfo(deviceId);
-    if (deviceInfo != nullptr) {
-      deviceInfo->properties[propertyName] = propertyValue;
-      deviceInfo->lastUpdateTime = millis();
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    
+    auto it = deviceInfos.find(deviceId);
+    if (it != deviceInfos.end()) {
+      it->second.properties[propertyName] = propertyValue;
+      it->second.lastUpdateTime = millis();
+      
+      if (registryMutex) {
+        xSemaphoreGive(registryMutex);
+      }
       return true;
+    }
+    
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
     }
     return false;
   }
   
   // 获取设备属性
   String getDeviceProperty(const String& deviceId, const String& propertyName) {
-    DeviceInfo* deviceInfo = getDeviceInfo(deviceId);
-    if (deviceInfo != nullptr) {
-      auto it = deviceInfo->properties.find(propertyName);
-      if (it != deviceInfo->properties.end()) {
-        return it->second;
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    
+    auto it = deviceInfos.find(deviceId);
+    if (it != deviceInfos.end()) {
+      auto propIt = it->second.properties.find(propertyName);
+      if (propIt != it->second.properties.end()) {
+        String value = propIt->second;
+        if (registryMutex) {
+          xSemaphoreGive(registryMutex);
+        }
+        return value;
       }
+    }
+    
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
     }
     return "";
   }
@@ -661,14 +933,37 @@ public:
     unsigned long scanStartTime = millis();
     
     // 标记所有设备为断开连接
-    for (auto& info : deviceInfos) {
-      if (info.status == DEVICE_STATUS_CONNECTED) {
-        updateDeviceStatus(info.deviceId, DEVICE_STATUS_DISCONNECTED);
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    for (auto& pair : deviceInfos) {
+      if (pair.second.status == DEVICE_STATUS_CONNECTED) {
+        updateDeviceStatus(pair.first, DEVICE_STATUS_DISCONNECTED);
       }
     }
     
+    // 复制驱动列表，避免在扫描过程中修改
+    std::vector<ISensorDriver*> sensorDriversCopy;
+    for (const auto& pair : sensorDrivers) {
+      sensorDriversCopy.push_back(pair.second);
+    }
+    
+    std::vector<IDisplayDriver*> displayDriversCopy;
+    for (const auto& pair : displayDrivers) {
+      displayDriversCopy.push_back(pair.second);
+    }
+    
+    std::vector<AudioDriver*> audioDriversCopy;
+    for (const auto& pair : audioDrivers) {
+      audioDriversCopy.push_back(pair.second);
+    }
+    
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
+    }
+    
     // 扫描传感器设备
-    for (auto driver : sensorDrivers) {
+    for (auto driver : sensorDriversCopy) {
       String driverName = driver->getTypeName();
       String deviceId = String(driver->getType());
       String deviceName = driverName;
@@ -689,24 +984,32 @@ public:
       if (initResult) {
         updateDriverStatus(driverName, DRIVER_STATUS_READY);
         
-        DeviceInfo* existingDevice = getDeviceInfo(deviceId);
-        
-        if (existingDevice != nullptr) {
+        if (registryMutex) {
+          xSemaphoreTake(registryMutex, portMAX_DELAY);
+        }
+        auto it = deviceInfos.find(deviceId);
+        if (it != deviceInfos.end()) {
           // 更新现有设备信息
           updateDeviceStatus(deviceId, DEVICE_STATUS_CONNECTED);
-          existingDevice->lastUpdateTime = millis();
+          it->second.lastUpdateTime = millis();
           
           // 发布设备发现和连接事件
-          DeviceInfo tempDeviceInfo = *existingDevice;
+          DeviceInfo tempDeviceInfo = it->second;
+          if (registryMutex) {
+            xSemaphoreGive(registryMutex);
+          }
           publishDeviceDiscovered(tempDeviceInfo);
           publishDeviceConnected(tempDeviceInfo);
         } else {
           // 创建新设备信息
           DeviceInfo deviceInfo = createDeviceInfo(deviceId, deviceName, "sensor", 
                                                  driverName, DEVICE_STATUS_CONNECTED, "Connected");
-          deviceInfos.push_back(deviceInfo);
+          deviceInfos[deviceId] = deviceInfo;
           
           // 发布设备发现和连接事件
+          if (registryMutex) {
+            xSemaphoreGive(registryMutex);
+          }
           publishDeviceDiscovered(deviceInfo);
           publishDeviceConnected(deviceInfo);
         }
@@ -717,7 +1020,7 @@ public:
     }
     
     // 扫描显示设备（只支持EINK）
-    for (auto driver : displayDrivers) {
+    for (auto driver : displayDriversCopy) {
       String driverName = "Eink_Driver";
       // 使用DisplayCategory枚举值作为deviceId
       String deviceId = String(static_cast<int>(driver->getDisplayType()));
@@ -730,24 +1033,32 @@ public:
       if (initResult) {
         updateDriverStatus(driverName, DRIVER_STATUS_READY);
         
-        DeviceInfo* existingDevice = getDeviceInfo(deviceId);
-        
-        if (existingDevice != nullptr) {
+        if (registryMutex) {
+          xSemaphoreTake(registryMutex, portMAX_DELAY);
+        }
+        auto it = deviceInfos.find(deviceId);
+        if (it != deviceInfos.end()) {
           // 更新现有设备信息
           updateDeviceStatus(deviceId, DEVICE_STATUS_CONNECTED);
-          existingDevice->lastUpdateTime = millis();
+          it->second.lastUpdateTime = millis();
           
           // 发布设备发现和连接事件
-          DeviceInfo tempDeviceInfo = *existingDevice;
+          DeviceInfo tempDeviceInfo = it->second;
+          if (registryMutex) {
+            xSemaphoreGive(registryMutex);
+          }
           publishDeviceDiscovered(tempDeviceInfo);
           publishDeviceConnected(tempDeviceInfo);
         } else {
           // 创建新设备信息
           DeviceInfo deviceInfo = createDeviceInfo(deviceId, deviceName, "display", 
                                                  driverName, DEVICE_STATUS_CONNECTED, "Connected");
-          deviceInfos.push_back(deviceInfo);
+          deviceInfos[deviceId] = deviceInfo;
           
           // 发布设备发现和连接事件
+          if (registryMutex) {
+            xSemaphoreGive(registryMutex);
+          }
           publishDeviceDiscovered(deviceInfo);
           publishDeviceConnected(deviceInfo);
         }
@@ -758,7 +1069,7 @@ public:
     }
     
     // 扫描音频设备
-    for (auto driver : audioDrivers) {
+    for (auto driver : audioDriversCopy) {
       String driverName = String(driver->getType());
       String deviceId = String(driver->getType());
       String deviceName = "AudioDevice";
@@ -770,24 +1081,32 @@ public:
       if (initResult) {
         updateDriverStatus(driverName, DRIVER_STATUS_READY);
         
-        DeviceInfo* existingDevice = getDeviceInfo(deviceId);
-        
-        if (existingDevice != nullptr) {
+        if (registryMutex) {
+          xSemaphoreTake(registryMutex, portMAX_DELAY);
+        }
+        auto it = deviceInfos.find(deviceId);
+        if (it != deviceInfos.end()) {
           // 更新现有设备信息
           updateDeviceStatus(deviceId, DEVICE_STATUS_CONNECTED);
-          existingDevice->lastUpdateTime = millis();
+          it->second.lastUpdateTime = millis();
           
           // 发布设备发现和连接事件
-          DeviceInfo tempDeviceInfo = *existingDevice;
+          DeviceInfo tempDeviceInfo = it->second;
+          if (registryMutex) {
+            xSemaphoreGive(registryMutex);
+          }
           publishDeviceDiscovered(tempDeviceInfo);
           publishDeviceConnected(tempDeviceInfo);
         } else {
           // 创建新设备信息
           DeviceInfo deviceInfo = createDeviceInfo(deviceId, deviceName, "audio", 
                                                  driverName, DEVICE_STATUS_CONNECTED, "Connected");
-          deviceInfos.push_back(deviceInfo);
+          deviceInfos[deviceId] = deviceInfo;
           
           // 发布设备发现和连接事件
+          if (registryMutex) {
+            xSemaphoreGive(registryMutex);
+          }
           publishDeviceDiscovered(deviceInfo);
           publishDeviceConnected(deviceInfo);
         }
@@ -798,7 +1117,15 @@ public:
     }
     
     lastScanTime = millis();
-    Serial.printf("Device scan completed in %lu ms. Found %d devices.\n", millis() - scanStartTime, deviceInfos.size());
+    
+    size_t deviceCount = 0;
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+      deviceCount = deviceInfos.size();
+      xSemaphoreGive(registryMutex);
+    }
+    
+    Serial.printf("Device scan completed in %lu ms. Found %d devices.\n", millis() - scanStartTime, deviceCount);
   }
   
   // 设置扫描间隔
@@ -906,39 +1233,50 @@ public:
     // 发布系统关闭事件
     eventBus->publish(EVENT_SYSTEM_SHUTDOWN, nullptr);
     
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    
     Serial.println("Clearing all drivers...");
     
-    for (auto driver : sensorDrivers) {
+    // 清除传感器驱动
+    for (const auto& pair : sensorDrivers) {
       // 发布驱动卸载事件
-      auto driverData = std::make_shared<DriverEventData>(driver->getTypeName(), "sensor");
+      auto driverData = std::make_shared<DriverEventData>(pair.first, "sensor");
       eventBus->publish(EVENT_DRIVER_UNREGISTERED, driverData);
       
-      delete driver;
+      delete pair.second;
     }
     sensorDrivers.clear();
     
-    for (auto driver : displayDrivers) {
+    // 清除显示驱动
+    for (const auto& pair : displayDrivers) {
       // 发布驱动卸载事件
       String driverName = "Eink_Driver";
       auto driverData = std::make_shared<DriverEventData>(driverName, "display");
       eventBus->publish(EVENT_DRIVER_UNREGISTERED, driverData);
       
-      delete driver;
+      delete pair.second;
     }
     displayDrivers.clear();
     
-    for (auto driver : audioDrivers) {
+    // 清除音频驱动
+    for (const auto& pair : audioDrivers) {
       // 发布驱动卸载事件
-      String driverName = String(driver->getType());
+      String driverName = pair.first;
       auto driverData = std::make_shared<DriverEventData>(driverName, "audio");
       eventBus->publish(EVENT_DRIVER_UNREGISTERED, driverData);
       
-      delete driver;
+      delete pair.second;
     }
     audioDrivers.clear();
     
     driverInfos.clear();
     deviceInfos.clear();
+    
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
+    }
     
     Serial.println("All drivers cleared");
   }
@@ -947,11 +1285,35 @@ public:
   bool performHardwareMatch() {
     Serial.println("Performing hardware match detection...");
     
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    
+    // 复制驱动列表，避免在检测过程中修改
+    std::vector<ISensorDriver*> sensorDriversCopy;
+    for (const auto& pair : sensorDrivers) {
+      sensorDriversCopy.push_back(pair.second);
+    }
+    
+    std::vector<IDisplayDriver*> displayDriversCopy;
+    for (const auto& pair : displayDrivers) {
+      displayDriversCopy.push_back(pair.second);
+    }
+    
+    std::vector<AudioDriver*> audioDriversCopy;
+    for (const auto& pair : audioDrivers) {
+      audioDriversCopy.push_back(pair.second);
+    }
+    
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
+    }
+    
     bool allMatched = true;
     
     // 检测传感器驱动
     Serial.println("Checking sensor drivers...");
-    for (auto driver : sensorDrivers) {
+    for (auto driver : sensorDriversCopy) {
       String driverName = driver->getTypeName();
       bool matched = driver->matchHardware();
       
@@ -968,7 +1330,7 @@ public:
     
     // 检测显示驱动（只支持EINK）
     Serial.println("Checking display drivers...");
-    for (auto driver : displayDrivers) {
+    for (auto driver : displayDriversCopy) {
       String driverName = "Eink_Driver";
       bool matched = driver->matchHardware();
       
@@ -985,7 +1347,7 @@ public:
     
     // 检测音频驱动
     Serial.println("Checking audio drivers...");
-    for (auto driver : audioDrivers) {
+    for (auto driver : audioDriversCopy) {
       String driverName = String(driver->getType());
       bool matched = driver->matchHardware();
       

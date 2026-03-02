@@ -89,8 +89,10 @@ private:
     static ConfigManager* instance;
     std::map<String, std::shared_ptr<ConfigItem>> configItems;
     std::vector<std::shared_ptr<IConfigStorage>> storageBackends;
+    std::vector<ConfigStorageType> storagePriority;
     std::shared_ptr<IConfigStorage> activeStorage;
     bool initialized;
+    SemaphoreHandle_t configMutex;
 
     ConfigManager();
 
@@ -103,8 +105,17 @@ public:
     // 注册配置存储后端
     bool registerStorageBackend(std::shared_ptr<IConfigStorage> storage);
 
+    // 设置存储后端优先级
+    void setStoragePriority(const std::vector<ConfigStorageType>& priority);
+
+    // 获取存储后端优先级
+    std::vector<ConfigStorageType> getStoragePriority() const;
+
     // 设置活动存储后端
     bool setActiveStorage(ConfigStorageType type);
+
+    // 自动选择最佳存储后端
+    bool selectBestStorageBackend();
 
     // 注册配置项
     bool registerConfigItem(
@@ -139,11 +150,14 @@ public:
     std::vector<std::shared_ptr<ConfigItem>> getAllConfigItems() const;
     std::vector<std::shared_ptr<ConfigItem>> getConfigItemsByLevel(ConfigLevel level) const;
 
-    // 加载配置
+    // 加载配置（从所有可用存储后端）
     bool loadConfig();
 
-    // 保存配置
+    // 保存配置（到所有可用存储后端）
     bool saveConfig();
+
+    // 同步配置到所有存储后端
+    bool syncConfig();
 
     // 重置配置
     bool resetConfig(ConfigLevel level = CONFIG_LEVEL_PERSISTENT);
@@ -163,9 +177,24 @@ public:
     // 从JSON导入配置
     bool importConfigFromJson(const String& json);
     
+    // 获取存储后端状态
+    bool isStorageBackendAvailable(ConfigStorageType type);
+    
+    // 强制同步特定配置项
+    bool syncConfigItem(const String& key);
+    
 private:
     // 注册默认配置项
     void registerDefaultConfigItems();
+    
+    // 从指定存储后端加载配置
+    bool loadConfigFromStorage(std::shared_ptr<IConfigStorage> storage);
+    
+    // 保存配置到指定存储后端
+    bool saveConfigToStorage(std::shared_ptr<IConfigStorage> storage);
+    
+    // 同步配置项到指定存储后端
+    bool syncConfigItemToStorage(const String& key, std::shared_ptr<IConfigStorage> storage);
 };
 
 // SPIFFS配置存储实现

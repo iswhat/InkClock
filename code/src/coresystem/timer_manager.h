@@ -7,6 +7,14 @@
 // 定时器回调函数类型
 typedef std::function<void(uint32_t)> TimerCallback;
 
+// 定时器优先级
+enum TimerPriority {
+  TIMER_PRIORITY_LOW = 0,
+  TIMER_PRIORITY_NORMAL = 1,
+  TIMER_PRIORITY_HIGH = 2,
+  TIMER_PRIORITY_CRITICAL = 3
+};
+
 // 定时器结构体
 typedef struct {
   uint32_t timerId;
@@ -17,6 +25,10 @@ typedef struct {
   TimerCallback callback;
   bool paused;
   unsigned long pauseTime;     // 暂停时的时间
+  TimerPriority priority;      // 定时器优先级
+  bool isMicrosecond;          // 是否为微秒级定时器
+  unsigned long microsecondInterval; // 微秒间隔
+  unsigned long lastMicrosecondTrigger; // 上次微秒触发时间
 } TimerItem;
 
 /**
@@ -32,6 +44,8 @@ private:
   // 定时器列表
   std::vector<TimerItem> timers;         // 定时器列表
   uint32_t nextTimerId;                  // 下一个定时器ID
+  unsigned long lastProcessTime;         // 上次处理时间
+  size_t maxTimers;                      // 最大定时器数量
   
   /**
    * @brief 构造函数
@@ -40,6 +54,8 @@ private:
    */
   TimerManager() {
     nextTimerId = 0;
+    lastProcessTime = 0;
+    maxTimers = 100; // 默认最大定时器数量
   }
   
   /**
@@ -48,6 +64,27 @@ private:
    * 检查所有定时器是否到期，并触发相应的回调函数。
    */
   void processTimers();
+  
+  /**
+   * @brief 处理毫秒级定时器
+   * 
+   * 处理所有毫秒级定时器的触发逻辑。
+   */
+  void processMillisecondTimers(unsigned long now);
+  
+  /**
+   * @brief 处理微秒级定时器
+   * 
+   * 处理所有微秒级定时器的触发逻辑。
+   */
+  void processMicrosecondTimers(unsigned long nowMicros);
+  
+  /**
+   * @brief 按优先级排序定时器
+   * 
+   * 按优先级对定时器进行排序，确保高优先级定时器先被处理。
+   */
+  void sortTimersByPriority();
   
 public:
   /**
@@ -77,9 +114,10 @@ public:
    * @param interval 定时器间隔（毫秒）
    * @param callback 定时器回调函数
    * @param isOneShot 是否为一次性定时器
+   * @param priority 定时器优先级
    * @return uint32_t 定时器ID
    */
-  uint32_t createTimer(unsigned long interval, TimerCallback callback, bool isOneShot = false);
+  uint32_t createTimer(unsigned long interval, TimerCallback callback, bool isOneShot = false, TimerPriority priority = TIMER_PRIORITY_NORMAL);
   
   /**
    * @brief 创建微秒级定时器
@@ -87,9 +125,10 @@ public:
    * @param interval 定时器间隔（微秒）
    * @param callback 定时器回调函数
    * @param isOneShot 是否为一次性定时器
+   * @param priority 定时器优先级
    * @return uint32_t 定时器ID
    */
-  uint32_t createMicrosecondTimer(unsigned long interval, TimerCallback callback, bool isOneShot = false);
+  uint32_t createMicrosecondTimer(unsigned long interval, TimerCallback callback, bool isOneShot = false, TimerPriority priority = TIMER_PRIORITY_NORMAL);
   
   /**
    * @brief 启动定时器
@@ -157,12 +196,29 @@ public:
   bool setTimerInterval(uint32_t timerId, unsigned long interval);
   
   /**
+   * @brief 设置微秒级定时器间隔
+   * 
+   * @param timerId 定时器ID
+   * @param interval 定时器间隔（微秒）
+   * @return bool 设置是否成功
+   */
+  bool setTimerMicrosecondInterval(uint32_t timerId, unsigned long interval);
+  
+  /**
    * @brief 获取定时器剩余时间
    * 
    * @param timerId 定时器ID
    * @return unsigned long 剩余时间（毫秒）
    */
   unsigned long getTimerRemaining(uint32_t timerId);
+  
+  /**
+   * @brief 获取微秒级定时器剩余时间
+   * 
+   * @param timerId 定时器ID
+   * @return unsigned long 剩余时间（微秒）
+   */
+  unsigned long getTimerMicrosecondRemaining(uint32_t timerId);
   
   /**
    * @brief 获取定时器数量
@@ -177,6 +233,22 @@ public:
    * 销毁所有定时器并重置定时器ID。
    */
   void clearAllTimers();
+  
+  /**
+   * @brief 设置最大定时器数量
+   * 
+   * @param max 最大定时器数量
+   */
+  void setMaxTimers(size_t max);
+  
+  /**
+   * @brief 获取定时器统计信息
+   * 
+   * @param runningCount 运行中的定时器数量
+   * @param pausedCount 暂停的定时器数量
+   * @param oneShotCount 一次性定时器数量
+   */
+  void getTimerStats(size_t& runningCount, size_t& pausedCount, size_t& oneShotCount);
 };
 
 #endif // TIMER_MANAGER_H

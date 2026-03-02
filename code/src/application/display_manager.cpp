@@ -1558,7 +1558,7 @@ bool DisplayManager::drawAnimatedGIF(String gifPath, int x, int y, int width, in
   this->gifLoopCount = loopCount;
   gifCurrentLoop = 0;
   gifCurrentFrame = 0;
-  gifLastFrameTime = platformGetMillis();
+  gifLastFrameTime = millis();
   currentGifPath = gifPath;
   
   // 实现动画GIF绘制

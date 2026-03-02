@@ -16,6 +16,22 @@ EinkDisplay::EinkDisplay() {
   // 初始化刷新区域管理
   refreshRegionEnabled = false;
   resetRefreshRegion();
+  
+  // 初始化刷新模式
+  currentRefreshMode = REFRESH_MODE_PARTIAL;
+  
+  // 初始化自动刷新管理
+  autoRefreshEnabled = false;
+  autoRefreshInterval = 5000; // 默认5秒
+  lastRefreshTime = 0;
+  lastDrawTime = 0;
+  
+  // 初始化显示状态
+  displayReady = false;
+  
+  // 初始化性能统计
+  refreshCount = 0;
+  totalRefreshTime = 0;
 }
 
 EinkDisplay::~EinkDisplay() {
@@ -42,21 +58,43 @@ bool EinkDisplay::init() {
     clear();
     update();
     
+    // 更新显示状态
+    displayReady = true;
+    lastRefreshTime = millis();
+    
     DEBUG_PRINTLN("墨水屏初始化完成");
     return true;
   } catch (const std::exception& e) {
     DEBUG_PRINTLN("墨水屏初始化异常:");
     DEBUG_PRINTLN(e.what());
+    displayReady = false;
     return false;
   }
 }
 
 void EinkDisplay::update() {
   DEBUG_PRINTLN("全屏更新显示...");
+  
+  if (!displayReady) {
+    DEBUG_PRINTLN("显示未就绪，跳过更新");
+    return;
+  }
+  
   try {
+    unsigned long startTime = millis();
+    
     // 执行全屏更新
-    display.update();
-    DEBUG_PRINTLN("全屏显示更新完成");
+    displayFullRefresh();
+    
+    unsigned long endTime = millis();
+    totalRefreshTime += (endTime - startTime);
+    refreshCount++;
+    lastRefreshTime = endTime;
+    
+    DEBUG_PRINTF("全屏显示更新完成，耗时: %lu ms, 总刷新次数: %lu\n", endTime - startTime, refreshCount);
+    
+    // 检查自动刷新
+    checkAutoRefresh();
   } catch (const std::exception& e) {
     DEBUG_PRINTLN("全屏更新异常:");
     DEBUG_PRINTLN(e.what());
@@ -64,40 +102,51 @@ void EinkDisplay::update() {
 }
 
 void EinkDisplay::update(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
-  DEBUG_PRINTLN("局部更新显示...");
+  DEBUG_PRINTF("局部更新显示: x=%d, y=%d, w=%d, h=%d...\n", x, y, w, h);
+  
+  if (!displayReady) {
+    DEBUG_PRINTLN("显示未就绪，跳过更新");
+    return;
+  }
   
   try {
     // 检查参数是否有效
     if (x < 0 || y < 0 || w <= 0 || h <= 0 || x + w > width || y + h > height) {
       DEBUG_PRINTLN("局部更新参数无效，使用全屏更新");
-      display.update();
-      DEBUG_PRINTLN("局部显示更新完成（使用全屏更新）");
+      update();
       return;
     }
     
-    // 根据墨水屏型号实现真正的局部更新
-    #if DISPLAY_TYPE == EINK_42_INCH
-      // 4.2寸墨水屏局部更新
-      // 注意：GxGDEW042Z15库可能不直接支持局部更新
-      // 这里使用updateWindow方法尝试局部更新
-      display.updateWindow(x, y, x + w - 1, y + h - 1, true);
-    #elif DISPLAY_TYPE == EINK_75_INCH
-      // 7.5寸墨水屏局部更新
-      // 注意：GxGDEW075Z09库可能不直接支持局部更新
-      // 这里使用updateWindow方法尝试局部更新
-      display.updateWindow(x, y, x + w - 1, y + h - 1, true);
-    #else
-      // 其他型号墨水屏，使用全屏更新
-      display.update();
-    #endif
+    unsigned long startTime = millis();
     
-    DEBUG_PRINTLN("局部显示更新完成");
+    // 根据刷新模式执行不同的更新
+    switch (currentRefreshMode) {
+      case REFRESH_MODE_FULL:
+        displayFullRefresh();
+        break;
+      case REFRESH_MODE_FAST:
+        displayFastRefresh(x, y, w, h);
+        break;
+      case REFRESH_MODE_PARTIAL:
+      default:
+        displayPartialRefresh(x, y, w, h);
+        break;
+    }
+    
+    unsigned long endTime = millis();
+    totalRefreshTime += (endTime - startTime);
+    refreshCount++;
+    lastRefreshTime = endTime;
+    
+    DEBUG_PRINTF("局部显示更新完成，耗时: %lu ms, 总刷新次数: %lu\n", endTime - startTime, refreshCount);
+    
+    // 检查自动刷新
+    checkAutoRefresh();
   } catch (const std::exception& e) {
     DEBUG_PRINTLN("局部更新异常，使用全屏更新:");
     DEBUG_PRINTLN(e.what());
     try {
-      display.update();
-      DEBUG_PRINTLN("局部显示更新完成（使用全屏更新）");
+      update();
     } catch (const std::exception& e2) {
       DEBUG_PRINTLN("全屏更新也失败:");
       DEBUG_PRINTLN(e2.what());
@@ -564,6 +613,9 @@ void EinkDisplay::updateRefreshRegion() {
     return;
   }
   
+  // 优化刷新区域
+  optimizeRefreshRegion();
+  
   // 计算刷新区域的宽度和高度
   uint16_t w = refreshX2 - refreshX1 + 1;
   uint16_t h = refreshY2 - refreshY1 + 1;
@@ -575,5 +627,144 @@ void EinkDisplay::updateRefreshRegion() {
   
   // 重置刷新区域
   resetRefreshRegion();
+}
+
+// 全屏刷新
+void EinkDisplay::displayFullRefresh() {
+  // 执行全屏更新
+  display.update();
+}
+
+// 局部刷新
+void EinkDisplay::displayPartialRefresh(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
+  // 根据墨水屏型号实现真正的局部更新
+  #if DISPLAY_TYPE == EINK_42_INCH
+    // 4.2寸墨水屏局部更新
+    display.updateWindow(x, y, x + w - 1, y + h - 1, true);
+  #elif DISPLAY_TYPE == EINK_75_INCH
+    // 7.5寸墨水屏局部更新
+    display.updateWindow(x, y, x + w - 1, y + h - 1, true);
+  #else
+    // 其他型号墨水屏，使用全屏更新
+    display.update();
+  #endif
+}
+
+// 快速刷新
+void EinkDisplay::displayFastRefresh(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
+  // 尝试使用快速刷新模式
+  // 注意：不是所有墨水屏都支持快速刷新
+  try {
+    // 这里使用局部刷新作为快速刷新的实现
+    displayPartialRefresh(x, y, w, h);
+  } catch (const std::exception& e) {
+    // 如果快速刷新失败，使用普通局部刷新
+    displayPartialRefresh(x, y, w, h);
+  }
+}
+
+// 检查自动刷新
+void EinkDisplay::checkAutoRefresh() {
+  if (autoRefreshEnabled) {
+    unsigned long now = millis();
+    if (now - lastDrawTime > autoRefreshInterval) {
+      updateRefreshRegion();
+    }
+  }
+}
+
+// 合并刷新区域
+void EinkDisplay::mergeRefreshRegions() {
+  // 这里可以实现更复杂的刷新区域合并逻辑
+  // 目前简单实现为使用现有的刷新区域
+}
+
+// 优化刷新区域
+void EinkDisplay::optimizeRefreshRegion() {
+  // 优化刷新区域，确保区域大小合理
+  // 例如，对于小区域，可以扩大到最小刷新单元
+  const uint16_t minRefreshSize = 8; // 最小刷新单元
+  
+  uint16_t w = refreshX2 - refreshX1 + 1;
+  uint16_t h = refreshY2 - refreshY1 + 1;
+  
+  if (w < minRefreshSize) {
+    uint16_t centerX = (refreshX1 + refreshX2) / 2;
+    refreshX1 = centerX - minRefreshSize / 2;
+    refreshX2 = centerX + minRefreshSize / 2;
+    // 确保不超出屏幕范围
+    if (refreshX1 < 0) refreshX1 = 0;
+    if (refreshX2 >= width) refreshX2 = width - 1;
+  }
+  
+  if (h < minRefreshSize) {
+    uint16_t centerY = (refreshY1 + refreshY2) / 2;
+    refreshY1 = centerY - minRefreshSize / 2;
+    refreshY2 = centerY + minRefreshSize / 2;
+    // 确保不超出屏幕范围
+    if (refreshY1 < 0) refreshY1 = 0;
+    if (refreshY2 >= height) refreshY2 = height - 1;
+  }
+}
+
+// 更新显示状态
+void EinkDisplay::updateDisplayState() {
+  // 这里可以添加更复杂的显示状态检测逻辑
+  // 目前简单实现为检查显示是否初始化
+  displayReady = true;
+}
+
+// 设置刷新模式
+void EinkDisplay::setRefreshMode(RefreshMode mode) {
+  currentRefreshMode = mode;
+  DEBUG_PRINTF("刷新模式已设置为: %d\n", mode);
+}
+
+// 获取当前刷新模式
+EinkDisplay::RefreshMode EinkDisplay::getRefreshMode() const {
+  return currentRefreshMode;
+}
+
+// 启用自动刷新管理
+void EinkDisplay::enableAutoRefresh() {
+  autoRefreshEnabled = true;
+  DEBUG_PRINTLN("自动刷新管理已启用");
+}
+
+// 禁用自动刷新管理
+void EinkDisplay::disableAutoRefresh() {
+  autoRefreshEnabled = false;
+  DEBUG_PRINTLN("自动刷新管理已禁用");
+}
+
+// 设置自动刷新间隔
+void EinkDisplay::setAutoRefreshInterval(unsigned long interval) {
+  autoRefreshInterval = interval;
+  DEBUG_PRINTF("自动刷新间隔已设置为: %lu ms\n", interval);
+}
+
+// 获取显示状态
+bool EinkDisplay::isDisplayReady() const {
+  return displayReady;
+}
+
+// 获取最后刷新时间
+unsigned long EinkDisplay::getLastRefreshTime() const {
+  return lastRefreshTime;
+}
+
+// 强制全屏刷新
+void EinkDisplay::forceFullRefresh() {
+  // 保存当前刷新模式
+  RefreshMode oldMode = currentRefreshMode;
+  
+  // 设置为全屏刷新模式
+  setRefreshMode(REFRESH_MODE_FULL);
+  
+  // 执行全屏刷新
+  update();
+  
+  // 恢复原来的刷新模式
+  setRefreshMode(oldMode);
 }
 
