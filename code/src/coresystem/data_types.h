@@ -71,6 +71,7 @@ typedef struct {
   bool flameDetected;
   int lightLevel;
   bool valid;
+  unsigned long timestamp;
 } SensorData;
 
 // 消息优先级枚举

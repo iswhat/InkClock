@@ -1,4 +1,8 @@
 #include "am2302_driver.h"
+#include "coresystem/platform_abstraction.h"
+
+// 定义DHT引脚
+#define DHT_PIN 4
 
 AM2302Driver::AM2302Driver() : tempOffset(0.0), humOffset(0.0), initialized(false) {
   // 构造函数
@@ -113,41 +117,33 @@ bool AM2302Driver::matchHardware() {
   DEBUG_PRINTLN("检测AM2302硬件匹配...");
   
 #ifdef HAVE_DHT_LIB
-  try {
-    // AM2302使用单总线接口，需要检测特定引脚
-    // 尝试常见的引脚
-    int testPins[] = {4, 5, 12, 13, 14, 15, 25, 26, 27, 32, 33}; // 常见的GPIO引脚
+  // AM2302使用单总线接口，需要检测特定引脚
+  // 尝试常见的引脚
+  int testPins[] = {4, 5, 12, 13, 14, 15, 25, 26, 27, 32, 33}; // 常见的GPIO引脚
+  
+  for (int pin : testPins) {
+    // 创建临时DHT对象进行检测
+    DHT* tempDht = new DHT(pin, DHT22);
+    tempDht->begin();
     
-    for (int pin : testPins) {
-      // 创建临时DHT对象进行检测
-      DHT* tempDht = new DHT(pin, DHT22);
-      tempDht->begin();
-      
-      // 等待传感器稳定
-      platformDelay(2000);
-      
-      // 读取温湿度数据
-      float h = tempDht->readHumidity();
-      float t = tempDht->readTemperature();
-      
-      delete tempDht;
-      
-      // 检查数据是否有效
-      if (!isnan(h) && !isnan(t)) {
-        DEBUG_PRINTF("AM2302硬件匹配成功，引脚: %d\n", pin);
-        return true;
-      }
+    // 等待传感器稳定
+    platformDelay(2000);
+    
+    // 读取温湿度数据
+    float h = tempDht->readHumidity();
+    float t = tempDht->readTemperature();
+    
+    delete tempDht;
+    
+    // 检查数据是否有效
+    if (!isnan(h) && !isnan(t)) {
+      DEBUG_PRINTF("AM2302硬件匹配成功，引脚: %d\n", pin);
+      return true;
     }
-    
-    DEBUG_PRINTLN("未检测到AM2302硬件");
-    return false;
-  } catch (const std::exception& e) {
-    DEBUG_PRINTLN("AM2302硬件匹配失败: " + String(e.what()));
-    return false;
-  } catch (...) {
-    DEBUG_PRINTLN("AM2302硬件匹配未知错误");
-    return false;
   }
+  
+  DEBUG_PRINTLN("未检测到AM2302硬件");
+  return false;
 #else
   DEBUG_PRINTLN("AM2302驱动: 硬件检测功能不可用");
   return false;
