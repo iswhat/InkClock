@@ -1,5 +1,9 @@
 #include "bh1750_driver.h"
 
+// 定义BH1750地址
+#define BH1750_ADDRESS 0x23
+#define BH1750_ADDRESS_LOW 0x5C
+
 BH1750Driver::BH1750Driver() {
   // 构造函数
 #ifdef HAVE_BH1750_LIB
