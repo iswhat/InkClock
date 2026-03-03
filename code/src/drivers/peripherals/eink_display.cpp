@@ -3,6 +3,11 @@
 #include "coresystem/config.h"
 #include <algorithm>
 
+// 定义DEBUG_PRINTLN宏
+#ifndef DEBUG_PRINTLN
+#define DEBUG_PRINTLN Serial.println
+#endif
+
 // 定义墨水屏引脚常量
 #ifndef EINK_CS
 #define EINK_CS 5
@@ -48,6 +53,7 @@
 #endif
 
 EinkDisplay::EinkDisplay() {
+  #ifdef HAVE_EINK_LIB
   #if DISPLAY_TYPE == EINK_42_INCH
     io = GxIO_Class(SPI, EINK_CS, EINK_DC, EINK_RST);
     display = GxGDEW042Z15_Class(io, EINK_BUSY);
@@ -58,6 +64,13 @@ EinkDisplay::EinkDisplay() {
     display = GxGDEW075Z09_Class(io, EINK_BUSY);
     width = GxGDEW075Z09_WIDTH;
     height = GxGDEW075Z09_HEIGHT;
+  #else
+    width = 0;
+    height = 0;
+  #endif
+  #else
+    width = 0;
+    height = 0;
   #endif
   
   // 初始化刷新区域管理
