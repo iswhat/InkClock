@@ -1,4 +1,5 @@
 #include "lps25hb_driver.h"
+#include "coresystem/platform_abstraction.h"
 
 /**
  * @brief 构造函数
@@ -21,7 +22,7 @@ bool LPS25HBDriver::init(const SensorConfig& config) {
   this->config = config;
   
   // 初始化LPS25HB传感器
-  bool success = lps25hb.begin(config.address);
+  bool success = lps25hb.begin(Wire, config.address);
   initialized = success;
   
   if (success) {
@@ -45,8 +46,8 @@ bool LPS25HBDriver::readData(SensorData& data) {
   }
   
   // 读取气压和温度数据
-  float pressure = lps25hb.readPressure();
-  float temperature = lps25hb.readTemperature();
+  float pressure = lps25hb.getPressure_hPa();
+  float temperature = lps25hb.getTemperature_degC();
   
   // 检查数据是否有效
   if (isnan(temperature) || isnan(pressure)) {
@@ -119,37 +120,29 @@ SensorConfig LPS25HBDriver::getConfig() const {
 bool LPS25HBDriver::matchHardware() {
   DEBUG_PRINTLN("检测LPS25HB硬件匹配...");
   
-  try {
-    // LPS25HB使用I2C接口，通常有两个地址可选：0x5C（默认）和0x5D（SDO引脚拉高）
-    uint8_t addresses[] = {0x5C, 0x5D};
-    bool matched = false;
-    
-    for (uint8_t address : addresses) {
-      // 尝试初始化LPS25HB传感器
-      if (lps25hb.begin(address)) {
-        // 初始化成功，尝试读取一次数据验证
-        float pressure = lps25hb.readPressure();
-        float temperature = lps25hb.readTemperature();
-        
-        if (!isnan(pressure) && !isnan(temperature)) {
-          // 数据有效，硬件匹配成功
-          DEBUG_PRINTF("LPS25HB硬件匹配成功，I2C地址: 0x%02X\n", address);
-          matched = true;
-          break;
-        }
+  // LPS25HB使用I2C接口，通常有两个地址可选：0x5C（默认）和0x5D（SDO引脚拉高）
+  uint8_t addresses[] = {0x5C, 0x5D};
+  bool matched = false;
+  
+  for (uint8_t address : addresses) {
+    // 尝试初始化LPS25HB传感器
+    if (lps25hb.begin(Wire, address)) {
+      // 初始化成功，尝试读取一次数据验证
+      float pressure = lps25hb.getPressure_hPa();
+      float temperature = lps25hb.getTemperature_degC();
+      
+      if (!isnan(pressure) && !isnan(temperature)) {
+        // 数据有效，硬件匹配成功
+        DEBUG_PRINTF("LPS25HB硬件匹配成功，I2C地址: 0x%02X\n", address);
+        matched = true;
+        break;
       }
     }
-    
-    if (!matched) {
-      DEBUG_PRINTLN("未检测到LPS25HB硬件");
-    }
-    
-    return matched;
-  } catch (const std::exception& e) {
-    DEBUG_PRINTLN("LPS25HB硬件匹配失败: " + String(e.what()));
-    return false;
-  } catch (...) {
-    DEBUG_PRINTLN("LPS25HB硬件匹配未知错误");
-    return false;
   }
+  
+  if (!matched) {
+    DEBUG_PRINTLN("未检测到LPS25HB硬件");
+  }
+  
+  return matched;
 }

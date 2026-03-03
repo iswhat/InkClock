@@ -1,4 +1,51 @@
 #include "eink_display.h"
+#include "coresystem/platform_abstraction.h"
+#include "coresystem/config.h"
+#include <algorithm>
+
+// 定义墨水屏引脚常量
+#ifndef EINK_CS
+#define EINK_CS 5
+#endif
+
+#ifndef EINK_DC
+#define EINK_DC 17
+#endif
+
+#ifndef EINK_RST
+#define EINK_RST 16
+#endif
+
+#ifndef EINK_BUSY
+#define EINK_BUSY 4
+#endif
+
+// 定义显示类型常量
+#ifndef DISPLAY_TYPE
+#define DISPLAY_TYPE EINK_42_INCH
+#endif
+
+#ifndef EINK_42_INCH
+#define EINK_42_INCH 1
+#endif
+
+#ifndef EINK_75_INCH
+#define EINK_75_INCH 2
+#endif
+
+// 定义墨水屏颜色常量
+#ifndef GxEPD_BLACK
+#define GxEPD_BLACK 0
+#endif
+
+#ifndef GxEPD_WHITE
+#define GxEPD_WHITE 1
+#endif
+
+// 定义DEBUG_PRINTF宏
+#ifndef DEBUG_PRINTF
+#define DEBUG_PRINTF Serial.printf
+#endif
 
 EinkDisplay::EinkDisplay() {
   #if DISPLAY_TYPE == EINK_42_INCH

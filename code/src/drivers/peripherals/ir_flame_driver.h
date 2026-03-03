@@ -29,6 +29,9 @@ public:
   // 获取当前配置
   SensorConfig getConfig() const override;
   
+  // 检测硬件匹配
+  bool matchHardware() override;
+  
 private:
   SensorConfig config;
   int pin;

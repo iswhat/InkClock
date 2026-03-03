@@ -166,4 +166,5 @@
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/cores/esp32/Arduino.h \
  d:\inkclock\code\src\coresystem\config.h \
  d:\inkclock\code\src\coresystem\data_types.h \
- .pio/libdeps/esp32-c3-devkitc-02/DHT\ sensor\ library/DHT.h
+ .pio/libdeps/esp32-c3-devkitc-02/DHT\ sensor\ library/DHT.h \
+ src/coresystem/platform_abstraction.h

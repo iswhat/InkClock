@@ -1,4 +1,8 @@
 #include "ir_flame_driver.h"
+#include "coresystem/platform_abstraction.h"
+
+// 定义默认火焰传感器引脚
+#define FLAME_SENSOR_PIN 4
 
 IRFlameDriver::IRFlameDriver() : pin(-1), tempOffset(0.0), humOffset(0.0), initialized(false) {
   // 构造函数
@@ -54,7 +58,7 @@ String IRFlameDriver::getTypeName() const {
 }
 
 SensorType IRFlameDriver::getType() const {
-  return SENSOR_TYPE_FLAME_IR;
+  return SENSOR_TYPE_UV_FLAME;
 }
 
 void IRFlameDriver::setConfig(const SensorConfig& config) {
@@ -73,45 +77,37 @@ SensorConfig IRFlameDriver::getConfig() const {
 bool IRFlameDriver::matchHardware() {
   DEBUG_PRINTLN("检测IR火焰传感器硬件匹配...");
   
-  try {
-    // 火焰传感器使用数字输入引脚，尝试检测常见引脚
-    int testPins[] = {2, 4, 5, 12, 13, 14, 15, 25, 26, 27, 32, 33}; // 常见的GPIO引脚
+  // 火焰传感器使用数字输入引脚，尝试检测常见引脚
+  int testPins[] = {2, 4, 5, 12, 13, 14, 15, 25, 26, 27, 32, 33}; // 常见的GPIO引脚
+  
+  for (int testPin : testPins) {
+    // 设置引脚模式为输入
+    pinMode(testPin, INPUT);
     
-    for (int testPin : testPins) {
-      // 设置引脚模式为输入
-      pinMode(testPin, INPUT);
+    // 读取几次引脚状态，检查是否有稳定信号
+    bool hasStableSignal = true;
+    int previousState = digitalRead(testPin);
+    
+    for (int i = 0; i < 10; i++) {
+      int currentState = digitalRead(testPin);
       
-      // 读取几次引脚状态，检查是否有稳定信号
-      bool hasStableSignal = true;
-      int previousState = digitalRead(testPin);
-      
-      for (int i = 0; i < 10; i++) {
-        int currentState = digitalRead(testPin);
-        
-        // 如果状态变化超过2次，可能不是火焰传感器
-        if (currentState != previousState) {
-          hasStableSignal = false;
-          break;
-        }
-        
-        previousState = currentState;
-        platformDelay(100); // 等待100ms再读取下一次
+      // 如果状态变化超过2次，可能不是火焰传感器
+      if (currentState != previousState) {
+        hasStableSignal = false;
+        break;
       }
       
-      // 如果有稳定信号，认为硬件匹配
-      if (hasStableSignal) {
-        DEBUG_PRINTF("IR火焰传感器硬件匹配成功，引脚: %d\n", testPin);
-        return true;
-      }
+      previousState = currentState;
+      platformDelay(100); // 等待100ms再读取下一次
     }
     
-    DEBUG_PRINTLN("未检测到IR火焰传感器硬件");
-    return false;
-  } catch (const std::exception& e) {
-    DEBUG_PRINTLN("IR火焰传感器硬件匹配失败: " + String(e.what()));
-    return false;
-  } catch (...) {
-    DEBUG_PRINTLN("IR火焰传感器硬件匹配失败: 未知异常");
-    return false;
+    // 如果有稳定信号，认为硬件匹配
+    if (hasStableSignal) {
+      DEBUG_PRINTF("IR火焰传感器硬件匹配成功，引脚: %d\n", testPin);
+      return true;
+    }
   }
+  
+  DEBUG_PRINTLN("未检测到IR火焰传感器硬件");
+  return false;
 }

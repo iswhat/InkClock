@@ -7,6 +7,10 @@
 #include <memory>
 #include <map>
 #include <unordered_map>
+
+// FreeRTOS headers
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 #include "event_bus.h"
 #include "../drivers/peripherals/sensor_driver.h"
 #include "../drivers/peripherals/display_driver.h"

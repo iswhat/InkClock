@@ -97,36 +97,28 @@ bool BME280Driver::matchHardware() {
   DEBUG_PRINTLN("检测BME280硬件匹配...");
   
 #ifdef HAVE_BME280_LIB
-  try {
-    // 创建临时BME280对象
-    Adafruit_BME280 tempBME280;
-    
-    // 尝试在常见地址初始化BME280传感器
-    bool found = false;
-    
-    // 尝试地址0x76
-    if (tempBME280.begin(0x76)) {
-      found = true;
-      DEBUG_PRINTLN("BME280硬件匹配成功（地址：0x76）");
-    } 
-    // 尝试地址0x77
-    else if (tempBME280.begin(0x77)) {
-      found = true;
-      DEBUG_PRINTLN("BME280硬件匹配成功（地址：0x77）");
-    } 
-    else {
-      DEBUG_PRINTLN("BME280硬件匹配失败：未在I2C总线上检测到设备");
-      found = false;
-    }
-    
-    return found;
-  } catch (const std::exception& e) {
-    DEBUG_PRINTLN("BME280硬件匹配失败：" + String(e.what()));
-    return false;
-  } catch (...) {
-    DEBUG_PRINTLN("BME280硬件匹配失败：未知异常");
-    return false;
+  // 创建临时BME280对象
+  Adafruit_BME280 tempBME280;
+  
+  // 尝试在常见地址初始化BME280传感器
+  bool found = false;
+  
+  // 尝试地址0x76
+  if (tempBME280.begin(0x76)) {
+    found = true;
+    DEBUG_PRINTLN("BME280硬件匹配成功（地址：0x76）");
+  } 
+  // 尝试地址0x77
+  else if (tempBME280.begin(0x77)) {
+    found = true;
+    DEBUG_PRINTLN("BME280硬件匹配成功（地址：0x77）");
+  } 
+  else {
+    DEBUG_PRINTLN("BME280硬件匹配失败：未在I2C总线上检测到设备");
+    found = false;
   }
+  
+  return found;
 #else
   DEBUG_PRINTLN("BME280驱动: 硬件检测功能不可用");
   return false;

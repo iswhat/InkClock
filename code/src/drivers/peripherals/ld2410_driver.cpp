@@ -1,4 +1,5 @@
 #include "ld2410_driver.h"
+#include "coresystem/platform_abstraction.h"
 
 /**
  * @brief 构造函数

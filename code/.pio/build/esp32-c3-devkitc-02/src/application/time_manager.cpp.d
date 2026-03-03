@@ -164,7 +164,7 @@
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/cores/esp32/Arduino.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFiUdp.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/cores/esp32/Udp.h \
- .pio/libdeps/esp32-c3-devkitc-02/AsyncTCP_RP2040W/src/cbuf.h \
+ C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/cores/esp32/cbuf.h \
  src/application/../coresystem/config.h \
  src/application/../coresystem/data_types.h src/application/api_manager.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/WiFiClientSecure/src/WiFiClientSecure.h \

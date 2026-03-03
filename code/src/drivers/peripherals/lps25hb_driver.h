@@ -2,7 +2,7 @@
 #define LPS25HB_DRIVER_H
 
 #include "sensor_driver.h"
-#include <Adafruit_LPS25HB.h>
+#include "SparkFun_LPS25HB_Arduino_Library.h"
 
 /**
  * @brief LPS25HB气压传感器驱动类
@@ -12,7 +12,7 @@
  */
 class LPS25HBDriver : public ISensorDriver {
 private:
-  Adafruit_LPS25HB lps25hb;       ///< LPS25HB传感器实例
+  LPS25HB lps25hb;       ///< LPS25HB传感器实例
   SensorConfig config;           ///< 传感器配置
   bool initialized;              ///< 初始化状态标志
   String typeName;               ///< 传感器类型名称
