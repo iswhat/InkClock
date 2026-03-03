@@ -14,5 +14,5 @@ MQ135Driver::MQ135Driver() : BaseMQSensorDriver("MQ135") {
  * @return 传感器类型枚举值
  */
 SensorType MQ135Driver::getType() const {
-  return SENSOR_TYPE_GAS_MQ135;
+  return SENSOR_TYPE_MQ135;
 }

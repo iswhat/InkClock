@@ -76,6 +76,13 @@ public:
    * @return 传感器配置
    */
   SensorConfig getConfig() const override;
+  
+  /**
+   * @brief 检测硬件是否匹配
+   * 
+   * @return 硬件是否匹配
+   */
+  bool matchHardware() override;
 };
 
 #endif // LPS25HB_DRIVER_H

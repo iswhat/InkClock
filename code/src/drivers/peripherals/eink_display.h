@@ -299,7 +299,7 @@ public:
   
 private:
   // 墨水屏对象
-  #if DISPLAY_TYPE == EINK_42_INCH
+  #if DISPLAY_TYPE == EINK_42_INCH || DISPLAY_TYPE == EINK_42_INCH_HEMA
     GxIO_Class io;              // 4.2寸墨水屏IO对象
     GxGDEW042Z15_Class display; // 4.2寸墨水屏对象
   #elif DISPLAY_TYPE == EINK_75_INCH

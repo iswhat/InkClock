@@ -43,7 +43,7 @@ public:
     }
     
     // 使用配置中的引脚，或默认引脚
-    pin = (this->config.pin != -1) ? this->config.pin : A0;
+    pin = (this->config.pin != -1) ? this->config.pin : 36; // 使用GPIO36作为默认模拟输入引脚
     
     // 设置传感器引脚为输入
     pinMode(pin, INPUT);
@@ -99,51 +99,43 @@ public:
   bool matchHardware() override {
     DEBUG_PRINTF("检测%s硬件匹配...\n", typeName.c_str());
     
-    try {
-      // MQ系列传感器使用模拟输入引脚，尝试常见的引脚
-      int testPins[] = {A0, A1, A2, A3, A4, A5};
+    // MQ系列传感器使用模拟输入引脚，尝试常见的引脚
+    int testPins[] = {36, 37, 38, 39, 32, 33}; // ESP32常见的模拟输入引脚
+    
+    for (int pin : testPins) {
+      // 设置引脚模式为输入
+      pinMode(pin, INPUT);
       
-      for (int pin : testPins) {
-        // 设置引脚模式为输入
-        pinMode(pin, INPUT);
-        
-        // 读取多次值，检查是否有合理的变化
-        int values[10];
-        for (int i = 0; i < 10; i++) {
-          values[i] = analogRead(pin);
-          delay(100);
-        }
-        
-        // 计算标准差，检查数据是否有合理的变化
-        float sum = 0;
-        for (int value : values) {
-          sum += value;
-        }
-        float avg = sum / 10;
-        
-        float variance = 0;
-        for (int value : values) {
-          variance += pow(value - avg, 2);
-        }
-        variance /= 10;
-        float stdDev = sqrt(variance);
-        
-        // 如果标准差在合理范围内，说明可能连接了传感器
-        if (stdDev > 5 && stdDev < 200) {
-          DEBUG_PRINTF("%s硬件匹配成功，引脚: %d\n", typeName.c_str(), pin);
-          return true;
-        }
+      // 读取多次值，检查是否有合理的变化
+      int values[10];
+      for (int i = 0; i < 10; i++) {
+        values[i] = analogRead(pin);
+        delay(100);
       }
       
-      DEBUG_PRINTF("未检测到%s硬件\n", typeName.c_str());
-      return false;
-    } catch (const std::exception& e) {
-      DEBUG_PRINTF("%s硬件匹配失败: %s\n", typeName.c_str(), e.what());
-      return false;
-    } catch (...) {
-      DEBUG_PRINTF("%s硬件匹配未知错误\n", typeName.c_str());
-      return false;
+      // 计算标准差，检查数据是否有合理的变化
+      float sum = 0;
+      for (int value : values) {
+        sum += value;
+      }
+      float avg = sum / 10;
+      
+      float variance = 0;
+      for (int value : values) {
+        variance += pow(value - avg, 2);
+      }
+      variance /= 10;
+      float stdDev = sqrt(variance);
+      
+      // 如果标准差在合理范围内，说明可能连接了传感器
+      if (stdDev > 5 && stdDev < 200) {
+        DEBUG_PRINTF("%s硬件匹配成功，引脚: %d\n", typeName.c_str(), pin);
+        return true;
+      }
     }
+    
+    DEBUG_PRINTF("未检测到%s硬件\n", typeName.c_str());
+    return false;
   }
 };
 

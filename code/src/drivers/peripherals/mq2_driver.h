@@ -13,7 +13,7 @@ public:
   
   // 获取传感器类型
   SensorType getType() const override {
-    return SENSOR_TYPE_GAS_MQ2;
+    return SENSOR_TYPE_MQ2;
   }
 };
 
