@@ -55,10 +55,11 @@ bool MemoryPool::allocateBlocks(int count, size_t blockSize) {
     return false;
   }
 
-  // Security: Emergency release if needed
+  // Security: Check memory usage
   if (usedSize >= totalSize * 0.9) {
-    Serial.println("MemoryPool: Emergency release triggered");
-    emergencyRelease();
+    Serial.println("MemoryPool: High memory usage warning");
+    // 清理未使用的内存块
+    cleanup();
   }
 
   for (int i = 0; i < count; i++) {
@@ -69,10 +70,6 @@ bool MemoryPool::allocateBlocks(int count, size_t blockSize) {
       address = malloc(blockSize);
       if (address == nullptr) {
         Serial.println("MemoryPool: Memory allocation failed");
-        // Call emergency callback if configured
-        if (emergencyCallback) {
-          emergencyCallback();
-        }
         return false;
       }
     }

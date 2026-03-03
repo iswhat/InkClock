@@ -13,6 +13,14 @@
 #define DEBUG_PRINTF(...) 
 #endif
 
+// Library availability macros
+#define HAVE_DHT_LIB 1
+#define HAVE_BH1750_LIB 1
+#define HAVE_BME280_LIB 1
+#define HAVE_BME680_LIB 1
+#define HAVE_BMP3XX_LIB 1
+#define HAVE_EINK_LIB 1
+
 // Message manager constants
 #define MAX_MESSAGES 100
 #define MESSAGE_UPDATE_INTERVAL 300000 // 5分钟更新一次消息

@@ -2,7 +2,13 @@
 #define AM2302_DRIVER_H
 
 #include "sensor_driver.h"
+
+
+
+// 尝试包含DHT库
+#ifdef HAVE_DHT_LIB
 #include <DHT.h>
+#endif
 
 class AM2302Driver : public ISensorDriver {
 public:
@@ -30,8 +36,13 @@ public:
   // 获取当前配置
   SensorConfig getConfig() const override;
   
+  // 检测驱动与硬件是否匹配
+  bool matchHardware() override;
+  
 private:
+#ifdef HAVE_DHT_LIB
   DHT* dht;
+#endif
   SensorConfig config;
   float tempOffset;
   float humOffset;

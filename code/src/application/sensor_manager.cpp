@@ -153,8 +153,8 @@ void SensorManager::init() {
   // 获取驱动注册表实例
   DriverRegistry* registry = DriverRegistry::getInstance();
   
-  // 尝试自动检测传感器驱动
-  sensorDriver = registry->autoDetectSensorDriver();
+  // 自动检测传感器驱动
+  sensorDriver.reset(registry->autoDetectSensorDriver());
   
   if (sensorDriver == nullptr) {
     // 如果仍然无法获取传感器驱动，使用默认配置
@@ -266,7 +266,7 @@ void SensorManager::update() {
     } else {
       // 尝试获取传感器驱动
       DriverRegistry* registry = DriverRegistry::getInstance();
-      sensorDriver = registry->autoDetectSensorDriver();
+      sensorDriver.reset(registry->autoDetectSensorDriver());
       if (sensorDriver != nullptr) {
         DEBUG_PRINTLN("成功获取传感器驱动: " + sensorDriver->getTypeName());
       }

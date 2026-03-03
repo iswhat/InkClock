@@ -2,7 +2,13 @@
 #define BMP388_DRIVER_H
 
 #include "sensor_driver.h"
+
+
+
+// 尝试包含Adafruit_BMP3XX库
+#ifdef HAVE_BMP3XX_LIB
 #include <Adafruit_BMP3XX.h>
+#endif
 
 /**
  * @brief BMP388气压传感器驱动类
@@ -12,7 +18,9 @@
  */
 class BMP388Driver : public ISensorDriver {
 private:
+#ifdef HAVE_BMP3XX_LIB
   Adafruit_BMP3XX bmp388;         ///< BMP388传感器实例
+#endif
   SensorConfig config;           ///< 传感器配置
   bool initialized;              ///< 初始化状态标志
   String typeName;               ///< 传感器类型名称
@@ -76,6 +84,13 @@ public:
    * @return 传感器配置
    */
   SensorConfig getConfig() const override;
+  
+  /**
+   * @brief 检测驱动与硬件是否匹配
+   * 
+   * @return 硬件是否匹配
+   */
+  bool matchHardware() override;
 };
 
 #endif // BMP388_DRIVER_H

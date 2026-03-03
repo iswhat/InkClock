@@ -1,4 +1,5 @@
 #include "hc_sr501_driver.h"
+#include "coresystem/platform_abstraction.h"
 
 HC_SR501Driver::HC_SR501Driver() : pin(-1), tempOffset(0.0), humOffset(0.0), initialized(false) {
   // 构造函数

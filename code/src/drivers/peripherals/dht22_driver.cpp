@@ -1,20 +1,26 @@
 #include "dht22_driver.h"
 
-DHT22Driver::DHT22Driver() : dht(nullptr), tempOffset(0.0), humOffset(0.0), initialized(false) {
+DHT22Driver::DHT22Driver() : tempOffset(0.0), humOffset(0.0), initialized(false) {
   // 构造函数
+#ifdef HAVE_DHT_LIB
+  dht = nullptr;
+#endif
 }
 
 DHT22Driver::~DHT22Driver() {
   // 析构函数，清理资源
+#ifdef HAVE_DHT_LIB
   if (dht != nullptr) {
     delete dht;
     dht = nullptr;
   }
+#endif
 }
 
 bool DHT22Driver::init(const SensorConfig& config) {
   this->config = config;
   
+#ifdef HAVE_DHT_LIB
   // 使用配置中的引脚，或默认引脚
   int pin = (config.pin != -1) ? config.pin : DHT_PIN;
   
@@ -26,10 +32,20 @@ bool DHT22Driver::init(const SensorConfig& config) {
   
   initialized = true;
   return true;
+#else
+  DEBUG_PRINTLN("DHT22驱动: DHT库不可用");
+  initialized = false;
+  return false;
+#endif
 }
 
 bool DHT22Driver::readData(SensorData& data) {
-  if (!initialized || dht == nullptr) {
+  if (!initialized) {
+    return false;
+  }
+  
+#ifdef HAVE_DHT_LIB
+  if (dht == nullptr) {
     return false;
   }
   
@@ -57,6 +73,10 @@ bool DHT22Driver::readData(SensorData& data) {
   data.lightLevel = 0; // DHT22不支持光照检测
   
   return true;
+#else
+  DEBUG_PRINTLN("DHT22驱动: 读取功能不可用");
+  return false;
+#endif
 }
 
 void DHT22Driver::calibrate(float tempOffset, float humOffset) {
@@ -77,8 +97,10 @@ void DHT22Driver::setConfig(const SensorConfig& config) {
   
   // 如果已经初始化，重新初始化传感器
   if (initialized) {
+#ifdef HAVE_DHT_LIB
     delete dht;
     dht = nullptr;
+#endif
     init(config);
   }
 }
@@ -90,6 +112,7 @@ SensorConfig DHT22Driver::getConfig() const {
 bool DHT22Driver::matchHardware() {
   DEBUG_PRINTLN("检测DHT22硬件匹配...");
   
+#ifdef HAVE_DHT_LIB
   try {
     // 尝试在默认引脚上初始化DHT22传感器
     DHT tempDHT(DHT_PIN, DHT22);
@@ -117,4 +140,8 @@ bool DHT22Driver::matchHardware() {
     DEBUG_PRINTLN("DHT22硬件匹配失败：未知异常");
     return false;
   }
+#else
+  DEBUG_PRINTLN("DHT22驱动: 硬件检测功能不可用");
+  return false;
+#endif
 }

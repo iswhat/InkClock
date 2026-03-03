@@ -182,15 +182,15 @@ void PowerManager::applyPowerOptimizations() {
   switch (currentPowerLevel) {
     case POWER_LEVEL_DEEP_LOW:
       // 深度低功耗模式：关闭所有非必要功能
-      EventBus::getInstance()->publish(EVENT_SYSTEM_DEEP_LOW_POWER, nullptr);
+      EventBus::getInstance()->publish(EVENT_SYSTEM_LOW_POWER, nullptr);
       break;
     case POWER_LEVEL_MEDIUM_LOW:
       // 中度低功耗模式：减少网络连接和传感器采样
-      EventBus::getInstance()->publish(EVENT_SYSTEM_MEDIUM_LOW_POWER, nullptr);
+      EventBus::getInstance()->publish(EVENT_SYSTEM_LOW_POWER, nullptr);
       break;
     case POWER_LEVEL_LIGHT_LOW:
       // 轻度低功耗模式：减少显示更新频率
-      EventBus::getInstance()->publish(EVENT_SYSTEM_LIGHT_LOW_POWER, nullptr);
+      EventBus::getInstance()->publish(EVENT_SYSTEM_LOW_POWER, nullptr);
       break;
     case POWER_LEVEL_NORMAL:
       // 正常模式：所有功能正常运行
@@ -235,34 +235,3 @@ void PowerManager::getOptimalSleepParameters(uint64_t& sleepTimeMs, bool& useDee
   }
 }
 
-// 更新电源状态
-void PowerManager::updatePowerState() {
-  unsigned long now = platformGetMillis();
-  if (now - lastPowerUpdate > updateInterval) {
-    lastPowerUpdate = now;
-    
-    // 读取电池电压
-    batteryVoltage = readBatteryVoltage();
-    batteryPercentage = calculateBatteryPercentage(batteryVoltage);
-    isCharging = readChargingStatus();
-    
-    // 检查低电量
-    if (batteryPercentage <= 10 && !isCharging) {
-      auto lowPowerData = std::make_shared<PowerStateEventData>(batteryPercentage, isCharging, true);
-      EventBus::getInstance()->publish(EVENT_BATTERY_CRITICAL, lowPowerData);
-    } else if (batteryPercentage <= 20 && !isCharging) {
-      auto lowPowerData = std::make_shared<PowerStateEventData>(batteryPercentage, isCharging, true);
-      EventBus::getInstance()->publish(EVENT_BATTERY_LOW, lowPowerData);
-    } else if (batteryPercentage > 30 && isLowPowerMode) {
-      auto powerOkData = std::make_shared<PowerStateEventData>(batteryPercentage, isCharging, false);
-      EventBus::getInstance()->publish(EVENT_BATTERY_OK, powerOkData);
-    }
-    
-    // 优化功耗
-    optimizePowerConsumption();
-    
-    // 发布电源状态变化事件
-    auto powerData = std::make_shared<PowerStateEventData>(batteryPercentage, isCharging, isLowPowerMode);
-    EventBus::getInstance()->publish(EVENT_POWER_STATE_CHANGED, powerData);
-  }
-}

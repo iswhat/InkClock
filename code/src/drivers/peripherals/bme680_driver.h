@@ -2,7 +2,13 @@
 #define BME680_DRIVER_H
 
 #include "base_sensor_driver.h"
+
+
+
+// 尝试包含Adafruit_BME680库
+#ifdef HAVE_BME680_LIB
 #include <Adafruit_BME680.h>
+#endif
 
 class BME680Driver : public BaseSensorDriver {
 public:
@@ -25,7 +31,9 @@ public:
   bool matchHardware() override;
   
 private:
+#ifdef HAVE_BME680_LIB
   Adafruit_BME680* bme680;
+#endif
 };
 
 #endif // BME680_DRIVER_H

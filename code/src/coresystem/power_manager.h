@@ -4,15 +4,7 @@
 #include "platform_abstraction.h"
 #include "event_bus.h"
 
-// 电源状态事件数据
-struct PowerStateEventData {
-  int batteryPercentage;
-  bool isCharging;
-  bool isLowPower;
-  
-  PowerStateEventData(int percentage, bool charging, bool lowPower) 
-    : batteryPercentage(percentage), isCharging(charging), isLowPower(lowPower) {}
-};
+// 使用event_bus.h中定义的PowerStateEventData
 
 // 电源管理类
 class PowerManager {

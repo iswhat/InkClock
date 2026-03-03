@@ -6,6 +6,7 @@
 #include <functional>
 #include <memory>
 #include <map>
+#include <unordered_map>
 #include "event_bus.h"
 #include "../drivers/peripherals/sensor_driver.h"
 #include "../drivers/peripherals/display_driver.h"
@@ -103,16 +104,18 @@ public:
 // 驱动注册中心类
 class DriverRegistry {
 private:
+  static DriverRegistry* instance;
+  
   // 驱动列表
-  std::unordered_map<String, ISensorDriver*> sensorDrivers;     // 传感器驱动，键为驱动名称
-  std::unordered_map<String, IDisplayDriver*> displayDrivers;   // 显示驱动，键为驱动名称
-  std::unordered_map<String, AudioDriver*> audioDrivers;        // 音频驱动，键为驱动名称
+  std::map<String, ISensorDriver*> sensorDrivers;     // 传感器驱动，键为驱动名称
+  std::map<String, IDisplayDriver*> displayDrivers;   // 显示驱动，键为驱动名称
+  std::map<String, AudioDriver*> audioDrivers;        // 音频驱动，键为驱动名称
   
   // 设备信息列表
-  std::unordered_map<String, DeviceInfo> deviceInfos;           // 设备信息，键为设备ID
+  std::map<String, DeviceInfo> deviceInfos;           // 设备信息，键为设备ID
   
   // 驱动信息列表
-  std::unordered_map<String, DriverInfo> driverInfos;           // 驱动信息，键为驱动名称
+  std::map<String, DriverInfo> driverInfos;           // 驱动信息，键为驱动名称
   
   // 事件总线指针
   EventBus* eventBus;
@@ -1162,7 +1165,7 @@ public:
     // 记录当前设备状态
     std::map<String, bool> currentDevices;
     for (auto& device : deviceInfos) {
-      currentDevices[device.deviceId] = true;
+      currentDevices[device.second.deviceId] = true;
     }
     
     // 执行硬件匹配检测
@@ -1170,11 +1173,11 @@ public:
     
     // 检测新增设备
     for (auto& info : driverInfos) {
-      if (info.status == DRIVER_STATUS_READY) {
-        String deviceId = String(info.deviceId);
+      if (info.second.status == DRIVER_STATUS_READY) {
+        String deviceId = String(info.second.deviceId);
         if (currentDevices.find(deviceId) == currentDevices.end()) {
           // 新设备被检测到
-          Serial.printf("检测到新设备: %s\n", info.name.c_str());
+          Serial.printf("检测到新设备: %s\n", info.second.name.c_str());
           hardwareChanged = true;
         }
       }
@@ -1184,16 +1187,16 @@ public:
     for (auto& device : deviceInfos) {
       bool driverExists = false;
       for (auto& info : driverInfos) {
-        if (info.name == device.driverName && info.status == DRIVER_STATUS_READY) {
+        if (info.second.name == device.second.driverName && info.second.status == DRIVER_STATUS_READY) {
           driverExists = true;
           break;
         }
       }
       
-      if (!driverExists && device.status == DEVICE_STATUS_CONNECTED) {
+      if (!driverExists && device.second.status == DEVICE_STATUS_CONNECTED) {
         // 设备被移除
-        Serial.printf("设备已移除: %s\n", device.deviceName.c_str());
-        updateDeviceStatus(device.deviceId, DEVICE_STATUS_DISCONNECTED);
+        Serial.printf("设备已移除: %s\n", device.second.deviceName.c_str());
+        updateDeviceStatus(device.second.deviceId, DEVICE_STATUS_DISCONNECTED);
         hardwareChanged = true;
       }
     }
@@ -1371,8 +1374,8 @@ public:
     
     // 启用所有状态为READY的驱动
     for (auto& info : driverInfos) {
-      if (info.status == DRIVER_STATUS_READY && !info.enabled) {
-        enableDriver(info.name);
+      if (info.second.status == DRIVER_STATUS_READY && !info.second.enabled) {
+        enableDriver(info.second.name);
       }
     }
   }
@@ -1383,8 +1386,8 @@ public:
     
     // 禁用所有状态为ERROR的驱动
     for (auto& info : driverInfos) {
-      if (info.status == DRIVER_STATUS_ERROR && info.enabled) {
-        disableDriver(info.name);
+      if (info.second.status == DRIVER_STATUS_ERROR && info.second.enabled) {
+        disableDriver(info.second.name);
       }
     }
     
@@ -1392,14 +1395,14 @@ public:
     for (auto& device : deviceInfos) {
       bool driverFound = false;
       for (auto& info : driverInfos) {
-        if (info.name == device.driverName && info.status == DRIVER_STATUS_READY) {
+        if (info.second.name == device.second.driverName && info.second.status == DRIVER_STATUS_READY) {
           driverFound = true;
           break;
         }
       }
       
       if (!driverFound) {
-        updateDeviceStatus(device.deviceId, DEVICE_STATUS_ERROR);
+        updateDeviceStatus(device.second.deviceId, DEVICE_STATUS_ERROR);
       }
     }
   }
@@ -1414,7 +1417,7 @@ public:
     Serial.println("Driver Status:");
     for (auto& info : driverInfos) {
       String statusStr;
-      switch (info.status) {
+      switch (info.second.status) {
         case DRIVER_STATUS_READY:
           statusStr = "READY   ";
           break;
@@ -1429,8 +1432,8 @@ public:
           break;
       }
       
-      String enabledStr = info.enabled ? "✓" : "✗";
-      Serial.printf("%s %s [%s] %s\n", enabledStr, statusStr.c_str(), info.type.c_str(), info.name.c_str());
+      String enabledStr = info.second.enabled ? "✓" : "✗";
+      Serial.printf("%s %s [%s] %s\n", enabledStr, statusStr.c_str(), info.second.type.c_str(), info.second.name.c_str());
     }
     
     Serial.println();
@@ -1439,7 +1442,7 @@ public:
     Serial.println("Device Status:");
     for (auto& device : deviceInfos) {
       String statusStr;
-      switch (device.status) {
+      switch (device.second.status) {
         case DEVICE_STATUS_CONNECTED:
           statusStr = "CONNECTED";
           break;
@@ -1457,7 +1460,7 @@ public:
           break;
       }
       
-      Serial.printf("%s [%s] %s\n", statusStr.c_str(), device.deviceType.c_str(), device.deviceName.c_str());
+      Serial.printf("%s [%s] %s\n", statusStr.c_str(), device.second.deviceType.c_str(), device.second.deviceName.c_str());
     }
     
     // 发布自检完成事件

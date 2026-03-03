@@ -2,7 +2,13 @@
 #define BME280_DRIVER_H
 
 #include "base_sensor_driver.h"
+
+
+
+// 尝试包含Adafruit_BME280库
+#ifdef HAVE_BME280_LIB
 #include <Adafruit_BME280.h>
+#endif
 
 class BME280Driver : public BaseSensorDriver {
 public:
@@ -25,7 +31,9 @@ public:
   bool matchHardware() override;
   
 private:
+#ifdef HAVE_BME280_LIB
   Adafruit_BME280* bme280;
+#endif
 };
 
 #endif // BME280_DRIVER_H

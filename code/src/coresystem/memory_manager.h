@@ -2,6 +2,8 @@
 #define MEMORY_MANAGER_H
 
 #include "platform_abstraction.h"
+#include <vector>
+#include <Arduino.h>
 
 // 内存池结构体
 typedef struct {
@@ -166,6 +168,24 @@ public:
   void getMemoryStats(size_t& totalMemory, size_t& usedMemory, size_t& peakMemory, size_t& freeMemory);
   
   /**
+   * @brief 获取内存池使用情况（兼容旧接口）
+   * 
+   * @param poolPtr 内存池指针
+   * @param totalBlocks 总块数
+   * @param freeBlocks 空闲块数
+   */
+  void getMemoryPoolInfo(void* poolPtr, size_t& totalBlocks, size_t& freeBlocks);
+  
+  /**
+   * @brief 获取内存使用统计（兼容旧接口）
+   * 
+   * @param totalMemory 总内存
+   * @param usedMemory 已使用内存
+   * @param peakMemory 峰值内存
+   */
+  void getMemoryStats(size_t& totalMemory, size_t& usedMemory, size_t& peakMemory);
+  
+  /**
    * @brief 获取内存池数量
    * 
    * @return size_t 内存池数量
@@ -188,6 +208,14 @@ public:
    * @return void* 分配的内存指针
    */
   void* allocate(size_t size, const char* file = nullptr, int line = 0);
+  
+  /**
+   * @brief 直接分配内存（兼容旧接口）
+   * 
+   * @param size 分配大小
+   * @return void* 分配的内存指针
+   */
+  void* allocate(size_t size);
   
   /**
    * @brief 直接释放内存

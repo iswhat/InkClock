@@ -1,15 +1,20 @@
 #include "bh1750_driver.h"
 
-BH1750Driver::BH1750Driver() : bh1750(nullptr) {
+BH1750Driver::BH1750Driver() {
   // 构造函数
+#ifdef HAVE_BH1750_LIB
+  bh1750 = nullptr;
+#endif
 }
 
 BH1750Driver::~BH1750Driver() {
   // 析构函数，清理资源
+#ifdef HAVE_BH1750_LIB
   if (bh1750 != nullptr) {
     delete bh1750;
     bh1750 = nullptr;
   }
+#endif
 }
 
 bool BH1750Driver::init(const SensorConfig& config) {
@@ -18,6 +23,7 @@ bool BH1750Driver::init(const SensorConfig& config) {
     return false;
   }
   
+#ifdef HAVE_BH1750_LIB
   // 创建BH1750对象
   bh1750 = new BH1750();
   
@@ -32,10 +38,20 @@ bool BH1750Driver::init(const SensorConfig& config) {
   }
   
   return true;
+#else
+  DEBUG_PRINTLN("BH1750驱动: BH1750库不可用");
+  return false;
+#endif
 }
 
 bool BH1750Driver::readData(SensorData& data) {
-  if (!isInitialized() || bh1750 == nullptr) {
+  if (!isInitialized()) {
+    recordError();
+    return false;
+  }
+  
+#ifdef HAVE_BH1750_LIB
+  if (bh1750 == nullptr) {
     recordError();
     return false;
   }
@@ -54,6 +70,11 @@ bool BH1750Driver::readData(SensorData& data) {
   
   recordSuccess();
   return true;
+#else
+  DEBUG_PRINTLN("BH1750驱动: 读取功能不可用");
+  recordError();
+  return false;
+#endif
 }
 
 String BH1750Driver::getTypeName() const {
@@ -67,6 +88,7 @@ SensorType BH1750Driver::getType() const {
 bool BH1750Driver::matchHardware() {
   DEBUG_PRINTLN("检测BH1750硬件匹配...");
   
+#ifdef HAVE_BH1750_LIB
   try {
     // BH1750使用I2C接口，通常有两个地址可选：0x23和0x5C
     uint8_t addresses[] = {BH1750_ADDRESS, BH1750_ADDRESS_LOW};
@@ -95,4 +117,8 @@ bool BH1750Driver::matchHardware() {
     DEBUG_PRINTLN("BH1750硬件匹配失败: 未知异常");
     return false;
   }
+#else
+  DEBUG_PRINTLN("BH1750驱动: 硬件检测功能不可用");
+  return false;
+#endif
 }

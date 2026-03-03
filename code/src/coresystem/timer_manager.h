@@ -131,6 +131,26 @@ public:
   uint32_t createMicrosecondTimer(unsigned long interval, TimerCallback callback, bool isOneShot = false, TimerPriority priority = TIMER_PRIORITY_NORMAL);
   
   /**
+   * @brief 创建定时器（兼容旧接口）
+   * 
+   * @param interval 定时器间隔（毫秒）
+   * @param callback 定时器回调函数
+   * @param isOneShot 是否为一次性定时器
+   * @return uint32_t 定时器ID
+   */
+  uint32_t createTimer(unsigned long interval, TimerCallback callback, bool isOneShot = false);
+  
+  /**
+   * @brief 创建微秒级定时器（兼容旧接口）
+   * 
+   * @param interval 定时器间隔（微秒）
+   * @param callback 定时器回调函数
+   * @param isOneShot 是否为一次性定时器
+   * @return uint32_t 定时器ID
+   */
+  uint32_t createMicrosecondTimer(unsigned long interval, TimerCallback callback, bool isOneShot = false);
+  
+  /**
    * @brief 启动定时器
    * 
    * @param timerId 定时器ID

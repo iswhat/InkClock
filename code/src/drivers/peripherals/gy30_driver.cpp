@@ -1,4 +1,5 @@
 #include "gy30_driver.h"
+#include "coresystem/platform_abstraction.h"
 
 // GY30传感器命令定义
 #define GY30_POWER_DOWN 0x00  // 关闭传感器
@@ -124,7 +125,7 @@ String GY30Driver::getTypeName() const {
  * @return 传感器类型枚举值
  */
 SensorType GY30Driver::getType() const {
-  return SENSOR_TYPE_LIGHT_GY30;
+  return SENSOR_TYPE_GY30;
 }
 
 /**

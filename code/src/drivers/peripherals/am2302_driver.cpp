@@ -1,20 +1,26 @@
 #include "am2302_driver.h"
 
-AM2302Driver::AM2302Driver() : dht(nullptr), tempOffset(0.0), humOffset(0.0), initialized(false) {
+AM2302Driver::AM2302Driver() : tempOffset(0.0), humOffset(0.0), initialized(false) {
   // 构造函数
+#ifdef HAVE_DHT_LIB
+  dht = nullptr;
+#endif
 }
 
 AM2302Driver::~AM2302Driver() {
   // 析构函数，清理资源
+#ifdef HAVE_DHT_LIB
   if (dht != nullptr) {
     delete dht;
     dht = nullptr;
   }
+#endif
 }
 
 bool AM2302Driver::init(const SensorConfig& config) {
   this->config = config;
   
+#ifdef HAVE_DHT_LIB
   // 使用配置中的引脚，或默认引脚
   int pin = (config.pin != -1) ? config.pin : DHT_PIN;
   
@@ -26,10 +32,20 @@ bool AM2302Driver::init(const SensorConfig& config) {
   
   initialized = true;
   return true;
+#else
+  DEBUG_PRINTLN("AM2302驱动: DHT库不可用");
+  initialized = false;
+  return false;
+#endif
 }
 
 bool AM2302Driver::readData(SensorData& data) {
-  if (!initialized || dht == nullptr) {
+  if (!initialized) {
+    return false;
+  }
+  
+#ifdef HAVE_DHT_LIB
+  if (dht == nullptr) {
     return false;
   }
   
@@ -57,6 +73,10 @@ bool AM2302Driver::readData(SensorData& data) {
   data.lightLevel = 0; // AM2302不支持光照检测
   
   return true;
+#else
+  DEBUG_PRINTLN("AM2302驱动: 读取功能不可用");
+  return false;
+#endif
 }
 
 void AM2302Driver::calibrate(float tempOffset, float humOffset) {
@@ -77,8 +97,10 @@ void AM2302Driver::setConfig(const SensorConfig& config) {
   
   // 如果已经初始化，重新初始化传感器
   if (initialized) {
+#ifdef HAVE_DHT_LIB
     delete dht;
     dht = nullptr;
+#endif
     init(config);
   }
 }
@@ -90,6 +112,7 @@ SensorConfig AM2302Driver::getConfig() const {
 bool AM2302Driver::matchHardware() {
   DEBUG_PRINTLN("检测AM2302硬件匹配...");
   
+#ifdef HAVE_DHT_LIB
   try {
     // AM2302使用单总线接口，需要检测特定引脚
     // 尝试常见的引脚
@@ -125,4 +148,8 @@ bool AM2302Driver::matchHardware() {
     DEBUG_PRINTLN("AM2302硬件匹配未知错误");
     return false;
   }
+#else
+  DEBUG_PRINTLN("AM2302驱动: 硬件检测功能不可用");
+  return false;
+#endif
 }

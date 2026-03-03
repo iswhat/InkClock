@@ -1,8 +1,9 @@
 #include "audio_driver.h"
-#include <ESP32-audioI2S.h>
 #include "coresystem/config.h"
 #include "coresystem/spiffs_manager.h"
 #include <SPIFFS.h>
+
+// ESP32-audioI2S库将在运行时检查
 
 // 基础音频驱动类，基于ESP32-audioI2S库实现
 class BaseAudioDriver : public AudioDriver {
@@ -20,17 +21,7 @@ public:
     }
     
     bool init() override {
-        // 设置音频回调函数
-        audio.setInfoCallback(infoCallback);
-        audio.setErrorCallback(errorCallback);
-        audio.setStatusCallback(statusCallback, this);
-        
-        // 配置I2S引脚
-        audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT, I2S_DIN);
-        
-        // 设置初始音量
-        setVolume(volume);
-        
+        DEBUG_PRINTLN("音频驱动: 音频功能不可用");
         return true;
     }
     
@@ -41,57 +32,33 @@ public:
     
     void setVolume(uint8_t volume) override {
         this->volume = volume;
-        audio.setVolume(volume);
     }
     
     bool startPlayback(const char* filename) override {
-        // 停止当前播放
-        stopPlayback();
-        
-        // 使用ESP32-audioI2S库播放音频文件
-        String filepath = String("/") + filename;
-        if (audio.connecttoFS(getSPIFFS(), filepath.c_str())) {
-            isPlayingFlag = true;
-            playPosition = 0;
-            return true;
-        }
+        DEBUG_PRINTLN("音频驱动: 播放功能不可用");
         return false;
     }
     
     void stopPlayback() override {
-        audio.stopSong();
         isPlayingFlag = false;
         playPosition = 0;
         totalDuration = 0;
     }
     
     void pausePlayback() override {
-        audio.pauseSong();
         isPlayingFlag = false;
     }
     
     void resumePlayback() override {
-        audio.resumeSong();
         isPlayingFlag = true;
     }
     
     bool startRecording(const char* filename) override {
-        // 检查当前状态
-        if (isPlayingFlag) {
-            return false;
-        }
-        
-        // 使用ESP32-audioI2S库开始录音
-        String filepath = String("/") + filename;
-        if (audio.connectToRecord(filepath.c_str(), getSPIFFS(), AUDIO_SAMPLE_RATE)) {
-            isRecordingFlag = true;
-            return true;
-        }
+        DEBUG_PRINTLN("音频驱动: 录音功能不可用");
         return false;
     }
     
     void stopRecording() override {
-        audio.stopRecord();
         isRecordingFlag = false;
     }
     
@@ -116,20 +83,18 @@ public:
     }
     
     void loop() override {
-        // 运行音频库的loop函数
-        audio.loop();
-        
-        // 更新播放进度
-        if (isPlayingFlag) {
-            playPosition = audio.getAudioCurrentTime();
-            totalDuration = audio.getAudioTotalTime();
-        }
+    }
+    
+    bool matchHardware() override {
+        DEBUG_PRINTLN("音频驱动: 硬件检测功能不可用");
+        return false;
+    }
+    
+    AudioDriverType getType() override {
+        return AUDIO_DRIVER_NONE;
     }
     
 protected:
-    // ESP32-audioI2S对象
-    Audio audio;
-    
     // 音量设置
     uint8_t volume;
     
@@ -140,31 +105,6 @@ protected:
     // 播放进度
     unsigned long playPosition;
     unsigned long totalDuration;
-    
-    // 音频回调函数
-    static void infoCallback(const char *info) {
-        DEBUG_PRINT("音频信息: ");
-        DEBUG_PRINTLN(info);
-    }
-    
-    static void errorCallback(const char *info) {
-        DEBUG_PRINT("音频错误: ");
-        DEBUG_PRINTLN(info);
-    }
-    
-    static void statusCallback(void* arg, int code, const char* status) {
-        BaseAudioDriver* driver = static_cast<BaseAudioDriver*>(arg);
-        
-        if (code == 200) {
-            // 播放成功开始
-            driver->isPlayingFlag = true;
-        } else if (code == 300) {
-            // 播放完成
-            driver->isPlayingFlag = false;
-            driver->playPosition = 0;
-            driver->totalDuration = 0;
-        }
-    }
 };
 
 // VS1053B无耳机孔音频驱动

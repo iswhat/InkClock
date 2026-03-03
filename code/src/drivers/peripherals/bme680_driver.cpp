@@ -1,15 +1,20 @@
 #include "bme680_driver.h"
 
-BME680Driver::BME680Driver() : bme680(nullptr) {
+BME680Driver::BME680Driver() {
   // 构造函数
+#ifdef HAVE_BME680_LIB
+  bme680 = nullptr;
+#endif
 }
 
 BME680Driver::~BME680Driver() {
   // 析构函数，清理资源
+#ifdef HAVE_BME680_LIB
   if (bme680 != nullptr) {
     delete bme680;
     bme680 = nullptr;
   }
+#endif
 }
 
 bool BME680Driver::init(const SensorConfig& config) {
@@ -18,6 +23,7 @@ bool BME680Driver::init(const SensorConfig& config) {
     return false;
   }
   
+#ifdef HAVE_BME680_LIB
   // 创建BME680对象
   bme680 = new Adafruit_BME680();
   
@@ -43,10 +49,20 @@ bool BME680Driver::init(const SensorConfig& config) {
   bme680->setGasHeater(320, 150); // 320°C for 150 ms
   
   return true;
+#else
+  DEBUG_PRINTLN("BME680驱动: Adafruit_BME680库不可用");
+  return false;
+#endif
 }
 
 bool BME680Driver::readData(SensorData& data) {
-  if (!isInitialized() || bme680 == nullptr) {
+  if (!isInitialized()) {
+    recordError();
+    return false;
+  }
+  
+#ifdef HAVE_BME680_LIB
+  if (bme680 == nullptr) {
     recordError();
     return false;
   }
@@ -67,6 +83,11 @@ bool BME680Driver::readData(SensorData& data) {
   
   recordSuccess();
   return true;
+#else
+  DEBUG_PRINTLN("BME680驱动: 读取功能不可用");
+  recordError();
+  return false;
+#endif
 }
 
 String BME680Driver::getTypeName() const {
@@ -80,6 +101,7 @@ SensorType BME680Driver::getType() const {
 bool BME680Driver::matchHardware() {
   DEBUG_PRINTLN("检测BME680硬件匹配...");
   
+#ifdef HAVE_BME680_LIB
   try {
     // BME680使用I2C接口，通常有两个地址可选：0x76和0x77
     uint8_t addresses[] = {0x76, 0x77};
@@ -107,4 +129,8 @@ bool BME680Driver::matchHardware() {
     DEBUG_PRINTLN("BME680硬件匹配失败: 未知异常");
     return false;
   }
+#else
+  DEBUG_PRINTLN("BME680驱动: 硬件检测功能不可用");
+  return false;
+#endif
 }

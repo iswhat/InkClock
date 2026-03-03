@@ -20,6 +20,7 @@ bool BMP388Driver::init(const SensorConfig& config) {
   // 保存配置
   this->config = config;
   
+#ifdef HAVE_BMP3XX_LIB
   // 初始化BMP388传感器
   bool success = bmp388.begin_I2C(config.address);
   initialized = success;
@@ -36,6 +37,11 @@ bool BMP388Driver::init(const SensorConfig& config) {
   }
   
   return success;
+#else
+  DEBUG_PRINTLN("BMP388驱动: Adafruit_BMP3XX库不可用");
+  initialized = false;
+  return false;
+#endif
 }
 
 /**
@@ -49,6 +55,7 @@ bool BMP388Driver::readData(SensorData& data) {
     return false;
   }
   
+#ifdef HAVE_BMP3XX_LIB
   // 读取气压和温度数据
   if (bmp388.performReading()) {
     float pressure = bmp388.readPressure();
@@ -68,6 +75,10 @@ bool BMP388Driver::readData(SensorData& data) {
     Serial.println("BMP388传感器数据读取失败");
     return false;
   }
+#else
+  DEBUG_PRINTLN("BMP388驱动: 读取功能不可用");
+  return false;
+#endif
 }
 
 /**
@@ -107,6 +118,7 @@ SensorType BMP388Driver::getType() const {
 bool BMP388Driver::matchHardware() {
   DEBUG_PRINTLN("检测BMP388硬件匹配...");
   
+#ifdef HAVE_BMP3XX_LIB
   try {
     // BMP388使用I2C接口，通常地址为0x76或0x77
     uint8_t addresses[] = {0x76, 0x77};
@@ -131,6 +143,10 @@ bool BMP388Driver::matchHardware() {
     DEBUG_PRINTLN("BMP388硬件匹配失败: 未知异常");
     return false;
   }
+#else
+  DEBUG_PRINTLN("BMP388驱动: 硬件检测功能不可用");
+  return false;
+#endif
 }
 
 /**

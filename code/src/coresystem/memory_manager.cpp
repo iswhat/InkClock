@@ -1,4 +1,7 @@
 #include "memory_manager.h"
+#include <vector>
+#include <map>
+#include <Arduino.h>
 
 // 初始化单例实例
 MemoryManager* MemoryManager::instance = nullptr;
@@ -72,10 +75,7 @@ void* MemoryManager::allocateFromPool(void* poolPtr, size_t size, const char* fi
   return nullptr;
 }
 
-// 从内存池分配内存（兼容旧接口）
-void* MemoryManager::allocateFromPool(void* poolPtr, size_t size) {
-  return allocateFromPool(poolPtr, size, nullptr, 0);
-}
+
 
 // 释放内存回内存池
 void MemoryManager::freeToPool(void* poolPtr, void* ptr) {
@@ -410,34 +410,3 @@ void MemoryManager::setMemoryWarningThreshold(size_t threshold) {
   }
 }
 
-// 检查内存泄漏
-void MemoryManager::checkMemoryLeaks() {
-  // 简单的内存泄漏检查，实际应用中可以更复杂
-  size_t currentHeap = platformGetFreeHeap();
-  if (lastMemoryUpdate > 0) {
-    // 修复：正确检测内存泄漏（内存持续增长才是泄漏）
-    static size_t previousHeap = currentHeap;
-    static int leakCounter = 0;
-
-    // 检测内存是否持续增长（真正的泄漏）
-    // 如果当前内存比上次少超过1KB，说明可能释放了内存（正常现象）
-    // 如果当前内存比上次少，且连续多次，可能是正常的内存波动
-    // 真正的泄漏是free heap持续减少（可用内存变少）
-    if (previousHeap > currentHeap + 1024) {
-      // 内存减少了超过1KB，可能是释放了内存（正常）
-      leakCounter = 0;
-    } else if (previousHeap > currentHeap && (previousHeap - currentHeap) > 256) {
-      // 内存持续减少，可能是泄漏
-      leakCounter++;
-      if (leakCounter > 10) { // 连续10次检测到内存泄漏
-        Serial.println("[MemoryManager] Potential memory leak detected");
-        // 打印内存分配详情
-        printMemoryAllocations();
-        leakCounter = 0;
-      }
-    } else {
-      leakCounter = 0;
-    }
-    previousHeap = currentHeap;
-  }
-}

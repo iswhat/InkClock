@@ -10,6 +10,7 @@
 #include <vector>
 #include <functional>
 #include <memory>
+#include <map>
 #include "data_types.h"
 #include "../drivers/peripherals/sensor_driver.h"
 
@@ -311,10 +312,10 @@ typedef std::function<void(EventType, std::shared_ptr<EventData>)> EventHandler;
  */
 class EventBus {
 private:
-  std::unordered_map<EventType, std::vector<EventSubscription>> subscriptionsMap; // 事件订阅映射
-  bool isProcessingEvents = false;                           // 是否正在处理事件
-  std::vector<std::pair<EventType, std::shared_ptr<EventData>>> eventQueue; // 事件队列，用于处理递归事件
-  SemaphoreHandle_t eventMutex = nullptr;                    // 事件处理互斥锁
+  mutable std::map<EventType, std::vector<EventSubscription>> subscriptionsMap; // 事件订阅映射
+  mutable bool isProcessingEvents = false;                           // 是否正在处理事件
+  mutable std::vector<std::pair<EventType, std::shared_ptr<EventData>>> eventQueue; // 事件队列，用于处理递归事件
+  mutable SemaphoreHandle_t eventMutex = nullptr;                    // 事件处理互斥锁
   
   /**
    * @brief 构造函数

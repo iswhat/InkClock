@@ -2,13 +2,19 @@
 #define EINK_DISPLAY_H
 
 #include <Arduino.h>
+#include "display_driver.h"
+
+
+
+// 尝试包含墨水屏库
+#ifdef HAVE_EINK_LIB
 #include <GxGDEW042Z15/GxGDEW042Z15.h> // 4.2寸三色墨水屏库
 #include <GxGDEW075Z09/GxGDEW075Z09.h> // 7.5寸三色墨水屏库
 #include <GxIO/GxIO_SPI/GxIO_SPI.h>
 #include <GxIO/GxIO.h>
 #include <GxFonts/GxFonts.h>
 #include "../core/config.h"
-#include "display_driver.h"
+#endif
 
 /**
  * @brief 墨水屏显示驱动类

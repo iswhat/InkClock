@@ -25,15 +25,7 @@ typedef struct {
   unsigned long lastModified;
 } CoreConfigItem;
 
-// 定时器结构体
-typedef struct {
-  uint32_t timerId;
-  unsigned long interval;
-  unsigned long lastTriggerTime;
-  bool enabled;
-  bool isOneShot;
-  std::function<void(uint32_t)> callback;
-} TimerItem;
+// 使用timer_manager.h中定义的TimerItem
 
 // 核心系统类，作为底层操作系统的核心组件
 class CoreSystem : public ICoreSystem {
@@ -46,14 +38,13 @@ private:
     state = SYSTEM_STATE_UNINITIALIZED;
     
     // 初始化核心组件指针为nullptr
-    eventBus = nullptr;
-    driverRegistry = nullptr;
-    systemMutex = nullptr;
-    
-    // 初始化子系统引用
-    powerManager = nullptr;
-    timerManager = nullptr;
-    memoryManager = nullptr;
+  eventBus = nullptr;
+  driverRegistry = nullptr;
+  systemMutex = nullptr;
+  
+  // 初始化子系统引用
+  timerManager = nullptr;
+  memoryManager = nullptr;
     
     // 初始化配置管理
     configLoaded = false;
@@ -80,7 +71,6 @@ private:
   driverRegistry = DriverRegistry::getInstance();
   
   // 初始化子系统
-  powerManager = PowerManager::getInstance();
   timerManager = TimerManager::getInstance();
   memoryManager = MemoryManager::getInstance();
   
@@ -125,7 +115,6 @@ private:
   std::vector<CoreConfigItem> configItems;
   
   // 子系统引用
-  PowerManager* powerManager;
   TimerManager* timerManager;
   MemoryManager* memoryManager;
   
@@ -366,7 +355,6 @@ public:
     
     // 7. 初始化子系统
   Serial.println("Initializing Subsystems...");
-  powerManager->init();
   timerManager->init();
   memoryManager->init();
     
@@ -401,7 +389,7 @@ public:
     
     // 运行子系统
     timerManager->run();
-    powerManager->updatePowerState();
+    updatePowerState();
     
     // 动态调整CPU频率
     if (dynamicCpuFreqEnabled) {
@@ -412,7 +400,7 @@ public:
   // 进入低功耗模式
   void enterLowPowerMode() {
     if (state == SYSTEM_STATE_RUNNING) {
-      powerManager->setLowPowerMode(true);
+      isLowPowerMode = true;
       state = SYSTEM_STATE_LOW_POWER;
     }
   }
@@ -420,7 +408,7 @@ public:
   // 退出低功耗模式
   void exitLowPowerMode() {
     if (state == SYSTEM_STATE_LOW_POWER) {
-      powerManager->setLowPowerMode(false);
+      isLowPowerMode = false;
       state = SYSTEM_STATE_RUNNING;
     }
   }
@@ -474,19 +462,19 @@ public:
   
   // 电源管理API
   float getBatteryVoltage() const {
-    return powerManager->getBatteryVoltage();
+    return batteryVoltage;
   }
   
   int getBatteryPercentage() const {
-    return powerManager->getBatteryPercentage();
+    return batteryPercentage;
   }
   
   bool isChargingState() const {
-    return powerManager->isChargingState();
+    return isCharging;
   }
   
   bool isInLowPowerMode() const {
-    return powerManager->isInLowPowerMode();
+    return isLowPowerMode;
   }
   
   // 配置管理API
@@ -551,7 +539,7 @@ public:
   
   // 定时器管理API
   uint32_t createTimer(unsigned long interval, std::function<void(uint32_t)> callback, bool isOneShot = false) {
-    return timerManager->createTimer(interval, callback, isOneShot);
+    return timerManager->createTimer(interval, callback, isOneShot, TIMER_PRIORITY_NORMAL);
   }
   
   bool startTimer(uint32_t timerId) {
@@ -646,7 +634,7 @@ public:
 
     // 综合考虑内存使用率、CPU任务队列和系统状态
     float systemLoad = memoryUsageRatio;
-    if (powerManager->isInLowPowerMode()) {
+    if (isLowPowerMode) {
       systemLoad *= 0.5; // 低功耗模式下降低负载感知
     }
 
@@ -753,25 +741,23 @@ public:
   
   // 进入深度睡眠模式
   void enterDeepSleep(uint64_t sleepTimeMs) {
-    powerManager->enterDeepSleep(sleepTimeMs);
+    platformDeepSleep(sleepTimeMs);
   }
   
   // 进入轻度睡眠模式
   void enterLightSleep(uint64_t sleepTimeMs) {
-    powerManager->enterLightSleep(sleepTimeMs);
+    platformLightSleep(sleepTimeMs);
   }
   
   // 设置低功耗模式
   void setLowPowerMode(bool enable) {
-    powerManager->setLowPowerMode(enable);
+    isLowPowerMode = enable;
   }
   
   // 优化功耗的周期性任务
   void optimizePowerConsumption() {
-    powerManager->optimizePowerConsumption();
-    
     // 动态调整CPU频率
-    if (dynamicCpuFreqEnabled && !powerManager->isInLowPowerMode()) {
+    if (dynamicCpuFreqEnabled && !isLowPowerMode) {
       adjustCpuFreqBasedOnLoad();
     }
     
@@ -779,7 +765,7 @@ public:
     memoryManager->cleanupMemory();
     
     // 根据当前状态调整系统任务优先级
-    if (powerManager->isInLowPowerMode()) {
+    if (isLowPowerMode) {
       // 低功耗模式下，降低非关键任务的优先级
       defaultTaskPriority = 3;
     } else {
@@ -832,7 +818,7 @@ public:
   
   // 从内存池分配内存
   void* allocateFromPool(void* poolPtr, size_t size) {
-    return memoryManager->allocateFromPool(poolPtr, size);
+    return memoryManager->allocateFromPool(static_cast<void*>(poolPtr), static_cast<size_t>(size));
   }
   
   // 释放内存回内存池
@@ -861,6 +847,17 @@ public:
   
   // 获取内存使用统计
   void getMemoryStats(size_t& totalMemory, size_t& usedMemory, size_t& peakMemory, size_t& freeMemory) {
+    memoryManager->getMemoryStats(totalMemory, usedMemory, peakMemory, freeMemory);
+  }
+  
+  // 实现ICoreSystem接口的方法
+  void getMemoryPoolInfo(void* poolPtr, size_t& totalBlocks, size_t& freeBlocks) {
+    size_t usedBlocks;
+    memoryManager->getMemoryPoolInfo(poolPtr, totalBlocks, freeBlocks, usedBlocks);
+  }
+  
+  void getMemoryStats(size_t& totalMemory, size_t& usedMemory, size_t& peakMemory) {
+    size_t freeMemory;
     memoryManager->getMemoryStats(totalMemory, usedMemory, peakMemory, freeMemory);
   }
   

@@ -1,15 +1,20 @@
 #include "bme280_driver.h"
 
-BME280Driver::BME280Driver() : bme280(nullptr) {
+BME280Driver::BME280Driver() {
   // 构造函数
+#ifdef HAVE_BME280_LIB
+  bme280 = nullptr;
+#endif
 }
 
 BME280Driver::~BME280Driver() {
   // 析构函数，清理资源
+#ifdef HAVE_BME280_LIB
   if (bme280 != nullptr) {
     delete bme280;
     bme280 = nullptr;
   }
+#endif
 }
 
 bool BME280Driver::init(const SensorConfig& config) {
@@ -18,6 +23,7 @@ bool BME280Driver::init(const SensorConfig& config) {
     return false;
   }
   
+#ifdef HAVE_BME280_LIB
   // 创建BME280对象
   bme280 = new Adafruit_BME280();
   
@@ -35,10 +41,20 @@ bool BME280Driver::init(const SensorConfig& config) {
   }
   
   return true;
+#else
+  DEBUG_PRINTLN("BME280驱动: Adafruit_BME280库不可用");
+  return false;
+#endif
 }
 
 bool BME280Driver::readData(SensorData& data) {
-  if (!isInitialized() || bme280 == nullptr) {
+  if (!isInitialized()) {
+    recordError();
+    return false;
+  }
+  
+#ifdef HAVE_BME280_LIB
+  if (bme280 == nullptr) {
     recordError();
     return false;
   }
@@ -62,6 +78,11 @@ bool BME280Driver::readData(SensorData& data) {
   
   recordSuccess();
   return true;
+#else
+  DEBUG_PRINTLN("BME280驱动: 读取功能不可用");
+  recordError();
+  return false;
+#endif
 }
 
 String BME280Driver::getTypeName() const {
@@ -75,6 +96,7 @@ SensorType BME280Driver::getType() const {
 bool BME280Driver::matchHardware() {
   DEBUG_PRINTLN("检测BME280硬件匹配...");
   
+#ifdef HAVE_BME280_LIB
   try {
     // 创建临时BME280对象
     Adafruit_BME280 tempBME280;
@@ -105,4 +127,8 @@ bool BME280Driver::matchHardware() {
     DEBUG_PRINTLN("BME280硬件匹配失败：未知异常");
     return false;
   }
+#else
+  DEBUG_PRINTLN("BME280驱动: 硬件检测功能不可用");
+  return false;
+#endif
 }
