@@ -2,11 +2,17 @@
 #define EINK_DRIVER_H
 
 #include "display_driver.h"
+#ifdef HAVE_EINK_LIB
+#ifdef USE_EINK_DISPLAY
 #include <GxIO/GxIO_SPI/GxIO_SPI.h>
 #include <GxFonts/GxFonts.h>
-#include "../core/config.h"
+#endif
+#endif
+#include "coresystem/config.h"
 
 // 根据显示类型选择合适的墨水屏库
+#ifdef HAVE_EINK_LIB
+#ifdef USE_EINK_DISPLAY
 #if DISPLAY_TYPE == EINK_102_INCH
   #include <GxGDEW0102T4/GxGDEW0102T4.h> // 1.02寸单色墨水屏库
 #elif DISPLAY_TYPE == EINK_144_INCH
@@ -45,6 +51,8 @@
   #include <GxGDEW103Z07/GxGDEW103Z07.h> // 10.3寸单色墨水屏库
 #elif DISPLAY_TYPE == EINK_1248_INCH
   #include <GxGDEW1248Z21/GxGDEW1248Z21.h> // 12.48寸单色墨水屏库
+#endif
+#endif
 #endif
 
 // 墨水屏驱动实现类
@@ -109,6 +117,8 @@ public:
   
 private:
   // 墨水屏IO和显示对象
+  #ifdef HAVE_EINK_LIB
+  #ifdef USE_EINK_DISPLAY
   GxIO_Class io;
   
   #if DISPLAY_TYPE == EINK_102_INCH
@@ -190,6 +200,8 @@ private:
   #endif
   
   GxFonts fonts;
+  #endif
+  #endif
   bool initialized;
 };
 

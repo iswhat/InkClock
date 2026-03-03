@@ -1,4 +1,5 @@
 #include "bmp388_driver.h"
+#include "coresystem/platform_abstraction.h"
 
 /**
  * @brief 构造函数
@@ -119,30 +120,22 @@ bool BMP388Driver::matchHardware() {
   DEBUG_PRINTLN("检测BMP388硬件匹配...");
   
 #ifdef HAVE_BMP3XX_LIB
-  try {
-    // BMP388使用I2C接口，通常地址为0x76或0x77
-    uint8_t addresses[] = {0x76, 0x77};
-    bool matched = false;
-    
-    for (uint8_t address : addresses) {
-      // 尝试使用当前地址初始化传感器
-      if (bmp388.begin_I2C(address)) {
-        // 初始化成功，尝试读取一次数据验证
-        if (bmp388.performReading()) {
-          matched = true;
-          break;
-        }
+  // BMP388使用I2C接口，通常地址为0x76或0x77
+  uint8_t addresses[] = {0x76, 0x77};
+  bool matched = false;
+  
+  for (uint8_t address : addresses) {
+    // 尝试使用当前地址初始化传感器
+    if (bmp388.begin_I2C(address)) {
+      // 初始化成功，尝试读取一次数据验证
+      if (bmp388.performReading()) {
+        matched = true;
+        break;
       }
     }
-    
-    return matched;
-  } catch (const std::exception& e) {
-    DEBUG_PRINTLN("BMP388硬件匹配失败: " + String(e.what()));
-    return false;
-  } catch (...) {
-    DEBUG_PRINTLN("BMP388硬件匹配失败: 未知异常");
-    return false;
   }
+  
+  return matched;
 #else
   DEBUG_PRINTLN("BMP388驱动: 硬件检测功能不可用");
   return false;

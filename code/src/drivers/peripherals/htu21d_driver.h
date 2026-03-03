@@ -2,7 +2,9 @@
 #define HTU21D_DRIVER_H
 
 #include "sensor_driver.h"
+#ifdef HAVE_HTU21D_LIB
 #include <Adafruit_HTU21DF.h>
+#endif
 
 /**
  * @brief HTU21D温湿度传感器驱动类

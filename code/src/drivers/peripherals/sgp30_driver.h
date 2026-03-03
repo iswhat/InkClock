@@ -2,7 +2,9 @@
 #define SGP30_DRIVER_H
 
 #include "base_sensor_driver.h"
+#ifdef HAVE_SGP30_LIB
 #include <Adafruit_SGP30.h>
+#endif
 
 /**
  * @brief SGP30气体传感器驱动类

@@ -1,4 +1,10 @@
 #include "dht22_driver.h"
+#include "coresystem/platform_abstraction.h"
+
+// 定义DHT_PIN
+#ifndef DHT_PIN
+#define DHT_PIN 4
+#endif
 
 DHT22Driver::DHT22Driver() : tempOffset(0.0), humOffset(0.0), initialized(false) {
   // 构造函数
@@ -113,31 +119,23 @@ bool DHT22Driver::matchHardware() {
   DEBUG_PRINTLN("检测DHT22硬件匹配...");
   
 #ifdef HAVE_DHT_LIB
-  try {
-    // 尝试在默认引脚上初始化DHT22传感器
-    DHT tempDHT(DHT_PIN, DHT22);
-    tempDHT.begin();
-    
-    // 等待传感器稳定
-    platformDelay(2000);
-    
-    // 尝试读取数据
-    float h = tempDHT.readHumidity();
-    float t = tempDHT.readTemperature();
-    
-    // 检查数据是否有效
-    if (!isnan(h) && !isnan(t)) {
-      DEBUG_PRINTLN("DHT22硬件匹配成功");
-      return true;
-    } else {
-      DEBUG_PRINTLN("DHT22硬件匹配失败：读取数据无效");
-      return false;
-    }
-  } catch (const std::exception& e) {
-    DEBUG_PRINTLN("DHT22硬件匹配失败：" + String(e.what()));
-    return false;
-  } catch (...) {
-    DEBUG_PRINTLN("DHT22硬件匹配失败：未知异常");
+  // 尝试在默认引脚上初始化DHT22传感器
+  DHT tempDHT(DHT_PIN, DHT22);
+  tempDHT.begin();
+  
+  // 等待传感器稳定
+  platformDelay(2000);
+  
+  // 尝试读取数据
+  float h = tempDHT.readHumidity();
+  float t = tempDHT.readTemperature();
+  
+  // 检查数据是否有效
+  if (!isnan(h) && !isnan(t)) {
+    DEBUG_PRINTLN("DHT22硬件匹配成功");
+    return true;
+  } else {
+    DEBUG_PRINTLN("DHT22硬件匹配失败：读取数据无效");
     return false;
   }
 #else

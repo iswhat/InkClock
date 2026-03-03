@@ -134,6 +134,11 @@
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/esp_hw_support/include/soc/esp32/spiram.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/cores/esp32/io_pin_remap.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/cores/esp32/Arduino.h \
+ .pio/libdeps/esp32-wroom-32/ArduinoJson/src/ArduinoJson.h \
+ .pio/libdeps/esp32-wroom-32/ArduinoJson/src/ArduinoJson.hpp \
+ .pio/libdeps/esp32-wroom-32/ArduinoJson/src/ArduinoJson/Configuration.hpp \
+ src/application/../coresystem/config.h src/application/message_manager.h \
+ src/application/../coresystem/data_types.h src/application/api_manager.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/WiFiClientSecure/src/WiFiClientSecure.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFi.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/cores/esp32/Print.h \
@@ -235,11 +240,6 @@
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/mbedtls/mbedtls/include/mbedtls/error.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFiClient.h \
- .pio/libdeps/esp32-wroom-32/ArduinoJson/src/ArduinoJson.h \
- .pio/libdeps/esp32-wroom-32/ArduinoJson/src/ArduinoJson.hpp \
- .pio/libdeps/esp32-wroom-32/ArduinoJson/src/ArduinoJson/Configuration.hpp \
- src/application/../coresystem/config.h src/application/message_manager.h \
- src/application/../coresystem/data_types.h src/application/api_manager.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/SPIFFS/src/SPIFFS.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/FS/src/FS.h \
  src/application/wifi_manager.h \

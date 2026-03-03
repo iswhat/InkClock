@@ -2,8 +2,17 @@
 #define WEB_CLIENT_H
 
 #include <Arduino.h>
+#if PLATFORM_ESP32
 #include <WiFiClientSecure.h>
+#elif PLATFORM_ESP8266
+#include <ESP8266WiFi.h>
+#include <WiFiClientSecure.h>
+#endif
+#if PLATFORM_ESP32
 #include <HTTPClient.h>
+#elif PLATFORM_ESP8266
+#include <ESP8266HTTPClient.h>
+#endif
 #include <ArduinoJson.h>
 #include "../coresystem/config.h"
 #include "message_manager.h"

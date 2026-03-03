@@ -2,7 +2,9 @@
 #define HDC1080_DRIVER_H
 
 #include "sensor_driver.h"
+#ifdef HAVE_HDC1080_LIB
 #include <Adafruit_HDC1080.h>
+#endif
 
 class HDC1080Driver : public ISensorDriver {
 public:

@@ -17,8 +17,17 @@
 #define API_MANAGER_H
 
 #include <Arduino.h>
+#if PLATFORM_ESP32
 #include <WiFiClientSecure.h>
+#elif PLATFORM_ESP8266
+#include <ESP8266WiFi.h>
+#include <WiFiClientSecure.h>
+#endif
+#if PLATFORM_ESP32
 #include <HTTPClient.h>
+#elif PLATFORM_ESP8266
+#include <ESP8266HTTPClient.h>
+#endif
 #include <time.h>
 #include <map>
 
@@ -186,8 +195,13 @@ private:
     void cleanupExpiredCache();
     
     // HTTPS客户端
+    #if PLATFORM_ESP32
     WiFiClientSecure *wifiClient;
     HTTPClient *httpClient;
+    #elif PLATFORM_ESP8266
+    WiFiClientSecure *wifiClient;
+    ESP8266HTTPClient *httpClient;
+    #endif
     
     // 缓存相关
     std::map<String, CacheItem> cache; // 使用map替换unordered_map以解决兼容性问题

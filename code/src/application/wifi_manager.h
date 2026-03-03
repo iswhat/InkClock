@@ -2,7 +2,11 @@
 #define WIFI_MANAGER_H
 
 #include <Arduino.h>
+#if PLATFORM_ESP32
 #include <WiFi.h>
+#elif PLATFORM_ESP8266
+#include <ESP8266WiFi.h>
+#endif
 #include <WiFiClient.h>
 #include <WiFiUdp.h>
 #include "../coresystem/config.h"
@@ -61,7 +65,11 @@ private:
   void loadConfiguredWiFi();
   void saveConfiguredWiFi(String ssid, String password);
   void checkSignalStrength(); // 检查WiFi信号强度
+  #if PLATFORM_ESP32
   String getWiFiStatusString(wl_status_t status); // 获取WiFi状态字符串
+  #elif PLATFORM_ESP8266
+  String getWiFiStatusString(wl_status_t status); // 获取WiFi状态字符串
+  #endif
   String getSignalQuality(int rssi); // 获取WiFi信号质量字符串
 };
 

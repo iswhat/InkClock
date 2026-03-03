@@ -9,8 +9,12 @@
 #include <unordered_map>
 
 // FreeRTOS headers
+#if PLATFORM_ESP32
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
+#elif PLATFORM_ESP8266
+#include <Arduino.h>
+#endif
 #include "event_bus.h"
 #include "../drivers/peripherals/sensor_driver.h"
 #include "../drivers/peripherals/display_driver.h"

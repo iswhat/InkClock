@@ -2,7 +2,9 @@
 #define SHT30_DRIVER_H
 
 #include "base_sensor_driver.h"
+#ifdef HAVE_SHT31_LIB
 #include <Adafruit_SHT31.h>
+#endif
 
 class SHT30Driver : public BaseSensorDriver {
 public:

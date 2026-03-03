@@ -2,7 +2,9 @@
 #define SHT20_DRIVER_H
 
 #include "sensor_driver.h"
+#ifdef HAVE_SHT21_LIB
 #include <Adafruit_SHT21.h>
+#endif
 
 /**
  * @brief SHT20温湿度传感器驱动类

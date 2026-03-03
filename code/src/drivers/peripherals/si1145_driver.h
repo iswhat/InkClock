@@ -2,7 +2,9 @@
 #define SI1145_DRIVER_H
 
 #include "sensor_driver.h"
+#ifdef HAVE_SI1145_LIB
 #include <Adafruit_SI1145.h>
+#endif
 
 /**
  * @brief SI1145光照传感器驱动类

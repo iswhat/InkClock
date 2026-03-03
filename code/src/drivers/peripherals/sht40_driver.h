@@ -2,7 +2,9 @@
 #define SHT40_DRIVER_H
 
 #include "sensor_driver.h"
+#ifdef HAVE_SHT4X_LIB
 #include <Adafruit_SHT4x.h>
+#endif
 
 class SHT40Driver : public ISensorDriver {
 public:

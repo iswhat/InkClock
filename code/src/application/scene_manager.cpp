@@ -1,5 +1,9 @@
 #include "scene_manager.h"
+#if PLATFORM_ESP32
 #include <SPIFFS.h>
+#elif PLATFORM_ESP8266
+#include <FS.h>
+#endif
 #include <ArduinoJson.h>
 #include "../coresystem/module_registry.h"
 #include "wifi_manager.h"

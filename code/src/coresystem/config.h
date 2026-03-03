@@ -20,6 +20,13 @@
 #define HAVE_BME680_LIB 1
 #define HAVE_BMP3XX_LIB 1
 #define HAVE_EINK_LIB 1
+#define HAVE_HDC1080_LIB 1
+#define HAVE_HTU21D_LIB 1
+#define HAVE_SHT21_LIB 1
+#define HAVE_SGP30_LIB 1
+#define HAVE_SI1145_LIB 1
+#define HAVE_SHT31_LIB 1
+#define HAVE_SHT4X_LIB 1
 
 // Message manager constants
 #define MAX_MESSAGES 100

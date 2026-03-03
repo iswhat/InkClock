@@ -1,5 +1,9 @@
 #include "message_manager.h"
+#if PLATFORM_ESP32
 #include <SPIFFS.h>
+#elif PLATFORM_ESP8266
+#include <FS.h>
+#endif
 #include <ArduinoJson.h>
 #include "application/time_manager.h"
 

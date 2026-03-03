@@ -2,7 +2,9 @@
 #define SHT21_DRIVER_H
 
 #include "sensor_driver.h"
+#ifdef HAVE_SHT21_LIB
 #include <Adafruit_SHT21.h>
+#endif
 
 class SHT21Driver : public ISensorDriver {
 public:
