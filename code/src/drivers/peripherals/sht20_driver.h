@@ -3,7 +3,7 @@
 
 #include "sensor_driver.h"
 #ifdef HAVE_SHT21_LIB
-#include <Adafruit_SHT21.h>
+#include <SHT2x.h>
 #endif
 
 /**
@@ -14,7 +14,9 @@
  */
 class SHT20Driver : public ISensorDriver {
 private:
-  Adafruit_SHT21 sht20;          ///< SHT20传感器实例
+#ifdef HAVE_SHT21_LIB
+  SHT20 sht20;          ///< SHT20传感器实例
+#endif
   SensorConfig config;           ///< 传感器配置
   bool initialized;              ///< 初始化状态标志
   String typeName;               ///< 传感器类型名称
@@ -78,6 +80,13 @@ public:
    * @return 传感器配置
    */
   SensorConfig getConfig() const override;
+  
+  /**
+   * @brief 检测驱动与硬件是否匹配
+   * 
+   * @return 硬件是否匹配
+   */
+  bool matchHardware() override;
 };
 
 #endif // SHT20_DRIVER_H

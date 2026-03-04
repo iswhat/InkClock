@@ -6,8 +6,10 @@
 // 电池更新间隔（毫秒）
 #define BATTERY_UPDATE_INTERVAL 2000
 
-#if defined(ESP32) || defined(ESP8266)
+#if defined(ESP32)
 #include <WiFi.h>
+#elif defined(ESP8266)
+#include <ESP8266WiFi.h>
 #endif
 
 #if defined(ESP32)

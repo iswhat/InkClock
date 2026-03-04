@@ -758,14 +758,15 @@ bool MemoryDetector::detectResources() {
     memoryInfo.used = ESP.getHeapSize() - ESP.getFreeHeap();
     memoryInfo.total = ESP.getHeapSize();
   #elif defined(ESP8266)
-    memoryInfo.used = ESP.getHeapSize() - ESP.getFreeHeap();
-    memoryInfo.total = ESP.getHeapSize();
+    // ESP8266没有getHeapSize()方法，使用getFreeHeap()和固定值
+    memoryInfo.used = 80 * 1024 - ESP.getFreeHeap(); // 假设总内存80KB
+    memoryInfo.total = 80 * 1024; // 固定值80KB
   #else
     // 模拟内存使用情况
     memoryInfo.used = random(0, (int)memoryInfo.total * 0.8);
   #endif
   
-  memoryInfo.usage = (memoryInfo.used / memoryInfo.total) * 100;
+  memoryInfo.usage = (memoryInfo.used / (float)memoryInfo.total) * 100;
   memoryInfo.lastUpdateTime = millis();
   
   return true;

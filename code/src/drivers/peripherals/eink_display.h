@@ -59,7 +59,7 @@ public:
    * @param w 宽度
    * @param h 高度
    */
-  void update(uint16_t x, uint16_t y, uint16_t w, uint16_t h) override;
+  void update(int16_t x, int16_t y, int16_t w, int16_t h) override;
   
   /**
    * @brief 清空屏幕
@@ -108,25 +108,7 @@ public:
    */
   void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) override;
   
-  /**
-   * @brief 绘制圆形
-   * 
-   * @param x0 圆心X坐标
-   * @param y0 圆心Y坐标
-   * @param r 半径
-   * @param color 颜色
-   */
-  void drawCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color) override;
-  
-  /**
-   * @brief 填充圆形
-   * 
-   * @param x0 圆心X坐标
-   * @param y0 圆心Y坐标
-   * @param r 半径
-   * @param color 颜色
-   */
-  void fillCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color) override;
+
   
   /**
    * @brief 绘制字符串
@@ -299,6 +281,8 @@ public:
   
 private:
   // 墨水屏对象
+  #ifdef HAVE_EINK_LIB
+  #ifdef USE_EINK_DISPLAY
   #if DISPLAY_TYPE == EINK_42_INCH || DISPLAY_TYPE == EINK_42_INCH_HEMA
     GxIO_Class io;              // 4.2寸墨水屏IO对象
     GxGDEW042Z15_Class display; // 4.2寸墨水屏对象
@@ -307,6 +291,8 @@ private:
     GxGDEW075Z09_Class display; // 7.5寸墨水屏对象
   #endif
   GxFonts fonts;                // 字体对象
+  #endif
+  #endif
   
   // 显示尺寸
   uint16_t width;               // 屏幕宽度

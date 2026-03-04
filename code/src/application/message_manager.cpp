@@ -3,6 +3,8 @@
 #include <SPIFFS.h>
 #elif PLATFORM_ESP8266
 #include <FS.h>
+#include <LittleFS.h>
+#define SPIFFS LittleFS
 #endif
 #include <ArduinoJson.h>
 #include "application/time_manager.h"
@@ -43,10 +45,23 @@ void MessageManager::init() {
   DEBUG_PRINTLN("初始化消息管理器...");
   
   // 初始化SPIFFS文件系统（如果未初始化）
+  #if defined(ESP32)
   if (!SPIFFS.begin(false)) {
+  #elif defined(ESP8266)
+  if (!SPIFFS.begin()) {
+  #endif
     DEBUG_PRINTLN("SPIFFS初始化失败");
     return;
   }
+
+  // 定义文件操作常量
+  #ifndef FILE_READ
+    #define FILE_READ "r"
+  #endif
+  
+  #ifndef FILE_WRITE
+    #define FILE_WRITE "w"
+  #endif
   
   // 加载保存的消息
   if (!loadMessages()) {

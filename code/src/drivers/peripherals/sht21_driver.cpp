@@ -1,4 +1,7 @@
 #include "sht21_driver.h"
+#include "coresystem/platform_abstraction.h"
+
+#ifdef HAVE_SHT21_LIB
 
 SHT21Driver::SHT21Driver() : sht21(nullptr), tempOffset(0.0), humOffset(0.0), initialized(false) {
   // 构造函数
@@ -16,7 +19,7 @@ bool SHT21Driver::init(const SensorConfig& config) {
   this->config = config;
   
   // 创建SHT21对象
-  sht21 = new Adafruit_SHT21();
+  sht21 = new SHT21();
   
   // 初始化SHT21传感器
   if (!sht21->begin()) {
@@ -35,8 +38,11 @@ bool SHT21Driver::readData(SensorData& data) {
   }
   
   // 读取温湿度数据
-  float h = sht21->readHumidity();
-  float t = sht21->readTemperature();
+  if (!sht21->read()) {
+    return false;
+  }
+  float h = sht21->getHumidity();
+  float t = sht21->getTemperature();
   
   // 检查数据是否有效
   if (isnan(h) || isnan(t)) {
@@ -87,3 +93,5 @@ void SHT21Driver::setConfig(const SensorConfig& config) {
 SensorConfig SHT21Driver::getConfig() const {
   return config;
 }
+
+#endif // HAVE_SHT21_LIB

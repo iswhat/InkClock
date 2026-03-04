@@ -1084,115 +1084,134 @@ void initDisplaySystem() {
 void initInputDevices() {
   // 初始化输入设备，用于用户交互
   try {
-    buttonManager.init();       // 按键事件处理
+    ButtonModuleWrapper* buttonModule = getModule<ButtonModuleWrapper>();
+    FeedbackModuleWrapper* feedbackModule = getModule<FeedbackModuleWrapper>();
+    DisplayModuleWrapper* displayModule = getModule<DisplayModuleWrapper>();
     
-    // 初始化状态反馈管理器
-    feedbackManager.init();
-    // 设置LED引脚（从配置文件读取，避免硬编码）
-    int powerLedPin = coreSystem->getConfig()->getInt("led.power_pin", 13);
-    int wifiLedPin = coreSystem->getConfig()->getInt("led.wifi_pin", 12);
-    int btLedPin = coreSystem->getConfig()->getInt("led.bt_pin", 14);
-    feedbackManager.setLEDPins(powerLedPin, wifiLedPin, btLedPin);
-    // 设置屏幕驱动
-    feedbackManager.setDisplayDriver(displayManager.getDisplayDriver());
+    if (buttonModule) {
+      buttonModule->getButtonManager().init();       // 按键事件处理
+    }
+    
+    if (feedbackModule) {
+      // 初始化状态反馈管理器
+      feedbackModule->getFeedbackManager().init();
+      // 设置LED引脚（从配置文件读取，避免硬编码）
+      int powerLedPin = coreSystem->getConfig()->getInt("led.power_pin", 13);
+      int wifiLedPin = coreSystem->getConfig()->getInt("led.wifi_pin", 12);
+      int btLedPin = coreSystem->getConfig()->getInt("led.bt_pin", 14);
+      feedbackModule->getFeedbackManager().setLEDPins(powerLedPin, wifiLedPin, btLedPin);
+      // 设置屏幕驱动
+      if (displayModule) {
+        feedbackModule->getFeedbackManager().setDisplayDriver(displayModule->getDisplayManager().getDisplayDriver());
+      }
+    }
     
     // 设置按键回调函数，用于处理按键事件，包括报警状态下切换回主界面
-  buttonManager.setCallback([](int buttonIndex, ButtonEvent event) {
-    // 记录用户活动，用于场景切换
-    #if ENABLE_SCENE
-      SceneManager& sceneManager = getModule<SceneModuleWrapper>()->getSceneManager();
-      sceneManager.recordUserActivity();
-    #endif
-    
-    if (displayManager.isAlarmShowing()) {
-      // 如果处于报警状态，任何按键都切换回主界面
-      displayManager.hideAlarm();
-      return;
-    }
-    
-    // 单按钮操作逻辑
-    switch (event) {
-      case BUTTON_CLICK:
-        // 单击：切换右侧页面（日历/股票/消息）
-        {
-          // 使用DisplayManager的成员变量而不是static变量，避免多线程安全问题
-          RightPageType currentPage = displayManager.getCurrentRightPage();
-          switch (currentPage) {
-            case RIGHT_PAGE_CALENDAR:
-              currentPage = RIGHT_PAGE_STOCK;
-              break;
-            case RIGHT_PAGE_STOCK:
-              currentPage = RIGHT_PAGE_MESSAGE;
-              break;
-            case RIGHT_PAGE_MESSAGE:
-              currentPage = RIGHT_PAGE_CALENDAR;
-              break;
-            default:
-              currentPage = RIGHT_PAGE_CALENDAR;
-              break;
-          }
-          displayManager.switchRightPage(currentPage);
-          displayManager.updateDisplay();
-          // 触发反馈
-          feedbackManager.triggerFeedback(FEEDBACK_CLICK);
-        }
-        break;
-        
-      case BUTTON_DOUBLE_CLICK:
-        // 双击：切换显示模式（数字/模拟/文字时钟）
-        displayManager.toggleClockMode();
-        displayManager.updateDisplay();
-        // 触发反馈
-        feedbackManager.triggerFeedback(FEEDBACK_DOUBLE_CLICK);
-        break;
-        
-      case BUTTON_TRIPLE_CLICK:
-        // 三连击：切换到下一个场景
+    if (buttonModule && displayModule && feedbackModule) {
+      buttonModule->getButtonManager().setCallback([&](int buttonIndex, ButtonEvent event) {
+        // 记录用户活动，用于场景切换
         #if ENABLE_SCENE
-          sceneManager.switchToNextScene();
-          // 显示当前场景名称
-          displayManager.showToastMessage("场景: " + sceneManager.getSceneConfig(sceneManager.getCurrentScene()).name, 2000);
+          SceneModuleWrapper* sceneModule = getModule<SceneModuleWrapper>();
+          if (sceneModule) {
+            SceneManager& sceneManager = sceneModule->getSceneManager();
+            sceneManager.recordUserActivity();
+          }
         #endif
-        // 触发反馈
-        feedbackManager.triggerFeedback(FEEDBACK_TRIPLE_CLICK);
-        break;
         
-      case BUTTON_LONG_PRESS:
-        // 长按：开机/关机
-        DEBUG_PRINTLN("长按：开机/关机");
-        // 触发反馈
-        feedbackManager.triggerFeedback(FEEDBACK_LONG_PRESS);
-        break;
+        if (displayModule->getDisplayManager().isAlarmShowing()) {
+          // 如果处于报警状态，任何按键都切换回主界面
+          displayModule->getDisplayManager().hideAlarm();
+          return;
+        }
         
-      case BUTTON_POWER_OFF:
-        // 长按5秒以上：关机
-        DEBUG_PRINTLN("长按5秒以上：关机");
-        // 触发反馈
-        feedbackManager.triggerFeedback(FEEDBACK_POWER_OFF);
+        // 单按钮操作逻辑
+        switch (event) {
+          case BUTTON_CLICK:
+            // 单击：切换右侧页面（日历/股票/消息）
+            {
+              // 使用DisplayManager的成员变量而不是static变量，避免多线程安全问题
+              RightPageType currentPage = displayModule->getDisplayManager().getCurrentRightPage();
+              switch (currentPage) {
+                case RIGHT_PAGE_CALENDAR:
+                  currentPage = RIGHT_PAGE_STOCK;
+                  break;
+                case RIGHT_PAGE_STOCK:
+                  currentPage = RIGHT_PAGE_MESSAGE;
+                  break;
+                case RIGHT_PAGE_MESSAGE:
+                  currentPage = RIGHT_PAGE_CALENDAR;
+                  break;
+                default:
+                  currentPage = RIGHT_PAGE_CALENDAR;
+                  break;
+              }
+              displayModule->getDisplayManager().switchRightPage(currentPage);
+              displayModule->getDisplayManager().updateDisplay();
+              // 触发反馈
+              feedbackModule->getFeedbackManager().triggerFeedback(FEEDBACK_CLICK);
+            }
+            break;
+            
+          case BUTTON_DOUBLE_CLICK:
+            // 双击：切换显示模式（数字/模拟/文字时钟）
+            displayModule->getDisplayManager().toggleClockMode();
+            displayModule->getDisplayManager().updateDisplay();
+            // 触发反馈
+            feedbackModule->getFeedbackManager().triggerFeedback(FEEDBACK_DOUBLE_CLICK);
+            break;
+            
+          case BUTTON_TRIPLE_CLICK:
+            // 三连击：切换到下一个场景
+            #if ENABLE_SCENE
+              SceneModuleWrapper* sceneModule = getModule<SceneModuleWrapper>();
+              if (sceneModule) {
+                SceneManager& sceneManager = sceneModule->getSceneManager();
+                sceneManager.switchToNextScene();
+                // 显示当前场景名称
+                displayModule->getDisplayManager().showToastMessage("场景: " + sceneManager.getSceneConfig(sceneManager.getCurrentScene()).name, 2000);
+              }
+            #endif
+            // 触发反馈
+            feedbackModule->getFeedbackManager().triggerFeedback(FEEDBACK_TRIPLE_CLICK);
+            break;
+            
+          case BUTTON_LONG_PRESS:
+            // 长按：开机/关机
+            DEBUG_PRINTLN("长按：开机/关机");
+            // 触发反馈
+            feedbackModule->getFeedbackManager().triggerFeedback(FEEDBACK_LONG_PRESS);
+            break;
+            
+          case BUTTON_POWER_OFF:
+            // 长按5秒以上：关机
+            DEBUG_PRINTLN("长按5秒以上：关机");
+            // 触发反馈
+            feedbackModule->getFeedbackManager().triggerFeedback(FEEDBACK_POWER_OFF);
 
-        // 添加确认机制：显示提示并等待用户确认
-        displayManager.showMessage("长按再次关机", 3000);
+            // 添加确认机制：显示提示并等待用户确认
+            displayModule->getDisplayManager().showMessage("长按再次关机", 3000);
 
-        // 延迟一小段时间，允许用户取消
-        delay(500);
+            // 延迟一小段时间，允许用户取消
+            delay(500);
 
-        // 检查是否有新的按键事件（用户取消）
-        // 注意：这里使用简单的延时，实际应用中可能需要更复杂的确认机制
-        Serial.println("设备将在3秒后进入深度睡眠模式...");
-        displayManager.showMessage("进入睡眠模式...", 3000);
+            // 检查是否有新的按键事件（用户取消）
+            // 注意：这里使用简单的延时，实际应用中可能需要更复杂的确认机制
+            Serial.println("设备将在3秒后进入深度睡眠模式...");
+            displayModule->getDisplayManager().showMessage("进入睡眠模式...", 3000);
 
-        // 延迟3秒，给用户时间取消
-        delay(3000);
+            // 延迟3秒，给用户时间取消
+            delay(3000);
 
-        // 进入深度睡眠模式（定时唤醒）
-        // 修改：设置定时唤醒，而不是永久睡眠，防止设备无法唤醒
-        platformDeepSleep(60 * 60 * 1000000); // 1小时后自动唤醒
-        break;
-        
-      default:
-        break;
+            // 进入深度睡眠模式（定时唤醒）
+            // 修改：设置定时唤醒，而不是永久睡眠，防止设备无法唤醒
+            platformDeepSleep(60 * 60 * 1000000); // 1小时后自动唤醒
+            break;
+            
+          default:
+            break;
+        }
+      });
     }
-  });
     Serial.println("按键管理器初始化完成");
     Serial.println("状态反馈管理器初始化完成");
   } catch (const std::exception& e) {
@@ -1202,7 +1221,10 @@ void initInputDevices() {
   
   #if ENABLE_TOUCH
     try {
-      touchManager.init();        // 触摸事件处理
+      TouchModuleWrapper* touchModule = getModule<TouchModuleWrapper>();
+      if (touchModule) {
+        touchModule->getTouchManager().init();        // 触摸事件处理
+      }
       Serial.println("触摸管理器初始化完成");
     } catch (const std::exception& e) {
       Serial.print("触摸管理器初始化异常: ");

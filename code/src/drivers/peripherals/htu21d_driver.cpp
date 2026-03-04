@@ -1,4 +1,7 @@
 #include "htu21d_driver.h"
+#include "coresystem/platform_abstraction.h"
+
+#ifdef HAVE_HTU21D_LIB
 
 /**
  * @brief 构造函数
@@ -21,7 +24,7 @@ bool HTU21DDriver::init(const SensorConfig& config) {
   this->config = config;
   
   // 初始化HTU21D传感器
-  bool success = htu21d.begin(config.address);
+  bool success = htu21d.begin();
   initialized = success;
   
   if (success) {
@@ -115,3 +118,5 @@ void HTU21DDriver::setConfig(const SensorConfig& config) {
 SensorConfig HTU21DDriver::getConfig() const {
   return config;
 }
+
+#endif // HAVE_HTU21D_LIB

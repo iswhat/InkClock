@@ -3,7 +3,13 @@
 
 #include <Arduino.h>
 #include <FS.h>
+
+// 为不同平台提供SPIFFS支持
+#if defined(ESP32)
 #include <SPIFFS.h>
+#elif defined(ESP8266)
+// ESP8266的SPIFFS在FS.h中定义
+#endif
 
 class SPIFFSManager {
 private:
@@ -28,7 +34,11 @@ public:
         
         DEBUG_PRINTLN("初始化SPIFFS...");
         
+        #if defined(ESP32)
         mounted = SPIFFS.begin(true); // true表示格式化失败的分区
+        #elif defined(ESP8266)
+        mounted = SPIFFS.begin(); // ESP8266不支持参数
+        #endif
         
         if (mounted) {
             DEBUG_PRINTLN("SPIFFS初始化成功");
@@ -60,8 +70,19 @@ public:
             return;
         }
         
+        #if defined(ESP32)
         total = SPIFFS.totalBytes();
         used = SPIFFS.usedBytes();
+        #elif defined(ESP8266)
+        FSInfo info;
+        if (SPIFFS.info(info)) {
+            total = info.totalBytes;
+            used = info.usedBytes;
+        } else {
+            total = 0;
+            used = 0;
+        }
+        #endif
         free = total - used;
     }
 };

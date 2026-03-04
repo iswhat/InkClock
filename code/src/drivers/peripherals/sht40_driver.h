@@ -33,7 +33,9 @@ public:
   SensorConfig getConfig() const override;
   
 private:
+#ifdef HAVE_SHT4X_LIB
   Adafruit_SHT4x* sht40;
+#endif
   SensorConfig config;
   float tempOffset;
   float humOffset;

@@ -2,6 +2,8 @@
 #define WEB_CLIENT_H
 
 #include <Arduino.h>
+#include "../coresystem/config.h"
+
 #if PLATFORM_ESP32
 #include <WiFiClientSecure.h>
 #elif PLATFORM_ESP8266
@@ -14,7 +16,6 @@
 #include <ESP8266HTTPClient.h>
 #endif
 #include <ArduinoJson.h>
-#include "../coresystem/config.h"
 #include "message_manager.h"
 #include "api_manager.h"
 
@@ -45,7 +46,9 @@ public:
   bool sendMessage(String content, String type = "text");
   
 private:
+  #if PLATFORM_ESP32 || PLATFORM_ESP8266
   WiFiClientSecure client;
+  #endif
   String deviceId;
   unsigned long lastRegisterAttempt;
   unsigned long lastMessageFetch;

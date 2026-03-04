@@ -2,6 +2,8 @@
 #define WIFI_MANAGER_H
 
 #include <Arduino.h>
+#include "../coresystem/config.h"
+
 #if PLATFORM_ESP32
 #include <WiFi.h>
 #elif PLATFORM_ESP8266
@@ -9,7 +11,6 @@
 #endif
 #include <WiFiClient.h>
 #include <WiFiUdp.h>
-#include "../coresystem/config.h"
 
 class WiFiManager {
 public:
@@ -23,18 +24,36 @@ public:
   void loop();
   
   // 获取WiFi状态
+  #if PLATFORM_ESP32 || PLATFORM_ESP8266
   bool isConnected() { return WiFi.status() == WL_CONNECTED; }
   String getSSID() { return WiFi.SSID(); }
   int getSignalStrength() { return WiFi.RSSI(); }
   String getIPAddress() { return WiFi.localIP().toString(); }
+  #if PLATFORM_ESP32
   String getIPv6Address() { return WiFi.localIPv6().toString(); }
   bool hasIPv6() { return WiFi.localIPv6().toString() != "::" && WiFi.localIPv6().toString() != "0000:0000:0000:0000:0000:0000:0000:0000"; }
+  #elif PLATFORM_ESP8266
+  String getIPv6Address() { return "IPv6 not supported"; }
+  bool hasIPv6() { return false; }
+  #endif
   
   // AP模式相关方法
   void startAP();
   void stopAP();
   bool isAPMode() { return apMode; }
   String getAPIPAddress() { return WiFi.softAPIP().toString(); }
+  #else
+  bool isConnected() { return false; }
+  String getSSID() { return ""; }
+  int getSignalStrength() { return 0; }
+  String getIPAddress() { return ""; }
+  String getIPv6Address() { return ""; }
+  bool hasIPv6() { return false; }
+  void startAP() {}
+  void stopAP() {}
+  bool isAPMode() { return false; }
+  String getAPIPAddress() { return ""; }
+  #endif
   
   // 配置管理
   bool hasConfiguredWiFi() { return !configuredSSID.isEmpty() && !configuredPassword.isEmpty(); }

@@ -2,7 +2,9 @@
 #define TSL2561_DRIVER_H
 
 #include "sensor_driver.h"
+#ifdef HAVE_TSL2561_LIB
 #include <Adafruit_TSL2561_U.h>
+#endif
 
 /**
  * @brief TSL2561光照传感器驱动类
@@ -12,7 +14,9 @@
  */
 class TSL2561Driver : public ISensorDriver {
 private:
+#ifdef HAVE_TSL2561_LIB
   Adafruit_TSL2561_Unified tsl2561;  ///< TSL2561传感器实例
+#endif
   SensorConfig config;           ///< 传感器配置
   bool initialized;              ///< 初始化状态标志
   String typeName;               ///< 传感器类型名称
@@ -76,6 +80,13 @@ public:
    * @return 传感器配置
    */
   SensorConfig getConfig() const override;
+  
+  /**
+   * @brief 检测驱动与硬件是否匹配
+   * 
+   * @return 硬件是否匹配
+   */
+  bool matchHardware() override;
 };
 
 #endif // TSL2561_DRIVER_H

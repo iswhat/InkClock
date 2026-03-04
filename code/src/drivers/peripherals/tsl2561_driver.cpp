@@ -1,11 +1,14 @@
 #include "tsl2561_driver.h"
+#include "coresystem/platform_abstraction.h"
+
+#ifdef HAVE_TSL2561_LIB
 
 /**
  * @brief 构造函数
  * 
  * 初始化传感器类型名称和初始化状态。
  */
-TSL2561Driver::TSL2561Driver() {
+TSL2561Driver::TSL2561Driver() : tsl2561(TSL2561_ADDR_FLOAT, 12345) {
   typeName = "TSL2561";  // 设置传感器类型名称
   initialized = false;  // 初始化为未初始化状态
 }
@@ -21,7 +24,7 @@ bool TSL2561Driver::init(const SensorConfig& config) {
   this->config = config;
   
   // 初始化TSL2561传感器
-  bool success = tsl2561.begin(config.address);
+  bool success = tsl2561.begin();
   initialized = success;
   
   if (success) {
@@ -91,7 +94,7 @@ String TSL2561Driver::getTypeName() const {
  * @return 传感器类型枚举值
  */
 SensorType TSL2561Driver::getType() const {
-  return SENSOR_TYPE_LIGHT_TSL2561;
+  return SENSOR_TYPE_TSL2561;
 }
 
 /**
@@ -117,37 +120,31 @@ SensorConfig TSL2561Driver::getConfig() const {
 bool TSL2561Driver::matchHardware() {
   DEBUG_PRINTLN("检测TSL2561硬件匹配...");
   
-  try {
-    // TSL2561使用I2C接口，通常有两个地址可选：0x29（默认）和0x39（AD0接地）
-    uint8_t addresses[] = {0x29, 0x39};
-    bool matched = false;
-    
-    for (uint8_t address : addresses) {
-      // 尝试初始化TSL2561传感器
-      if (tsl2561.begin(address)) {
-        // 初始化成功，尝试读取一次数据验证
-        sensors_event_t event;
-        tsl2561.getEvent(&event);
-        
-        if (event.light >= 0) {
-          // 数据有效，硬件匹配成功
-          DEBUG_PRINTF("TSL2561硬件匹配成功，I2C地址: 0x%02X\n", address);
-          matched = true;
-          break;
-        }
+  // TSL2561使用I2C接口，通常有两个地址可选：0x29（默认）和0x39（AD0接地）
+  uint8_t addresses[] = {0x29, 0x39};
+  bool matched = false;
+  
+  for (uint8_t address : addresses) {
+    // 尝试初始化TSL2561传感器
+    if (tsl2561.begin()) {
+      // 初始化成功，尝试读取一次数据验证
+      sensors_event_t event;
+      tsl2561.getEvent(&event);
+      
+      if (event.light >= 0) {
+        // 数据有效，硬件匹配成功
+        DEBUG_PRINTF("TSL2561硬件匹配成功，I2C地址: 0x%02X\n", address);
+        matched = true;
+        break;
       }
     }
-    
-    if (!matched) {
-      DEBUG_PRINTLN("未检测到TSL2561硬件");
-    }
-    
-    return matched;
-  } catch (const std::exception& e) {
-    DEBUG_PRINTLN("TSL2561硬件匹配失败: " + String(e.what()));
-    return false;
-  } catch (...) {
-    DEBUG_PRINTLN("TSL2561硬件匹配未知错误");
-    return false;
   }
+  
+  if (!matched) {
+    DEBUG_PRINTLN("未检测到TSL2561硬件");
+  }
+  
+  return matched;
 }
+
+#endif // HAVE_TSL2561_LIB

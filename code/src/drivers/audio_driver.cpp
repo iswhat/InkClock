@@ -1,7 +1,11 @@
 #include "audio_driver.h"
 #include "coresystem/config.h"
 #include "coresystem/spiffs_manager.h"
+#if defined(ESP32)
 #include <SPIFFS.h>
+#elif defined(ESP8266)
+#include <FS.h>
+#endif
 
 // ESP32-audioI2S库将在运行时检查
 

@@ -16,6 +16,19 @@
 #include "timer_manager.h"
 #include "memory_manager.h"
 
+// 为不同平台提供FreeRTOS宏支持
+#if defined(ESP8266)
+// ESP8266不支持FreeRTOS互斥量，提供必要的宏定义
+#define pdTRUE 1
+#define pdFALSE 0
+#define pdMS_TO_TICKS(x) x
+// 提供必要的FreeRTOS函数模拟
+#define xSemaphoreCreateMutex() ((SemaphoreHandle_t)1)
+#define xSemaphoreTake(mutex, timeout) pdTRUE
+#define xSemaphoreGive(mutex) pdTRUE
+#define vSemaphoreDelete(mutex) 
+#endif
+
 // 配置项结构体
 typedef struct {
   String key;

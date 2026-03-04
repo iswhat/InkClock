@@ -1,4 +1,7 @@
 #include "si7021_driver.h"
+#include "coresystem/platform_abstraction.h"
+
+#ifdef HAVE_SI7021_LIB
 
 /**
  * @brief 构造函数
@@ -115,3 +118,5 @@ void SI7021Driver::setConfig(const SensorConfig& config) {
 SensorConfig SI7021Driver::getConfig() const {
   return config;
 }
+
+#endif // HAVE_SI7021_LIB

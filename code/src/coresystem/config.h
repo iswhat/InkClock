@@ -27,6 +27,8 @@
 #define HAVE_SI1145_LIB 1
 #define HAVE_SHT31_LIB 1
 #define HAVE_SHT4X_LIB 1
+#define HAVE_SI7021_LIB 1
+#define HAVE_TSL2561_LIB 1
 
 // Message manager constants
 #define MAX_MESSAGES 100
@@ -79,11 +81,19 @@ static const char* const STOCK_CODES[] = {"600000", "600519", "000858", "000001"
 #define API_KEY ""
 
 // Platform macros
+#ifdef ESP32
 #define PLATFORM_ESP32 1
+#define PLATFORM_ESP8266 0
+#elif defined(ESP8266)
+#define PLATFORM_ESP32 0
+#define PLATFORM_ESP8266 1
+#else
+#define PLATFORM_ESP32 0
 #define PLATFORM_ESP8266 0
 #define PLATFORM_NRF52 0
 #define PLATFORM_STM32 0
 #define PLATFORM_RP2040 0
+#endif
 
 // Audio module macros
 typedef enum {

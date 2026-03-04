@@ -3,10 +3,13 @@
 #include "../extensions/plugin_manager.h"
 #include "sensor_manager.h"
 #include "../coresystem/font_manager.h"
-#include "../coresystem/tf_card_manager.h"
 #include "../coresystem/core_system.h"
 #include "display_manager.h"
 #include <ArduinoJson.h>
+
+#if defined(ESP32)
+#include "../coresystem/tf_card_manager.h"
+#endif
 
 // 外部全局对象
 CoreSystem* coreSystem;
@@ -44,6 +47,14 @@ void WebServerManager::init() {
     server.on("/plugin_list", std::bind(&WebServerManager::handlePluginList, this));
     server.on("/fonts", std::bind(&WebServerManager::handleFonts, this));
     server.on("/tfcard", std::bind(&WebServerManager::handleTFCard, this));
+    server.on("/style.css", std::bind(&WebServerManager::handleCSS, this));
+    server.on("/factory_reset", std::bind(&WebServerManager::handleFactoryReset, this));
+    
+    // API路由
+    server.on("/api", std::bind(&WebServerManager::handleApi, this));
+    server.on("/api/sensor", std::bind(&WebServerManager::handleSensorData, this));
+    
+    #if defined(ESP32)
     server.on("/upload_font", HTTP_POST, std::bind(&WebServerManager::handleUploadFont, this));
     server.on("/update_settings", HTTP_POST, std::bind(&WebServerManager::handleUpdateSettings, this));
     server.on("/add_plugin", HTTP_POST, std::bind(&WebServerManager::handleAddPlugin, this));
@@ -51,20 +62,31 @@ void WebServerManager::init() {
     server.on("/delete_plugin", HTTP_POST, std::bind(&WebServerManager::handleDeletePlugin, this));
     server.on("/enable_plugin", HTTP_POST, std::bind(&WebServerManager::handleEnablePlugin, this));
     server.on("/disable_plugin", HTTP_POST, std::bind(&WebServerManager::handleDisablePlugin, this));
-    server.on("/style.css", std::bind(&WebServerManager::handleCSS, this));
-    server.on("/factory_reset", std::bind(&WebServerManager::handleFactoryReset, this));
-    
-    // API路由
-    server.on("/api", std::bind(&WebServerManager::handleApi, this));
-    server.on("/api/sensor", std::bind(&WebServerManager::handleSensorData, this));
     server.on("/api/control", HTTP_GET, std::bind(&WebServerManager::handleRemoteControl, this));
     server.on("/api/control", HTTP_POST, std::bind(&WebServerManager::handleRemoteControl, this));
     server.on("/api/sync", HTTP_GET, std::bind(&WebServerManager::handleDataSync, this));
     server.on("/api/sync", HTTP_POST, std::bind(&WebServerManager::handleDataSync, this));
     server.on("/api/refresh", HTTP_GET, std::bind(&WebServerManager::handleRefreshDisplay, this));
     server.on("/api/refresh", HTTP_POST, std::bind(&WebServerManager::handleRefreshDisplay, this));
-    server.on("/api/push", HTTP_POST, std::bind(&WebServerManager::handleMessagePush, this));
+    server.on("/api/push", std::bind(&WebServerManager::handleMessagePush, this));
+    #elif defined(ESP8266)
+    server.on("/upload_font", std::bind(&WebServerManager::handleUploadFont, this));
+    server.on("/update_settings", std::bind(&WebServerManager::handleUpdateSettings, this));
+    server.on("/add_plugin", std::bind(&WebServerManager::handleAddPlugin, this));
+    server.on("/update_plugin", std::bind(&WebServerManager::handleUpdatePlugin, this));
+    server.on("/delete_plugin", std::bind(&WebServerManager::handleDeletePlugin, this));
+    server.on("/enable_plugin", std::bind(&WebServerManager::handleEnablePlugin, this));
+    server.on("/disable_plugin", std::bind(&WebServerManager::handleDisablePlugin, this));
+    server.on("/api/control", std::bind(&WebServerManager::handleRemoteControl, this));
+    server.on("/api/sync", std::bind(&WebServerManager::handleDataSync, this));
+    server.on("/api/refresh", std::bind(&WebServerManager::handleRefreshDisplay, this));
+    server.on("/api/push", std::bind(&WebServerManager::handleMessagePush, this));
+    #endif
+    #if defined(ESP32)
     server.on("/api/status", HTTP_GET, std::bind(&WebServerManager::handleDeviceStatus, this));
+    #elif defined(ESP8266)
+    server.on("/api/status", std::bind(&WebServerManager::handleDeviceStatus, this));
+    #endif
     
     server.onNotFound(std::bind(&WebServerManager::handleNotFound, this));
     

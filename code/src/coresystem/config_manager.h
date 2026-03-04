@@ -7,6 +7,19 @@
 #include "arduino_compat.h"
 #endif
 
+// 为不同平台提供互斥量支持
+#if defined(ESP32)
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#elif defined(ESP8266)
+// ESP8266不支持FreeRTOS互斥量，使用空指针
+typedef void* SemaphoreHandle_t;
+#define xSemaphoreCreateMutex() nullptr
+#define xSemaphoreTake(mutex, delay) (void)mutex
+#define xSemaphoreGive(mutex) (void)mutex
+#define portMAX_DELAY 0
+#endif
+
 #include <string>
 #include <memory>
 #include <map>

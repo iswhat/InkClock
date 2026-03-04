@@ -2,8 +2,9 @@
 #define HDC1080_DRIVER_H
 
 #include "sensor_driver.h"
+
 #ifdef HAVE_HDC1080_LIB
-#include <Adafruit_HDC1080.h>
+#include <ClosedCube_HDC1080.h>
 #endif
 
 class HDC1080Driver : public ISensorDriver {
@@ -33,7 +34,9 @@ public:
   SensorConfig getConfig() const override;
   
 private:
-  Adafruit_HDC1080* hdc1080;
+#ifdef HAVE_HDC1080_LIB
+  ClosedCube_HDC1080* hdc1080;
+#endif
   SensorConfig config;
   float tempOffset;
   float humOffset;

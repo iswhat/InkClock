@@ -2,8 +2,11 @@
 #define TF_CARD_MANAGER_H
 
 #include <Arduino.h>
+
+#if defined(ESP32)
 #include <FS.h>
 #include <SD.h>
+#endif
 
 class TFCardManager {
 private:
@@ -30,6 +33,7 @@ public:
         DEBUG_PRINTLN("初始化TF卡...");
         this->chipSelectPin = csPin;
         
+        #if defined(ESP32)
         // 尝试挂载TF卡
         mounted = SD.begin(chipSelectPin);
         
@@ -47,6 +51,11 @@ public:
         } else {
             DEBUG_PRINTLN("TF卡初始化失败");
         }
+        #elif defined(ESP8266)
+        // ESP8266平台暂不支持TF卡
+        DEBUG_PRINTLN("ESP8266平台暂不支持TF卡功能");
+        mounted = false;
+        #endif
         
         initialized = true;
         return mounted;
@@ -59,9 +68,16 @@ public:
         return mounted;
     }
     
+    #if defined(ESP32)
     FS& getFS() {
         return SD;
     }
+    #elif defined(ESP8266)
+    // ESP8266平台返回空实现
+    void* getFS() {
+        return nullptr;
+    }
+    #endif
     
     // 获取TF卡信息
     void getInfo(uint64_t& total, uint64_t& used, uint64_t& free) {
@@ -72,13 +88,19 @@ public:
             return;
         }
         
+        #if defined(ESP32)
         total = SD.totalBytes() / (1024 * 1024); // MB
         used = SD.usedBytes() / (1024 * 1024); // MB
+        #elif defined(ESP8266)
+        total = 0;
+        used = 0;
+        #endif
         free = total - used;
     }
     
     // 格式化TF卡（谨慎使用）
     bool format() {
+        #if defined(ESP32)
         if (!initialized) {
             init();
         }
@@ -90,11 +112,13 @@ public:
             mounted = false;
             return false;
         }
+        #endif
         return false;
     }
     
     // 创建目录
     bool mkdir(String path) {
+        #if defined(ESP32)
         if (!isMounted()) {
             DEBUG_PRINTLN("TF卡未挂载，无法创建目录");
             return false;
@@ -112,10 +136,15 @@ public:
             DEBUG_PRINTF("创建目录失败: %s\n", path.c_str());
             return false;
         }
+        #else
+        DEBUG_PRINTLN("ESP8266平台暂不支持TF卡功能");
+        return false;
+        #endif
     }
     
     // 删除目录
     bool rmdir(String path) {
+        #if defined(ESP32)
         if (!isMounted()) {
             DEBUG_PRINTLN("TF卡未挂载，无法删除目录");
             return false;
@@ -133,10 +162,15 @@ public:
             DEBUG_PRINTF("删除目录失败: %s\n", path.c_str());
             return false;
         }
+        #else
+        DEBUG_PRINTLN("ESP8266平台暂不支持TF卡功能");
+        return false;
+        #endif
     }
     
     // 删除文件
     bool remove(String path) {
+        #if defined(ESP32)
         if (!isMounted()) {
             DEBUG_PRINTLN("TF卡未挂载，无法删除文件");
             return false;
@@ -154,10 +188,15 @@ public:
             DEBUG_PRINTF("删除文件失败: %s\n", path.c_str());
             return false;
         }
+        #else
+        DEBUG_PRINTLN("ESP8266平台暂不支持TF卡功能");
+        return false;
+        #endif
     }
     
     // 重命名文件
     bool rename(String oldPath, String newPath) {
+        #if defined(ESP32)
         if (!isMounted()) {
             DEBUG_PRINTLN("TF卡未挂载，无法重命名文件");
             return false;
@@ -180,6 +219,10 @@ public:
             DEBUG_PRINTF("重命名文件失败: %s -> %s\n", oldPath.c_str(), newPath.c_str());
             return false;
         }
+        #else
+        DEBUG_PRINTLN("ESP8266平台暂不支持TF卡功能");
+        return false;
+        #endif
     }
 };
 
@@ -195,9 +238,15 @@ inline bool isTFCardMounted() {
     return TFCardManager::getInstance()->isMounted();
 }
 
+#if defined(ESP32)
 inline FS& getTFCard() {
     return TFCardManager::getInstance()->getFS();
 }
+#elif defined(ESP8266)
+inline void* getTFCard() {
+    return TFCardManager::getInstance()->getFS();
+}
+#endif
 
 inline bool tfCardMkdir(String path) {
     return TFCardManager::getInstance()->mkdir(path);

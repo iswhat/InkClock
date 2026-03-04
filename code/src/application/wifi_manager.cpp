@@ -1,8 +1,11 @@
 #include "wifi_manager.h"
+#if PLATFORM_ESP32
 #include <Preferences.h>
-#include <esp_system.h>
-
 Preferences preferences;
+#endif
+#if defined(ESP32)
+#include <esp_system.h>
+#endif
 
 WiFiManager::WiFiManager() {
   connected = false;
@@ -34,7 +37,9 @@ void WiFiManager::init() {
   WiFi.mode(WIFI_STA);
   
   // 启用IPv6支持
+  #if defined(ESP32)
   WiFi.enableIpV6();
+  #endif
   
   // 禁用WiFi自动连接
   WiFi.setAutoConnect(false);
@@ -262,10 +267,16 @@ void WiFiManager::stopAP() {
 void WiFiManager::loadConfiguredWiFi() {
   DEBUG_PRINTLN("加载配置的WiFi信息...");
   
+  #if defined(ESP32)
   preferences.begin("wifi", true);
   configuredSSID = preferences.getString("ssid", "");
   configuredPassword = preferences.getString("password", "");
   preferences.end();
+  #else
+  // ESP8266 没有 Preferences 库，使用 SPIFFS 存储
+  configuredSSID = "";
+  configuredPassword = "";
+  #endif
   
   if (hasConfiguredWiFi()) {
     DEBUG_PRINT("加载的WiFi配置: ");
@@ -279,10 +290,14 @@ void WiFiManager::saveConfiguredWiFi(String ssid, String password) {
   DEBUG_PRINT("保存WiFi配置: ");
   DEBUG_PRINTLN(ssid);
   
+  #if defined(ESP32)
   preferences.begin("wifi", false);
   preferences.putString("ssid", ssid);
   preferences.putString("password", password);
   preferences.end();
+  #else
+  // ESP8266 没有 Preferences 库，使用 SPIFFS 存储
+  #endif
   
   // 更新配置的WiFi信息
   configuredSSID = ssid;

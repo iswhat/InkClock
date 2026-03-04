@@ -1,4 +1,5 @@
 #include "button_manager.h"
+#include "coresystem/config.h"
 #include "application/display_manager.h"
 
 // 外部全局对象

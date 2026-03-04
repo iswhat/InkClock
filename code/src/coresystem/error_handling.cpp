@@ -2,6 +2,7 @@
 #include <sstream>
 #include <iomanip>
 #include <new>  // For std::nothrow
+#include <cstdlib>  // For random function
 
 // 静态实例初始化
 ErrorHandlingManager* ErrorHandlingManager::instance = nullptr;
@@ -21,7 +22,7 @@ ErrorInfo::ErrorInfo(
     unsigned long timestamp = millis();
     std::stringstream ss;
     ss << "ERR_" << timestamp << "_" << random(1000, 9999);
-    errorId = ss.str().c_str();
+    errorId = String(ss.str().c_str());
     
     // 设置时间戳
     unsigned long sec = timestamp / 1000;
@@ -89,15 +90,15 @@ void ErrorInfo::updateLastRetryTime() {
 
 String ErrorInfo::toString() const {
     std::stringstream ss;
-    ss << "[" << ErrorHandlingManager::errorLevelToString(level) << "] "
-       << "[" << ErrorHandlingManager::errorTypeToString(type) << "] "
-       << "[" << module << "] "
-       << message;
+    ss << "[" << ErrorHandlingManager::errorLevelToString(level).c_str() << "] "
+       << "[" << ErrorHandlingManager::errorTypeToString(type).c_str() << "] "
+       << "[" << module.c_str() << "] "
+       << message.c_str();
     if (errorCode != 0) {
         ss << " (Code: " << errorCode << ")";
     }
     if (!details.isEmpty()) {
-        ss << " Details: " << details;
+        ss << " Details: " << details.c_str();
     }
     return ss.str().c_str();
 }
@@ -105,15 +106,15 @@ String ErrorInfo::toString() const {
 String ErrorInfo::toJson() const {
     std::stringstream ss;
     ss << "{";
-    ss << "\"errorId\":\"" << errorId << "\",";
-    ss << "\"level\":\"" << ErrorHandlingManager::errorLevelToString(level) << "\",";
-    ss << "\"type\":\"" << ErrorHandlingManager::errorTypeToString(type) << "\",";
-    ss << "\"message\":\"" << message << "\",";
-    ss << "\"module\":\"" << module << "\",";
+    ss << "\"errorId\":\"" << errorId.c_str() << "\",";
+    ss << "\"level\":\"" << ErrorHandlingManager::errorLevelToString(level).c_str() << "\",";
+    ss << "\"type\":\"" << ErrorHandlingManager::errorTypeToString(type).c_str() << "\",";
+    ss << "\"message\":\"" << message.c_str() << "\",";
+    ss << "\"module\":\"" << module.c_str() << "\",";
     ss << "\"errorCode\":" << errorCode << ",";
-    ss << "\"timestamp\":\"" << timestamp << "\",";
-    ss << "\"details\":\"" << details << "\",";
-    ss << "\"recoveryStrategy\":\"" << ErrorHandlingManager::recoveryStrategyToString(recoveryStrategy) << "\",";
+    ss << "\"timestamp\":\"" << timestamp.c_str() << "\",";
+    ss << "\"details\":\"" << details.c_str() << "\",";
+    ss << "\"recoveryStrategy\":\"" << ErrorHandlingManager::recoveryStrategyToString(recoveryStrategy).c_str() << "\",";
     ss << "\"retryCount\":" << retryCount;
     ss << "}";
     return ss.str().c_str();

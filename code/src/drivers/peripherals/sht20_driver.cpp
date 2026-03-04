@@ -1,4 +1,7 @@
 #include "sht20_driver.h"
+#include "coresystem/platform_abstraction.h"
+
+#ifdef HAVE_SHT21_LIB
 
 /**
  * @brief 构造函数
@@ -21,7 +24,7 @@ bool SHT20Driver::init(const SensorConfig& config) {
   this->config = config;
   
   // 初始化SHT20传感器
-  bool success = sht20.begin(config.address);
+  bool success = sht20.begin();
   initialized = success;
   
   if (success) {
@@ -45,8 +48,11 @@ bool SHT20Driver::readData(SensorData& data) {
   }
   
   // 读取温度和湿度数据
-  float temperature = sht20.readTemperature();
-  float humidity = sht20.readHumidity();
+  if (!sht20.read()) {
+    return false;
+  }
+  float temperature = sht20.getTemperature();
+  float humidity = sht20.getHumidity();
   
   // 检查数据是否有效
   if (isnan(temperature) || isnan(humidity)) {
@@ -119,30 +125,27 @@ SensorConfig SHT20Driver::getConfig() const {
 bool SHT20Driver::matchHardware() {
   DEBUG_PRINTLN("检测SHT20硬件匹配...");
   
-  try {
-    // SHT20使用I2C接口，默认地址为0x40
-    uint8_t address = 0x40;
+  // SHT20使用I2C接口，默认地址为0x40
+  uint8_t address = 0x40;
+  
+  // 尝试初始化SHT20传感器
+  if (sht20.begin()) {
+    // 初始化成功，尝试读取一次数据验证
+    if (sht20.read()) {
+      float temperature = sht20.getTemperature();
+      float humidity = sht20.getHumidity();
     
-    // 尝试初始化SHT20传感器
-    if (sht20.begin(address)) {
-      // 初始化成功，尝试读取一次数据验证
-      float temperature = sht20.readTemperature();
-      float humidity = sht20.readHumidity();
-      
-      if (!isnan(temperature) && !isnan(humidity)) {
-        // 数据有效，硬件匹配成功
-        DEBUG_PRINTF("SHT20硬件匹配成功，I2C地址: 0x%02X\n", address);
-        return true;
+        if (!isnan(temperature) && !isnan(humidity)) {
+          // 数据有效，硬件匹配成功
+          DEBUG_PRINTF("SHT20硬件匹配成功，I2C地址: 0x%02X\n", address);
+          return true;
+        }
       }
     }
-    
-    DEBUG_PRINTLN("未检测到SHT20硬件");
-    return false;
-  } catch (const std::exception& e) {
-    DEBUG_PRINTLN("SHT20硬件匹配失败: " + String(e.what()));
-    return false;
-  } catch (...) {
-    DEBUG_PRINTLN("SHT20硬件匹配未知错误");
-    return false;
   }
+  
+  DEBUG_PRINTLN("未检测到SHT20硬件");
+  return false;
 }
+
+#endif // HAVE_SHT21_LIB

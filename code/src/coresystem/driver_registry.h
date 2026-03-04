@@ -13,7 +13,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #elif PLATFORM_ESP8266
-#include <Arduino.h>
+// ESP8266 doesn't use FreeRTOS in the same way
 #endif
 #include "event_bus.h"
 #include "../drivers/peripherals/sensor_driver.h"
@@ -134,7 +134,11 @@ private:
   unsigned long lastScanTime;
   
   // 互斥锁
+  #if PLATFORM_ESP32
   SemaphoreHandle_t registryMutex;
+  #elif PLATFORM_ESP8266
+  // ESP8266 doesn't use FreeRTOS semaphores
+  #endif
   
   /**
    * @brief 构造函数
@@ -146,14 +150,18 @@ private:
     scanInterval = 30000; // 默认30秒扫描一次
     lastScanTime = 0;
     eventBus = EventBus::getInstance();
+    #if PLATFORM_ESP32
     registryMutex = xSemaphoreCreateMutex();
+    #endif
   }
   
   // 私有方法：更新驱动状态
   void updateDriverStatus(const String& driverName, DriverStatus status) {
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     
     auto it = driverInfos.find(driverName);
     if (it != driverInfos.end()) {
@@ -165,16 +173,20 @@ private:
       eventBus->publish(EVENT_DRIVER_UPDATED, driverData);
     }
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
   }
   
   // 私有方法：更新设备状态
   void updateDeviceStatus(const String& deviceId, DeviceStatus status) {
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     
     auto it = deviceInfos.find(deviceId);
     if (it != deviceInfos.end()) {
@@ -186,9 +198,11 @@ private:
       eventBus->publish(EVENT_DEVICE_STATUS_CHANGED, deviceData);
     }
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
   }
   
   // 私有方法：创建设备信息
@@ -249,16 +263,20 @@ public:
       return false;
     }
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     
     String driverName = driver->getTypeName();
     if (sensorDrivers.find(driverName) != sensorDrivers.end()) {
       Serial.printf("Error: Sensor driver already registered: %s\n", driverName.c_str());
+      #if PLATFORM_ESP32
       if (registryMutex) {
         xSemaphoreGive(registryMutex);
       }
+      #endif
       return false;
     }
     
@@ -289,9 +307,11 @@ public:
     
     Serial.printf("Sensor driver registered: %s\n", info.name.c_str());
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     
     return true;
   }
@@ -303,16 +323,20 @@ public:
       return false;
     }
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     
     String driverName = "Eink_Driver";
     if (displayDrivers.find(driverName) != displayDrivers.end()) {
       Serial.printf("Error: Display driver already registered: %s\n", driverName.c_str());
+      #if PLATFORM_ESP32
       if (registryMutex) {
         xSemaphoreGive(registryMutex);
       }
+      #endif
       return false;
     }
     
@@ -343,9 +367,11 @@ public:
     
     Serial.printf("Display driver registered: %s\n", info.name.c_str());
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     
     return true;
   }
@@ -357,16 +383,20 @@ public:
       return false;
     }
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     
     String driverName = String(driver->getType());
     if (audioDrivers.find(driverName) != audioDrivers.end()) {
       Serial.printf("Error: Audio driver already registered: %s\n", driverName.c_str());
+      #if PLATFORM_ESP32
       if (registryMutex) {
         xSemaphoreGive(registryMutex);
       }
+      #endif
       return false;
     }
     
@@ -397,18 +427,22 @@ public:
     
     Serial.printf("Audio driver registered: %s\n", info.name.c_str());
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     
     return true;
   }
   
   // 卸载驱动
   bool unregisterDriver(const String& driverName) {
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     
     // 查找并移除传感器驱动
     auto sensorIt = sensorDrivers.find(driverName);
@@ -428,9 +462,11 @@ public:
       
       Serial.printf("Sensor driver unregistered: %s\n", driverName.c_str());
       
+      #if PLATFORM_ESP32
       if (registryMutex) {
         xSemaphoreGive(registryMutex);
       }
+      #endif
       return true;
     }
     
@@ -452,9 +488,11 @@ public:
       
       Serial.printf("Display driver unregistered: %s\n", driverName.c_str());
       
+      #if PLATFORM_ESP32
       if (registryMutex) {
         xSemaphoreGive(registryMutex);
       }
+      #endif
       return true;
     }
     
@@ -476,138 +514,176 @@ public:
       
       Serial.printf("Audio driver unregistered: %s\n", driverName.c_str());
       
+      #if PLATFORM_ESP32
       if (registryMutex) {
         xSemaphoreGive(registryMutex);
       }
+      #endif
       return true;
     }
     
     Serial.printf("Error: Driver not found for unregistration: %s\n", driverName.c_str());
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     return false;
   }
   
   // 获取所有传感器驱动
   std::vector<ISensorDriver*> getSensorDrivers() {
     std::vector<ISensorDriver*> drivers;
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     for (const auto& pair : sensorDrivers) {
       drivers.push_back(pair.second);
     }
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     return drivers;
   }
   
   // 获取所有显示驱动
   std::vector<IDisplayDriver*> getDisplayDrivers() {
     std::vector<IDisplayDriver*> drivers;
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     for (const auto& pair : displayDrivers) {
       drivers.push_back(pair.second);
     }
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     return drivers;
   }
   
   // 获取所有音频驱动
   std::vector<AudioDriver*> getAudioDrivers() {
     std::vector<AudioDriver*> drivers;
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     for (const auto& pair : audioDrivers) {
       drivers.push_back(pair.second);
     }
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     return drivers;
   }
   
   // 根据传感器类型获取驱动
   ISensorDriver* getSensorDriver(SensorType type) {
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     for (const auto& pair : sensorDrivers) {
       if (pair.second->getType() == type) {
         ISensorDriver* driver = pair.second;
+        #if PLATFORM_ESP32
         if (registryMutex) {
           xSemaphoreGive(registryMutex);
         }
+        #endif
         return driver;
       }
     }
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     return nullptr;
   }
   
   // 根据驱动名称获取传感器驱动
   ISensorDriver* getSensorDriverByName(const String& name) {
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     auto it = sensorDrivers.find(name);
     if (it != sensorDrivers.end()) {
       ISensorDriver* driver = it->second;
+      #if PLATFORM_ESP32
       if (registryMutex) {
         xSemaphoreGive(registryMutex);
       }
+      #endif
       return driver;
     }
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     return nullptr;
   }
   
   // 根据显示类型获取驱动
   IDisplayDriver* getDisplayDriver(DisplayCategory type) {
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     for (const auto& pair : displayDrivers) {
       if (pair.second->getDisplayType() == type) {
         IDisplayDriver* driver = pair.second;
+        #if PLATFORM_ESP32
         if (registryMutex) {
           xSemaphoreGive(registryMutex);
         }
+        #endif
         return driver;
       }
     }
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     return nullptr;
   }
   
   // 自动检测传感器驱动 - 优化版，减少初始化时间
   ISensorDriver* autoDetectSensorDriver() {
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     
     std::vector<ISensorDriver*> drivers;
     for (const auto& pair : sensorDrivers) {
       drivers.push_back(pair.second);
     }
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     
     for (auto driver : drivers) {
       String driverName = driver->getTypeName();
@@ -632,13 +708,17 @@ public:
           DeviceInfo deviceInfo = createDeviceInfo(deviceId, driverName, "sensor", 
                                                  driverName, DEVICE_STATUS_DISCOVERED, "Auto-detected");
           
+          #if PLATFORM_ESP32
           if (registryMutex) {
             xSemaphoreTake(registryMutex, portMAX_DELAY);
           }
+          #endif
           deviceInfos[deviceId] = deviceInfo;
+          #if PLATFORM_ESP32
           if (registryMutex) {
             xSemaphoreGive(registryMutex);
           }
+          #endif
           
           // 发布传感器发现事件
           publishDeviceDiscovered(deviceInfo);
@@ -657,14 +737,18 @@ public:
   
   // 自动检测显示驱动（只支持EINK）
   IDisplayDriver* autoDetectDisplayDriver() {
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     
     if (displayDrivers.empty()) {
+      #if PLATFORM_ESP32
       if (registryMutex) {
         xSemaphoreGive(registryMutex);
       }
+      #endif
       Serial.println("No display drivers registered");
       return nullptr;
     }
@@ -674,9 +758,11 @@ public:
       drivers.push_back(pair.second);
     }
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     
     for (auto driver : drivers) {
       String driverName = "Eink_Driver";
@@ -693,13 +779,17 @@ public:
           DeviceInfo deviceInfo = createDeviceInfo(deviceId, "EinkDisplay", "display", 
                                                  driverName, DEVICE_STATUS_DISCOVERED, "Auto-detected");
           
+          #if PLATFORM_ESP32
           if (registryMutex) {
             xSemaphoreTake(registryMutex, portMAX_DELAY);
           }
+          #endif
           deviceInfos[deviceId] = deviceInfo;
+          #if PLATFORM_ESP32
           if (registryMutex) {
             xSemaphoreGive(registryMutex);
           }
+          #endif
           
           // 发布设备发现事件
           publishDeviceDiscovered(deviceInfo);
@@ -719,14 +809,18 @@ public:
   
   // 自动检测音频驱动
   AudioDriver* autoDetectAudioDriver() {
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     
     if (audioDrivers.empty()) {
+      #if PLATFORM_ESP32
       if (registryMutex) {
         xSemaphoreGive(registryMutex);
       }
+      #endif
       Serial.println("No audio drivers registered");
       return nullptr;
     }
@@ -736,9 +830,11 @@ public:
       drivers.push_back(pair.second);
     }
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     
     for (auto driver : drivers) {
       String driverName = String(driver->getType());
@@ -755,13 +851,17 @@ public:
           DeviceInfo deviceInfo = createDeviceInfo(deviceId, "AudioDevice", "audio", 
                                                  driverName, DEVICE_STATUS_DISCOVERED, "Auto-detected");
           
+          #if PLATFORM_ESP32
           if (registryMutex) {
             xSemaphoreTake(registryMutex, portMAX_DELAY);
           }
+          #endif
           deviceInfos[deviceId] = deviceInfo;
+          #if PLATFORM_ESP32
           if (registryMutex) {
             xSemaphoreGive(registryMutex);
           }
+          #endif
           
           // 发布设备发现事件
           publishDeviceDiscovered(deviceInfo);
@@ -781,9 +881,11 @@ public:
   
   // 启用驱动
   bool enableDriver(const String& driverName) {
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     
     auto it = driverInfos.find(driverName);
     if (it != driverInfos.end() && !it->second.enabled) {
@@ -797,23 +899,29 @@ public:
       
       Serial.printf("Driver enabled: %s\n", driverName.c_str());
       
+      #if PLATFORM_ESP32
       if (registryMutex) {
         xSemaphoreGive(registryMutex);
       }
+      #endif
       return true;
     }
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     return false;
   }
   
   // 禁用驱动
   bool disableDriver(const String& driverName) {
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     
     auto it = driverInfos.find(driverName);
     if (it != driverInfos.end() && it->second.enabled) {
@@ -826,111 +934,141 @@ public:
       
       Serial.printf("Driver disabled: %s\n", driverName.c_str());
       
+      #if PLATFORM_ESP32
       if (registryMutex) {
         xSemaphoreGive(registryMutex);
       }
+      #endif
       return true;
     }
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     return false;
   }
   
   // 获取驱动信息
   std::vector<DriverInfo> getDriverInfos() {
     std::vector<DriverInfo> infos;
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     for (const auto& pair : driverInfos) {
       infos.push_back(pair.second);
     }
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     return infos;
   }
   
   // 获取设备信息
   std::vector<DeviceInfo> getDeviceInfos() {
     std::vector<DeviceInfo> infos;
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     for (const auto& pair : deviceInfos) {
       infos.push_back(pair.second);
     }
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     return infos;
   }
   
   // 根据设备ID获取设备信息
   DeviceInfo* getDeviceInfo(const String& deviceId) {
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     auto it = deviceInfos.find(deviceId);
     if (it != deviceInfos.end()) {
       DeviceInfo* info = &(it->second);
+      #if PLATFORM_ESP32
       if (registryMutex) {
         xSemaphoreGive(registryMutex);
       }
+      #endif
       return info;
     }
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     return nullptr;
   }
   
   // 设置设备属性
   bool setDeviceProperty(const String& deviceId, const String& propertyName, const String& propertyValue) {
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     
     auto it = deviceInfos.find(deviceId);
     if (it != deviceInfos.end()) {
       it->second.properties[propertyName] = propertyValue;
       it->second.lastUpdateTime = millis();
       
+      #if PLATFORM_ESP32
       if (registryMutex) {
         xSemaphoreGive(registryMutex);
       }
+      #endif
       return true;
     }
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     return false;
   }
   
   // 获取设备属性
   String getDeviceProperty(const String& deviceId, const String& propertyName) {
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     
     auto it = deviceInfos.find(deviceId);
     if (it != deviceInfos.end()) {
       auto propIt = it->second.properties.find(propertyName);
       if (propIt != it->second.properties.end()) {
         String value = propIt->second;
+        #if PLATFORM_ESP32
         if (registryMutex) {
           xSemaphoreGive(registryMutex);
         }
+        #endif
         return value;
       }
     }
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     return "";
   }
   
@@ -944,9 +1082,11 @@ public:
     unsigned long scanStartTime = millis();
     
     // 标记所有设备为断开连接
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     for (auto& pair : deviceInfos) {
       if (pair.second.status == DEVICE_STATUS_CONNECTED) {
         updateDeviceStatus(pair.first, DEVICE_STATUS_DISCONNECTED);
@@ -969,9 +1109,11 @@ public:
       audioDriversCopy.push_back(pair.second);
     }
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     
     // 扫描传感器设备
     for (auto driver : sensorDriversCopy) {
@@ -995,9 +1137,11 @@ public:
       if (initResult) {
         updateDriverStatus(driverName, DRIVER_STATUS_READY);
         
+        #if PLATFORM_ESP32
         if (registryMutex) {
           xSemaphoreTake(registryMutex, portMAX_DELAY);
         }
+        #endif
         auto it = deviceInfos.find(deviceId);
         if (it != deviceInfos.end()) {
           // 更新现有设备信息
@@ -1006,9 +1150,11 @@ public:
           
           // 发布设备发现和连接事件
           DeviceInfo tempDeviceInfo = it->second;
+          #if PLATFORM_ESP32
           if (registryMutex) {
             xSemaphoreGive(registryMutex);
           }
+          #endif
           publishDeviceDiscovered(tempDeviceInfo);
           publishDeviceConnected(tempDeviceInfo);
         } else {
@@ -1018,9 +1164,11 @@ public:
           deviceInfos[deviceId] = deviceInfo;
           
           // 发布设备发现和连接事件
+          #if PLATFORM_ESP32
           if (registryMutex) {
             xSemaphoreGive(registryMutex);
           }
+          #endif
           publishDeviceDiscovered(deviceInfo);
           publishDeviceConnected(deviceInfo);
         }
@@ -1044,9 +1192,11 @@ public:
       if (initResult) {
         updateDriverStatus(driverName, DRIVER_STATUS_READY);
         
+        #if PLATFORM_ESP32
         if (registryMutex) {
           xSemaphoreTake(registryMutex, portMAX_DELAY);
         }
+        #endif
         auto it = deviceInfos.find(deviceId);
         if (it != deviceInfos.end()) {
           // 更新现有设备信息
@@ -1055,9 +1205,11 @@ public:
           
           // 发布设备发现和连接事件
           DeviceInfo tempDeviceInfo = it->second;
+          #if PLATFORM_ESP32
           if (registryMutex) {
             xSemaphoreGive(registryMutex);
           }
+          #endif
           publishDeviceDiscovered(tempDeviceInfo);
           publishDeviceConnected(tempDeviceInfo);
         } else {
@@ -1067,9 +1219,11 @@ public:
           deviceInfos[deviceId] = deviceInfo;
           
           // 发布设备发现和连接事件
+          #if PLATFORM_ESP32
           if (registryMutex) {
             xSemaphoreGive(registryMutex);
           }
+          #endif
           publishDeviceDiscovered(deviceInfo);
           publishDeviceConnected(deviceInfo);
         }
@@ -1092,9 +1246,11 @@ public:
       if (initResult) {
         updateDriverStatus(driverName, DRIVER_STATUS_READY);
         
+        #if PLATFORM_ESP32
         if (registryMutex) {
           xSemaphoreTake(registryMutex, portMAX_DELAY);
         }
+        #endif
         auto it = deviceInfos.find(deviceId);
         if (it != deviceInfos.end()) {
           // 更新现有设备信息
@@ -1103,9 +1259,11 @@ public:
           
           // 发布设备发现和连接事件
           DeviceInfo tempDeviceInfo = it->second;
+          #if PLATFORM_ESP32
           if (registryMutex) {
             xSemaphoreGive(registryMutex);
           }
+          #endif
           publishDeviceDiscovered(tempDeviceInfo);
           publishDeviceConnected(tempDeviceInfo);
         } else {
@@ -1115,9 +1273,11 @@ public:
           deviceInfos[deviceId] = deviceInfo;
           
           // 发布设备发现和连接事件
+          #if PLATFORM_ESP32
           if (registryMutex) {
             xSemaphoreGive(registryMutex);
           }
+          #endif
           publishDeviceDiscovered(deviceInfo);
           publishDeviceConnected(deviceInfo);
         }
@@ -1130,11 +1290,15 @@ public:
     lastScanTime = millis();
     
     size_t deviceCount = 0;
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
       deviceCount = deviceInfos.size();
       xSemaphoreGive(registryMutex);
     }
+    #else
+    deviceCount = deviceInfos.size();
+    #endif
     
     Serial.printf("Device scan completed in %lu ms. Found %d devices.\n", millis() - scanStartTime, deviceCount);
   }
@@ -1172,14 +1336,29 @@ public:
     
     // 记录当前设备状态
     std::map<String, bool> currentDevices;
+    #if PLATFORM_ESP32
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    #endif
     for (auto& device : deviceInfos) {
       currentDevices[device.second.deviceId] = true;
     }
+    #if PLATFORM_ESP32
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
+    }
+    #endif
     
     // 执行硬件匹配检测
     performHardwareMatch();
     
     // 检测新增设备
+    #if PLATFORM_ESP32
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    #endif
     for (auto& info : driverInfos) {
       if (info.second.status == DRIVER_STATUS_READY) {
         String deviceId = String(info.second.deviceId);
@@ -1208,6 +1387,11 @@ public:
         hardwareChanged = true;
       }
     }
+    #if PLATFORM_ESP32
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
+    }
+    #endif
     
     if (hardwareChanged) {
       // 发布硬件变化事件
@@ -1244,9 +1428,11 @@ public:
     // 发布系统关闭事件
     eventBus->publish(EVENT_SYSTEM_SHUTDOWN, nullptr);
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     
     Serial.println("Clearing all drivers...");
     
@@ -1285,9 +1471,11 @@ public:
     driverInfos.clear();
     deviceInfos.clear();
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     
     Serial.println("All drivers cleared");
   }
@@ -1296,9 +1484,11 @@ public:
   bool performHardwareMatch() {
     Serial.println("Performing hardware match detection...");
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreTake(registryMutex, portMAX_DELAY);
     }
+    #endif
     
     // 复制驱动列表，避免在检测过程中修改
     std::vector<ISensorDriver*> sensorDriversCopy;
@@ -1316,9 +1506,11 @@ public:
       audioDriversCopy.push_back(pair.second);
     }
     
+    #if PLATFORM_ESP32
     if (registryMutex) {
       xSemaphoreGive(registryMutex);
     }
+    #endif
     
     bool allMatched = true;
     
@@ -1381,11 +1573,21 @@ public:
     Serial.println("Enabling compatible modules...");
     
     // 启用所有状态为READY的驱动
+    #if PLATFORM_ESP32
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    #endif
     for (auto& info : driverInfos) {
       if (info.second.status == DRIVER_STATUS_READY && !info.second.enabled) {
         enableDriver(info.second.name);
       }
     }
+    #if PLATFORM_ESP32
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
+    }
+    #endif
   }
   
   // 禁用不支持的功能模块
@@ -1393,6 +1595,11 @@ public:
     Serial.println("Disabling incompatible modules...");
     
     // 禁用所有状态为ERROR的驱动
+    #if PLATFORM_ESP32
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    #endif
     for (auto& info : driverInfos) {
       if (info.second.status == DRIVER_STATUS_ERROR && info.second.enabled) {
         disableDriver(info.second.name);
@@ -1413,6 +1620,11 @@ public:
         updateDeviceStatus(device.second.deviceId, DEVICE_STATUS_ERROR);
       }
     }
+    #if PLATFORM_ESP32
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
+    }
+    #endif
   }
   
   // 打印自检结果
@@ -1423,6 +1635,11 @@ public:
     
     // 打印驱动状态
     Serial.println("Driver Status:");
+    #if PLATFORM_ESP32
+    if (registryMutex) {
+      xSemaphoreTake(registryMutex, portMAX_DELAY);
+    }
+    #endif
     for (auto& info : driverInfos) {
       String statusStr;
       switch (info.second.status) {
@@ -1470,6 +1687,11 @@ public:
       
       Serial.printf("%s [%s] %s\n", statusStr.c_str(), device.second.deviceType.c_str(), device.second.deviceName.c_str());
     }
+    #if PLATFORM_ESP32
+    if (registryMutex) {
+      xSemaphoreGive(registryMutex);
+    }
+    #endif
     
     // 发布自检完成事件
     eventBus->publish(EVENT_SYSTEM_ACTIVE, nullptr);

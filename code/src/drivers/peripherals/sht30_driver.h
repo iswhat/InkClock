@@ -23,8 +23,13 @@ public:
   // 获取传感器类型
   SensorType getType() const override;
   
+  // 检测驱动与硬件是否匹配
+  bool matchHardware() override;
+  
 private:
+#ifdef HAVE_SHT31_LIB
   Adafruit_SHT31* sht30;
+#endif
 };
 
 #endif // SHT30_DRIVER_H

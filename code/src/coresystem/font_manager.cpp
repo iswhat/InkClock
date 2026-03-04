@@ -2,6 +2,12 @@
 #include "spiffs_manager.h"
 #include <FS.h>
 
+// 为ESP8266定义文件操作常量
+#if defined(ESP8266)
+  #define FILE_READ "r"
+  #define FILE_WRITE "w"
+#endif
+
 FontManager::FontManager() {
   currentFont = DEFAULT_FONT;
   initialized = false;
@@ -73,7 +79,7 @@ void FontManager::scanFontDirectory() {
   }
   
   // 扫描字体目录中的文件
-  File root = fs.open(FONT_DIR);
+  File root = fs.open(FONT_DIR, FILE_READ);
   if (!root || !root.isDirectory()) {
     DEBUG_PRINTLN("打开字体目录失败");
     return;
@@ -134,7 +140,7 @@ bool FontManager::validateFont(String path) {
   }
   
   // 检查文件大小是否合理
-  File file = fs.open(path);
+  File file = fs.open(path, FILE_READ);
   if (!file) {
     DEBUG_PRINTF("打开字体文件失败: %s\n", path.c_str());
     return false;

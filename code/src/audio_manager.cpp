@@ -1,5 +1,9 @@
 #include "audio_manager.h"
+#if defined(ESP32)
 #include <SPIFFS.h>
+#elif defined(ESP8266)
+#include <FS.h>
+#endif
 #include "coresystem/spiffs_manager.h"
 
 AudioManager::AudioManager() {

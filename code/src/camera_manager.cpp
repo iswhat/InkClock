@@ -2,7 +2,7 @@
 #include "coresystem/tf_card_manager.h"
 
 // 相机库包含
-#if CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1
+#if defined(ESP32) && (CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1)
 #include "esp_camera.h"
 #endif
 
@@ -24,7 +24,7 @@ void CameraManager::init() {
   DEBUG_PRINTLN("初始化摄像头管理器...");
   
   // 检查当前硬件是否支持摄像头
-  #if CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1
+  #if defined(ESP32) && (CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1)
     DEBUG_PRINTLN("当前硬件支持摄像头功能");
     
     currentStatus = CAMERA_STATUS_INITIALIZING;
@@ -44,7 +44,7 @@ void CameraManager::init() {
 
 void CameraManager::update() {
   // 检查当前硬件是否支持摄像头
-  #if CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1
+  #if defined(ESP32) && (CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1)
     if (currentStatus == CAMERA_STATUS_RECORDING) {
       // 检查录制时长
       if (millis() - recordingStartTime >= recordingDuration) {
@@ -64,7 +64,7 @@ void CameraManager::loop() {
 
 bool CameraManager::initCamera() {
   // 检查当前硬件是否支持摄像头
-  #if CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1
+  #if defined(ESP32) && (CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1)
     DEBUG_PRINTLN("初始化摄像头...");
     
     // 摄像头配置
@@ -123,7 +123,7 @@ bool CameraManager::initCamera() {
 
 void CameraManager::deinitCamera() {
   // 检查当前硬件是否支持摄像头
-  #if CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1
+  #if defined(ESP32) && (CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1)
     if (currentStatus != CAMERA_STATUS_IDLE) {
       esp_camera_deinit();
       currentStatus = CAMERA_STATUS_IDLE;
@@ -135,31 +135,34 @@ void CameraManager::deinitCamera() {
 void CameraManager::setVideoQuality(VideoQuality quality) {
   currentQuality = quality;
   
-  // 根据质量设置分辨率
-  sensor_t *s = esp_camera_sensor_get();
-  if (s == NULL) {
-    return;
-  }
-  
-  switch (quality) {
-    case VIDEO_QUALITY_LOW:
-      s->set_framesize(s, FRAMESIZE_QVGA); // 320x240
-      break;
-    case VIDEO_QUALITY_MEDIUM:
-      s->set_framesize(s, FRAMESIZE_VGA); // 640x480
-      break;
-    case VIDEO_QUALITY_HIGH:
-      s->set_framesize(s, FRAMESIZE_SVGA); // 800x600
-      break;
-    default:
-      s->set_framesize(s, FRAMESIZE_VGA); // 默认640x480
-      break;
-  }
+  // 检查当前硬件是否支持摄像头
+  #if defined(ESP32) && (CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1)
+    // 根据质量设置分辨率
+    sensor_t *s = esp_camera_sensor_get();
+    if (s == NULL) {
+      return;
+    }
+    
+    switch (quality) {
+      case VIDEO_QUALITY_LOW:
+        s->set_framesize(s, FRAMESIZE_QVGA); // 320x240
+        break;
+      case VIDEO_QUALITY_MEDIUM:
+        s->set_framesize(s, FRAMESIZE_VGA); // 640x480
+        break;
+      case VIDEO_QUALITY_HIGH:
+        s->set_framesize(s, FRAMESIZE_SVGA); // 800x600
+        break;
+      default:
+        s->set_framesize(s, FRAMESIZE_VGA); // 默认640x480
+        break;
+    }
+  #endif
 }
 
 bool CameraManager::startRecording(unsigned long duration, VideoQuality quality) {
   // 检查当前硬件是否支持摄像头
-  #if CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1
+  #if defined(ESP32) && (CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1)
     if (currentStatus != CAMERA_STATUS_READY) {
       DEBUG_PRINTLN("摄像头未准备好");
       return false;
@@ -194,7 +197,7 @@ bool CameraManager::startRecording(unsigned long duration, VideoQuality quality)
 
 void CameraManager::stopRecording() {
   // 检查当前硬件是否支持摄像头
-  #if CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1
+  #if defined(ESP32) && (CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1)
     if (isRecording) {
       isRecording = false;
       currentStatus = CAMERA_STATUS_READY;
@@ -206,7 +209,7 @@ void CameraManager::stopRecording() {
 
 bool CameraManager::takePhoto() {
   // 检查当前硬件是否支持摄像头
-  #if CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1
+  #if defined(ESP32) && (CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1)
     if (currentStatus != CAMERA_STATUS_READY) {
       DEBUG_PRINTLN("摄像头未准备好");
       return false;
@@ -263,7 +266,7 @@ bool CameraManager::takePhoto() {
 
 bool CameraManager::decodeVideo(const char* filename) {
   // 检查当前硬件是否支持摄像头
-  #if CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1
+  #if defined(ESP32) && (CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1)
     DEBUG_PRINTF("解码视频文件: %s\n", filename);
     
     // 这里需要实现视频解码逻辑
@@ -278,7 +281,7 @@ bool CameraManager::decodeVideo(const char* filename) {
 
 bool CameraManager::playVideoMessage(const char* filename) {
   // 检查当前硬件是否支持摄像头
-  #if CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1
+  #if defined(ESP32) && (CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1)
     DEBUG_PRINTF("播放视频留言: %s\n", filename);
     
     // 首先解码视频文件

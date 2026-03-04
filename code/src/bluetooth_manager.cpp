@@ -1,5 +1,7 @@
 #include "bluetooth_manager.h"
 
+#if PLATFORM_ESP32
+
 // 定义BLE服务和特征UUID
 const char* BluetoothManager::SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
 const char* BluetoothManager::WIFI_SSID_CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
@@ -180,3 +182,35 @@ void BluetoothManager::resetWiFiConfig() {
     pWiFiStatusCharacteristic->notify();
   }
 }
+
+#else
+
+// ESP8266不支持BLE，提供空实现
+BluetoothManager::BluetoothManager() {
+  wifiConfigured = false;
+  wifiSSID = "";
+  wifiPassword = "";
+}
+
+BluetoothManager::~BluetoothManager() {
+}
+
+void BluetoothManager::init() {
+  DEBUG_PRINTLN("ESP8266不支持蓝牙，跳过初始化");
+}
+
+void BluetoothManager::loop() {
+}
+
+void BluetoothManager::setWiFiConfigStatus(bool success) {
+  DEBUG_PRINTLN("ESP8266不支持蓝牙，跳过状态更新");
+}
+
+void BluetoothManager::resetWiFiConfig() {
+  wifiConfigured = false;
+  wifiSSID = "";
+  wifiPassword = "";
+  DEBUG_PRINTLN("WiFi configuration reset");
+}
+
+#endif

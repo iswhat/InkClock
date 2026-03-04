@@ -1,9 +1,24 @@
 #include "stock_manager.h"
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
+#if PLATFORM_ESP32
 #include <SPIFFS.h>
+#elif PLATFORM_ESP8266
+#include <FS.h>
+#include <LittleFS.h>
+#define SPIFFS LittleFS
+#endif
 #include "application/wifi_manager.h"
 #include "application/time_manager.h"
+
+// 定义文件操作常量
+#ifndef FILE_READ
+  #define FILE_READ "r"
+#endif
+
+#ifndef FILE_WRITE
+  #define FILE_WRITE "w"
+#endif
 
 // 外部全局对象
 extern WiFiManager wifiManager;
@@ -76,7 +91,11 @@ void StockManager::init() {
   DEBUG_PRINTLN("初始化股票管理器...");
   
   // 初始化SPIFFS文件系统（如果未初始化）
+  #if PLATFORM_ESP32
   if (!SPIFFS.begin(false)) {
+  #elif PLATFORM_ESP8266
+  if (!SPIFFS.begin()) {
+  #endif
     DEBUG_PRINTLN("SPIFFS初始化失败");
     return;
   }

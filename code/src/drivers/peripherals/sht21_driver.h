@@ -3,7 +3,7 @@
 
 #include "sensor_driver.h"
 #ifdef HAVE_SHT21_LIB
-#include <Adafruit_SHT21.h>
+#include <SHT2x.h>
 #endif
 
 class SHT21Driver : public ISensorDriver {
@@ -33,7 +33,9 @@ public:
   SensorConfig getConfig() const override;
   
 private:
-  Adafruit_SHT21* sht21;
+#ifdef HAVE_SHT21_LIB
+  SHT21* sht21;
+#endif
   SensorConfig config;
   float tempOffset;
   float humOffset;

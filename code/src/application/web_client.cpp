@@ -1,7 +1,16 @@
 #include "web_client.h"
+#if defined(ESP32)
 #include <SPIFFS.h>
+#elif defined(ESP8266)
+#include <FS.h>
+#include <LittleFS.h>
+#endif
 #include <ArduinoJson.h>
+#if defined(ESP32)
 #include <WiFi.h>
+#elif defined(ESP8266)
+#include <ESP8266WiFi.h>
+#endif
 #include "application/wifi_manager.h"
 #include "application/message_manager.h"
 #include "application/api_manager.h"
@@ -33,11 +42,18 @@ WebClient::~WebClient() {
 void WebClient::init() {
   DEBUG_PRINTLN("初始化Web客户端...");
   
-  // 初始化SPIFFS文件系统（如果未初始化）
+  // 初始化文件系统（如果未初始化）
+  #if defined(ESP32)
   if (!SPIFFS.begin(false)) {
     DEBUG_PRINTLN("SPIFFS初始化失败");
     return;
   }
+  #elif defined(ESP8266)
+  if (!LittleFS.begin()) {
+    DEBUG_PRINTLN("LittleFS初始化失败");
+    return;
+  }
+  #endif
   
   // 读取设备ID
   deviceId = readDeviceId();
@@ -49,7 +65,9 @@ void WebClient::init() {
   }
   
   // 允许不安全连接（用于测试，生产环境应使用证书验证）
+  #if PLATFORM_ESP32 || PLATFORM_ESP8266
   client.setInsecure();
+  #endif
   
   DEBUG_PRINTLN("Web客户端初始化完成");
 }
@@ -238,11 +256,20 @@ String WebClient::getDeviceInfo() {
 }
 
 String WebClient::readDeviceId() {
+  #if defined(ESP32)
   if (!SPIFFS.exists(DEVICE_ID_FILE)) {
     return "";
   }
   
-  File file = SPIFFS.open(DEVICE_ID_FILE, FILE_READ);
+  File file = SPIFFS.open(DEVICE_ID_FILE, "r");
+  #elif defined(ESP8266)
+  if (!LittleFS.exists(DEVICE_ID_FILE)) {
+    return "";
+  }
+  
+  File file = LittleFS.open(DEVICE_ID_FILE, "r");
+  #endif
+  
   if (!file) {
     return "";
   }
@@ -254,7 +281,12 @@ String WebClient::readDeviceId() {
 }
 
 void WebClient::saveDeviceId(String id) {
-  File file = SPIFFS.open(DEVICE_ID_FILE, FILE_WRITE);
+  #if defined(ESP32)
+  File file = SPIFFS.open(DEVICE_ID_FILE, "w");
+  #elif defined(ESP8266)
+  File file = LittleFS.open(DEVICE_ID_FILE, "w");
+  #endif
+  
   if (file) {
     file.print(id);
     file.close();

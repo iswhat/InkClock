@@ -2,9 +2,21 @@
 
 #ifdef ARDUINO
 #include <Arduino.h>
+// 条件包含FreeRTOS头文件
+#ifdef ESP32
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#elif defined(ESP8266)
+// ESP8266不使用FreeRTOS，提供替代定义
+typedef void* SemaphoreHandle_t;
+#define portMAX_DELAY 0
+#endif
 #else
 #include "arduino_compat.h"
+typedef void* SemaphoreHandle_t;
+#define portMAX_DELAY 0
 #endif
+
 #include <string>
 
 // 前向声明

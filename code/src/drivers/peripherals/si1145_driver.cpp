@@ -1,4 +1,7 @@
 #include "si1145_driver.h"
+#include "coresystem/platform_abstraction.h"
+
+#ifdef HAVE_SI1145_LIB
 
 /**
  * @brief 构造函数
@@ -82,7 +85,7 @@ String SI1145Driver::getTypeName() const {
  * @return 传感器类型枚举值
  */
 SensorType SI1145Driver::getType() const {
-  return SENSOR_TYPE_LIGHT_SI1145;
+  return SENSOR_TYPE_SI1145;
 }
 
 /**
@@ -104,3 +107,5 @@ void SI1145Driver::setConfig(const SensorConfig& config) {
 SensorConfig SI1145Driver::getConfig() const {
   return config;
 }
+
+#endif // HAVE_SI1145_LIB

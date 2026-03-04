@@ -1,7 +1,12 @@
 #include "storage_manager.h"
 #include <Arduino.h>
+#if defined(ESP32)
 #include <SPIFFS.h>
 #include <SD.h>
+#elif defined(ESP8266)
+#include <LittleFS.h>
+#define SPIFFS LittleFS
+#endif
 #include <vector>
 #include <map>
 #include <algorithm>
@@ -32,8 +37,10 @@ void StorageManager::initDefaultStorageMedia() {
   // 注册SPIFFS存储
   storageMedia[STORAGE_SPIFFS] = std::make_shared<SPIFFSStorage>();
   
-  // 注册TF卡存储
+  // 注册TF卡存储（仅在ESP32平台）
+#if defined(ESP32)
   storageMedia[STORAGE_TFCARD] = std::make_shared<TFCardStorage>();
+#endif
 }
 
 // 初始化
@@ -48,11 +55,13 @@ bool StorageManager::init() {
     spiffsStorage->init();
   }
   
-  // 初始化TF卡存储
+  // 初始化TF卡存储（仅在ESP32平台）
+#if defined(ESP32)
   auto tfCardStorage = std::static_pointer_cast<TFCardStorage>(storageMedia[STORAGE_TFCARD]);
   if (tfCardStorage) {
     tfCardStorage->init();
   }
+#endif
   
   // 初始化存储使用统计
   for (const auto& pair : storageMedia) {
@@ -829,7 +838,15 @@ RAMStorage::~RAMStorage() {
 bool RAMStorage::read(const String& key, String& value) {
   if (dataMap.count(key)) {
     const std::vector<byte>& bytes = dataMap[key];
+#if defined(ESP8266)
+    // ESP8266的String构造函数可能不支持size参数，使用循环构建字符串
+    value = "";
+    for (size_t i = 0; i < bytes.size(); i++) {
+      value += (char)bytes[i];
+    }
+#else
     value = String((const char*)bytes.data(), bytes.size());
+#endif
     mediumInfo.lastAccessTime = millis();
     return true;
   }
@@ -942,9 +959,15 @@ SPIFFSStorage::~SPIFFSStorage() {
 }
 
 bool SPIFFSStorage::init() {
+#if defined(ESP32)
   if (!SPIFFS.begin()) {
     return false;
   }
+#elif defined(ESP8266)
+  if (!SPIFFS.begin()) {
+    return false;
+  }
+#endif
   
   // 更新介质信息
   mediumInfo.totalSize = 4194304; // 假设4MB SPIFFS
@@ -960,7 +983,11 @@ bool SPIFFSStorage::init() {
 
 bool SPIFFSStorage::read(const String& key, String& value) {
   String path = basePath + "/" + key;
+#if defined(ESP32)
   File file = SPIFFS.open(path, "r");
+#elif defined(ESP8266)
+  File file = SPIFFS.open(path, "r");
+#endif
   if (!file) {
     return false;
   }
@@ -973,7 +1000,11 @@ bool SPIFFSStorage::read(const String& key, String& value) {
 
 bool SPIFFSStorage::read(const String& key, std::vector<byte>& value) {
   String path = basePath + "/" + key;
+#if defined(ESP32)
   File file = SPIFFS.open(path, "r");
+#elif defined(ESP8266)
+  File file = SPIFFS.open(path, "r");
+#endif
   if (!file) {
     return false;
   }
@@ -987,7 +1018,11 @@ bool SPIFFSStorage::read(const String& key, std::vector<byte>& value) {
 
 bool SPIFFSStorage::write(const String& key, const String& value) {
   String path = basePath + "/" + key;
+#if defined(ESP32)
   File file = SPIFFS.open(path, "w");
+#elif defined(ESP8266)
+  File file = SPIFFS.open(path, "w");
+#endif
   if (!file) {
     return false;
   }
@@ -1002,7 +1037,11 @@ bool SPIFFSStorage::write(const String& key, const String& value) {
 
 bool SPIFFSStorage::write(const String& key, const std::vector<byte>& value) {
   String path = basePath + "/" + key;
+#if defined(ESP32)
   File file = SPIFFS.open(path, "w");
+#elif defined(ESP8266)
+  File file = SPIFFS.open(path, "w");
+#endif
   if (!file) {
     return false;
   }
@@ -1017,7 +1056,11 @@ bool SPIFFSStorage::write(const String& key, const std::vector<byte>& value) {
 
 bool SPIFFSStorage::remove(const String& key) {
   String path = basePath + "/" + key;
+#if defined(ESP32)
   bool success = SPIFFS.remove(path);
+#elif defined(ESP8266)
+  bool success = SPIFFS.remove(path);
+#endif
   
   if (success) {
     // 更新介质信息
@@ -1029,12 +1072,20 @@ bool SPIFFSStorage::remove(const String& key) {
 
 bool SPIFFSStorage::exists(const String& key) {
   String path = basePath + "/" + key;
+#if defined(ESP32)
   return SPIFFS.exists(path);
+#elif defined(ESP8266)
+  return SPIFFS.exists(path);
+#endif
 }
 
 unsigned long SPIFFSStorage::getSize(const String& key) {
   String path = basePath + "/" + key;
+#if defined(ESP32)
   File file = SPIFFS.open(path, "r");
+#elif defined(ESP8266)
+  File file = SPIFFS.open(path, "r");
+#endif
   if (!file) {
     return 0;
   }
@@ -1048,7 +1099,11 @@ std::vector<String> SPIFFSStorage::listKeys(const String& prefix) {
   std::vector<String> keys;
   String searchPath = basePath + "/" + prefix;
   
+#if defined(ESP32)
   File root = SPIFFS.open(searchPath);
+#elif defined(ESP8266)
+  File root = SPIFFS.open(searchPath, "r");
+#endif
   if (!root) {
     return keys;
   }
@@ -1071,7 +1126,11 @@ std::vector<String> SPIFFSStorage::listKeys(const String& prefix) {
 bool SPIFFSStorage::clear() {
   // 清空SPIFFS目录
   String path = basePath;
+#if defined(ESP32)
   File root = SPIFFS.open(path);
+#elif defined(ESP8266)
+  File root = SPIFFS.open(path, "r");
+#endif
   if (!root) {
     return false;
   }
@@ -1079,7 +1138,11 @@ bool SPIFFSStorage::clear() {
   File file = root.openNextFile();
   while (file) {
     String fileName = file.name();
+#if defined(ESP32)
     SPIFFS.remove(fileName);
+#elif defined(ESP8266)
+    SPIFFS.remove(fileName);
+#endif
     file = root.openNextFile();
   }
   
@@ -1097,9 +1160,15 @@ StorageMediumInfo SPIFFSStorage::getMediumInfo() {
 }
 
 bool SPIFFSStorage::format() {
+#if defined(ESP32)
   if (!SPIFFS.format()) {
     return false;
   }
+#elif defined(ESP8266)
+  if (!SPIFFS.format()) {
+    return false;
+  }
+#endif
   
   // 重新初始化
   return init();
@@ -1110,7 +1179,8 @@ bool SPIFFSStorage::sync() {
   return true;
 }
 
-// TF卡存储实现
+#if defined(ESP32)
+// TF卡存储实现（仅ESP32平台）
 TFCardStorage::TFCardStorage(const String& basePath) : basePath(basePath), initialized(false) {
   // 初始化介质信息
   mediumInfo.type = STORAGE_TFCARD;
@@ -1131,11 +1201,18 @@ bool TFCardStorage::init(int chipSelectPin) {
   }
   
   // 更新介质信息
+#if defined(ESP32)
   uint64_t cardSize = SD.cardSize();
   uint64_t usedSize = SD.usedBytes();
   mediumInfo.totalSize = cardSize;
   mediumInfo.usedSize = usedSize;
   mediumInfo.availableSize = cardSize - usedSize;
+#elif defined(ESP8266)
+  // ESP8266 SD库可能没有cardSize()和usedBytes()方法
+  mediumInfo.totalSize = 8388608; // 假设8MB
+  mediumInfo.usedSize = 0;
+  mediumInfo.availableSize = 8388608;
+#endif
   mediumInfo.readSpeed = 10000.0; // 假设10MB/s
   mediumInfo.writeSpeed = 5000.0; // 假设5MB/s
   mediumInfo.available = true;
@@ -1151,7 +1228,11 @@ bool TFCardStorage::read(const String& key, String& value) {
   }
   
   String path = basePath + "/" + key;
+#if defined(ESP32)
   File file = SD.open(path, FILE_READ);
+#elif defined(ESP8266)
+  File file = SD.open(path, "r");
+#endif
   if (!file) {
     return false;
   }
@@ -1168,7 +1249,11 @@ bool TFCardStorage::read(const String& key, std::vector<byte>& value) {
   }
   
   String path = basePath + "/" + key;
+#if defined(ESP32)
   File file = SD.open(path, FILE_READ);
+#elif defined(ESP8266)
+  File file = SD.open(path, "r");
+#endif
   if (!file) {
     return false;
   }
@@ -1186,7 +1271,11 @@ bool TFCardStorage::write(const String& key, const String& value) {
   }
   
   String path = basePath + "/" + key;
+#if defined(ESP32)
   File file = SD.open(path, FILE_WRITE);
+#elif defined(ESP8266)
+  File file = SD.open(path, "w");
+#endif
   if (!file) {
     return false;
   }
@@ -1195,9 +1284,11 @@ bool TFCardStorage::write(const String& key, const String& value) {
   file.close();
   
   // 更新介质信息
+#if defined(ESP32)
   uint64_t usedSize = SD.usedBytes();
   mediumInfo.usedSize = usedSize;
   mediumInfo.availableSize = mediumInfo.totalSize - usedSize;
+#endif
   mediumInfo.lastAccessTime = millis();
   return true;
 }
@@ -1208,7 +1299,11 @@ bool TFCardStorage::write(const String& key, const std::vector<byte>& value) {
   }
   
   String path = basePath + "/" + key;
+#if defined(ESP32)
   File file = SD.open(path, FILE_WRITE);
+#elif defined(ESP8266)
+  File file = SD.open(path, "w");
+#endif
   if (!file) {
     return false;
   }
@@ -1217,9 +1312,11 @@ bool TFCardStorage::write(const String& key, const std::vector<byte>& value) {
   file.close();
   
   // 更新介质信息
+#if defined(ESP32)
   uint64_t usedSize = SD.usedBytes();
   mediumInfo.usedSize = usedSize;
   mediumInfo.availableSize = mediumInfo.totalSize - usedSize;
+#endif
   mediumInfo.lastAccessTime = millis();
   return true;
 }
@@ -1234,9 +1331,11 @@ bool TFCardStorage::remove(const String& key) {
   
   if (success) {
     // 更新介质信息
+#if defined(ESP32)
     uint64_t usedSize = SD.usedBytes();
     mediumInfo.usedSize = usedSize;
     mediumInfo.availableSize = mediumInfo.totalSize - usedSize;
+#endif
   }
   
   return success;
@@ -1257,7 +1356,11 @@ unsigned long TFCardStorage::getSize(const String& key) {
   }
   
   String path = basePath + "/" + key;
+#if defined(ESP32)
   File file = SD.open(path, FILE_READ);
+#elif defined(ESP8266)
+  File file = SD.open(path, "r");
+#endif
   if (!file) {
     return 0;
   }
@@ -1301,7 +1404,11 @@ bool TFCardStorage::clear() {
   
   // 清空TF卡目录
   String path = basePath;
+#if defined(ESP32)
   File root = SD.open(path);
+#elif defined(ESP8266)
+  File root = SD.open(path, "r");
+#endif
   if (!root) {
     return false;
   }
@@ -1316,9 +1423,15 @@ bool TFCardStorage::clear() {
   root.close();
   
   // 更新介质信息
+#if defined(ESP32)
   uint64_t usedSize = SD.usedBytes();
   mediumInfo.usedSize = usedSize;
   mediumInfo.availableSize = mediumInfo.totalSize - usedSize;
+#elif defined(ESP8266)
+  // ESP8266 SD库可能没有usedBytes()方法
+  mediumInfo.usedSize = 0;
+  mediumInfo.availableSize = mediumInfo.totalSize;
+#endif
   return true;
 }
 
@@ -1340,3 +1453,4 @@ bool TFCardStorage::sync() {
   // TF卡自动同步
   return true;
 }
+#endif // ESP32

@@ -1,4 +1,7 @@
 #include "sgp30_driver.h"
+#include "coresystem/platform_abstraction.h"
+
+#ifdef HAVE_SGP30_LIB
 
 /**
  * @brief 构造函数
@@ -26,7 +29,7 @@ bool SGP30Driver::init(const SensorConfig& config) {
   if (success) {
     Serial.println("SGP30传感器初始化成功");
     // 初始化SGP30的基线校准
-    sgp30.iaqInit();
+    sgp30.IAQinit();
   } else {
     Serial.println("SGP30传感器初始化失败");
     return false;
@@ -48,7 +51,7 @@ bool SGP30Driver::readData(SensorData& data) {
   }
   
   // 读取SGP30数据
-  if (sgp30.iaqMeasure()) {
+  if (sgp30.IAQmeasure()) {
     // 获取CO2和VOC数据
     uint16_t eco2 = sgp30.eCO2;
     uint16_t tvoc = sgp30.TVOC;
@@ -80,8 +83,8 @@ String SGP30Driver::getTypeName() const {
  * @return 传感器类型枚举值
  */
 SensorType SGP30Driver::getType() const {
-  // 使用MQ135类型，因为它们都是气体传感器
-  return SENSOR_TYPE_GAS_MQ135;
+  // 使用SGP30类型
+  return SENSOR_TYPE_SGP30;
 }
 
 /**
@@ -92,24 +95,18 @@ SensorType SGP30Driver::getType() const {
 bool SGP30Driver::matchHardware() {
   DEBUG_PRINTLN("检测SGP30硬件匹配...");
   
-  try {
-    // 尝试初始化SGP30传感器
-    bool success = sgp30.begin();
-    
-    if (success) {
-      DEBUG_PRINTLN("SGP30硬件匹配成功");
-      // 调用end()方法释放资源（如果有的话）
-      // 注意：Adafruit_SGP30库可能没有end()方法，根据实际情况调整
-      return true;
-    } else {
-      DEBUG_PRINTLN("SGP30硬件匹配失败");
-      return false;
-    }
-  } catch (const std::exception& e) {
-    DEBUG_PRINTLN("SGP30硬件匹配失败: " + String(e.what()));
-    return false;
-  } catch (...) {
-    DEBUG_PRINTLN("SGP30硬件匹配未知错误");
+  // 尝试初始化SGP30传感器
+  bool success = sgp30.begin();
+  
+  if (success) {
+    DEBUG_PRINTLN("SGP30硬件匹配成功");
+    // 调用end()方法释放资源（如果有的话）
+    // 注意：Adafruit_SGP30库可能没有end()方法，根据实际情况调整
+    return true;
+  } else {
+    DEBUG_PRINTLN("SGP30硬件匹配失败");
     return false;
   }
 }
+
+#endif // HAVE_SGP30_LIB

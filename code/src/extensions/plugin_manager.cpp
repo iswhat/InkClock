@@ -1,5 +1,11 @@
 #include "plugin_manager.h"
+#ifdef ESP8266
+#include <FS.h>
+#include <LittleFS.h>
+#define SPIFFS LittleFS
+#else
 #include <SPIFFS.h>
+#endif
 #include <ArduinoJson.h>
 #include "../application/web_client.h"
 #include "application/wifi_manager.h"

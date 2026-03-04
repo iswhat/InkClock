@@ -3,6 +3,22 @@
 
 #ifdef ARDUINO
 #include <Arduino.h>
+// 条件包含FreeRTOS头文件
+#ifdef ESP32
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#elif defined(ESP8266)
+#include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+#include <ArduinoOTA.h>
+// ESP8266不使用FreeRTOS，提供替代定义
+typedef void* SemaphoreHandle_t;
+#define xSemaphoreCreateMutex() NULL
+#define xSemaphoreTake(mutex, timeout) true
+#define xSemaphoreGive(mutex) true
+#define vSemaphoreDelete(mutex) 
+#define portMAX_DELAY 0
+#endif
 #else
 #include "arduino_compat.h"
 #endif

@@ -1,8 +1,10 @@
 #include "scene_manager.h"
-#if PLATFORM_ESP32
+#if defined(ESP32)
 #include <SPIFFS.h>
-#elif PLATFORM_ESP8266
+#elif defined(ESP8266)
 #include <FS.h>
+#include <LittleFS.h>
+#define SPIFFS LittleFS
 #endif
 #include <ArduinoJson.h>
 #include "../coresystem/module_registry.h"

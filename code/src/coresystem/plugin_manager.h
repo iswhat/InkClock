@@ -8,6 +8,20 @@
 #include <set>
 #include <Arduino.h>
 
+// FreeRTOS 条件编译
+#if defined(ESP32)
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#elif defined(ESP8266)
+// ESP8266 没有完整的 FreeRTOS 支持，定义简化的互斥锁
+typedef void* SemaphoreHandle_t;
+#define xSemaphoreCreateMutex() (SemaphoreHandle_t)1
+#define xSemaphoreTake(mutex, delay) (void)mutex
+#define xSemaphoreGive(mutex) (void)mutex
+#define vSemaphoreDelete(mutex) (void)mutex
+#define portMAX_DELAY 0
+#endif
+
 class IPlugin {
 public:
     virtual ~IPlugin() = default;

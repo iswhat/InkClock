@@ -2,15 +2,19 @@
 #define BLUETOOTH_MANAGER_H
 
 #include <Arduino.h>
+#include "coresystem/config.h"
+
+#if PLATFORM_ESP32
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
-#include "coresystem/config.h"
 #include <WiFi.h>
 #include "application/wifi_manager.h"
+#endif
 
 class BluetoothManager {
+#if PLATFORM_ESP32
 private:
   BLEServer* pServer;
   BLEService* pService;
@@ -57,6 +61,11 @@ private:
   MyServerCallbacks* serverCallbacks;
   MyWiFiSSIDCallbacks* wifiSSIDCallbacks;
   MyWiFiPasswordCallbacks* wifiPasswordCallbacks;
+#endif
+private:
+  bool wifiConfigured;
+  String wifiSSID;
+  String wifiPassword;
   
 public:
   BluetoothManager();

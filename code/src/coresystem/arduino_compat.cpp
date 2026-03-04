@@ -1,32 +1,51 @@
 #include "arduino_compat.h"
-#include <thread>
-#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+
+#if !defined(ESP8266) && !defined(ESP32)
+#include <thread>
+#include <chrono>
+#endif
 
 // 全局串口对象实例
 Serial_ Serial;
 
 // 实现延迟函数
 void delay(unsigned long ms) {
+#if defined(ESP8266) || defined(ESP32)
+    // 使用Arduino的延迟函数
+    ::delay(ms);
+#else
+    // 使用标准库的线程睡眠
     std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+#endif
 }
 
 // 实现毫秒计数函数
 unsigned long millis() {
+#if defined(ESP8266) || defined(ESP32)
+    // 使用Arduino的millis函数
+    return ::millis();
+#else
     static auto start_time = std::chrono::steady_clock::now();
     auto current_time = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time);
     return duration.count();
+#endif
 }
 
 // 实现微秒计数函数
 unsigned long micros() {
+#if defined(ESP8266) || defined(ESP32)
+    // 使用Arduino的micros函数
+    return ::micros();
+#else
     static auto start_time = std::chrono::steady_clock::now();
     auto current_time = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(current_time - start_time);
     return duration.count();
+#endif
 }
 
 // 实现yield函数

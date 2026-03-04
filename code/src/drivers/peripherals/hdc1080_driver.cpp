@@ -1,4 +1,7 @@
 #include "hdc1080_driver.h"
+#include "coresystem/platform_abstraction.h"
+
+#ifdef HAVE_HDC1080_LIB
 
 HDC1080Driver::HDC1080Driver() : hdc1080(nullptr), tempOffset(0.0), humOffset(0.0), initialized(false) {
   // 构造函数
@@ -16,14 +19,10 @@ bool HDC1080Driver::init(const SensorConfig& config) {
   this->config = config;
   
   // 创建HDC1080对象
-  hdc1080 = new Adafruit_HDC1080();
+  hdc1080 = new ClosedCube_HDC1080();
   
   // 初始化HDC1080传感器
-  if (!hdc1080->begin()) {
-    delete hdc1080;
-    hdc1080 = nullptr;
-    return false;
-  }
+  hdc1080->begin(config.address);
   
   initialized = true;
   return true;
@@ -87,3 +86,5 @@ void HDC1080Driver::setConfig(const SensorConfig& config) {
 SensorConfig HDC1080Driver::getConfig() const {
   return config;
 }
+
+#endif // HAVE_HDC1080_LIB

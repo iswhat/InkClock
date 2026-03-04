@@ -1,4 +1,5 @@
 #include "tgs2600_driver.h"
+#include "coresystem/platform_abstraction.h"
 
 /**
  * @brief 构造函数
@@ -82,7 +83,7 @@ String TGS2600Driver::getTypeName() const {
  * @return 传感器类型枚举值
  */
 SensorType TGS2600Driver::getType() const {
-  return SENSOR_TYPE_GAS_TGS2600;
+  return SENSOR_TYPE_TGS2600;
 }
 
 /**

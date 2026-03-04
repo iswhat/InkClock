@@ -343,11 +343,22 @@ String TimeManager::getDateTimeString() {
 int TimeManager::getSystemLoadLevel() {
   // 使用ESP32内置API获取系统信息
   size_t freeHeap = ESP.getFreeHeap();
-  size_t totalHeap = ESP.getMaxAllocHeap();
+  size_t totalHeap;
+  #if PLATFORM_ESP32
+  totalHeap = ESP.getMaxAllocHeap();
+  #elif PLATFORM_ESP8266
+  // ESP8266 doesn't have getHeapSize, use getFreeHeap() * 2 as estimate
+  totalHeap = ESP.getFreeHeap() * 2;
+  #endif
   int memoryUsage = (totalHeap - freeHeap) * 100 / totalHeap;
   
   // 获取CPU频率
-  uint32_t cpuFreq = ESP.getCpuFreqMHz();
+  uint32_t cpuFreq;
+  #if PLATFORM_ESP32
+  cpuFreq = ESP.getCpuFreqMHz();
+  #elif PLATFORM_ESP8266
+  cpuFreq = 80; // ESP8266默认80MHz
+  #endif
   
   // 综合计算负载等级
   int loadLevel = 0;

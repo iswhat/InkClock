@@ -1,4 +1,7 @@
 #include "sht40_driver.h"
+#include "coresystem/platform_abstraction.h"
+
+#ifdef HAVE_SHT4X_LIB
 
 SHT40Driver::SHT40Driver() : sht40(nullptr), tempOffset(0.0), humOffset(0.0), initialized(false) {
   // 构造函数
@@ -85,3 +88,5 @@ void SHT40Driver::setConfig(const SensorConfig& config) {
 SensorConfig SHT40Driver::getConfig() const {
   return config;
 }
+
+#endif // HAVE_SHT4X_LIB

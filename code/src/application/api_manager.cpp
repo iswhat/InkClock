@@ -18,8 +18,13 @@ extern WiFiManager wifiManager;
 
 APIManager::APIManager() {
     // 初始化成员变量
+    #if PLATFORM_ESP32
     wifiClient = nullptr;
     httpClient = nullptr;
+    #elif PLATFORM_ESP8266
+    wifiClient = nullptr;
+    httpClient = nullptr;
+    #endif
     lastCacheCleanup = 0;
     verifyCertificate = false; // 默认禁用证书验证，简化开发
     useProxy = false;
@@ -36,6 +41,7 @@ APIManager::APIManager() {
 
 APIManager::~APIManager() {
     // 清理资源
+    #if PLATFORM_ESP32 || PLATFORM_ESP8266
     if (wifiClient) {
         delete wifiClient;
         wifiClient = nullptr;
@@ -45,6 +51,7 @@ APIManager::~APIManager() {
         delete httpClient;
         httpClient = nullptr;
     }
+    #endif
     
     // 清理缓存
     cache.clear();
@@ -53,9 +60,14 @@ APIManager::~APIManager() {
 void APIManager::init() {
     DEBUG_PRINTLN("初始化API管理器...");
     
-    // 创建HTTP客户端
+    // 初始化HTTPS客户端
+    #if PLATFORM_ESP32
     wifiClient = new WiFiClientSecure();
     httpClient = new HTTPClient();
+    #elif PLATFORM_ESP8266
+    wifiClient = new WiFiClientSecure();
+    httpClient = new HTTPClient();
+    #endif
     
     // 配置客户端
     wifiClient->setInsecure(); // 禁用证书验证
@@ -102,88 +114,92 @@ ApiResponse APIManager::sendRequest(const ApiRequest& request) {
         cleanupExpiredCache();
         lastCacheCleanup = now;
     }
-        
-        // 准备HTTP请求
-        String fullUrl = request.url;
-        
-        DEBUG_PRINTLN("发送API请求：" + fullUrl);
-        
-        // 设置请求超时
-        unsigned long requestTimeout = request.timeout > 0 ? request.timeout : API_DEFAULT_TIMEOUT;
-        
-        // 开始HTTP请求
-        httpClient->setTimeout(requestTimeout);
-        httpClient->setReuse(true); // 启用连接重用，减少连接建立开销
-        
-        // 设置证书验证
-        if (!verifyCertificate) {
-            wifiClient->setInsecure(); // 禁用证书验证
-        }
-        
-        // 发送请求
-        int httpCode = -1;
-        if (request.method.equalsIgnoreCase("GET")) {
-            if (!httpClient->begin(*wifiClient, fullUrl)) {
-                response.error = "初始化HTTP请求失败";
-                response.status = API_STATUS_ERROR;
-                failedRequests++;
-                DEBUG_PRINTLN("API请求失败：初始化HTTP请求失败");
-                return response;
-            }
-            httpCode = httpClient->GET();
-        } else if (request.method.equalsIgnoreCase("POST")) {
-            if (!httpClient->begin(*wifiClient, fullUrl)) {
-                response.error = "初始化HTTP请求失败";
-                response.status = API_STATUS_ERROR;
-                failedRequests++;
-                DEBUG_PRINTLN("API请求失败：初始化HTTP请求失败");
-                return response;
-            }
-            httpClient->addHeader("Content-Type", "application/json");
-            httpCode = httpClient->POST(request.body);
-        } else {
-            response.error = "不支持的请求方法：" + request.method;
-            DEBUG_PRINTLN(response.error);
+    
+    // 准备HTTP请求
+    String fullUrl = request.url;
+    
+    DEBUG_PRINTLN("发送API请求：" + fullUrl);
+    
+    // 设置请求超时
+    unsigned long requestTimeout = request.timeout > 0 ? request.timeout : API_DEFAULT_TIMEOUT;
+    
+    // 开始HTTP请求
+    #if PLATFORM_ESP32 || PLATFORM_ESP8266
+    httpClient->setTimeout(requestTimeout);
+    #if PLATFORM_ESP32
+    httpClient->setReuse(true); // 启用连接重用，减少连接建立开销
+    #endif
+    
+    // 设置证书验证
+    if (!verifyCertificate) {
+        wifiClient->setInsecure(); // 禁用证书验证
+    }
+    
+    // 发送请求
+    int httpCode = -1;
+    if (request.method.equalsIgnoreCase("GET")) {
+        if (!httpClient->begin(*wifiClient, fullUrl)) {
+            response.error = "初始化HTTP请求失败";
+            response.status = API_STATUS_ERROR;
             failedRequests++;
+            DEBUG_PRINTLN("API请求失败：初始化HTTP请求失败");
             return response;
         }
+        httpCode = httpClient->GET();
+    } else if (request.method.equalsIgnoreCase("POST")) {
+        if (!httpClient->begin(*wifiClient, fullUrl)) {
+            response.error = "初始化HTTP请求失败";
+            response.status = API_STATUS_ERROR;
+            failedRequests++;
+            DEBUG_PRINTLN("API请求失败：初始化HTTP请求失败");
+            return response;
+        }
+        httpClient->addHeader("Content-Type", "application/json");
+        httpCode = httpClient->POST(request.body);
+    } else {
+        response.error = "不支持的请求方法：" + request.method;
+        DEBUG_PRINTLN(response.error);
+        failedRequests++;
+        return response;
+    }
+    
+    // 发送请求并获取响应
+    if (httpCode > 0) {
+        // 请求成功，读取响应内容
+        String responseContent = httpClient->getString();
         
-        // 发送请求并获取响应
-        if (httpCode > 0) {
-            // 请求成功，读取响应内容
-            String responseContent = httpClient->getString();
+        // 填充响应对象
+        response.httpCode = httpCode;
+        response.response = responseContent;
+        
+        if (httpCode >= 200 && httpCode < 300) {
+            // 请求成功
+            response.status = API_STATUS_SUCCESS;
+            successfulRequests++;
+            DEBUG_PRINTLN("API请求成功：" + String(httpCode) + "，URL：" + fullUrl);
             
-            // 填充响应对象
-            response.httpCode = httpCode;
-            response.response = responseContent;
-            
-            if (httpCode >= 200 && httpCode < 300) {
-                // 请求成功
-                response.status = API_STATUS_SUCCESS;
-                successfulRequests++;
-                DEBUG_PRINTLN("API请求成功：" + String(httpCode) + "，URL：" + fullUrl);
-                
-                // 保存缓存
-                if (request.cacheTime > 0) {
-                    saveCache(cacheKey, response, request.cacheTime);
-                }
-            } else {
-                // 请求失败
-                response.status = API_STATUS_ERROR;
-                response.error = "HTTP错误：" + String(httpCode) + "，URL：" + fullUrl;
-                failedRequests++;
-                DEBUG_PRINTLN("API请求失败：" + String(httpCode) + "，URL：" + fullUrl);
+            // 保存缓存
+            if (request.cacheTime > 0) {
+                saveCache(cacheKey, response, request.cacheTime);
             }
         } else {
             // 请求失败
-            response.status = API_STATUS_TIMEOUT;
-            response.error = "请求超时：" + httpClient->errorToString(httpCode) + "，URL：" + fullUrl;
+            response.status = API_STATUS_ERROR;
+            response.error = "HTTP错误：" + String(httpCode) + "，URL：" + fullUrl;
             failedRequests++;
-            DEBUG_PRINTLN("API请求超时：" + httpClient->errorToString(httpCode) + "，URL：" + fullUrl);
+            DEBUG_PRINTLN("API请求失败：" + String(httpCode) + "，URL：" + fullUrl);
         }
-        
-        // 结束HTTP请求
-        httpClient->end();
+    } else {
+        // 请求失败
+        response.status = API_STATUS_TIMEOUT;
+        response.error = "请求超时：" + httpClient->errorToString(httpCode) + "，URL：" + fullUrl;
+        failedRequests++;
+        DEBUG_PRINTLN("API请求超时：" + httpClient->errorToString(httpCode) + "，URL：" + fullUrl);
+    }
+    
+    // 结束HTTP请求
+    httpClient->end();
+    #endif
     
     // 计算响应时间
     unsigned long responseTime = millis() - response.timestamp;
@@ -339,6 +355,7 @@ void APIManager::setProxy(const String& proxyHost, uint16_t proxyPort) {
 void APIManager::setCertificateVerify(bool verify) {
     this->verifyCertificate = verify;
     
+    #if PLATFORM_ESP32 || PLATFORM_ESP8266
     if (!verify) {
         wifiClient->setInsecure(); // 禁用证书验证
         DEBUG_PRINTLN("禁用证书验证");
@@ -346,6 +363,7 @@ void APIManager::setCertificateVerify(bool verify) {
         DEBUG_PRINTLN("启用证书验证");
         // 启用证书验证时不需要调用setInsecure()，这是默认行为
     }
+    #endif
 }
 
 String APIManager::getStats() {

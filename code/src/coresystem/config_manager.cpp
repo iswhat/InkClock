@@ -92,7 +92,12 @@ void ConfigItem::resetToDefault() {
 
 // ConfigManager 构造函数
 ConfigManager::ConfigManager() : initialized(false) {
+    #if PLATFORM_ESP32
     configMutex = xSemaphoreCreateMutex();
+    #elif PLATFORM_ESP8266
+    // ESP8266不支持FreeRTOS互斥量，使用空指针
+    configMutex = nullptr;
+    #endif
     // 默认存储后端优先级
     storagePriority = {
         STORAGE_TYPE_SPIFFS,
@@ -703,7 +708,11 @@ SPIFFSConfigStorage::SPIFFSConfigStorage(const String& fileName) : configFileNam
 // SPIFFSConfigStorage 方法实现
 bool SPIFFSConfigStorage::init() {
     // 尝试挂载SPIFFS文件系统
+    #if defined(ESP32)
     if (!SPIFFS.begin(false)) {
+    #elif defined(ESP8266)
+    if (!SPIFFS.begin()) {
+    #endif
         Serial.println("[CONFIG] SPIFFS mount failed");
         return false;
     }
@@ -713,7 +722,11 @@ bool SPIFFSConfigStorage::init() {
 
 bool SPIFFSConfigStorage::load(const String& key, String& value) {
     // 检查SPIFFS是否已挂载
+    #if defined(ESP32)
     if (!SPIFFS.begin(false)) {
+    #elif defined(ESP8266)
+    if (!SPIFFS.begin()) {
+    #endif
         Serial.println("[CONFIG] SPIFFS not mounted");
         return false;
     }
@@ -747,7 +760,11 @@ bool SPIFFSConfigStorage::load(const String& key, String& value) {
 
 bool SPIFFSConfigStorage::save(const String& key, const String& value) {
     // 检查SPIFFS是否已挂载
+    #if defined(ESP32)
     if (!SPIFFS.begin(false)) {
+    #elif defined(ESP8266)
+    if (!SPIFFS.begin()) {
+    #endif
         Serial.println("[CONFIG] SPIFFS not mounted");
         return false;
     }
@@ -788,7 +805,11 @@ bool SPIFFSConfigStorage::save(const String& key, const String& value) {
 
 bool SPIFFSConfigStorage::remove(const String& key) {
     // 检查SPIFFS是否已挂载
+    #if defined(ESP32)
     if (!SPIFFS.begin(false)) {
+    #elif defined(ESP8266)
+    if (!SPIFFS.begin()) {
+    #endif
         Serial.println("[CONFIG] SPIFFS not mounted");
         return false;
     }

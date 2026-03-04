@@ -14,7 +14,9 @@
  */
 class SGP30Driver : public BaseSensorDriver {
 private:
+#ifdef HAVE_SGP30_LIB
   Adafruit_SGP30 sgp30;           ///< SGP30传感器实例
+#endif
   String typeName;               ///< 传感器类型名称
 
 public:

@@ -26,7 +26,11 @@ bool LD2410Driver::init(const SensorConfig& config) {
   
   // 初始化串口
   serial = &Serial1;  // 使用Serial1作为默认串口
-  serial->begin(256000, SERIAL_8N1, 16, 17);  // 默认使用GPIO16和GPIO17作为TX和RX
+  #if defined(ESP32)
+  serial->begin(256000, SERIAL_8N1, 16, 17);  // ESP32: 波特率, 配置, RX引脚, TX引脚
+  #elif defined(ESP8266)
+  serial->begin(256000, SERIAL_8N1, SERIAL_FULL, 16);  // ESP8266: 波特率, 配置, 模式, TX引脚
+  #endif
   
   initialized = true;
   

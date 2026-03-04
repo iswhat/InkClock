@@ -1,5 +1,36 @@
 #include "eink_driver.h"
+#include "coresystem/platform_abstraction.h"
 
+// 定义必要的引脚常量
+#ifndef EINK_CS
+  #define EINK_CS 5
+#endif
+
+#ifndef EINK_DC
+  #define EINK_DC 4
+#endif
+
+#ifndef EINK_RST
+  #define EINK_RST 2
+#endif
+
+// 定义颜色常量
+#ifndef GxEPD_BLACK
+  #define GxEPD_BLACK 0
+#endif
+
+#ifndef GxEPD_WHITE
+  #define GxEPD_WHITE 1
+#endif
+
+// 定义调试宏
+#ifndef DEBUG_PRINTF
+  #define DEBUG_PRINTF(...) Serial.printf(__VA_ARGS__)
+  #define DEBUG_PRINTLN(x) Serial.println(x)
+#endif
+
+#ifdef HAVE_EINK_LIB
+#ifdef USE_EINK_DISPLAY
 EinkDriver::EinkDriver() : io(SPI, EINK_CS, EINK_DC, EINK_RST), initialized(false) {
   // 构造函数，初始化IO对象
 }
@@ -133,9 +164,9 @@ void EinkDriver::wakeup() {
   display.powerOn();
 }
 
-DisplayType EinkDriver::getType() const {
+DisplayCategory EinkDriver::getDisplayType() const {
   // 返回当前配置的显示类型
-  return DisplayType::DISPLAY_TYPE_EINK;
+  return DisplayCategory::DISPLAY_CATEGORY_EINK;
 }
 
 int16_t EinkDriver::measureTextWidth(const String& text, uint8_t size) const {
@@ -165,18 +196,94 @@ int16_t EinkDriver::measureTextHeight(const String& text, uint8_t size) const {
 bool EinkDriver::matchHardware() {
   DEBUG_PRINTLN("检测墨水屏硬件匹配...");
   
-  try {
-    // 尝试初始化显示对象来检测硬件
-    display.init();
-    
-    // 检查是否成功初始化
-    // 如果初始化成功，说明硬件匹配
-    return true;
-  } catch (const std::exception& e) {
-    DEBUG_PRINTLN("墨水屏硬件匹配失败: " + String(e.what()));
-    return false;
-  } catch (...) {
-    DEBUG_PRINTLN("墨水屏硬件匹配失败: 未知异常");
-    return false;
-  }
+  // 尝试初始化显示对象来检测硬件
+  display.init();
+  
+  // 检查是否成功初始化
+  // 如果初始化成功，说明硬件匹配
+  return true;
 }
+#else
+// 当没有e-ink库时的空实现
+EinkDriver::EinkDriver() : initialized(false) {
+  // 构造函数
+}
+
+EinkDriver::~EinkDriver() {
+  // 析构函数
+}
+
+bool EinkDriver::init() {
+  DEBUG_PRINTLN("EinkDriver: 没有e-ink库，初始化失败");
+  return false;
+}
+
+void EinkDriver::clear() {
+  // 空实现
+}
+
+void EinkDriver::drawPixel(int16_t x, int16_t y, uint16_t color) {
+  // 空实现
+}
+
+void EinkDriver::drawChar(int16_t x, int16_t y, unsigned char c, uint16_t color, uint16_t bg, uint8_t size) {
+  // 空实现
+}
+
+void EinkDriver::drawString(int16_t x, int16_t y, const String& text, uint16_t color, uint16_t bg, uint8_t size) {
+  // 空实现
+}
+
+void EinkDriver::drawRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) {
+  // 空实现
+}
+
+void EinkDriver::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) {
+  // 空实现
+}
+
+void EinkDriver::drawLine(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color) {
+  // 空实现
+}
+
+void EinkDriver::update() {
+  // 空实现
+}
+
+void EinkDriver::update(int16_t x, int16_t y, int16_t w, int16_t h) {
+  // 空实现
+}
+
+int16_t EinkDriver::getWidth() const {
+  return 0;
+}
+
+int16_t EinkDriver::getHeight() const {
+  return 0;
+}
+
+void EinkDriver::sleep() {
+  // 空实现
+}
+
+void EinkDriver::wakeup() {
+  // 空实现
+}
+
+DisplayCategory EinkDriver::getDisplayType() const {
+  return DisplayCategory::DISPLAY_CATEGORY_EINK;
+}
+
+int16_t EinkDriver::measureTextWidth(const String& text, uint8_t size) const {
+  return 0;
+}
+
+int16_t EinkDriver::measureTextHeight(const String& text, uint8_t size) const {
+  return 0;
+}
+
+bool EinkDriver::matchHardware() {
+  return false;
+}
+#endif
+#endif

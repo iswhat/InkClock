@@ -2,8 +2,15 @@
 #define WEB_SERVER_H
 
 #include <Arduino.h>
+#if defined(ESP32)
 #include <WebServer.h>
 #include <ESPmDNS.h>
+#elif defined(ESP8266)
+#include <ESP8266WebServer.h>
+#define WebServer ESP8266WebServer
+#include <ESP8266mDNS.h>
+#define ESPmDNS MDNS
+#endif
 #include "../coresystem/config.h"
 
 class WebServerManager {

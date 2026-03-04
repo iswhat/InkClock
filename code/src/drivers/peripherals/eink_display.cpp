@@ -2,6 +2,7 @@
 #include "coresystem/platform_abstraction.h"
 #include "coresystem/config.h"
 #include <algorithm>
+#include <SPI.h>
 
 // 定义DEBUG_PRINTLN宏
 #ifndef DEBUG_PRINTLN
@@ -54,6 +55,7 @@
 
 EinkDisplay::EinkDisplay() {
   #ifdef HAVE_EINK_LIB
+  #ifdef USE_EINK_DISPLAY
   #if DISPLAY_TYPE == EINK_42_INCH || DISPLAY_TYPE == EINK_42_INCH_HEMA
     io = GxIO_Class(SPI, EINK_CS, EINK_DC, EINK_RST);
     display = GxGDEW042Z15_Class(io, EINK_BUSY);
@@ -64,6 +66,10 @@ EinkDisplay::EinkDisplay() {
     display = GxGDEW075Z09_Class(io, EINK_BUSY);
     width = GxGDEW075Z09_WIDTH;
     height = GxGDEW075Z09_HEIGHT;
+  #else
+    width = 0;
+    height = 0;
+  #endif
   #else
     width = 0;
     height = 0;
@@ -102,6 +108,7 @@ bool EinkDisplay::init() {
   DEBUG_PRINTLN("初始化墨水屏...");
   
   #ifdef HAVE_EINK_LIB
+  #ifdef USE_EINK_DISPLAY
   // 初始化墨水屏
   if (!display.init()) {
     DEBUG_PRINTLN("墨水屏初始化失败");
@@ -124,6 +131,11 @@ bool EinkDisplay::init() {
   
   DEBUG_PRINTLN("墨水屏初始化完成");
   return true;
+  #else
+  DEBUG_PRINTLN("墨水屏库未启用，初始化失败");
+  displayReady = false;
+  return false;
+  #endif
   #else
   DEBUG_PRINTLN("墨水屏库未可用，初始化失败");
   displayReady = false;
@@ -159,7 +171,7 @@ void EinkDisplay::update() {
   #endif
 }
 
-void EinkDisplay::update(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
+void EinkDisplay::update(int16_t x, int16_t y, int16_t w, int16_t h) {
   DEBUG_PRINTF("局部更新显示: x=%d, y=%d, w=%d, h=%d...\n", x, y, w, h);
   
   if (!displayReady) {
@@ -207,6 +219,7 @@ void EinkDisplay::update(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
 
 void EinkDisplay::clear() {
   #ifdef HAVE_EINK_LIB
+  #ifdef USE_EINK_DISPLAY
   // 填充屏幕为白色
   display.fillScreen(GxEPD_WHITE);
   
@@ -218,12 +231,16 @@ void EinkDisplay::clear() {
     updateRefreshRegion(0, 0, width, height);
   }
   #else
+  DEBUG_PRINTLN("墨水屏库未启用，跳过清空");
+  #endif
+  #else
   DEBUG_PRINTLN("墨水屏库未可用，跳过清空");
   #endif
 }
 
 void EinkDisplay::drawPixel(int16_t x, int16_t y, uint16_t color) {
   #ifdef HAVE_EINK_LIB
+  #ifdef USE_EINK_DISPLAY
   // 检查坐标是否在屏幕范围内
   if (x >= 0 && x < width && y >= 0 && y < height) {
     display.drawPixel(x, y, color);
@@ -234,12 +251,16 @@ void EinkDisplay::drawPixel(int16_t x, int16_t y, uint16_t color) {
     }
   }
   #else
+  DEBUG_PRINTLN("墨水屏库未启用，跳过绘制像素");
+  #endif
+  #else
   DEBUG_PRINTLN("墨水屏库未可用，跳过绘制像素");
   #endif
 }
 
 void EinkDisplay::drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color) {
   #ifdef HAVE_EINK_LIB
+  #ifdef USE_EINK_DISPLAY
   display.drawLine(x0, y0, x1, y1, color);
   
   // 如果启用了刷新区域管理，更新刷新区域
@@ -251,12 +272,16 @@ void EinkDisplay::drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint1
     updateRefreshRegion(x, y, w, h);
   }
   #else
+  DEBUG_PRINTLN("墨水屏库未启用，跳过绘制直线");
+  #endif
+  #else
   DEBUG_PRINTLN("墨水屏库未可用，跳过绘制直线");
   #endif
 }
 
 void EinkDisplay::drawRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) {
   #ifdef HAVE_EINK_LIB
+  #ifdef USE_EINK_DISPLAY
   // 检查参数是否有效
   if (w > 0 && h > 0) {
     display.drawRect(x, y, w, h, color);
@@ -267,12 +292,16 @@ void EinkDisplay::drawRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t 
     }
   }
   #else
+  DEBUG_PRINTLN("墨水屏库未启用，跳过绘制矩形");
+  #endif
+  #else
   DEBUG_PRINTLN("墨水屏库未可用，跳过绘制矩形");
   #endif
 }
 
 void EinkDisplay::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) {
   #ifdef HAVE_EINK_LIB
+  #ifdef USE_EINK_DISPLAY
   // 检查参数是否有效
   if (w > 0 && h > 0) {
     display.fillRect(x, y, w, h, color);
@@ -283,52 +312,18 @@ void EinkDisplay::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t 
     }
   }
   #else
+  DEBUG_PRINTLN("墨水屏库未启用，跳过填充矩形");
+  #endif
+  #else
   DEBUG_PRINTLN("墨水屏库未可用，跳过填充矩形");
   #endif
 }
 
-void EinkDisplay::drawCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color) {
-  #ifdef HAVE_EINK_LIB
-  // 检查半径是否有效
-  if (r > 0) {
-    display.drawCircle(x0, y0, r, color);
-    
-    // 如果启用了刷新区域管理，更新刷新区域
-    if (refreshRegionEnabled) {
-      int16_t x = x0 - r;
-      int16_t y = y0 - r;
-      int16_t w = r * 2 + 1;
-      int16_t h = r * 2 + 1;
-      updateRefreshRegion(x, y, w, h);
-    }
-  }
-  #else
-  DEBUG_PRINTLN("墨水屏库未可用，跳过绘制圆形");
-  #endif
-}
 
-void EinkDisplay::fillCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color) {
-  #ifdef HAVE_EINK_LIB
-  // 检查半径是否有效
-  if (r > 0) {
-    display.fillCircle(x0, y0, r, color);
-    
-    // 如果启用了刷新区域管理，更新刷新区域
-    if (refreshRegionEnabled) {
-      int16_t x = x0 - r;
-      int16_t y = y0 - r;
-      int16_t w = r * 2 + 1;
-      int16_t h = r * 2 + 1;
-      updateRefreshRegion(x, y, w, h);
-    }
-  }
-  #else
-  DEBUG_PRINTLN("墨水屏库未可用，跳过填充圆形");
-  #endif
-}
 
 void EinkDisplay::drawString(int16_t x, int16_t y, const String& text, uint16_t textColor, uint16_t bgColor, uint8_t textSize) {
   #ifdef HAVE_EINK_LIB
+  #ifdef USE_EINK_DISPLAY
   // 检查文本是否为空
   if (text.isEmpty()) {
     return;
@@ -397,6 +392,9 @@ void EinkDisplay::drawString(int16_t x, int16_t y, const String& text, uint16_t 
   display.setTextColor(GxEPD_BLACK, GxEPD_WHITE);
   display.setTextSize(oldTextSize);
   #else
+  DEBUG_PRINTLN("墨水屏库未启用，跳过绘制文本");
+  #endif
+  #else
   DEBUG_PRINTLN("墨水屏库未可用，跳过绘制文本");
   #endif
 }
@@ -412,6 +410,7 @@ int16_t EinkDisplay::getHeight() const {
 int16_t EinkDisplay::measureTextWidth(const String& text, uint8_t textSize) const {
   // 更准确的文本宽度测量
   #ifdef HAVE_EINK_LIB
+  #ifdef USE_EINK_DISPLAY
   // 保存当前设置
   uint8_t oldTextSize = display.getTextSize();
   
@@ -445,11 +444,24 @@ int16_t EinkDisplay::measureTextWidth(const String& text, uint8_t textSize) cons
   }
   return width;
   #endif
+  #else
+  // 备用方法
+  int16_t width = 0;
+  for (unsigned int i = 0; i < text.length(); i++) {
+    if (text[i] == '\n') {
+      continue;
+    }
+    // 假设每个字符的宽度为6个像素，乘以字体大小
+    width += 6 * textSize;
+  }
+  return width;
+  #endif
 }
 
 int16_t EinkDisplay::measureTextHeight(const String& text, uint8_t textSize) const {
   // 更准确的文本高度测量
   #ifdef HAVE_EINK_LIB
+  #ifdef USE_EINK_DISPLAY
   // 保存当前设置
   uint8_t oldTextSize = display.getTextSize();
   
@@ -484,10 +496,23 @@ int16_t EinkDisplay::measureTextHeight(const String& text, uint8_t textSize) con
   // 假设每行的高度为8个像素，乘以字体大小和行数
   return 8 * textSize * lineCount;
   #endif
+  #else
+  // 备用方法
+  // 计算文本中的换行符数量
+  int lineCount = 1;
+  for (unsigned int i = 0; i < text.length(); i++) {
+    if (text[i] == '\n') {
+      lineCount++;
+    }
+  }
+  // 假设每行的高度为8个像素，乘以字体大小和行数
+  return 8 * textSize * lineCount;
+  #endif
 }
 
 void EinkDisplay::drawChar(int16_t x, int16_t y, unsigned char c, uint16_t color, uint16_t bg, uint8_t size) {
   #ifdef HAVE_EINK_LIB
+  #ifdef USE_EINK_DISPLAY
   // 检查字体大小是否有效
   if (size == 0) {
     size = 1;
@@ -518,6 +543,9 @@ void EinkDisplay::drawChar(int16_t x, int16_t y, unsigned char c, uint16_t color
   display.setTextColor(GxEPD_BLACK, GxEPD_WHITE);
   display.setTextSize(oldTextSize);
   #else
+  DEBUG_PRINTLN("墨水屏库未启用，跳过绘制字符");
+  #endif
+  #else
   DEBUG_PRINTLN("墨水屏库未可用，跳过绘制字符");
   #endif
 }
@@ -526,6 +554,7 @@ void EinkDisplay::sleep() {
   DEBUG_PRINTLN("墨水屏进入休眠模式...");
   
   #ifdef HAVE_EINK_LIB
+  #ifdef USE_EINK_DISPLAY
   // 清空屏幕，避免残影
   clear();
   update();
@@ -534,6 +563,9 @@ void EinkDisplay::sleep() {
   display.hibernate();
   
   DEBUG_PRINTLN("墨水屏已休眠");
+  #else
+  DEBUG_PRINTLN("墨水屏库未启用，跳过休眠");
+  #endif
   #else
   DEBUG_PRINTLN("墨水屏库未可用，跳过休眠");
   #endif
@@ -666,8 +698,12 @@ void EinkDisplay::updateRefreshRegion() {
 // 全屏刷新
 void EinkDisplay::displayFullRefresh() {
   #ifdef HAVE_EINK_LIB
+  #ifdef USE_EINK_DISPLAY
   // 执行全屏更新
   display.update();
+  #else
+  DEBUG_PRINTLN("墨水屏库未启用，跳过全屏刷新");
+  #endif
   #else
   DEBUG_PRINTLN("墨水屏库未可用，跳过全屏刷新");
   #endif
@@ -676,6 +712,7 @@ void EinkDisplay::displayFullRefresh() {
 // 局部刷新
 void EinkDisplay::displayPartialRefresh(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
   #ifdef HAVE_EINK_LIB
+  #ifdef USE_EINK_DISPLAY
   // 根据墨水屏型号实现真正的局部更新
   #if DISPLAY_TYPE == EINK_42_INCH || DISPLAY_TYPE == EINK_42_INCH_HEMA
     // 4.2寸墨水屏局部更新
@@ -688,6 +725,9 @@ void EinkDisplay::displayPartialRefresh(uint16_t x, uint16_t y, uint16_t w, uint
     display.update();
   #endif
   #else
+  DEBUG_PRINTLN("墨水屏库未启用，跳过局部刷新");
+  #endif
+  #else
   DEBUG_PRINTLN("墨水屏库未可用，跳过局部刷新");
   #endif
 }
@@ -695,10 +735,14 @@ void EinkDisplay::displayPartialRefresh(uint16_t x, uint16_t y, uint16_t w, uint
 // 快速刷新
 void EinkDisplay::displayFastRefresh(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
   #ifdef HAVE_EINK_LIB
+  #ifdef USE_EINK_DISPLAY
   // 尝试使用快速刷新模式
   // 注意：不是所有墨水屏都支持快速刷新
   // 这里使用局部刷新作为快速刷新的实现
   displayPartialRefresh(x, y, w, h);
+  #else
+  DEBUG_PRINTLN("墨水屏库未启用，跳过快速刷新");
+  #endif
   #else
   DEBUG_PRINTLN("墨水屏库未可用，跳过快速刷新");
   #endif

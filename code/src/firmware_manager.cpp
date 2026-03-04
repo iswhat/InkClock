@@ -6,7 +6,11 @@
 #include "application/wifi_manager.h"
 #include <SdFat.h>
 #include <Update.h>
+#ifdef ESP8266
+#include <ESP8266HTTPClient.h>
+#else
 #include <HTTPClient.h>
+#endif
 #include <ArduinoJson.h>
 #include <mbedtls/md.h>
 #include <mbedtls/md5.h>

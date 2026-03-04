@@ -1,4 +1,7 @@
 #include "sht30_driver.h"
+#include "coresystem/platform_abstraction.h"
+
+#ifdef HAVE_SHT31_LIB
 
 SHT30Driver::SHT30Driver() : sht30(nullptr) {
   // 构造函数
@@ -72,33 +75,27 @@ SensorType SHT30Driver::getType() const {
 bool SHT30Driver::matchHardware() {
   DEBUG_PRINTLN("检测SHT30硬件匹配...");
   
-  try {
-    // SHT30使用I2C接口，通常有两个地址可选：0x44和0x45
-    uint8_t addresses[] = {0x44, 0x45};
-    bool matched = false;
-    
-    // 尝试创建SHT30对象并检测两个可能的地址
-    Adafruit_SHT31* tempSht30 = new Adafruit_SHT31();
-    
-    for (uint8_t address : addresses) {
-      if (tempSht30->begin(address)) {
-        // 初始化成功，尝试读取一次数据验证
-        float h = tempSht30->readHumidity();
-        float t = tempSht30->readTemperature();
-        if (!isnan(h) && !isnan(t)) {
-          matched = true;
-          break;
-        }
+  // SHT30使用I2C接口，通常有两个地址可选：0x44和0x45
+  uint8_t addresses[] = {0x44, 0x45};
+  bool matched = false;
+  
+  // 尝试创建SHT30对象并检测两个可能的地址
+  Adafruit_SHT31* tempSht30 = new Adafruit_SHT31();
+  
+  for (uint8_t address : addresses) {
+    if (tempSht30->begin(address)) {
+      // 初始化成功，尝试读取一次数据验证
+      float h = tempSht30->readHumidity();
+      float t = tempSht30->readTemperature();
+      if (!isnan(h) && !isnan(t)) {
+        matched = true;
+        break;
       }
     }
-    
-    delete tempSht30;
-    return matched;
-  } catch (const std::exception& e) {
-    DEBUG_PRINTLN("SHT30硬件匹配失败: " + String(e.what()));
-    return false;
-  } catch (...) {
-    DEBUG_PRINTLN("SHT30硬件匹配失败: 未知异常");
-    return false;
   }
+  
+  delete tempSht30;
+  return matched;
 }
+
+#endif // HAVE_SHT31_LIB

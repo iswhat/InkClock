@@ -104,7 +104,7 @@ public:
   void wakeup() override;
   
   // 获取显示类型
-  DisplayType getType() const override;
+  DisplayCategory getDisplayType() const override;
   
   // 测量文本宽度
   int16_t measureTextWidth(const String& text, uint8_t size) const override;

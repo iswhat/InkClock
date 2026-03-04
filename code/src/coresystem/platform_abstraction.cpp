@@ -1,8 +1,12 @@
 #include "platform_abstraction.h"
 #include <Arduino.h>
+#if defined(ESP32)
 #include "esp_pm.h"
+#endif
+#if defined(ESP32)
 #include "esp_sleep.h"
 #include "esp_clk.h"
+#endif
 
 /**
  * @file platform_abstraction.cpp
@@ -119,7 +123,7 @@ size_t platformGetMinFreeHeap() {
     #ifdef ESP32
         return ESP.getMinFreeHeap();
     #elif defined(ESP8266)
-        return ESP.getMinFreeHeap();
+        return ESP.getFreeHeap(); // ESP8266 没有 getMinFreeHeap() 方法
     #elif defined(NRF52)
         // NRF52获取最小堆内存实现
         return heap_caps_get_minimum_free_size(MALLOC_CAP_DEFAULT);
@@ -308,16 +312,8 @@ bool platformSetCpuFreqMHz(int freqMHz) {
         return false;
     #elif defined(ESP8266)
         // ESP8266设置CPU频率
-        switch(freqMHz) {
-            case 80:
-                setCpuFrequencyMhz(80);
-                return true;
-            case 160:
-                setCpuFrequencyMhz(160);
-                return true;
-            default:
-                return false;
-        }
+        // ESP8266 不支持运行时动态调整CPU频率
+        return false;
     #elif defined(NRF52)
         // NRF52设置CPU频率
         if(freqMHz == 64) {

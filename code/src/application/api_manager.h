@@ -17,15 +17,14 @@
 #define API_MANAGER_H
 
 #include <Arduino.h>
+#include "../coresystem/config.h"
+
 #if PLATFORM_ESP32
 #include <WiFiClientSecure.h>
+#include <HTTPClient.h>
 #elif PLATFORM_ESP8266
 #include <ESP8266WiFi.h>
 #include <WiFiClientSecure.h>
-#endif
-#if PLATFORM_ESP32
-#include <HTTPClient.h>
-#elif PLATFORM_ESP8266
 #include <ESP8266HTTPClient.h>
 #endif
 #include <time.h>
@@ -200,7 +199,7 @@ private:
     HTTPClient *httpClient;
     #elif PLATFORM_ESP8266
     WiFiClientSecure *wifiClient;
-    ESP8266HTTPClient *httpClient;
+    HTTPClient *httpClient;
     #endif
     
     // 缓存相关

@@ -2,7 +2,9 @@
 #define SI7021_DRIVER_H
 
 #include "sensor_driver.h"
+#ifdef HAVE_SI7021_LIB
 #include <Adafruit_Si7021.h>
+#endif
 
 /**
  * @brief SI7021温湿度传感器驱动类
@@ -12,7 +14,9 @@
  */
 class SI7021Driver : public ISensorDriver {
 private:
+#ifdef HAVE_SI7021_LIB
   Adafruit_Si7021 si7021;         ///< SI7021传感器实例
+#endif
   SensorConfig config;           ///< 传感器配置
   bool initialized;              ///< 初始化状态标志
   String typeName;               ///< 传感器类型名称
