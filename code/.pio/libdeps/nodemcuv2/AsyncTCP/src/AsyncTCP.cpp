@@ -31,6 +31,7 @@ extern "C" {
 #include "lwip/tcp.h"
 }
 
+#ifdef ESP32
 #if CONFIG_ASYNC_TCP_USE_WDT
   #include "esp_task_wdt.h"
 #endif
@@ -39,6 +40,7 @@ extern "C" {
 // https://github.com/espressif/arduino-esp32/blob/3.0.3/libraries/Network/src/NetworkInterface.cpp#L37-L47
 #if ESP_IDF_VERSION_MAJOR >= 5
   #include <NetworkInterface.h>
+#endif
 #endif
 
 #define TAG "AsyncTCP"

@@ -29,13 +29,16 @@
 #define ASYNCTCP_FORK_ESP32Async
 
 #include "IPAddress.h"
+#ifdef ESP32
 #if ESP_IDF_VERSION_MAJOR < 5
   #include "IPv6Address.h"
 #endif
 #include "lwip/ip6_addr.h"
+#endif
 #include "lwip/ip_addr.h"
 #include <functional>
 
+#ifdef ESP32
 #ifndef LIBRETINY
   #include "sdkconfig.h"
 extern "C" {
@@ -48,6 +51,17 @@ extern "C" {
   #include <semphr.h>
 }
   #define CONFIG_ASYNC_TCP_RUNNING_CORE -1 // any available core
+#endif
+#elif ESP8266
+extern "C" {
+  #include <lwip/pbuf.h>
+}
+  #define CONFIG_ASYNC_TCP_RUNNING_CORE -1 // any available core
+  #define CONFIG_ASYNC_TCP_QUEUE_SIZE 32
+  #define CONFIG_ASYNC_TCP_STACK_SIZE 4096
+  #define CONFIG_ASYNC_TCP_USE_WDT 0
+  #define CONFIG_LWIP_MAX_ACTIVE_TCP 16
+  #define CONFIG_LWIP_TCPIP_CORE_LOCKING 0
 #endif
 
 // If core is not defined, then we are running in Arduino or PIO

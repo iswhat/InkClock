@@ -3,7 +3,11 @@
 
 #include <Arduino.h>
 #include "coresystem/config.h"
+#ifdef ESP32
 #include <SdFat.h>
+#elif ESP8266
+#include <SD.h>
+#endif
 #include <ArduinoJson.h>
 
 // 固件更新状态枚举
@@ -172,6 +176,7 @@ private:
   String detectCurrentHardware();
   
   // 计算文件SHA-256哈希值
+  #ifdef ESP32
   String calculateSHA256(SdFile &file);
   
   // 验证固件哈希值
@@ -179,6 +184,12 @@ private:
   
   // 验证固件签名
   bool verifyFirmwareSignature(SdFile &file, const String &signature, const String &publicKey);
+  #elif ESP8266
+  // ESP8266不支持这些功能
+  String calculateSHA256(File &file);
+  bool verifyFirmwareHash(File &file, const String &expectedHash);
+  bool verifyFirmwareSignature(File &file, const String &signature, const String &publicKey);
+  #endif
   
   // 从固件信息中获取签名和公钥
   bool getFirmwareSignatureInfo(const JsonObject &jsonDoc, String &signature, String &publicKey);

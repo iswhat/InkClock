@@ -31,6 +31,7 @@ void TouchManager::init() {
   DEBUG_PRINTLN("初始化触摸管理器...");
   
   // 检查当前硬件是否支持触摸
+  #ifdef ESP32
   #if (CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1) && !defined(CONFIG_IDF_TARGET_ESP32C3)
     DEBUG_PRINTLN("当前硬件支持触摸功能");
     
@@ -46,10 +47,14 @@ void TouchManager::init() {
   #else
     DEBUG_PRINTLN("当前硬件不支持触摸功能");
   #endif
+  #else
+    DEBUG_PRINTLN("当前硬件平台不支持触摸功能");
+  #endif
 }
 
 void TouchManager::update() {
   // 检查当前硬件是否支持触摸
+  #ifdef ESP32
   #if (CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1) && !defined(CONFIG_IDF_TARGET_ESP32C3)
     // 读取触摸数据
     TouchPoint rawPoint;
@@ -81,6 +86,7 @@ void TouchManager::update() {
     updateTouchEvent(filteredPoint);
     
     lastUpdate = millis();
+  #endif
   #endif
 }
 

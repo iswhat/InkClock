@@ -59,7 +59,11 @@ void PluginManager::init() {
   DEBUG_PRINTLN("初始化插件管理器...");
   
   // 初始化SPIFFS文件系统（如果未初始化）
+  #ifdef ESP8266
+  if (!SPIFFS.begin()) {
+  #else
   if (!SPIFFS.begin(false)) {
+  #endif
     DEBUG_PRINTLN("SPIFFS初始化失败");
     return;
   }
@@ -462,7 +466,11 @@ bool PluginManager::savePlugins() {
   doc["pluginCount"] = pluginCount;
   
   // 打开文件
+  #ifdef ESP8266
+  File file = SPIFFS.open("/plugins.json", "w");
+  #else
   File file = SPIFFS.open("/plugins.json", FILE_WRITE);
+  #endif
   if (!file) {
     DEBUG_PRINTLN("无法打开插件文件进行写入");
     return false;
@@ -492,7 +500,11 @@ bool PluginManager::loadPlugins() {
   }
   
   // 打开文件
+  #ifdef ESP8266
+  File file = SPIFFS.open("/plugins.json", "r");
+  #else
   File file = SPIFFS.open("/plugins.json", FILE_READ);
+  #endif
   if (!file) {
     DEBUG_PRINTLN("无法打开插件配置文件进行读取");
     return false;
@@ -600,11 +612,13 @@ bool PluginManager::updateURLPlugin(String name) {
   String response = "";
   #if PLATFORM_ESP32
   HTTPClient http;
+  http.begin(plugin.urlData.url);
   #elif PLATFORM_ESP8266
   HTTPClient http;
+  WiFiClient client;
+  http.begin(client, plugin.urlData.url);
   #endif
   
-  http.begin(plugin.urlData.url);
   int httpCode = http.GET();
   if (httpCode > 0) {
     response = http.getString();

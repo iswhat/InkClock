@@ -73,11 +73,6 @@ DisplayManager::DisplayManager() {
     humHistory[i] = 0.0;
   }
   sensorHistoryIndex = 0;
-}
-
-IDisplayDriver* DisplayManager::getDisplayDriver() const {
-  return displayDriver.get();
-}
   
   // 初始化GIF播放相关变量
   gifPlaying = false;
@@ -155,10 +150,11 @@ IDisplayDriver* DisplayManager::getDisplayDriver() const {
   //   auto messageData = static_cast<MessageEventData*>(data.get());
   //   if (messageData && cachedUnreadMessageCount > 0) {
   //     cachedUnreadMessageCount--;
-  //     this->updateDisplay();
   //   }
   // }, "DisplayManager");
 }
+
+
 
 DisplayManager::~DisplayManager() {
   // Resource cleanup: unique_ptr will automatically delete displayDriver

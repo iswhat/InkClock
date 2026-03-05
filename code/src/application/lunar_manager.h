@@ -66,6 +66,9 @@ private:
   // Web客户端
   WebClient webClient;
   
+  // WiFi管理器
+  WiFiManager wifiManager;
+  
   // 缓存的农历信息
   LunarInfo cachedLunarInfo;
   
