@@ -9,6 +9,7 @@
 #include "geo_manager.h"
 #include "application/wifi_manager.h"
 #include "application/api_manager.h"
+#include "coresystem/config_manager.h"
 #include <ArduinoJson.h>
 
 // 外部全局对象
@@ -241,13 +242,55 @@ bool GeoManager::tryDetectLocation(const char* apiUrl) {
 }
 
 void GeoManager::saveLocation() {
-    // TODO: 保存地理位置配置到EEPROM或SPIFFS
-    // 目前暂时只保存在内存中
     DEBUG_PRINTLN("保存地理位置配置");
+    
+    // 保存地理位置配置到ConfigManager
+    CONFIG_SET_STRING("geo.city_id", currentLocation.cityId);
+    CONFIG_SET_STRING("geo.city_name", currentLocation.cityName);
+    CONFIG_SET_FLOAT("geo.latitude", currentLocation.latitude);
+    CONFIG_SET_FLOAT("geo.longitude", currentLocation.longitude);
+    CONFIG_SET_STRING("geo.country", currentLocation.country);
+    CONFIG_SET_STRING("geo.region", currentLocation.region);
+    CONFIG_SET_BOOL("geo.auto_detect", autoDetect);
+    CONFIG_SET_BOOL("geo.auto_detected", currentLocation.autoDetected);
+    
+    // 保存配置到存储
+    ConfigManager::getInstance()->saveConfig();
 }
 
 void GeoManager::loadLocation() {
-    // TODO: 从EEPROM或SPIFFS加载地理位置配置
-    // 目前暂时只使用默认配置
     DEBUG_PRINTLN("加载地理位置配置");
+    
+    // 从ConfigManager加载地理位置配置
+    if (CONFIG_HAS("geo.city_id")) {
+        currentLocation.cityId = CONFIG_GET_STRING("geo.city_id", GEO_CITY_ID);
+    }
+    if (CONFIG_HAS("geo.city_name")) {
+        currentLocation.cityName = CONFIG_GET_STRING("geo.city_name", GEO_CITY_NAME);
+    }
+    if (CONFIG_HAS("geo.latitude")) {
+        currentLocation.latitude = CONFIG_GET_FLOAT("geo.latitude", GEO_LATITUDE);
+    }
+    if (CONFIG_HAS("geo.longitude")) {
+        currentLocation.longitude = CONFIG_GET_FLOAT("geo.longitude", GEO_LONGITUDE);
+    }
+    if (CONFIG_HAS("geo.country")) {
+        currentLocation.country = CONFIG_GET_STRING("geo.country", "中国");
+    }
+    if (CONFIG_HAS("geo.region")) {
+        currentLocation.region = CONFIG_GET_STRING("geo.region", "");
+    }
+    if (CONFIG_HAS("geo.auto_detect")) {
+        autoDetect = CONFIG_GET_BOOL("geo.auto_detect", AUTO_DETECT_LOCATION);
+    }
+    if (CONFIG_HAS("geo.auto_detected")) {
+        currentLocation.autoDetected = CONFIG_GET_BOOL("geo.auto_detected", false);
+    }
+    
+    DEBUG_PRINT("加载的地理位置: ");
+    DEBUG_PRINT(currentLocation.cityName);
+    DEBUG_PRINT(", 坐标: ");
+    DEBUG_PRINT(currentLocation.latitude);
+    DEBUG_PRINT(", ");
+    DEBUG_PRINTLN(currentLocation.longitude);
 }

@@ -1,11 +1,7 @@
 #ifndef CORE_SYSTEM_H
 #define CORE_SYSTEM_H
 
-#ifdef ARDUINO
 #include <Arduino.h>
-#else
-#include "arduino_compat.h"
-#endif
 #include "icore_system.h" // 包含ICoreSystem接口和CoreSystemState枚举
 #include "event_bus.h"
 #include "driver_registry.h"
@@ -43,7 +39,6 @@ typedef struct {
 // 核心系统类，作为底层操作系统的核心组件
 class CoreSystem : public ICoreSystem {
 private:
-  static CoreSystem* instance;
   
   // 私有构造函数
   CoreSystem() {
@@ -295,10 +290,8 @@ private:
 public:
   // 获取单例实例
   static CoreSystem* getInstance() {
-    if (instance == nullptr) {
-      instance = new CoreSystem();
-    }
-    return instance;
+    static CoreSystem instance;
+    return &instance;
   }
   
   // 初始化核心系统
@@ -916,7 +909,6 @@ public:
   }
 };
 
-// 初始化单例实例
-CoreSystem* CoreSystem::instance = nullptr;
+
 
 #endif // CORE_SYSTEM_H

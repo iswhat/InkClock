@@ -441,8 +441,149 @@ void DisplayManager::updateDisplay() {
 }
 
 void DisplayManager::updateDisplayPartial() {
-  // 局部刷新已合并到updateDisplay方法中，保持兼容性
-  updateDisplay();
+  if (!displayDriver) {
+    return;
+  }
+  
+  unsigned long currentTime = millis();
+  
+  // 获取各种数据
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  auto weatherManager = DependencyInjectionContainer::getInstance()->getWeatherManager();
+  auto sensorManager = DependencyInjectionContainer::getInstance()->getSensorManager();
+  auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+  auto messageManager = DependencyInjectionContainer::getInstance()->getMessageManager();
+  auto stockManager = DependencyInjectionContainer::getInstance()->getStockManager();
+  
+  // 检查是否需要刷新时钟
+  bool needClockRefresh = false;
+  if (timeManager) {
+    TimeData timeData = timeManager->getTimeData();
+    if (timeData.second != lastClockSecond) {
+      needClockRefresh = true;
+      lastClockSecond = timeData.second;
+    }
+  }
+  
+  // 检查是否需要刷新天气
+  bool needWeatherRefresh = false;
+  if (weatherManager && currentTime - lastWeatherUpdateTime >= 7200000) {
+    needWeatherRefresh = true;
+    lastWeatherUpdateTime = currentTime;
+  }
+  
+  // 检查是否需要刷新传感器数据
+  bool needSensorRefresh = false;
+  if (sensorManager) {
+    SensorData sensor = sensorManager->getSensorData();
+    if ((abs(sensor.temperature - lastTemperature) >= 0.5 || 
+         abs(sensor.humidity - lastHumidity) >= 5.0) ||
+        (currentTime - lastSensorUpdateTime >= 300000)) { // 5分钟
+      needSensorRefresh = true;
+      lastTemperature = sensor.temperature;
+      lastHumidity = sensor.humidity;
+      lastSensorUpdateTime = currentTime;
+    }
+  }
+  
+  // 检查是否需要刷新电池信息
+  bool needBatteryRefresh = false;
+  if (powerManager) {
+    int batteryPercentage = powerManager->getBatteryPercentage();
+    if (abs(batteryPercentage - lastBatteryPercentage) > 5) {
+      needBatteryRefresh = true;
+      lastBatteryPercentage = batteryPercentage;
+    }
+  }
+  
+  // 检查是否需要刷新消息通知
+  bool needMessageRefresh = false;
+  if (messageManager) {
+    int messageCount = messageManager->getUnreadMessageCount();
+    if (messageCount != lastMessageCount) {
+      needMessageRefresh = true;
+      lastMessageCount = messageCount;
+      lastMessageUpdateTime = currentTime;
+    }
+  }
+  
+  // 检查是否需要刷新右侧面板
+  bool needRightPanelRefresh = false;
+  if (currentRightPage == RIGHT_PAGE_STOCK && stockManager) {
+    if (currentTime - lastStockUpdateTime >= 60000) { // 1分钟
+      needRightPanelRefresh = true;
+      lastStockUpdateTime = currentTime;
+    }
+  } else if (currentRightPage == RIGHT_PAGE_CALENDAR) {
+    if (currentTime - lastCalendarUpdateTime >= 3600000) { // 1小时
+      needRightPanelRefresh = true;
+      lastCalendarUpdateTime = currentTime;
+    }
+  }
+  
+  // 执行局部刷新
+  if (needClockRefresh) {
+    // 只刷新时钟区域
+    if (timeManager) {
+      if (currentClockMode == CLOCK_MODE_DIGITAL) {
+        drawDigitalClock(20, 60, timeManager->getTimeString(), timeManager->getDateString());
+      } else if (currentClockMode == CLOCK_MODE_ANALOG) {
+        TimeData timeData = timeManager->getTimeData();
+        drawAnalogClock(leftPanelWidth / 2, 120, timeData.hour, timeData.minute, timeData.second);
+      } else if (currentClockMode == CLOCK_MODE_TEXT) {
+        TimeData timeData = timeManager->getTimeData();
+        drawTextClock(20, 60, timeData.hour, timeData.minute, timeData.second);
+      }
+      displayDriver->update(0, 0, leftPanelWidth, height < 400 ? 150 : 250);
+    }
+  }
+  
+  if (needWeatherRefresh && weatherManager) {
+    // 只刷新天气区域
+    WeatherData weather = weatherManager->getWeatherData();
+    drawWeather(20, height < 400 ? 140 : 220, weather.city, 
+                (weather.temp != 0 ? String(weather.temp) : "--") + "°C", 
+                weather.condition, "", "");
+    displayDriver->update(0, height < 400 ? 140 : 220, leftPanelWidth, height < 400 ? 80 : 120);
+  }
+  
+  if (needSensorRefresh && sensorManager) {
+    // 只刷新传感器数据区域
+    SensorData sensor = sensorManager->getSensorData();
+    drawSensorData(20, height < 400 ? 220 : 340, sensor.temperature, sensor.humidity);
+    displayDriver->update(0, height < 400 ? 220 : 340, leftPanelWidth, height < 400 ? 60 : 100);
+  }
+  
+  if (needBatteryRefresh || needMessageRefresh) {
+    // 只刷新底部区域
+    if (powerManager && messageManager) {
+      float batteryVoltage = powerManager->getBatteryVoltage();
+      int batteryPercentage = powerManager->getBatteryPercentage();
+      bool isCharging = powerManager->getChargingStatus();
+      int messageCount = messageManager->getUnreadMessageCount();
+      
+      drawBatteryInfo(20, height < 400 ? 340 : 560, batteryVoltage, batteryPercentage, isCharging);
+      drawMessageNotification(20, height < 400 ? 380 : 600, messageCount);
+      displayDriver->update(0, height < 400 ? 340 : 560, leftPanelWidth, height < 400 ? 60 : 80);
+      
+      // 如果有新消息，启动消息提醒动画
+      if (needMessageRefresh && messageCount > 0) {
+        startMessageAnimation();
+      }
+    }
+  }
+  
+  if (needRightPanelRefresh) {
+    // 只刷新右侧面板
+    drawRightPanel();
+    displayDriver->update(leftPanelWidth, 0, rightPanelWidth, height);
+  }
+  
+  // 更新消息提醒动画
+  updateMessageAnimation();
+  
+  // 更新传感器报警状态
+  updateSensorAlarm();
 }
 
 void DisplayManager::showAlarm(String alarmType, String message) {
@@ -1836,4 +1977,64 @@ void DisplayManager::applyLayout() {
   
   // 触发显示更新
   updateDisplay();
+}
+
+// 日历页面绘制方法
+void DisplayManager::drawCalendarPage(int x, int y) {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  displayDriver->drawString(x, y, "日历页面", GxEPD_BLACK, GxEPD_WHITE, 2);
+  displayDriver->drawString(x, y + 30, "功能待实现", GxEPD_GRAY2, GxEPD_WHITE, 1);
+}
+
+// 股票页面绘制方法
+void DisplayManager::drawStockPage(int x, int y) {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  displayDriver->drawString(x, y, "股票页面", GxEPD_BLACK, GxEPD_WHITE, 2);
+  displayDriver->drawString(x, y + 30, "功能待实现", GxEPD_GRAY2, GxEPD_WHITE, 1);
+}
+
+// 消息页面绘制方法
+void DisplayManager::drawMessagePage(int x, int y) {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  displayDriver->drawString(x, y, "消息页面", GxEPD_BLACK, GxEPD_WHITE, 2);
+  displayDriver->drawString(x, y + 30, "功能待实现", GxEPD_GRAY2, GxEPD_WHITE, 1);
+}
+
+// 插件页面绘制方法
+void DisplayManager::drawPluginPage(int x, int y) {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  displayDriver->drawString(x, y, "插件页面", GxEPD_BLACK, GxEPD_WHITE, 2);
+  displayDriver->drawString(x, y + 30, "功能待实现", GxEPD_GRAY2, GxEPD_WHITE, 1);
+}
+
+// 插件管理页面绘制方法
+void DisplayManager::drawPluginManagePage(int x, int y) {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  displayDriver->drawString(x, y, "插件管理页面", GxEPD_BLACK, GxEPD_WHITE, 2);
+  displayDriver->drawString(x, y + 30, "功能待实现", GxEPD_GRAY2, GxEPD_WHITE, 1);
+}
+
+// 设置页面绘制方法
+void DisplayManager::drawSettingPage(int x, int y) {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  displayDriver->drawString(x, y, "设置页面", GxEPD_BLACK, GxEPD_WHITE, 2);
+  displayDriver->drawString(x, y + 30, "功能待实现", GxEPD_GRAY2, GxEPD_WHITE, 1);
 }

@@ -213,12 +213,19 @@ private:
     uint16_t proxyPort;
     bool useProxy;
     
+    // 网络请求配置
+    unsigned long connectionTimeout; // 连接超时时间（毫秒）
+    int maxRetries; // 最大重试次数
+    unsigned long retryDelay; // 重试延迟（毫秒）
+    
     // 统计信息
     unsigned long totalRequests;
     unsigned long successfulRequests;
     unsigned long failedRequests;
     unsigned long cachedRequests;
     unsigned long totalResponseTime;
+    unsigned long cacheHits; // 缓存命中次数
+    unsigned long cacheMisses; // 缓存未命中次数
 };
 
 #endif // API_MANAGER_H

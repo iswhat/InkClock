@@ -49,11 +49,29 @@ private:
   void handleApi();
   // IPv6推送功能API（合并自IPv6Server）
   void handleMessagePush();
+  void handleMessageGet();
+  void handleMessageDelete();
+  void handleMessageMarkRead();
   void handleDeviceStatus();
   // 远程控制API
   void handleRemoteControl();
   void handleDataSync();
   void handleRefreshDisplay();
+  // API处理函数
+  void handlePluginListApi();
+  void handleFontListApi();
+  void handleTFCardStatusApi();
+  void handleTFCardFilesApi();
+  void handleTFCardDeleteApi();
+  void handlePluginEnableApi();
+  void handlePluginDisableApi();
+  void handlePluginDeleteApi();
+  void handleFontSetDefaultApi();
+  void handleFontDeleteApi();
+  // 股票数据API
+  void handleStockListApi();
+  void handleStockAddApi();
+  void handleStockDeleteApi();
   // 辅助函数
   void sendJsonResponse(const String& json, int statusCode = 200);
   String getCurrentTime();

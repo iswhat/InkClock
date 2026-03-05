@@ -1,11 +1,7 @@
 #ifndef DISPLAY_MANAGER_H
 #define DISPLAY_MANAGER_H
 
-#ifdef ARDUINO
 #include <Arduino.h>
-#else
-#include "../coresystem/arduino_compat.h"
-#endif
 #include "../coresystem/config.h"
 #include "../coresystem/event_bus.h"
 #include "../coresystem/data_types.h"

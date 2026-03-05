@@ -90,6 +90,15 @@ public:
     // 按优先级排序插件
     std::vector<IPlugin*> getPluginsByPriority();
     
+    // 从文件加载插件
+    bool loadPluginFromFile(const String& filePath);
+    
+    // 卸载插件
+    bool unloadPlugin(const std::string& name);
+    
+    // 扫描插件目录
+    void scanPlugins();
+    
 private:
     PluginManager();
     ~PluginManager();

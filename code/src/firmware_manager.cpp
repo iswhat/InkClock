@@ -31,7 +31,7 @@
 
 // 创建SD对象
 #ifdef ESP32
-SdFat SD;
+SdFat sd;
 #elif ESP8266
 // ESP8266使用内置的SD库
 #endif
@@ -216,13 +216,13 @@ void FirmwareManager::rebootDevice() {
 bool FirmwareManager::mountTF() {
   // 挂载TF卡
   #ifdef ESP32
-  if (!SD.begin(SD_CS)) {
+  if (!sd.begin(SD_CS)) {
     logUpdateStatus("SD card mount failed");
     return false;
   }
   
   // 检查SD卡是否存在（通过尝试获取卡类型）
-  if (SD.card()->type() == 0) {
+  if (sd.card()->type() == 0) {
     logUpdateStatus("No SD card attached");
     return false;
   }
@@ -240,7 +240,7 @@ bool FirmwareManager::mountTF() {
 
 void FirmwareManager::unmountTF() {
   #ifdef ESP32
-  SD.end();
+  sd.end();
   #elif ESP8266
   SD.end();
   #endif
@@ -249,6 +249,21 @@ void FirmwareManager::unmountTF() {
 
 bool FirmwareManager::checkTFValidity() {
   // 检查TF卡上是否存在有效的固件文件
+  #ifdef ESP32
+  if (!sd.exists("/firmware.bin")) {
+    logUpdateStatus("Firmware file not found: /firmware.bin", ERROR_FILE_NOT_FOUND);
+    return false;
+  }
+  
+  // 检查固件版本信息文件是否存在
+  if (!sd.exists("/firmware_info.json")) {
+    logUpdateStatus("Firmware info file not found: /firmware_info.json", ERROR_FILE_NOT_FOUND);
+    return false;
+  }
+  
+  // 读取固件版本信息
+  FsFile infoFile = sd.open("/firmware_info.json");
+  #elif ESP8266
   if (!SD.exists("/firmware.bin")) {
     logUpdateStatus("Firmware file not found: /firmware.bin", ERROR_FILE_NOT_FOUND);
     return false;
@@ -261,9 +276,6 @@ bool FirmwareManager::checkTFValidity() {
   }
   
   // 读取固件版本信息
-  #ifdef ESP32
-  FsFile infoFile = SD.open("/firmware_info.json");
-  #elif ESP8266
   File infoFile = SD.open("/firmware_info.json");
   #endif
   if (!infoFile) {
@@ -601,29 +613,42 @@ bool FirmwareManager::downloadFirmware(String url, String filename) {
     if (timeout) {
       logUpdateStatus("Download timed out, retrying...");
       retryCount++;
+      #ifdef ESP32
+      sd.remove(filename);
+      #elif ESP8266
       SD.remove(filename);
+      #endif
       continue;
     }
     
     if (totalBytesWritten != firmwareSize) {
       logUpdateStatus("Download incomplete, expected " + String(firmwareSize) + " bytes, got " + String(totalBytesWritten) + " bytes");
+      #ifdef ESP32
+      sd.remove(filename);
+      #elif ESP8266
       SD.remove(filename);
+      #endif
       retryCount++;
       continue;
     }
     
     // 验证下载的固件文件完整性
-    #ifdef ESP32
-    if (!tempFile.open(filename.c_str(), O_RDONLY)) {
-    #elif ESP8266
-    File verifyFile = SD.open(filename, FILE_READ);
-    if (!verifyFile) {
-    #endif
-      logUpdateStatus("Failed to open downloaded firmware file for verification");
-      SD.remove(filename);
-      retryCount++;
-      continue;
-    }
+  #ifdef ESP32
+  if (!tempFile.open(filename.c_str(), O_RDONLY)) {
+    logUpdateStatus("Failed to open downloaded firmware file for verification");
+    sd.remove(filename);
+    retryCount++;
+    continue;
+  }
+  #elif ESP8266
+  File verifyFile = SD.open(filename, FILE_READ);
+  if (!verifyFile) {
+    logUpdateStatus("Failed to open downloaded firmware file for verification");
+    SD.remove(filename);
+    retryCount++;
+    continue;
+  }
+  #endif
     
     #ifdef ESP32
     tempFile.close();
@@ -649,14 +674,18 @@ bool FirmwareManager::installOTAUpdate(String filename) {
   #ifdef ESP32
   SdFile firmwareFile;
   if (!firmwareFile.open(filename.c_str(), O_RDONLY)) {
+    logUpdateStatus("Failed to open downloaded firmware file");
+    sd.remove(filename);
+    return false;
+  }
   #elif ESP8266
   File firmwareFile = SD.open(filename, FILE_READ);
   if (!firmwareFile) {
-  #endif
     logUpdateStatus("Failed to open downloaded firmware file");
     SD.remove(filename);
     return false;
   }
+  #endif
   
   #ifdef ESP32
   uint32_t firmwareSize = firmwareFile.fileSize();
@@ -712,7 +741,11 @@ bool FirmwareManager::installOTAUpdate(String filename) {
       if (!backupCriticalConfig()) {
         logUpdateStatus("Failed to backup critical configuration");
         firmwareFile.close();
+        #ifdef ESP32
+        sd.remove(filename);
+        #elif ESP8266
         SD.remove(filename);
+        #endif
         disableWatchdog();
         return false; // 配置备份失败，不需要重试
       }
@@ -725,7 +758,11 @@ bool FirmwareManager::installOTAUpdate(String filename) {
       if (!backupCurrentPartition()) {
         logUpdateStatus("Failed to backup current partition");
         firmwareFile.close();
+        #ifdef ESP32
+        sd.remove(filename);
+        #elif ESP8266
         SD.remove(filename);
+        #endif
         disableWatchdog();
         return false; // 分区备份失败，不需要重试
       }
@@ -813,7 +850,11 @@ bool FirmwareManager::installOTAUpdate(String filename) {
     success = true;
   }
   
+  #ifdef ESP32
+  sd.remove(filename);
+  #elif ESP8266
   SD.remove(filename);
+  #endif
   
   if (!success) {
     logUpdateStatus("Failed to install OTA firmware after " + String(maxRetries) + " attempts");

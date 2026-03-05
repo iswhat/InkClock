@@ -1,4 +1,5 @@
 #include "error_handling.h"
+#include "spiffs_manager.h"
 #include <sstream>
 #include <iomanip>
 #include <new>  // For std::nothrow
@@ -148,11 +149,19 @@ void ErrorHandlingManager::init(size_t maxHistorySize) {
     
     maxErrorHistorySize = maxHistorySize;
     
+    // 初始化SPIFFS
+    initSPIFFS();
+    
     // 注册默认的控制台错误处理器
     auto consoleHandler = std::make_shared<ConsoleErrorHandler>();
     registerHandler(consoleHandler);
     
+    // 注册文件错误处理器
+    auto fileHandler = std::make_shared<FileErrorHandler>();
+    registerHandler(fileHandler);
+    
     initialized = true;
+    Serial.println("ErrorHandlingManager initialized with console and file handlers");
 }
 
 // 注册错误处理器
@@ -399,10 +408,21 @@ void FileErrorHandler::logError(std::shared_ptr<ErrorInfo> error) {
     // 检查日志文件大小
     rotateLogFile();
     
-    // 这里可以添加文件写入逻辑
-    // 注意：在Arduino环境中，需要使用SD库或SPIFFS库来操作文件
-    String errorJson = error->toJson();
-    Serial.printf("[FILE_LOG] Writing error to log file: %s\n", errorJson.c_str());
+    // 使用SPIFFS写入错误日志
+    if (isSPIFFSMounted()) {
+        FS& fs = getSPIFFS();
+        File file = fs.open(logFileName, FILE_APPEND);
+        if (file) {
+            String errorJson = error->toJson();
+            file.println(errorJson);
+            file.close();
+            Serial.printf("[FILE_LOG] Error written to log file: %s\n", errorJson.c_str());
+        } else {
+            Serial.printf("[FILE_LOG] Failed to open log file: %s\n", logFileName.c_str());
+        }
+    } else {
+        Serial.println("[FILE_LOG] SPIFFS not mounted, cannot write error log");
+    }
 }
 
 void FileErrorHandler::recoverFromError(std::shared_ptr<ErrorInfo> error) {
@@ -419,14 +439,26 @@ void FileErrorHandler::recoverFromError(std::shared_ptr<ErrorInfo> error) {
         case RECOVERY_STRATEGY_RESET:
             Serial.printf("[RECOVERY] Resetting system due to error: %s\n", 
                 error->getErrorId().c_str());
+            // 实现系统重置逻辑
+            delay(1000);
+            ESP.restart();
             break;
         case RECOVERY_STRATEGY_SHUTDOWN:
             Serial.printf("[RECOVERY] Shutting down system due to critical error: %s\n", 
                 error->getErrorId().c_str());
+            // 实现系统关机逻辑
+            // 在ESP32上，可以进入深度睡眠模式
+            #if defined(ESP32)
+            esp_sleep_enable_timer_wakeup(86400000000ULL); // 24小时后唤醒
+            esp_deep_sleep_start();
+            #elif defined(ESP8266)
+            ESP.deepSleep(86400000000ULL); // 24小时后唤醒
+            #endif
             break;
         case RECOVERY_STRATEGY_FALLBACK:
             Serial.printf("[RECOVERY] Switching to fallback mode due to error: %s\n", 
                 error->getErrorId().c_str());
+            // 实现回退到备用模式的逻辑
             break;
         case RECOVERY_STRATEGY_IGNORE:
         default:
@@ -435,7 +467,27 @@ void FileErrorHandler::recoverFromError(std::shared_ptr<ErrorInfo> error) {
 }
 
 void FileErrorHandler::rotateLogFile() {
-    // 这里可以添加日志文件轮换逻辑
-    // 注意：在Arduino环境中，需要使用SD库或SPIFFS库来操作文件
-    Serial.println("[FILE_LOG] Checking log file size...");
+    // 使用SPIFFS检查和轮换日志文件
+    if (isSPIFFSMounted()) {
+        FS& fs = getSPIFFS();
+        if (fs.exists(logFileName)) {
+            File file = fs.open(logFileName, FILE_READ);
+            if (file) {
+                size_t fileSize = file.size();
+                file.close();
+                
+                if (fileSize >= maxLogFileSize) {
+                    // 轮换日志文件
+                    String backupFileName = logFileName + ".bak";
+                    if (fs.exists(backupFileName)) {
+                        fs.remove(backupFileName);
+                    }
+                    fs.rename(logFileName, backupFileName);
+                    Serial.printf("[FILE_LOG] Log file rotated, backup created: %s\n", backupFileName.c_str());
+                }
+            }
+        }
+    } else {
+        Serial.println("[FILE_LOG] SPIFFS not mounted, cannot rotate log file");
+    }
 }

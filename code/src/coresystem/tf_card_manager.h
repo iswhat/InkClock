@@ -2,6 +2,7 @@
 #define TF_CARD_MANAGER_H
 
 #include <Arduino.h>
+#include "config.h"
 
 #if defined(ESP32)
 #include <FS.h>
@@ -226,8 +227,7 @@ public:
     }
 };
 
-// 初始化单例实例
-TFCardManager* TFCardManager::instance = nullptr;
+
 
 // 方便使用的全局函数
 inline bool initTFCard(uint8_t csPin = 5) {

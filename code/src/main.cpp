@@ -20,6 +20,7 @@
 #include "coresystem/config_manager.h"
 #include "coresystem/core_system.h"
 #include "coresystem/platform_abstraction.h"
+#include "coresystem/dependency_injection.h"
 #include "application/display_manager.h"
 #include "drivers/peripherals/display_driver.h"
 #include "drivers/peripherals/eink_driver.h"
@@ -76,31 +77,31 @@
 
 // 条件包含可选模块 - 可通过修改这些宏来启用或禁用相应功能
 // 音频功能 - 用于音频录制和播放
-#define ENABLE_AUDIO true      
+#define ENABLE_AUDIO false      
 
 // 蓝牙功能 - 用于首次WiFi配置和蓝牙通信
-#define ENABLE_BLUETOOTH true   
+#define ENABLE_BLUETOOTH false   
 
 // 摄像头功能 - 用于图像识别和监控
 #define ENABLE_CAMERA false     
 
 // 股票功能 - 用于获取和显示股票数据
-#define ENABLE_STOCK true       
+#define ENABLE_STOCK false       
 
 // 消息功能 - 用于接收和显示消息
-#define ENABLE_MESSAGE true     
+#define ENABLE_MESSAGE false     
 
 // 字体功能 - 用于字体管理和选择
-#define ENABLE_FONT true        
+#define ENABLE_FONT false        
 
 // 插件功能 - 用于扩展功能
-#define ENABLE_PLUGIN true      
+#define ENABLE_PLUGIN false      
 
 // Web客户端功能 - 用于与Web服务器通信
-#define ENABLE_WEBCLIENT true   
+#define ENABLE_WEBCLIENT false   
 
 // 场景管理功能 - 用于场景模式管理
-#define ENABLE_SCENE true       
+#define ENABLE_SCENE false       
 
 // IPv6功能 - 用于IPv6网络支持
 #define ENABLE_IPV6 false       
@@ -118,7 +119,7 @@
 #define ENABLE_TF_CARD_MANAGEMENT false 
 
 // 报警显示功能 - 用于显示报警信息和闪烁效果
-#define ENABLE_ALARM_DISPLAY true
+#define ENABLE_ALARM_DISPLAY false
 
 #if ENABLE_AUDIO
   #include "audio_manager.h"
@@ -747,12 +748,17 @@ class PowerModuleWrapper : public IModule {
     PowerModuleWrapper() {}
     
     void init() override {
-      PowerManager::getInstance()->init();
+      auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+      if (powerManager) {
+        powerManager->init();
+      }
     }
     
     void loop() override {
-      // PowerManager 没有 loop() 方法，这里调用 updatePowerState() 来更新电源状态
-      PowerManager::getInstance()->updatePowerState();
+      auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+      if (powerManager) {
+        powerManager->updatePowerState();
+      }
     }
     
     String getName() const override {
@@ -764,7 +770,11 @@ class PowerModuleWrapper : public IModule {
     }
     
     PowerManager& getPowerManager() {
-      return *PowerManager::getInstance();
+      static PowerManager* powerManager = nullptr;
+      if (!powerManager) {
+        powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+      }
+      return *powerManager;
     }
 };
 
@@ -1102,7 +1112,12 @@ void initInputDevices() {
       int btLedPin = CONFIG_GET_INT("led.bt_pin", 14);
       feedbackModule->getFeedbackManager().setLEDPins(powerLedPin, wifiLedPin, btLedPin);
       // 设置屏幕驱动
-      feedbackModule->getFeedbackManager().setDisplayDriver((void*)displayModule->getDisplayManager().getDisplayDriver());
+      // 通过DriverRegistry获取显示驱动
+      DriverRegistry* registry = DriverRegistry::getInstance();
+      IDisplayDriver* displayDriver = registry->autoDetectDisplayDriver();
+      if (displayDriver) {
+        feedbackModule->getFeedbackManager().setDisplayDriver((void*)displayDriver);
+      }
     }
   }
   

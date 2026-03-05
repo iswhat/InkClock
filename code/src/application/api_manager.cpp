@@ -30,6 +30,9 @@ APIManager::APIManager() {
     useProxy = false;
     proxyPort = 0;
     maxCacheSize = 100; // 默认最大缓存大小为100项
+    connectionTimeout = 10000; // 连接超时时间（毫秒）
+    maxRetries = 3; // 最大重试次数
+    retryDelay = 1000; // 重试延迟（毫秒）
     
     // 初始化统计信息
     totalRequests = 0;
@@ -37,6 +40,8 @@ APIManager::APIManager() {
     failedRequests = 0;
     cachedRequests = 0;
     totalResponseTime = 0;
+    cacheHits = 0;
+    cacheMisses = 0;
 }
 
 APIManager::~APIManager() {
@@ -103,9 +108,12 @@ ApiResponse APIManager::sendRequest(const ApiRequest& request) {
             // 使用缓存数据
             response.status = API_STATUS_CACHED;
             cachedRequests++;
+            cacheHits++;
             DEBUG_PRINTLN("使用缓存数据：" + cacheKey);
             return response;
         }
+    } else {
+        cacheMisses++;
     }
     
     // 清理过期缓存
@@ -123,83 +131,99 @@ ApiResponse APIManager::sendRequest(const ApiRequest& request) {
     // 设置请求超时
     unsigned long requestTimeout = request.timeout > 0 ? request.timeout : API_DEFAULT_TIMEOUT;
     
-    // 开始HTTP请求
-    #if PLATFORM_ESP32 || PLATFORM_ESP8266
-    httpClient->setTimeout(requestTimeout);
-    #if PLATFORM_ESP32
-    httpClient->setReuse(true); // 启用连接重用，减少连接建立开销
-    #endif
+    // 重试机制
+    int retryCount = 0;
+    bool requestSuccess = false;
     
-    // 设置证书验证
-    if (!verifyCertificate) {
-        wifiClient->setInsecure(); // 禁用证书验证
-    }
-    
-    // 发送请求
-    int httpCode = -1;
-    if (request.method.equalsIgnoreCase("GET")) {
-        if (!httpClient->begin(*wifiClient, fullUrl)) {
-            response.error = "初始化HTTP请求失败";
-            response.status = API_STATUS_ERROR;
+    while (retryCount < maxRetries && !requestSuccess) {
+        // 开始HTTP请求
+        #if PLATFORM_ESP32 || PLATFORM_ESP8266
+        httpClient->setTimeout(requestTimeout);
+        #if PLATFORM_ESP32
+        httpClient->setReuse(true); // 启用连接重用，减少连接建立开销
+        #endif
+        
+        // 设置证书验证
+        if (!verifyCertificate) {
+            wifiClient->setInsecure(); // 禁用证书验证
+        }
+        
+        // 发送请求
+        int httpCode = -1;
+        if (request.method.equalsIgnoreCase("GET")) {
+            if (!httpClient->begin(*wifiClient, fullUrl)) {
+                response.error = "初始化HTTP请求失败";
+                response.status = API_STATUS_ERROR;
+                retryCount++;
+                DEBUG_PRINTLN("API请求失败：初始化HTTP请求失败，重试 " + String(retryCount) + "/" + String(maxRetries));
+                delay(retryDelay);
+                continue;
+            }
+            httpCode = httpClient->GET();
+        } else if (request.method.equalsIgnoreCase("POST")) {
+            if (!httpClient->begin(*wifiClient, fullUrl)) {
+                response.error = "初始化HTTP请求失败";
+                response.status = API_STATUS_ERROR;
+                retryCount++;
+                DEBUG_PRINTLN("API请求失败：初始化HTTP请求失败，重试 " + String(retryCount) + "/" + String(maxRetries));
+                delay(retryDelay);
+                continue;
+            }
+            httpClient->addHeader("Content-Type", "application/json");
+            httpCode = httpClient->POST(request.body);
+        } else {
+            response.error = "不支持的请求方法：" + request.method;
+            DEBUG_PRINTLN(response.error);
             failedRequests++;
-            DEBUG_PRINTLN("API请求失败：初始化HTTP请求失败");
             return response;
         }
-        httpCode = httpClient->GET();
-    } else if (request.method.equalsIgnoreCase("POST")) {
-        if (!httpClient->begin(*wifiClient, fullUrl)) {
-            response.error = "初始化HTTP请求失败";
-            response.status = API_STATUS_ERROR;
-            failedRequests++;
-            DEBUG_PRINTLN("API请求失败：初始化HTTP请求失败");
-            return response;
-        }
-        httpClient->addHeader("Content-Type", "application/json");
-        httpCode = httpClient->POST(request.body);
-    } else {
-        response.error = "不支持的请求方法：" + request.method;
-        DEBUG_PRINTLN(response.error);
-        failedRequests++;
-        return response;
-    }
-    
-    // 发送请求并获取响应
-    if (httpCode > 0) {
-        // 请求成功，读取响应内容
-        String responseContent = httpClient->getString();
         
-        // 填充响应对象
-        response.httpCode = httpCode;
-        response.response = responseContent;
-        
-        if (httpCode >= 200 && httpCode < 300) {
-            // 请求成功
-            response.status = API_STATUS_SUCCESS;
-            successfulRequests++;
-            DEBUG_PRINTLN("API请求成功：" + String(httpCode) + "，URL：" + fullUrl);
+        // 发送请求并获取响应
+        if (httpCode > 0) {
+            // 请求成功，读取响应内容
+            String responseContent = httpClient->getString();
             
-            // 保存缓存
-            if (request.cacheTime > 0) {
-                saveCache(cacheKey, response, request.cacheTime);
+            // 填充响应对象
+            response.httpCode = httpCode;
+            response.response = responseContent;
+            
+            if (httpCode >= 200 && httpCode < 300) {
+                // 请求成功
+                response.status = API_STATUS_SUCCESS;
+                successfulRequests++;
+                DEBUG_PRINTLN("API请求成功：" + String(httpCode) + "，URL：" + fullUrl);
+                
+                // 保存缓存
+                if (request.cacheTime > 0) {
+                    saveCache(cacheKey, response, request.cacheTime);
+                }
+                requestSuccess = true;
+            } else {
+                // 请求失败
+                response.status = API_STATUS_ERROR;
+                response.error = "HTTP错误：" + String(httpCode) + "，URL：" + fullUrl;
+                retryCount++;
+                DEBUG_PRINTLN("API请求失败：" + String(httpCode) + "，URL：" + fullUrl + "，重试 " + String(retryCount) + "/" + String(maxRetries));
+                delay(retryDelay);
             }
         } else {
             // 请求失败
-            response.status = API_STATUS_ERROR;
-            response.error = "HTTP错误：" + String(httpCode) + "，URL：" + fullUrl;
-            failedRequests++;
-            DEBUG_PRINTLN("API请求失败：" + String(httpCode) + "，URL：" + fullUrl);
+            response.status = API_STATUS_TIMEOUT;
+            response.error = "请求超时：" + httpClient->errorToString(httpCode) + "，URL：" + fullUrl;
+            retryCount++;
+            DEBUG_PRINTLN("API请求超时：" + httpClient->errorToString(httpCode) + "，URL：" + fullUrl + "，重试 " + String(retryCount) + "/" + String(maxRetries));
+            delay(retryDelay);
         }
-    } else {
-        // 请求失败
-        response.status = API_STATUS_TIMEOUT;
-        response.error = "请求超时：" + httpClient->errorToString(httpCode) + "，URL：" + fullUrl;
-        failedRequests++;
-        DEBUG_PRINTLN("API请求超时：" + httpClient->errorToString(httpCode) + "，URL：" + fullUrl);
+        
+        // 结束HTTP请求
+        httpClient->end();
+        #endif
     }
     
-    // 结束HTTP请求
-    httpClient->end();
-    #endif
+    // 如果所有重试都失败
+    if (!requestSuccess) {
+        failedRequests++;
+    }
     
     // 计算响应时间
     unsigned long responseTime = millis() - response.timestamp;
@@ -374,10 +398,17 @@ String APIManager::getStats() {
     stats += "失败请求：" + String(failedRequests) + "\n";
     stats += "缓存请求：" + String(cachedRequests) + "\n";
     stats += "缓存大小：" + String(getCacheSize()) + "\n";
+    stats += "缓存命中：" + String(cacheHits) + "\n";
+    stats += "缓存未命中：" + String(cacheMisses) + "\n";
     
     if (totalRequests > 0) {
         unsigned long avgResponseTime = totalResponseTime / totalRequests;
         stats += "平均响应时间：" + String(avgResponseTime) + "ms\n";
+    }
+    
+    if (cacheHits + cacheMisses > 0) {
+        float cacheHitRate = (float)cacheHits / (cacheHits + cacheMisses) * 100;
+        stats += "缓存命中率：" + String(cacheHitRate, 2) + "%\n";
     }
     
     return stats;

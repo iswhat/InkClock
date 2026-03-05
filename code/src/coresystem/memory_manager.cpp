@@ -69,6 +69,11 @@ void* MemoryManager::allocateFromPool(void* poolPtr, size_t size, const char* fi
       allocation.time = platformGetMillis();
       allocations.push_back(allocation);
       
+      // 定期优化内存使用
+      if (allocations.size() % 10 == 0) {
+        optimizeMemoryUsage();
+      }
+      
       return ptr;
     }
   }
@@ -293,18 +298,31 @@ void MemoryManager::mergeSimilarPools() {
     if (entry.second.size() > 1) {
       // 计算总块数
       size_t totalBlocks = 0;
+      size_t totalFreeBlocks = 0;
       for (size_t index : entry.second) {
         totalBlocks += memoryPools[index].blockCount;
+        totalFreeBlocks += memoryPools[index].freeBlocks;
       }
       
-      // 创建新的合并内存池
-      void* newPool = createMemoryPool(entry.first, totalBlocks);
-      if (newPool) {
-        // 复制数据并销毁旧内存池
-        for (size_t index : entry.second) {
-          auto& oldPool = memoryPools[index];
-          // 这里可以添加数据迁移逻辑
-          // 注意：实际应用中需要更复杂的处理
+      // 只有当空闲块比例较高时才合并
+      if (totalFreeBlocks > totalBlocks * 0.5) {
+        // 创建新的合并内存池
+        void* newPool = createMemoryPool(entry.first, totalBlocks);
+        if (newPool) {
+          // 销毁旧内存池
+          std::vector<size_t> poolsToRemove = entry.second;
+          // 按索引从大到小排序，避免删除时影响其他索引
+          std::sort(poolsToRemove.begin(), poolsToRemove.end(), std::greater<size_t>());
+          for (size_t index : poolsToRemove) {
+            if (index < memoryPools.size()) {
+              auto& oldPool = memoryPools[index];
+              totalAllocatedMemory -= oldPool.blockSize * oldPool.blockCount + sizeof(void*) * oldPool.blockCount;
+              free(oldPool.freeList);
+              free(oldPool.pool);
+              memoryPools.erase(memoryPools.begin() + index);
+            }
+          }
+          Serial.printf("[MemoryManager] Merged %zu memory pools with block size %zu\n", entry.second.size(), entry.first);
         }
       }
     }
@@ -357,19 +375,34 @@ void MemoryManager::defragmentMemory() {
   #ifdef ARDUINO
     #if defined(ESP32)
       // ESP32 内存碎片整理
-      // 这里可以添加 ESP32 特定的内存碎片整理代码
+      // 尝试分配和释放不同大小的内存块来整理碎片
+      for (size_t size = 4096; size >= 512; size /= 2) {
+        void* temp = malloc(size);
+        if (temp) {
+          free(temp);
+          break; // 成功分配后停止
+        }
+      }
     #elif defined(ESP8266)
       // ESP8266 内存碎片整理
       // 尝试分配和释放大内存块来整理碎片
-      void* temp = malloc(1024);
-      if (temp) {
-        free(temp);
+      for (size_t size = 4096; size >= 512; size /= 2) {
+        void* temp = malloc(size);
+        if (temp) {
+          free(temp);
+          break; // 成功分配后停止
+        }
       }
     #endif
   #endif
   
   // 清理未使用的内存池
   optimizeMemoryUsage();
+  
+  // 打印内存碎片整理结果
+  size_t totalMemory, usedMemory, peakMemory, freeMemory;
+  getMemoryStats(totalMemory, usedMemory, peakMemory, freeMemory);
+  Serial.printf("[MemoryManager] Memory defragmentation completed. Free memory: %zu bytes\n", freeMemory);
 }
 
 // 优化内存使用

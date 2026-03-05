@@ -20,10 +20,8 @@
   #define FILE_WRITE "w"
 #endif
 
-// 外部全局对象
-extern WiFiManager wifiManager;
-extern TimeManager timeManager;
-extern APIManager apiManager;
+// 包含依赖注入容器
+#include "coresystem/dependency_injection.h"
 
 // 股票API配置 - 使用公共免密钥API
 #define STOCK_API_HOST_PRIMARY "api.money.126.net" // 主股票API（网易财经，公共免密钥）
@@ -123,7 +121,8 @@ void StockManager::init() {
 
 void StockManager::update() {
   // 只在WiFi连接时更新股票数据
-  if (!wifiManager.isConnected()) {
+  auto wifiManager = DependencyInjectionContainer::getInstance()->getWiFiManager();
+  if (!wifiManager || !wifiManager->isConnected()) {
     return;
   }
   
@@ -265,7 +264,8 @@ bool StockManager::fetchStockChartData(String code, String market, StockData &da
   DEBUG_PRINTLN(code);
   
   // 检查WiFi连接
-  if (!wifiManager.isConnected()) {
+  auto wifiManager = DependencyInjectionContainer::getInstance()->getWiFiManager();
+  if (!wifiManager || !wifiManager->isConnected()) {
     DEBUG_PRINTLN("WiFi未连接，无法获取股票曲线数据");
     return false;
   }
@@ -276,7 +276,12 @@ bool StockManager::fetchStockChartData(String code, String market, StockData &da
   DEBUG_PRINT("尝试获取曲线数据: ");
   DEBUG_PRINTLN(chartUrl);
   
-  ApiResponse chartResponse = apiManager.get(chartUrl, API_TYPE_STOCK, 600000); // 缓存10分钟
+  auto apiManager = DependencyInjectionContainer::getInstance()->getAPIManager();
+  if (!apiManager) {
+    DEBUG_PRINTLN("无法获取API管理器");
+    return false;
+  }
+  ApiResponse chartResponse = apiManager->get(chartUrl, API_TYPE_STOCK, 600000); // 缓存10分钟
   if (chartResponse.status != API_STATUS_SUCCESS && chartResponse.status != API_STATUS_CACHED) {
     DEBUG_PRINTLN("获取股票曲线数据失败: " + chartResponse.error);
     return false;
@@ -541,7 +546,8 @@ bool StockManager::fetchStockData(String code, StockData &data) {
   DEBUG_PRINTLN("获取股票数据: " + code);
   
   // 检查WiFi连接
-  if (!wifiManager.isConnected()) {
+  auto wifiManager = DependencyInjectionContainer::getInstance()->getWiFiManager();
+  if (!wifiManager || !wifiManager->isConnected()) {
     DEBUG_PRINTLN("WiFi未连接，无法获取股票数据");
     return false;
   }
@@ -551,12 +557,23 @@ bool StockManager::fetchStockData(String code, StockData &data) {
   DEBUG_PRINT("尝试使用主API: ");
   DEBUG_PRINTLN(primaryUrl);
   
-  ApiResponse primaryResponse = apiManager.get(primaryUrl, API_TYPE_STOCK, 600000); // 缓存10分钟
+  auto apiManager = DependencyInjectionContainer::getInstance()->getAPIManager();
+  if (!apiManager) {
+    DEBUG_PRINTLN("无法获取API管理器");
+    return false;
+  }
+  
+  ApiResponse primaryResponse = apiManager->get(primaryUrl, API_TYPE_STOCK, 600000); // 缓存10分钟
   if (primaryResponse.status == API_STATUS_SUCCESS || primaryResponse.status == API_STATUS_CACHED) {
     if (!primaryResponse.response.isEmpty()) {
       if (parseStockData(primaryResponse.response, data, 1)) {
         // 更新时间
-        data.time = timeManager.getTimeString();
+        auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+        if (timeManager) {
+          data.time = timeManager->getTimeString();
+        } else {
+          data.time = "";
+        }
         
         DEBUG_PRINT("股票数据获取成功: " + data.name + " (" + data.code + ") ");
         DEBUG_PRINT(data.price);
@@ -578,12 +595,17 @@ bool StockManager::fetchStockData(String code, StockData &data) {
   DEBUG_PRINT("尝试使用备用API: ");
   DEBUG_PRINTLN(backupUrl);
   
-  ApiResponse backupResponse = apiManager.get(backupUrl, API_TYPE_STOCK, 600000);
+  ApiResponse backupResponse = apiManager->get(backupUrl, API_TYPE_STOCK, 600000);
   if (backupResponse.status == API_STATUS_SUCCESS || backupResponse.status == API_STATUS_CACHED) {
     if (!backupResponse.response.isEmpty()) {
       if (parseStockData(backupResponse.response, data, 2)) {
         // 更新时间
-        data.time = timeManager.getTimeString();
+        auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+        if (timeManager) {
+          data.time = timeManager->getTimeString();
+        } else {
+          data.time = "";
+        }
         
         DEBUG_PRINT("股票数据获取成功: " + data.name + " (" + data.code + ") ");
         DEBUG_PRINT(data.price);
@@ -605,12 +627,17 @@ bool StockManager::fetchStockData(String code, StockData &data) {
   DEBUG_PRINT("尝试使用次备用API: ");
   DEBUG_PRINTLN(secondaryBackupUrl);
   
-  ApiResponse secondaryBackupResponse = apiManager.get(secondaryBackupUrl, API_TYPE_STOCK, 600000);
+  ApiResponse secondaryBackupResponse = apiManager->get(secondaryBackupUrl, API_TYPE_STOCK, 600000);
   if (secondaryBackupResponse.status == API_STATUS_SUCCESS || secondaryBackupResponse.status == API_STATUS_CACHED) {
     if (!secondaryBackupResponse.response.isEmpty()) {
       if (parseStockData(secondaryBackupResponse.response, data, 3)) {
         // 更新时间
-        data.time = timeManager.getTimeString();
+        auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+        if (timeManager) {
+          data.time = timeManager->getTimeString();
+        } else {
+          data.time = "";
+        }
         
         DEBUG_PRINT("股票数据获取成功: " + data.name + " (" + data.code + ") ");
         DEBUG_PRINT(data.price);

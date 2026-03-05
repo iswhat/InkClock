@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <FS.h>
+#include "config.h"
 
 // 为不同平台提供SPIFFS支持
 #if defined(ESP32)
@@ -13,19 +14,16 @@
 
 class SPIFFSManager {
 private:
-    static SPIFFSManager* instance;
     bool initialized;
     bool mounted;
     
     SPIFFSManager() : initialized(false), mounted(false) {}
     
 public:
-    static SPIFFSManager* getInstance() {
-        if (instance == nullptr) {
-            instance = new SPIFFSManager();
+        static SPIFFSManager* getInstance() {
+            static SPIFFSManager instance;
+            return &instance;
         }
-        return instance;
-    }
     
     bool init() {
         if (initialized) {
@@ -87,8 +85,7 @@ public:
     }
 };
 
-// 初始化单例实例
-SPIFFSManager* SPIFFSManager::instance = nullptr;
+
 
 // 方便使用的全局函数
 inline bool initSPIFFS() {

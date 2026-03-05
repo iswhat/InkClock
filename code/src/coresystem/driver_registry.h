@@ -112,7 +112,6 @@ public:
 // 驱动注册中心类
 class DriverRegistry {
 private:
-  static DriverRegistry* instance;
   
   // 驱动列表
   std::map<String, ISensorDriver*> sensorDrivers;     // 传感器驱动，键为驱动名称
@@ -1698,8 +1697,7 @@ public:
   }
 };
 
-// 初始化单例实例
-DriverRegistry* DriverRegistry::instance = nullptr;
+
 
 // 驱动注册宏
 template <typename T>

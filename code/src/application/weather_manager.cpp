@@ -2,10 +2,8 @@
 #include "application/wifi_manager.h"
 #include "application/geo_manager.h"
 
-// 外部全局对象
-extern WiFiManager wifiManager;
-extern APIManager apiManager;
-extern GeoManager geoManager;
+// 包含依赖注入容器
+#include "coresystem/dependency_injection.h"
 
 WeatherManager::WeatherManager() {
   // 初始化天气数据
@@ -54,7 +52,8 @@ void WeatherManager::init() {
 
 void WeatherManager::update() {
   // 只在WiFi连接时更新天气数据
-  if (wifiManager.isConnected()) {
+  auto wifiManager = DependencyInjectionContainer::getInstance()->getWiFiManager();
+  if (wifiManager && wifiManager->isConnected()) {
     if (!fetchWeatherData()) {
       // 如果获取天气数据失败，尝试使用缓存数据
       if (!hasValidData()) {
@@ -87,16 +86,29 @@ bool WeatherManager::fetchWeatherData() {
   DEBUG_PRINTLN("获取天气数据...");
   
   // 获取城市信息
-  String cityName = geoManager.getCityName();
-  String cityId = geoManager.getCityId();
-  float latitude = geoManager.getLatitude();
-  float longitude = geoManager.getLongitude();
+  auto geoManager = DependencyInjectionContainer::getInstance()->getGeoManager();
+  String cityName = "北京"; // 默认城市
+  String cityId = "101010100"; // 默认城市ID
+  float latitude = 39.9042; // 默认纬度
+  float longitude = 116.4074; // 默认经度
+  
+  if (geoManager) {
+    cityName = geoManager->getCityName();
+    cityId = geoManager->getCityId();
+    latitude = geoManager->getLatitude();
+    longitude = geoManager->getLongitude();
+  }
   
   // 构建主API请求URL (wttr.in - 公共免密钥)
   String url = String(WEATHER_API_URL) + cityName + "?format=j1"; // 使用JSON格式
   
   // 使用API管理器发送HTTP请求
-  ApiResponse apiResponse = apiManager.get(url, API_TYPE_WEATHER, 1800000); // 缓存30分钟
+  auto apiManager = DependencyInjectionContainer::getInstance()->getAPIManager();
+  if (!apiManager) {
+    DEBUG_PRINTLN("无法获取API管理器");
+    return false;
+  }
+  ApiResponse apiResponse = apiManager->get(url, API_TYPE_WEATHER, 1800000); // 缓存30分钟
   
   // 检查请求结果
   if (apiResponse.status == API_STATUS_SUCCESS || apiResponse.status == API_STATUS_CACHED) {
@@ -128,7 +140,7 @@ bool WeatherManager::fetchWeatherData() {
                      "&timezone=Asia/Shanghai" + 
                      "&forecast_days=5";
   
-  ApiResponse backupApiResponse = apiManager.get(backupUrl, API_TYPE_WEATHER, 1800000);
+  ApiResponse backupApiResponse = apiManager->get(backupUrl, API_TYPE_WEATHER, 1800000);
   
   if (backupApiResponse.status == API_STATUS_SUCCESS || backupApiResponse.status == API_STATUS_CACHED) {
     String backupResponse = backupApiResponse.response;
@@ -426,7 +438,13 @@ bool WeatherManager::parseWeatherDataBackup(String json) {
     return false;
   }
   
-  currentWeather.city = geoManager.getCityName(); // 使用已知的城市名称
+  // 使用已知的城市名称
+  auto geoManager = DependencyInjectionContainer::getInstance()->getGeoManager();
+  if (geoManager) {
+    currentWeather.city = geoManager->getCityName();
+  } else {
+    currentWeather.city = "北京";
+  }
   currentWeather.temp = current["temperature"].as<float>();
   currentWeather.humidity = 0; // open-meteo当前天气不提供湿度
   currentWeather.condition = "未知";

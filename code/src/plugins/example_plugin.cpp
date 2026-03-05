@@ -1,6 +1,28 @@
 #include "example_plugin.h"
 #include "coresystem/dependency_injection.h"
 
+ExamplePlugin::ExamplePlugin() : BasePlugin("Example Plugin", "1.0.0", "An example plugin for demonstration purposes") {
+    enabled = true;
+    counter = 0;
+    lastUpdateTime = 0;
+}
+
+ExamplePlugin::~ExamplePlugin() {
+    shutdown();
+}
+
+std::string ExamplePlugin::getName() const {
+    return "Example Plugin";
+}
+
+std::string ExamplePlugin::getVersion() const {
+    return "1.0.0";
+}
+
+std::string ExamplePlugin::getDescription() const {
+    return "An example plugin for demonstration purposes";
+}
+
 bool ExamplePlugin::initialize() {
     if (!BasePlugin::initialize()) {
         return false;
@@ -34,6 +56,18 @@ void ExamplePlugin::shutdown() {
     BasePlugin::shutdown();
     
     // 清理插件资源
+}
+
+bool ExamplePlugin::isEnabled() const {
+    return enabled;
+}
+
+void ExamplePlugin::setEnabled(bool enabled) {
+    this->enabled = enabled;
+}
+
+void ExamplePlugin::doSomething() {
+    // 插件特定方法的实现
 }
 
 
