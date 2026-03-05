@@ -121,7 +121,7 @@ private:
     class PluginClass##Registrar { \
     public: \
         PluginClass##Registrar() { \
-            PluginManager::getInstance().registerPlugin(std::make_unique<PluginClass>()); \
+            PluginManager::getInstance().registerPlugin(std::unique_ptr<PluginClass>(new PluginClass())); \
         } \
     }; \
     static PluginClass##Registrar pluginRegistrar_##PluginClass;

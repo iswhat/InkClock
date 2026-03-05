@@ -10,6 +10,9 @@
 #include "../application/web_client.h"
 #include "application/wifi_manager.h"
 
+// 插件更新间隔（毫秒）
+#define PLUGIN_UPDATE_INTERVAL 300000 // 5分钟
+
 PluginManager::PluginManager() {
   // 初始化插件数组
   for (int i = 0; i < MAX_PLUGINS; i++) {
@@ -69,7 +72,7 @@ void PluginManager::init() {
   
   // 订阅事件总线
   EVENT_SUBSCRIBE(EVENT_PLUGIN_LOADED, [this](EventType type, std::shared_ptr<EventData> data) {
-    auto pluginData = std::dynamic_pointer_cast<PluginEventData>(data);
+    auto pluginData = std::static_pointer_cast<PluginEventData>(data);
     if (pluginData) {
       DEBUG_PRINT("插件加载事件: ");
       DEBUG_PRINTLN(pluginData->pluginName);
@@ -77,7 +80,7 @@ void PluginManager::init() {
   }, "PluginManager");
   
   EVENT_SUBSCRIBE(EVENT_PLUGIN_UNLOADED, [this](EventType type, std::shared_ptr<EventData> data) {
-    auto pluginData = std::dynamic_pointer_cast<PluginEventData>(data);
+    auto pluginData = std::static_pointer_cast<PluginEventData>(data);
     if (pluginData) {
       DEBUG_PRINT("插件卸载事件: ");
       DEBUG_PRINTLN(pluginData->pluginName);
@@ -85,7 +88,7 @@ void PluginManager::init() {
   }, "PluginManager");
   
   EVENT_SUBSCRIBE(EVENT_PLUGIN_ENABLED, [this](EventType type, std::shared_ptr<EventData> data) {
-    auto pluginData = std::dynamic_pointer_cast<PluginEventData>(data);
+    auto pluginData = std::static_pointer_cast<PluginEventData>(data);
     if (pluginData) {
       DEBUG_PRINT("插件启用事件: ");
       DEBUG_PRINTLN(pluginData->pluginName);
@@ -93,7 +96,7 @@ void PluginManager::init() {
   }, "PluginManager");
   
   EVENT_SUBSCRIBE(EVENT_PLUGIN_DISABLED, [this](EventType type, std::shared_ptr<EventData> data) {
-    auto pluginData = std::dynamic_pointer_cast<PluginEventData>(data);
+    auto pluginData = std::static_pointer_cast<PluginEventData>(data);
     if (pluginData) {
       DEBUG_PRINT("插件禁用事件: ");
       DEBUG_PRINTLN(pluginData->pluginName);
@@ -594,8 +597,19 @@ bool PluginManager::updateURLPlugin(String name) {
   }
   
   // 从URL获取数据
-  WebClient webClient;
-  String response = webClient.sendRequest(plugin.urlData.url, "GET");
+  String response = "";
+  #if PLATFORM_ESP32
+  HTTPClient http;
+  #elif PLATFORM_ESP8266
+  HTTPClient http;
+  #endif
+  
+  http.begin(plugin.urlData.url);
+  int httpCode = http.GET();
+  if (httpCode > 0) {
+    response = http.getString();
+  }
+  http.end();
   
   if (response.isEmpty()) {
     DEBUG_PRINTLN("获取数据失败");
@@ -644,15 +658,14 @@ bool PluginManager::updateURLPlugin(String name) {
                     extractedData.trim();
                 } else {
                     // 无法找到标签，使用原始数据的前100个字符
-                    extractedData = response.substring(0, min(response.length(), 100));
+                    extractedData = response.substring(0, min(response.length(), (unsigned int)100));
                 }
             }
             DEBUG_PRINTLN("XML解析完成");
             break;
             
-        case PLUGIN_TYPE_URL_JSON:
+        case PLUGIN_TYPE_URL_JSON: {
             // 解析JSON数据
-            try {
                 JsonDocument doc;
                 DeserializationError error = deserializeJson(doc, response);
                 if (error) {
@@ -728,26 +741,21 @@ bool PluginManager::updateURLPlugin(String name) {
                 }
                 
                 // 转换为字符串
-                StringWriter writer;
+                String writer;
                 serializeJson(data, writer);
-                extractedData = writer.str();
+                extractedData = writer;
                 
                 // 如果是简单类型，去除引号
                 if (extractedData.startsWith("\"") && extractedData.endsWith("\"")) {
                     extractedData = extractedData.substring(1, extractedData.length() - 1);
                 }
-            } catch (const std::exception& e) {
-                DEBUG_PRINT("JSON解析异常: ");
-                DEBUG_PRINTLN(e.what());
-                return false;
-            }
             DEBUG_PRINTLN("JSON解析完成");
             break;
-            
-        case PLUGIN_TYPE_URL_JS:
+        }
+        
+        case PLUGIN_TYPE_URL_JS: {
             // 解析JS数据
             // 轻量级JS解析，支持简单的变量访问和表达式
-            { 
                 // 查找变量声明或返回语句
                 String jsCode = response;
                 String targetVar = plugin.urlData.dataXPath;
@@ -802,15 +810,16 @@ bool PluginManager::updateURLPlugin(String name) {
                 
                 // 如果还是空，使用原始数据的前100个字符
                 if (extractedData.isEmpty()) {
-                    extractedData = response.substring(0, min(response.length(), 100));
+                    extractedData = response.substring(0, min(response.length(), (unsigned int)100));
                 }
-            }
             DEBUG_PRINTLN("JS解析完成");
             break;
-            
-        default:
+        }
+        
+        default: {
             DEBUG_PRINTLN("未知的URL插件类型");
             return false;
+        }
     }
   
   // 更新插件数据

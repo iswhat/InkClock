@@ -3,6 +3,8 @@
 
 #include <Arduino.h>
 #include "coresystem/config.h"
+#include <SdFat.h>
+#include <ArduinoJson.h>
 
 // 固件更新状态枚举
 enum FirmwareUpdateStatus {
@@ -30,6 +32,7 @@ enum FirmwareErrorCode {
   ERROR_CONFIG_RESTORE_FAILED,
   ERROR_WATCHDOG_TIMEOUT,
   ERROR_UNAUTHORIZED,
+  ERROR_INVALID,
   ERROR_UNKNOWN
 };
 
@@ -169,16 +172,16 @@ private:
   String detectCurrentHardware();
   
   // 计算文件SHA-256哈希值
-  String calculateSHA256(File &file);
+  String calculateSHA256(SdFile &file);
   
   // 验证固件哈希值
-  bool verifyFirmwareHash(File &file, const String &expectedHash);
+  bool verifyFirmwareHash(SdFile &file, const String &expectedHash);
   
   // 验证固件签名
-  bool verifyFirmwareSignature(File &file, const String &signature, const String &publicKey);
+  bool verifyFirmwareSignature(SdFile &file, const String &signature, const String &publicKey);
   
   // 从固件信息中获取签名和公钥
-  bool getFirmwareSignatureInfo(JsonObject &jsonDoc, String &signature, String &publicKey);
+  bool getFirmwareSignatureInfo(const JsonObject &jsonDoc, String &signature, String &publicKey);
 };
 
 #endif // FIRMWARE_MANAGER_H

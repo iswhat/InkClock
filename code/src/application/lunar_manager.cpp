@@ -1,10 +1,6 @@
 #include "lunar_manager.h"
 #include <ArduinoJson.h>
-#include "application/api_manager.h"
-
-// 外部全局对象
-extern WiFiManager wifiManager;
-extern APIManager apiManager;
+#include "../coresystem/dependency_injection.h"
 
 // API配置 - 使用RollToolsApi的万年历接口
 const String LunarManager::LUNAR_API_URL = "https://api.rolltools.cn/api/lunar?date="; // 主农历API（公共免密钥）
@@ -104,60 +100,63 @@ bool LunarManager::fetchLunarData(int year, int month, int day) {
   DEBUG_PRINT("获取农历数据: ");
   DEBUG_PRINTLN(url);
   
-  ApiResponse apiResponse = apiManager.get(url, API_TYPE_LUNAR, 86400000); // 缓存24小时
-  
-  if (apiResponse.status == API_STATUS_SUCCESS || apiResponse.status == API_STATUS_CACHED) {
-    String response = apiResponse.response;
-    if (!response.isEmpty()) {
-      LunarInfo lunarInfo = parseLunarData(response);
-      if (!lunarInfo.lunarDate.isEmpty()) {
-        cachedLunarInfo = lunarInfo;
-        return true;
+  auto apiManager = DependencyInjectionContainer::getInstance()->getAPIManager();
+  if (apiManager) {
+    ApiResponse apiResponse = apiManager->get(url, API_TYPE_LUNAR, 86400000); // 缓存24小时
+    
+    if (apiResponse.status == API_STATUS_SUCCESS || apiResponse.status == API_STATUS_CACHED) {
+      String response = apiResponse.response;
+      if (!response.isEmpty()) {
+        LunarInfo lunarInfo = parseLunarData(response);
+        if (!lunarInfo.lunarDate.isEmpty()) {
+          cachedLunarInfo = lunarInfo;
+          return true;
+        }
       }
     }
-  }
-  
-  DEBUG_PRINTLN("主API获取农历数据失败: " + apiResponse.error);
-  
-  // 尝试使用备用API
-  String backupUrl = LUNAR_API_URL_BACKUP + String(dateStr);
-  DEBUG_PRINT("尝试使用备用API获取农历数据: ");
-  DEBUG_PRINTLN(backupUrl);
-  
-  ApiResponse backupApiResponse = apiManager.get(backupUrl, API_TYPE_LUNAR, 86400000);
-  
-  if (backupApiResponse.status == API_STATUS_SUCCESS || backupApiResponse.status == API_STATUS_CACHED) {
-    String backupResponse = backupApiResponse.response;
-    if (!backupResponse.isEmpty()) {
-      LunarInfo lunarInfo = parseLunarDataBackup(backupResponse);
-      if (!lunarInfo.lunarDate.isEmpty()) {
-        cachedLunarInfo = lunarInfo;
-        return true;
+    
+    DEBUG_PRINTLN("主API获取农历数据失败: " + apiResponse.error);
+    
+    // 尝试使用备用API
+    String backupUrl = LUNAR_API_URL_BACKUP + String(dateStr);
+    DEBUG_PRINT("尝试使用备用API获取农历数据: ");
+    DEBUG_PRINTLN(backupUrl);
+    
+    ApiResponse backupApiResponse = apiManager->get(backupUrl, API_TYPE_LUNAR, 86400000);
+    
+    if (backupApiResponse.status == API_STATUS_SUCCESS || backupApiResponse.status == API_STATUS_CACHED) {
+      String backupResponse = backupApiResponse.response;
+      if (!backupResponse.isEmpty()) {
+        LunarInfo lunarInfo = parseLunarDataBackup(backupResponse);
+        if (!lunarInfo.lunarDate.isEmpty()) {
+          cachedLunarInfo = lunarInfo;
+          return true;
+        }
       }
     }
-  }
-  
-  DEBUG_PRINTLN("备用API获取农历数据失败: " + backupApiResponse.error);
-  
-  // 尝试使用次备用API
-  String secondaryBackupUrl = LUNAR_API_URL_SECONDARY_BACKUP + String(dateStr);
-  DEBUG_PRINT("尝试使用次备用API获取农历数据: ");
-  DEBUG_PRINTLN(secondaryBackupUrl);
-  
-  ApiResponse secondaryBackupApiResponse = apiManager.get(secondaryBackupUrl, API_TYPE_LUNAR, 86400000);
-  
-  if (secondaryBackupApiResponse.status == API_STATUS_SUCCESS || secondaryBackupApiResponse.status == API_STATUS_CACHED) {
-    String secondaryBackupResponse = secondaryBackupApiResponse.response;
-    if (!secondaryBackupResponse.isEmpty()) {
-      LunarInfo lunarInfo = parseLunarDataSecondaryBackup(secondaryBackupResponse);
-      if (!lunarInfo.lunarDate.isEmpty()) {
-        cachedLunarInfo = lunarInfo;
-        return true;
+    
+    DEBUG_PRINTLN("备用API获取农历数据失败: " + backupApiResponse.error);
+    
+    // 尝试使用次备用API
+    String secondaryBackupUrl = LUNAR_API_URL_SECONDARY_BACKUP + String(dateStr);
+    DEBUG_PRINT("尝试使用次备用API获取农历数据: ");
+    DEBUG_PRINTLN(secondaryBackupUrl);
+    
+    ApiResponse secondaryBackupApiResponse = apiManager->get(secondaryBackupUrl, API_TYPE_LUNAR, 86400000);
+    
+    if (secondaryBackupApiResponse.status == API_STATUS_SUCCESS || secondaryBackupApiResponse.status == API_STATUS_CACHED) {
+      String secondaryBackupResponse = secondaryBackupApiResponse.response;
+      if (!secondaryBackupResponse.isEmpty()) {
+        LunarInfo lunarInfo = parseLunarDataSecondaryBackup(secondaryBackupResponse);
+        if (!lunarInfo.lunarDate.isEmpty()) {
+          cachedLunarInfo = lunarInfo;
+          return true;
+        }
       }
     }
+    
+    DEBUG_PRINTLN("次备用API获取农历数据失败: " + secondaryBackupApiResponse.error);
   }
-  
-  DEBUG_PRINTLN("次备用API获取农历数据失败: " + secondaryBackupApiResponse.error);
   return false;
 }
 

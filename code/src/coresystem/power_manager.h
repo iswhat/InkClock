@@ -100,6 +100,12 @@ public:
   
   // 获取最佳睡眠模式和时间
   void getOptimalSleepParameters(uint64_t& sleepTimeMs, bool& useDeepSleep);
+  
+  // 检查是否应该更新显示
+  bool shouldUpdateDisplay() {
+    // 简单实现：如果不是低功耗模式，允许更新显示
+    return !isLowPowerMode;
+  }
 }; 
 
 #endif // POWER_MANAGER_H

@@ -89,4 +89,27 @@ SensorConfig SHT40Driver::getConfig() const {
   return config;
 }
 
+bool SHT40Driver::matchHardware() {
+  DEBUG_PRINTLN("检测SHT40硬件匹配...");
+  
+#ifdef HAVE_SHT4X_LIB
+  // 创建临时SHT40对象
+  Adafruit_SHT4x tempSHT40;
+  
+  // 尝试初始化SHT40传感器
+  bool found = tempSHT40.begin();
+  
+  if (found) {
+    DEBUG_PRINTLN("SHT40硬件匹配成功");
+  } else {
+    DEBUG_PRINTLN("SHT40硬件匹配失败：未在I2C总线上检测到设备");
+  }
+  
+  return found;
+#else
+  DEBUG_PRINTLN("SHT40驱动: 硬件检测功能不可用");
+  return false;
+#endif
+}
+
 #endif // HAVE_SHT4X_LIB

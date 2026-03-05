@@ -143,6 +143,9 @@ public:
   bool isAlarmShowing() const { return alarmShowing; }
   void updateAlarmDisplay();
   
+  // 获取显示驱动
+  IDisplayDriver* getDisplayDriver() const { return displayDriver.get(); }
+  
 private:
   // Security: Use smart pointer to prevent memory leaks and double-free
   std::unique_ptr<IDisplayDriver> displayDriver;

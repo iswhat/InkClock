@@ -136,3 +136,36 @@ void LD2410Driver::parseLD2410Data(uint8_t* data, size_t len) {
     }
   }
 }
+
+bool LD2410Driver::matchHardware() {
+  DEBUG_PRINTLN("检测LD2410硬件匹配...");
+  
+  // 尝试初始化串口
+  serial = &Serial1;
+  #if defined(ESP32)
+  serial->begin(256000, SERIAL_8N1, 16, 17); // ESP32: 波特率, 配置, RX引脚, TX引脚
+  #elif defined(ESP8266)
+  serial->begin(256000, SERIAL_8N1, SERIAL_FULL, 16); // ESP8266: 波特率, 配置, 模式, TX引脚
+  #endif
+  
+  // 尝试发送命令并读取响应
+  // 这里只是一个简单的检测，实际使用时需要根据LD2410的协议进行完整的检测
+  
+  // 发送查询命令
+  uint8_t queryCmd[] = {0xF4, 0xF3, 0xF2, 0xF1, 0x01, 0x00, 0x00, 0x00};
+  serial->write(queryCmd, sizeof(queryCmd));
+  
+  // 等待响应
+  platformDelay(100);
+  
+  // 检查是否有响应
+  if (serial->available() > 0) {
+    // 有响应，硬件匹配成功
+    DEBUG_PRINTLN("LD2410硬件匹配成功");
+    return true;
+  } else {
+    // 无响应，硬件匹配失败
+    DEBUG_PRINTLN("LD2410硬件匹配失败：未检测到设备响应");
+    return false;
+  }
+}

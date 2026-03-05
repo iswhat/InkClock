@@ -119,4 +119,27 @@ SensorConfig HTU21DDriver::getConfig() const {
   return config;
 }
 
+bool HTU21DDriver::matchHardware() {
+  DEBUG_PRINTLN("检测HTU21D硬件匹配...");
+  
+#ifdef HAVE_HTU21D_LIB
+  // 创建临时HTU21D对象
+  Adafruit_HTU21DF tempHTU21D;
+  
+  // 尝试初始化HTU21D传感器
+  bool found = tempHTU21D.begin();
+  
+  if (found) {
+    DEBUG_PRINTLN("HTU21D硬件匹配成功");
+  } else {
+    DEBUG_PRINTLN("HTU21D硬件匹配失败：未在I2C总线上检测到设备");
+  }
+  
+  return found;
+#else
+  DEBUG_PRINTLN("HTU21D驱动: 硬件检测功能不可用");
+  return false;
+#endif
+}
+
 #endif // HAVE_HTU21D_LIB

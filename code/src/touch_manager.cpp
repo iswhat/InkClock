@@ -31,14 +31,14 @@ void TouchManager::init() {
   DEBUG_PRINTLN("初始化触摸管理器...");
   
   // 检查当前硬件是否支持触摸
-  #if CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1
+  #if (CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1) && !defined(CONFIG_IDF_TARGET_ESP32C3)
     DEBUG_PRINTLN("当前硬件支持触摸功能");
     
     // 初始化触摸引脚
-    pinMode(TOUCH_PIN_0, INPUT);
-    pinMode(TOUCH_PIN_1, INPUT);
-    pinMode(TOUCH_PIN_2, INPUT);
-    pinMode(TOUCH_PIN_3, INPUT);
+    pinMode(T0, INPUT);
+    pinMode(T1, INPUT);
+    pinMode(T2, INPUT);
+    pinMode(T3, INPUT);
     
     // 校准触摸
     calibrateTouch();
@@ -50,16 +50,16 @@ void TouchManager::init() {
 
 void TouchManager::update() {
   // 检查当前硬件是否支持触摸
-  #if CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1
+  #if (CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_DEFAULT || CURRENT_HARDWARE_MODEL == HARDWARE_MODEL_ESP32_S3_WROOM_1) && !defined(CONFIG_IDF_TARGET_ESP32C3)
     // 读取触摸数据
     TouchPoint rawPoint;
     rawPoint.pressed = false;
     
     // 读取触摸引脚状态
-    int touchValue0 = touchRead(TOUCH_PIN_0);
-    int touchValue1 = touchRead(TOUCH_PIN_1);
-    int touchValue2 = touchRead(TOUCH_PIN_2);
-    int touchValue3 = touchRead(TOUCH_PIN_3);
+    int touchValue0 = touchRead(T0);
+    int touchValue1 = touchRead(T1);
+    int touchValue2 = touchRead(T2);
+    int touchValue3 = touchRead(T3);
     
     // 判断是否触摸
     if (touchValue0 < 50 || touchValue1 < 50 || touchValue2 < 50 || touchValue3 < 50) {

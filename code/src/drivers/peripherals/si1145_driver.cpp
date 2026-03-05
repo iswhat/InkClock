@@ -108,4 +108,27 @@ SensorConfig SI1145Driver::getConfig() const {
   return config;
 }
 
+bool SI1145Driver::matchHardware() {
+  DEBUG_PRINTLN("检测SI1145硬件匹配...");
+  
+#ifdef HAVE_SI1145_LIB
+  // 创建临时SI1145对象
+  Adafruit_SI1145 tempSI1145;
+  
+  // 尝试初始化SI1145传感器
+  bool found = tempSI1145.begin();
+  
+  if (found) {
+    DEBUG_PRINTLN("SI1145硬件匹配成功");
+  } else {
+    DEBUG_PRINTLN("SI1145硬件匹配失败：未在I2C总线上检测到设备");
+  }
+  
+  return found;
+#else
+  DEBUG_PRINTLN("SI1145驱动: 硬件检测功能不可用");
+  return false;
+#endif
+}
+
 #endif // HAVE_SI1145_LIB

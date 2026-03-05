@@ -26,6 +26,7 @@ public:
 private:
     bool enabled;
     int counter;
+    unsigned long lastUpdateTime;
 };
 
 // 注册插件

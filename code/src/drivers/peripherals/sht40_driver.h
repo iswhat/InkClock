@@ -32,6 +32,9 @@ public:
   // 获取当前配置
   SensorConfig getConfig() const override;
   
+  // 硬件匹配检测
+  bool matchHardware() override;
+  
 private:
 #ifdef HAVE_SHT4X_LIB
   Adafruit_SHT4x* sht40;

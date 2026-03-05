@@ -135,11 +135,10 @@ bool SHT20Driver::matchHardware() {
       float temperature = sht20.getTemperature();
       float humidity = sht20.getHumidity();
     
-        if (!isnan(temperature) && !isnan(humidity)) {
-          // 数据有效，硬件匹配成功
-          DEBUG_PRINTF("SHT20硬件匹配成功，I2C地址: 0x%02X\n", address);
-          return true;
-        }
+      if (!isnan(temperature) && !isnan(humidity)) {
+        // 数据有效，硬件匹配成功
+        DEBUG_PRINTF("SHT20硬件匹配成功，I2C地址: 0x%02X\n", address);
+        return true;
       }
     }
   }

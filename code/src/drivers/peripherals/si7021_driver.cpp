@@ -23,8 +23,8 @@ bool SI7021Driver::init(const SensorConfig& config) {
   // 保存配置
   this->config = config;
   
-  // 初始化SI7021传感器
-  bool success = si7021.begin(config.address);
+  // 初始化Si7021传感器
+  bool success = si7021.begin();
   initialized = success;
   
   if (success) {
@@ -117,6 +117,29 @@ void SI7021Driver::setConfig(const SensorConfig& config) {
  */
 SensorConfig SI7021Driver::getConfig() const {
   return config;
+}
+
+bool SI7021Driver::matchHardware() {
+  DEBUG_PRINTLN("检测SI7021硬件匹配...");
+  
+#ifdef HAVE_SI7021_LIB
+  // 创建临时SI7021对象
+  Adafruit_Si7021 tempSI7021;
+  
+  // 尝试初始化SI7021传感器
+  bool found = tempSI7021.begin();
+  
+  if (found) {
+    DEBUG_PRINTLN("SI7021硬件匹配成功");
+  } else {
+    DEBUG_PRINTLN("SI7021硬件匹配失败：未在I2C总线上检测到设备");
+  }
+  
+  return found;
+#else
+  DEBUG_PRINTLN("SI7021驱动: 硬件检测功能不可用");
+  return false;
+#endif
 }
 
 #endif // HAVE_SI7021_LIB

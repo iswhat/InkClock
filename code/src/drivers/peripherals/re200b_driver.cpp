@@ -109,3 +109,20 @@ void RE200BDriver::setConfig(const SensorConfig& config) {
 SensorConfig RE200BDriver::getConfig() const {
   return config;
 }
+
+/**
+ * @brief 匹配硬件
+ * 
+ * @return 是否匹配成功
+ */
+bool RE200BDriver::matchHardware() {
+  // 尝试读取模拟值来判断传感器是否存在
+  // 由于RE200B是模拟传感器，我们可以通过读取一个默认引脚来检查
+  int defaultPin = 34; // ESP32的默认模拟输入引脚
+  pinMode(defaultPin, INPUT);
+  int value = analogRead(defaultPin);
+  
+  // RE200B传感器在没有检测到人体时应该返回一个稳定的低值
+  // 这里我们简单地返回true，因为RE200B是模拟传感器，很难通过软件检测其存在
+  return true;
+}

@@ -5,15 +5,8 @@
 #include "stock_manager.h"
 #include "message_manager.h"
 #include "power_manager.h"
-
-// 外部全局对象
-extern TimeManager timeManager;
-extern LunarManager lunarManager;
-extern WeatherManager weatherManager;
-extern SensorManager sensorManager;
-extern StockManager stockManager;
-extern MessageManager messageManager;
-extern PowerManager powerManager;
+#include "lunar_manager.h"
+#include "../coresystem/dependency_injection.h"
 
 DisplayManager::DisplayManager() {
   displayDriver = nullptr;
@@ -80,6 +73,11 @@ DisplayManager::DisplayManager() {
     humHistory[i] = 0.0;
   }
   sensorHistoryIndex = 0;
+}
+
+IDisplayDriver* DisplayManager::getDisplayDriver() const {
+  return displayDriver.get();
+}
   
   // 初始化GIF播放相关变量
   gifPlaying = false;
@@ -258,13 +256,17 @@ void DisplayManager::updateDisplay() {
   }
   
   unsigned long currentTime = millis();
-  bool isLowPowerMode = powerManager.getLowPowerMode();
+  bool isLowPowerMode = false;
+  auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+  if (powerManager) {
+    isLowPowerMode = powerManager->getLowPowerMode();
+  }
   
   // 根据低功耗模式调整刷新间隔倍率
   int refreshMultiplier = isLowPowerMode ? 6 : 1; // 低功耗模式下刷新间隔延长6倍
   
   // 检查是否需要刷新
-  if (!powerManager.shouldUpdateDisplay()) {
+  if (powerManager && !powerManager->shouldUpdateDisplay()) {
     return;
   }
   
@@ -368,49 +370,62 @@ void DisplayManager::updateDisplay() {
       // 只刷新需要更新的区域
       if (needClockRefresh) {
         // 只刷新时钟区域（根据当前时钟模式）
-        if (currentClockMode == CLOCK_MODE_DIGITAL) {
-          drawDigitalClock(20, 60, timeManager.getTimeString(), timeManager.getDateString());
-        } else if (currentClockMode == CLOCK_MODE_ANALOG) {
-          TimeData timeData = timeManager.getTimeData();
-          int millisecond = millis() % 1000;
-          drawAnalogClock(leftPanelWidth / 2, 120, timeData.hour, timeData.minute, timeData.second);
-        } else if (currentClockMode == CLOCK_MODE_TEXT) {
-          TimeData timeData = timeManager.getTimeData();
-          drawTextClock(20, 60, timeData.hour, timeData.minute, timeData.second);
+        auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+        if (timeManager) {
+          if (currentClockMode == CLOCK_MODE_DIGITAL) {
+            drawDigitalClock(20, 60, timeManager->getTimeString(), timeManager->getDateString());
+          } else if (currentClockMode == CLOCK_MODE_ANALOG) {
+            TimeData timeData = timeManager->getTimeData();
+            int millisecond = millis() % 1000;
+            drawAnalogClock(leftPanelWidth / 2, 120, timeData.hour, timeData.minute, timeData.second);
+          } else if (currentClockMode == CLOCK_MODE_TEXT) {
+            TimeData timeData = timeManager->getTimeData();
+            drawTextClock(20, 60, timeData.hour, timeData.minute, timeData.second);
+          }
+          displayDriver->update(0, 0, leftPanelWidth, height < 400 ? 120 : 200);
         }
-        displayDriver->update(0, 0, leftPanelWidth, height < 400 ? 120 : 200);
       }
       
       if (needWeatherRefresh) {
         // 只刷新天气区域
-        WeatherData weather = weatherManager.getWeatherData();
-        drawWeather(20, height < 400 ? 140 : 220, weather.city, 
-                    (weather.temp != 0 ? String(weather.temp) : "--") + "°C", 
-                    weather.condition, "", "");
-        displayDriver->update(0, height < 400 ? 140 : 220, leftPanelWidth, height < 400 ? 100 : 150);
+        auto weatherManager = DependencyInjectionContainer::getInstance()->getWeatherManager();
+        if (weatherManager) {
+          WeatherData weather = weatherManager->getWeatherData();
+          drawWeather(20, height < 400 ? 140 : 220, weather.city, 
+                      (weather.temp != 0 ? String(weather.temp) : "--") + "°C", 
+                      weather.condition, "", "");
+          displayDriver->update(0, height < 400 ? 140 : 220, leftPanelWidth, height < 400 ? 100 : 150);
+        }
       }
       
       if (needSensorRefresh) {
         // 只刷新传感器数据区域
-        SensorData sensor = sensorManager.getSensorData();
-        drawSensorData(20, height < 400 ? 220 : 340, sensor.temperature, sensor.humidity);
-        displayDriver->update(0, height < 400 ? 220 : 340, leftPanelWidth, height < 400 ? 80 : 120);
+        auto sensorManager = DependencyInjectionContainer::getInstance()->getSensorManager();
+        if (sensorManager) {
+          SensorData sensor = sensorManager->getSensorData();
+          drawSensorData(20, height < 400 ? 220 : 340, sensor.temperature, sensor.humidity);
+          displayDriver->update(0, height < 400 ? 220 : 340, leftPanelWidth, height < 400 ? 80 : 120);
+        }
       }
       
       if (needBatteryRefresh || needMessageRefresh) {
         // 只刷新底部区域
-        float batteryVoltage = powerManager.getBatteryVoltage();
-        int batteryPercentage = powerManager.getBatteryPercentage();
-        bool isCharging = powerManager.getChargingStatus();
-        int messageCount = messageManager.getUnreadMessageCount();
-        
-        drawBatteryInfo(20, height < 400 ? 340 : 560, batteryVoltage, batteryPercentage, isCharging);
-        drawMessageNotification(20, height < 400 ? 380 : 600, messageCount);
-        displayDriver->update(0, height < 400 ? 340 : 560, leftPanelWidth, height < 400 ? 60 : 80);
-        
-        // 如果有新消息，启动消息提醒动画
-        if (needMessageRefresh && messageCount > 0) {
-          startMessageAnimation();
+        auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+        auto messageManager = DependencyInjectionContainer::getInstance()->getMessageManager();
+        if (powerManager && messageManager) {
+          float batteryVoltage = powerManager->getBatteryVoltage();
+          int batteryPercentage = powerManager->getBatteryPercentage();
+          bool isCharging = powerManager->getChargingStatus();
+          int messageCount = messageManager->getUnreadMessageCount();
+          
+          drawBatteryInfo(20, height < 400 ? 340 : 560, batteryVoltage, batteryPercentage, isCharging);
+          drawMessageNotification(20, height < 400 ? 380 : 600, messageCount);
+          displayDriver->update(0, height < 400 ? 340 : 560, leftPanelWidth, height < 400 ? 60 : 80);
+          
+          // 如果有新消息，启动消息提醒动画
+          if (needMessageRefresh && messageCount > 0) {
+            startMessageAnimation();
+          }
         }
       }
     }
@@ -735,7 +750,11 @@ void DisplayManager::drawLeftPanel() {
     
     // 绘制公历和农历年月日信息
     // 获取当前日期的农历信息
-    LunarInfo lunarInfo = lunarManager.getLunarInfo(currentTime.year, currentTime.month, currentTime.day);
+    LunarInfo lunarInfo;
+    auto lunarManager = DependencyInjectionContainer::getInstance()->getLunarManager();
+    if (lunarManager) {
+      lunarInfo = lunarManager->getLunarInfo(currentTime.year, currentTime.month, currentTime.day);
+    }
     
     // 构建公历和农历日期字符串
     String gregorianStr = "公历：" + String(currentTime.year) + "年" + 
@@ -787,12 +806,15 @@ void DisplayManager::drawRightPanel() {
         
         // 在月历下方绘制当前日的节日和黄历信息，确保完整显示
         // 获取当前日期
-        TimeData currentTime = timeManager.getTimeData();
-        LunarInfo lunarInfo = lunarManager.getLunarInfo(currentTime.year, currentTime.month, currentTime.day);
-        
-        // 绘制节日信息，确保完整显示
-        if (!lunarInfo.festival.name.isEmpty()) {
-          String festivalText = "今日节日: " + lunarInfo.festival.name;
+        auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+        auto lunarManager = DependencyInjectionContainer::getInstance()->getLunarManager();
+        if (timeManager && lunarManager) {
+          TimeData currentTime = timeManager->getTimeData();
+          LunarInfo lunarInfo = lunarManager->getLunarInfo(currentTime.year, currentTime.month, currentTime.day);
+          
+          // 绘制节日信息，确保完整显示
+          if (!lunarInfo.festival.name.isEmpty()) {
+            String festivalText = "今日节日: " + lunarInfo.festival.name;
           displayDriver->drawString(leftPanelWidth + 20, height - 80, festivalText, GxEPD_RED, GxEPD_WHITE, height < 400 ? 1 : 2);
         }
         
@@ -803,6 +825,7 @@ void DisplayManager::drawRightPanel() {
           
           lunarCalText = "忌: " + lunarInfo.lunarCalendar.ji;
           displayDriver->drawString(leftPanelWidth + 20, height - 25, lunarCalText, GxEPD_BLACK, GxEPD_WHITE, height < 400 ? 1 : 1);
+        }
         }
         
         break;
@@ -850,6 +873,7 @@ void DisplayManager::drawMessageNotificationContent(int x, int y) {
   
   // 这里假设MessageManager有获取消息列表的方法
   // 实际项目中需要根据具体实现调整
+  auto messageManager = DependencyInjectionContainer::getInstance()->getMessageManager();
   for (int i = 0; i < min(messageCount, 5); i++) {
     // 绘制消息标题和摘要
     String message = "消息 " + String(i + 1);
@@ -857,8 +881,8 @@ void DisplayManager::drawMessageNotificationContent(int x, int y) {
     MessagePriority priority = MESSAGE_PRIORITY_NORMAL;
     
     // 尝试获取实际的消息优先级
-    if (i < messageManager.getMessageCount()) {
-      MessageData msgData = messageManager.getMessage(String(i + 1));
+    if (messageManager && i < messageManager->getMessageCount()) {
+      MessageData msgData = messageManager->getMessage(String(i + 1));
       if (msgData.valid) {
         priority = msgData.priority;
       }
@@ -1042,13 +1066,16 @@ void DisplayManager::drawMessageNotification(int x, int y, int messageCount) {
     bool hasUrgentMessage = false;
     bool hasHighPriorityMessage = false;
     
-    for (int i = 0; i < messageCount; i++) {
-      MessageData message = messageManager.getMessage(String(i + 1));
-      if (message.priority == MESSAGE_PRIORITY_URGENT) {
-        hasUrgentMessage = true;
-        break;
-      } else if (message.priority == MESSAGE_PRIORITY_HIGH) {
-        hasHighPriorityMessage = true;
+    auto messageManager = DependencyInjectionContainer::getInstance()->getMessageManager();
+    if (messageManager) {
+      for (int i = 0; i < messageCount; i++) {
+        MessageData message = messageManager->getMessage(String(i + 1));
+        if (message.priority == MESSAGE_PRIORITY_URGENT) {
+          hasUrgentMessage = true;
+          break;
+        } else if (message.priority == MESSAGE_PRIORITY_HIGH) {
+          hasHighPriorityMessage = true;
+        }
       }
     }
     
@@ -1099,15 +1126,23 @@ void DisplayManager::drawWeather(int x, int y, String city, String temp, String 
   displayDriver->drawString(x, y + (height < 400 ? 50 : 100), condition, GxEPD_BLACK, GxEPD_WHITE, textSize);
   
   // 绘制天气图标（使用WeatherManager的getWeatherIcon方法）
-  String weatherIcon = weatherManager.getWeatherIcon(condition);
+  String weatherIcon = "☀️";
+  ForecastData tomorrow;
+  auto weatherManager = DependencyInjectionContainer::getInstance()->getWeatherManager();
+  if (weatherManager) {
+    weatherIcon = weatherManager->getWeatherIcon(condition);
+    tomorrow = weatherManager->getForecastData(1);
+  }
   displayDriver->drawString(x + (height < 400 ? 80 : 160), y + (height < 400 ? 40 : 80), weatherIcon, GxEPD_BLACK, GxEPD_WHITE, tempSize);
   
   // 绘制次日天气预报
-  ForecastData tomorrow = weatherManager.getForecastData(1);
-  if (tomorrow.date.length() > 0) {
+  if (weatherManager && tomorrow.date.length() > 0) {
     int tomorrowY = y + (height < 400 ? 60 : 120);
-    String weatherIcon = weatherManager.getWeatherIcon(tomorrow.condition);
-    String tomorrowText = "次日: " + weatherIcon + " " + tomorrow.condition + " " + String(tomorrow.tempDay) + "°C";
+    String tomorrowIcon = "☀️";
+    if (weatherManager) {
+      tomorrowIcon = weatherManager->getWeatherIcon(tomorrow.condition);
+    }
+    String tomorrowText = "次日: " + tomorrowIcon + " " + tomorrow.condition + " " + String(tomorrow.tempDay) + "°C";
     displayDriver->drawString(x, tomorrowY, tomorrowText, GxEPD_BLACK, GxEPD_WHITE, textSize);
   }
   
@@ -1117,14 +1152,16 @@ void DisplayManager::drawWeather(int x, int y, String city, String temp, String 
   int chartHeight = height < 400 ? 60 : 80;
   
   // 获取5天天气预报数据
-  float temps[5];
+  float temps[5] = {0};
   float minTemp = 100, maxTemp = -100;
   
-  for (int i = 0; i < 5; i++) {
-    ForecastData forecast = weatherManager.getForecastData(i);
-    temps[i] = forecast.tempDay;
-    if (temps[i] < minTemp) minTemp = temps[i];
-    if (temps[i] > maxTemp) maxTemp = temps[i];
+  if (weatherManager) {
+    for (int i = 0; i < 5; i++) {
+      ForecastData forecast = weatherManager->getForecastData(i);
+      temps[i] = forecast.tempDay;
+      if (temps[i] < minTemp) minTemp = temps[i];
+      if (temps[i] > maxTemp) maxTemp = temps[i];
+    }
   }
   
   // 计算温度范围（添加一些边距）
@@ -1164,17 +1201,19 @@ void DisplayManager::drawWeather(int x, int y, String city, String temp, String 
   displayDriver->drawString(x, chartY - 20, "5天温度趋势", GxEPD_BLACK, GxEPD_WHITE, textSize - 1);
   
   // 绘制空气质量和紫外线指数
-  WeatherData weather = weatherManager.getWeatherData();
+  WeatherData weather;
   int extraInfoY = chartY + chartHeight + 20;
-  
-  if (weather.airQuality > 0) {
-    String aqiText = "空气质量: " + String(weather.airQuality) + " " + weather.airQualityLevel;
-    displayDriver->drawString(x, extraInfoY, aqiText, GxEPD_BLACK, GxEPD_WHITE, textSize);
-  }
-  
-  if (weather.uvIndex > 0) {
-    String uvText = "紫外线: " + String(weather.uvIndex, 1) + " " + weather.uvIndexLevel;
-    displayDriver->drawString(x, extraInfoY + 20, uvText, GxEPD_BLACK, GxEPD_WHITE, textSize);
+  if (weatherManager) {
+    weather = weatherManager->getWeatherData();
+    if (weather.airQuality > 0) {
+      String aqiText = "空气质量: " + String(weather.airQuality) + " " + weather.airQualityLevel;
+      displayDriver->drawString(x, extraInfoY, aqiText, GxEPD_BLACK, GxEPD_WHITE, textSize);
+    }
+    
+    if (weather.uvIndex > 0) {
+      String uvText = "紫外线: " + String(weather.uvIndex, 1) + " " + weather.uvIndexLevel;
+      displayDriver->drawString(x, extraInfoY + 20, uvText, GxEPD_BLACK, GxEPD_WHITE, textSize);
+    }
   }
 }
 
@@ -1207,7 +1246,11 @@ void DisplayManager::drawSensorData(int x, int y, float temperature, float humid
                          GxEPD_BLACK, GxEPD_WHITE, dataSize);
   
   // 绘制气体传感器数据
-  int gasLevel = sensorManager.getGasLevel();
+  int gasLevel = 0;
+  auto sensorManager = DependencyInjectionContainer::getInstance()->getSensorManager();
+  if (sensorManager) {
+    gasLevel = sensorManager->getGasLevel();
+  }
   String gasStatus = "正常";
   uint16_t gasColor = GxEPD_BLACK;
   if (gasLevel > 800) {
@@ -1221,7 +1264,10 @@ void DisplayManager::drawSensorData(int x, int y, float temperature, float humid
                          gasColor, GxEPD_WHITE, dataSize);
   
   // 绘制光照强度
-  int lightLevel = sensorManager.getLightLevel();
+  int lightLevel = 0;
+  if (sensorManager) {
+    lightLevel = sensorManager->getLightLevel();
+  }
   String lightStatus = "暗";
   if (lightLevel > 500) {
     lightStatus = "亮";
@@ -1232,12 +1278,18 @@ void DisplayManager::drawSensorData(int x, int y, float temperature, float humid
                          GxEPD_BLACK, GxEPD_WHITE, dataSize);
   
   // 绘制人体感应
-  bool motionDetected = sensorManager.getMotionDetected();
+  bool motionDetected = false;
+  if (sensorManager) {
+    motionDetected = sensorManager->getMotionDetected();
+  }
   displayDriver->drawString(x, y + (height < 400 ? 110 : 210), String("人体感应: ") + (motionDetected ? "有人" : "无人"), 
                          GxEPD_BLACK, GxEPD_WHITE, dataSize);
   
   // 绘制火焰检测
-  bool flameDetected = sensorManager.getFlameDetected();
+  bool flameDetected = false;
+  if (sensorManager) {
+    flameDetected = sensorManager->getFlameDetected();
+  }
   uint16_t flameColor = GxEPD_BLACK;
   if (flameDetected) {
     flameColor = GxEPD_RED;

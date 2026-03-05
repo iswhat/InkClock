@@ -80,6 +80,13 @@ public:
    * @return 传感器配置
    */
   SensorConfig getConfig() const override;
+  
+  /**
+   * @brief 硬件匹配检测
+   * 
+   * @return 硬件是否匹配
+   */
+  bool matchHardware() override;
 };
 
 #endif // SI7021_DRIVER_H

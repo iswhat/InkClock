@@ -105,3 +105,18 @@ void TGS2600Driver::setConfig(const SensorConfig& config) {
 SensorConfig TGS2600Driver::getConfig() const {
   return config;
 }
+
+bool TGS2600Driver::matchHardware() {
+  DEBUG_PRINTLN("检测TGS2600硬件匹配...");
+  
+  // TGS2600是模拟传感器，通过检测引脚是否有效来判断硬件是否存在
+  int pin = config.pin;
+  
+  if (pin >= 0) {
+    DEBUG_PRINTLN("TGS2600硬件匹配成功（引脚配置有效）");
+    return true;
+  } else {
+    DEBUG_PRINTLN("TGS2600硬件匹配失败：引脚配置无效");
+    return false;
+  }
+}

@@ -94,4 +94,27 @@ SensorConfig SHT21Driver::getConfig() const {
   return config;
 }
 
+bool SHT21Driver::matchHardware() {
+  DEBUG_PRINTLN("检测SHT21硬件匹配...");
+  
+#ifdef HAVE_SHT21_LIB
+  // 创建临时SHT21对象
+  SHT21 tempSHT21;
+  
+  // 尝试初始化SHT21传感器
+  bool found = tempSHT21.begin();
+  
+  if (found) {
+    DEBUG_PRINTLN("SHT21硬件匹配成功");
+  } else {
+    DEBUG_PRINTLN("SHT21硬件匹配失败：未在I2C总线上检测到设备");
+  }
+  
+  return found;
+#else
+  DEBUG_PRINTLN("SHT21驱动: 硬件检测功能不可用");
+  return false;
+#endif
+}
+
 #endif // HAVE_SHT21_LIB

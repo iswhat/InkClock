@@ -1,5 +1,5 @@
 #include "example_plugin.h"
-#include "dependency_injection.h"
+#include "coresystem/dependency_injection.h"
 
 bool ExamplePlugin::initialize() {
     if (!BasePlugin::initialize()) {
@@ -36,5 +36,4 @@ void ExamplePlugin::shutdown() {
     // 清理插件资源
 }
 
-// 注册插件
-REGISTER_PLUGIN(ExamplePlugin);
+

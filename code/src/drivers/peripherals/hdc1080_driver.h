@@ -29,9 +29,11 @@ public:
   
   // 设置传感器配置
   void setConfig(const SensorConfig& config) override;
-  
-  // 获取当前配置
+ // 获取当前配置
   SensorConfig getConfig() const override;
+  
+  // 硬件匹配检测
+  bool matchHardware() override;
   
 private:
 #ifdef HAVE_HDC1080_LIB

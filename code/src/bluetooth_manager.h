@@ -14,8 +14,13 @@
 #endif
 
 class BluetoothManager {
-#if PLATFORM_ESP32
 private:
+  // 通用成员变量
+  bool wifiConfigured;
+  String wifiSSID;
+  String wifiPassword;
+  
+#if PLATFORM_ESP32
   BLEServer* pServer;
   BLEService* pService;
   BLECharacteristic* pWiFiSSIDCharacteristic;
@@ -24,9 +29,6 @@ private:
   BLECharacteristic* pDeviceInfoCharacteristic;
   
   bool deviceConnected;
-  bool wifiConfigured;
-  String wifiSSID;
-  String wifiPassword;
   
   // BLE服务和特征UUID
   static const char* SERVICE_UUID;
@@ -62,11 +64,7 @@ private:
   MyWiFiSSIDCallbacks* wifiSSIDCallbacks;
   MyWiFiPasswordCallbacks* wifiPasswordCallbacks;
 #endif
-private:
-  bool wifiConfigured;
-  String wifiSSID;
-  String wifiPassword;
-  
+
 public:
   BluetoothManager();
   ~BluetoothManager();

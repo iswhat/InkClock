@@ -79,6 +79,13 @@ public:
    */
   SensorConfig getConfig() const override;
 
+  /**
+   * @brief 匹配硬件
+   * 
+   * @return 是否匹配成功
+   */
+  bool matchHardware() override;
+
 private:
   /**
    * @brief 解析LD2410传感器的串口数据

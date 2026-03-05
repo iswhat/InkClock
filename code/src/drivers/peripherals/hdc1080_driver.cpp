@@ -87,4 +87,30 @@ SensorConfig HDC1080Driver::getConfig() const {
   return config;
 }
 
+bool HDC1080Driver::matchHardware() {
+  DEBUG_PRINTLN("检测HDC1080硬件匹配...");
+  
+#ifdef HAVE_HDC1080_LIB
+  // 创建临时HDC1080对象
+  ClosedCube_HDC1080 tempHDC1080;
+  
+  // 尝试初始化HDC1080传感器
+  tempHDC1080.begin(0x40); // HDC1080的默认I2C地址
+  uint16_t deviceId = tempHDC1080.readDeviceId();
+  
+  bool found = (deviceId == 0x1050); // HDC1080的设备ID
+  
+  if (found) {
+    DEBUG_PRINTLN("HDC1080硬件匹配成功");
+  } else {
+    DEBUG_PRINTLN("HDC1080硬件匹配失败：未在I2C总线上检测到设备");
+  }
+  
+  return found;
+#else
+  DEBUG_PRINTLN("HDC1080驱动: 硬件检测功能不可用");
+  return false;
+#endif
+}
+
 #endif // HAVE_HDC1080_LIB

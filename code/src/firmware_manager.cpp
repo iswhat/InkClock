@@ -1,11 +1,15 @@
 #include "firmware_manager.h"
 #include "coresystem/config.h"
+#include "coresystem/platform_abstraction.h"
 #include "application/display_manager.h"
 #include "application/sensor_manager.h"
 #include "audio_manager.h"
 #include "application/wifi_manager.h"
 #include <SdFat.h>
 #include <Update.h>
+#ifdef ESP32
+#include <esp_task_wdt.h>
+#endif
 #ifdef ESP8266
 #include <ESP8266HTTPClient.h>
 #else
@@ -191,6 +195,11 @@ void FirmwareManager::rebootDevice() {
   platformReset();
 }
 
+// 定义SD卡CS引脚
+#ifndef SD_CS
+#define SD_CS 4
+#endif
+
 bool FirmwareManager::mountTF() {
   // 挂载TF卡
   if (!SD.begin(SD_CS)) {
@@ -198,8 +207,8 @@ bool FirmwareManager::mountTF() {
     return false;
   }
   
-  uint8_t cardType = SD.cardType();
-  if (cardType == CARD_NONE) {
+  // 检查SD卡是否存在（通过尝试获取卡类型）
+  if (SD.card()->type() == 0) {
     logUpdateStatus("No SD card attached");
     return false;
   }
@@ -227,7 +236,7 @@ bool FirmwareManager::checkTFValidity() {
   }
   
   // 读取固件版本信息
-  File infoFile = SD.open("/firmware_info.json");
+  FsFile infoFile = SD.open("/firmware_info.json");
   if (!infoFile) {
     logUpdateStatus("Failed to open firmware info file", ERROR_FILE_NOT_FOUND);
     return false;
@@ -282,19 +291,19 @@ bool FirmwareManager::checkTFValidity() {
   
   // 获取固件签名和公钥
   String signature, publicKey;
-  if (!getFirmwareSignatureInfo(jsonDoc, signature, publicKey)) {
+  if (!getFirmwareSignatureInfo(jsonDoc.as<JsonObject>(), signature, publicKey)) {
     logUpdateStatus("Failed to get firmware signature info", ERROR_INVALID);
     return false;
   }
   
   // 检查固件文件大小
-  File firmwareFile = SD.open("/firmware.bin");
-  if (!firmwareFile) {
+  SdFile firmwareFile;
+  if (!firmwareFile.open("/firmware.bin", O_RDONLY)) {
     logUpdateStatus("Failed to open firmware file", ERROR_FILE_NOT_FOUND);
     return false;
   }
   
-  size_t firmwareSize = firmwareFile.size();
+  uint32_t firmwareSize = firmwareFile.fileSize();
   if (firmwareSize == 0) {
     logUpdateStatus("Firmware file is empty", ERROR_INVALID);
     firmwareFile.close();
@@ -326,13 +335,13 @@ bool FirmwareManager::installTFUpdate() {
   logUpdateStatus("Installing TF card firmware update");
   currentStatus = FIRMWARE_STATUS_UPDATING;
   
-  File firmwareFile = SD.open("/firmware.bin");
-  if (!firmwareFile) {
+  SdFile firmwareFile;
+  if (!firmwareFile.open("/firmware.bin", O_RDONLY)) {
     logUpdateStatus("Failed to open firmware file for update", ERROR_FILE_NOT_FOUND);
     return false;
   }
   
-  size_t firmwareSize = firmwareFile.size();
+  uint32_t firmwareSize = firmwareFile.fileSize();
   
   // 初始化看门狗，防止更新过程中死机
   initWatchdog();
@@ -474,8 +483,8 @@ bool FirmwareManager::downloadFirmware(String url, String filename) {
     }
     
     // 保存到临时文件
-    File tempFile = SD.open(filename, FILE_WRITE);
-    if (!tempFile) {
+    SdFile tempFile;
+    if (!tempFile.open(filename.c_str(), O_WRONLY | O_CREAT | O_TRUNC)) {
       logUpdateStatus("Failed to create temp file");
       http.end();
       retryCount++;
@@ -487,11 +496,11 @@ bool FirmwareManager::downloadFirmware(String url, String filename) {
     uint8_t buffer[1024];
     size_t bytesRead = 0;
     size_t totalBytesWritten = 0;
-    unsigned long lastReadTime = platformMillis();
+    unsigned long lastReadTime = platformGetMillis();
     bool timeout = false;
     
     while (http.connected() && (totalBytesWritten < firmwareSize)) {
-      if (platformMillis() - lastReadTime > 30000) { // 30秒没有数据读取，超时
+      if (platformGetMillis() - lastReadTime > 30000) { // 30秒没有数据读取，超时
         logUpdateStatus("Download timeout");
         timeout = true;
         break;
@@ -503,7 +512,7 @@ bool FirmwareManager::downloadFirmware(String url, String filename) {
           tempFile.write(buffer, bytesRead);
           totalBytesWritten += bytesRead;
           updateProgress = (totalBytesWritten * 100) / firmwareSize;
-          lastReadTime = platformMillis();
+          lastReadTime = platformGetMillis();
           
           // 每10%进度记录一次日志
           if (updateProgress % 10 == 0) {
@@ -533,8 +542,7 @@ bool FirmwareManager::downloadFirmware(String url, String filename) {
     }
     
     // 验证下载的固件文件完整性
-    tempFile = SD.open(filename);
-    if (!tempFile) {
+    if (!tempFile.open(filename.c_str(), O_RDONLY)) {
       logUpdateStatus("Failed to open downloaded firmware file for verification");
       SD.remove(filename);
       retryCount++;
@@ -558,14 +566,14 @@ bool FirmwareManager::installOTAUpdate(String filename) {
   logUpdateStatus("Installing WiFi OTA firmware update");
   currentStatus = FIRMWARE_STATUS_UPDATING;
   
-  File firmwareFile = SD.open(filename);
-  if (!firmwareFile) {
+  SdFile firmwareFile;
+  if (!firmwareFile.open(filename.c_str(), O_RDONLY)) {
     logUpdateStatus("Failed to open downloaded firmware file");
     SD.remove(filename);
     return false;
   }
   
-  size_t firmwareSize = firmwareFile.size();
+  uint32_t firmwareSize = firmwareFile.fileSize();
   
   const int maxRetries = 2;
   int retryCount = 0;
@@ -577,7 +585,7 @@ bool FirmwareManager::installOTAUpdate(String filename) {
     if (retryCount > 0) {
       logUpdateStatus("Retrying firmware update, attempt " + String(retryCount + 1) + "/" + String(maxRetries));
       platformDelay(1000); // 等待1秒后重试
-      firmwareFile.seek(0); // 重置文件指针
+      firmwareFile.rewind(); // 重置文件指针
     }
     
     // 初始化看门狗，防止更新过程中死机
@@ -834,7 +842,7 @@ String FirmwareManager::detectCurrentHardware() {
   return hardwareType;
 }
 
-String FirmwareManager::calculateSHA256(File &file) {
+String FirmwareManager::calculateSHA256(SdFile &file) {
   logUpdateStatus("Calculating SHA-256 hash for firmware file");
   
   mbedtls_md_context_t ctx;
@@ -849,7 +857,7 @@ String FirmwareManager::calculateSHA256(File &file) {
   uint8_t buffer[1024];
   size_t bytesRead;
   
-  file.seek(0);
+  file.seekSet(0);
   while ((bytesRead = file.read(buffer, sizeof(buffer))) > 0) {
     mbedtls_md_update(&ctx, buffer, bytesRead);
   }
@@ -863,12 +871,12 @@ String FirmwareManager::calculateSHA256(File &file) {
   }
   hashHex[64] = '\0';
   
-  file.seek(0);
+  file.seekSet(0);
   logUpdateStatus("SHA-256 hash calculated: " + String(hashHex));
   return String(hashHex);
 }
 
-bool FirmwareManager::verifyFirmwareHash(File &file, const String &expectedHash) {
+bool FirmwareManager::verifyFirmwareHash(SdFile &file, const String &expectedHash) {
   String actualHash = calculateSHA256(file);
   bool isValid = actualHash.equalsIgnoreCase(expectedHash);
   
@@ -881,7 +889,7 @@ bool FirmwareManager::verifyFirmwareHash(File &file, const String &expectedHash)
   return isValid;
 }
 
-bool FirmwareManager::getFirmwareSignatureInfo(JsonObject &jsonDoc, String &signature, String &publicKey) {
+bool FirmwareManager::getFirmwareSignatureInfo(const JsonObject &jsonDoc, String &signature, String &publicKey) {
   // 从JSON文档中获取固件签名和公钥信息
   JsonVariant sigVar = jsonDoc["signature"];
   JsonVariant pubKeyVar = jsonDoc["public_key"];
@@ -903,7 +911,7 @@ bool FirmwareManager::getFirmwareSignatureInfo(JsonObject &jsonDoc, String &sign
   return true;
 }
 
-bool FirmwareManager::verifyFirmwareSignature(File &file, const String &signature, const String &publicKey) {
+bool FirmwareManager::verifyFirmwareSignature(SdFile &file, const String &signature, const String &publicKey) {
   // 这里实现固件签名验证逻辑
   // 由于签名验证涉及复杂的加密算法，这里提供一个框架实现
   // 实际应用中需要根据使用的签名算法（如ECDSA、RSA等）进行具体实现
