@@ -419,7 +419,14 @@ public:
     
     // 处理订阅者
     for (const auto& sub : subs) {
-      sub.handler(type, data);
+      // 捕获异常，避免某个订阅者的错误影响整个事件处理
+      try {
+        sub.handler(type, data);
+      } catch (const std::exception& e) {
+        Serial.printf("[EventBus] Exception in event handler: %s\n", e.what());
+      } catch (...) {
+        Serial.println("[EventBus] Unknown exception in event handler");
+      }
     }
     
     // 处理队列中的事件
@@ -463,7 +470,14 @@ public:
       }
       
       for (const auto& sub : queueSubs) {
-        sub.handler(event.first, event.second);
+        // 捕获异常，避免某个订阅者的错误影响整个事件处理
+        try {
+          sub.handler(event.first, event.second);
+        } catch (const std::exception& e) {
+          Serial.printf("[EventBus] Exception in event handler: %s\n", e.what());
+        } catch (...) {
+          Serial.println("[EventBus] Unknown exception in event handler");
+        }
       }
     }
     

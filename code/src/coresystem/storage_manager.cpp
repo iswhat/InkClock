@@ -711,6 +711,21 @@ String decompressRLE(const String& input) {
   return output;
 }
 
+// 简单的XOR加密函数
+String encryptData(const String& input, const String& key) {
+  String output;
+  for (size_t i = 0; i < input.length(); i++) {
+    output += input[i] ^ key[i % key.length()];
+  }
+  return output;
+}
+
+// 简单的XOR解密函数
+String decryptData(const String& input, const String& key) {
+  // XOR加密是对称的，所以解密使用相同的函数
+  return encryptData(input, key);
+}
+
 // 压缩数据
 bool StorageManager::compressData(const String& dataId) {
   if (!dataConfigs.count(dataId)) {
@@ -809,6 +824,92 @@ bool StorageManager::decompressData(const String& dataId) {
   
   DEBUG_PRINTF("数据解压缩成功: %s, 解压缩大小: %u\n", 
                dataId.c_str(), decompressedData.length());
+  
+  return true;
+}
+
+// 加密数据
+bool StorageManager::encryptData(const String& dataId, const String& key) {
+  if (!dataConfigs.count(dataId)) {
+    return false;
+  }
+  
+  DataStorageConfig& config = dataConfigs[dataId];
+  
+  // 检查是否已加密
+  if (config.metadata.find("encrypted") != config.metadata.end() && 
+      config.metadata["encrypted"] == "true") {
+    DEBUG_PRINTF("数据已经加密: %s\n", dataId.c_str());
+    return false;
+  }
+  
+  // 读取原始数据
+  String originalData;
+  if (!read(dataId, originalData)) {
+    return false;
+  }
+  
+  // 执行加密
+  DEBUG_PRINTF("开始加密数据: %s\n", dataId.c_str());
+  
+  String encryptedData = ::encryptData(originalData, key);
+  
+  // 保存加密数据
+  String encryptedKey = dataId + "_encrypted";
+  if (!write(encryptedKey, encryptedData)) {
+    DEBUG_PRINTF("保存加密数据失败: %s\n", dataId.c_str());
+    return false;
+  }
+  
+  // 更新配置，标记为已加密
+  config.metadata["encrypted"] = "true";
+  config.lastModifiedTime = millis();
+  
+  DEBUG_PRINTF("数据加密成功: %s\n", dataId.c_str());
+  
+  return true;
+}
+
+// 解密数据
+bool StorageManager::decryptData(const String& dataId, const String& key) {
+  if (!dataConfigs.count(dataId)) {
+    return false;
+  }
+  
+  DataStorageConfig& config = dataConfigs[dataId];
+  
+  // 检查是否已加密
+  if (config.metadata.find("encrypted") == config.metadata.end() || 
+      config.metadata["encrypted"] != "true") {
+    return false;
+  }
+  
+  // 读取加密数据
+  String encryptedKey = dataId + "_encrypted";
+  String encryptedData;
+  if (!read(encryptedKey, encryptedData)) {
+    return false;
+  }
+  
+  // 执行解密
+  DEBUG_PRINTF("开始解密数据: %s\n", dataId.c_str());
+  
+  String decryptedData = ::decryptData(encryptedData, key);
+  
+  // 保存解密数据
+  if (!write(dataId, decryptedData)) {
+    DEBUG_PRINTF("保存解密数据失败: %s\n", dataId.c_str());
+    return false;
+  }
+  
+  // 更新配置，标记为未加密
+  config.metadata["encrypted"] = "false";
+  config.lastModifiedTime = millis();
+  
+  // 删除加密数据
+  remove(encryptedKey);
+  
+  DEBUG_PRINTF("数据解密成功: %s\n", dataId.c_str());
   
   return true;
 }

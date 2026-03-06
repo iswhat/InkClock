@@ -220,37 +220,38 @@ void PowerManager::enterLowPowerMode() {
       // 降低CPU频率到80MHz
       coreSystem->setCpuFrequencyMhz(80);
       DEBUG_PRINTLN("CPU frequency reduced to 80MHz");
+    #elif defined(ESP8266)
+      // ESP8266使用80MHz
+      DEBUG_PRINTLN("ESP8266 running at 80MHz");
     #endif
     
     // 2. 关闭不必要的模块电源
     // 关闭蓝牙（如果支持）
     #if defined(CONFIG_BT_ENABLED)
-      // 关闭蓝牙（如果支持）
-      #if defined(CONFIG_BT_ENABLED)
-        btStop();
-        DEBUG_PRINTLN("Bluetooth disabled");
-      #endif
+      btStop();
+      DEBUG_PRINTLN("Bluetooth disabled");
     #endif
     
-    // 关闭WiFi扫描
-      // 关闭WiFi（如果支持）
-      #if defined(ESP32) || defined(ESP8266)
-        #if defined(ESP32)
-          WiFi.mode(WIFI_OFF);
-        #elif defined(ESP8266)
-          WiFi.mode(WIFI_OFF);
-        #endif
-        DEBUG_PRINTLN("WiFi disabled");
+    // 关闭WiFi
+    #if defined(ESP32) || defined(ESP8266)
+      #if defined(ESP32)
+        WiFi.mode(WIFI_OFF);
+      #elif defined(ESP8266)
+        WiFi.mode(WIFI_OFF);
       #endif
+      DEBUG_PRINTLN("WiFi disabled");
+    #endif
     
     // 3. 关闭不必要的外设时钟，但保留报警相关传感器
     #if defined(ESP32)
       // 关闭不需要的外设时钟
       
-      gpio_hold_en(GPIO_NUM_0);
-      gpio_hold_en(GPIO_NUM_1);
-      gpio_hold_en(GPIO_NUM_2);
-      gpio_hold_en(GPIO_NUM_3);
+      // 保存当前GPIO状态
+      for (int i = 0; i < 32; i++) {
+        if (i != GPIO_NUM_4 && i != GPIO_NUM_5 && i != GPIO_NUM_16 && i != GPIO_NUM_17) {
+          gpio_hold_en((gpio_num_t)i);
+        }
+      }
       DEBUG_PRINTLN("GPIO hold enabled for unused pins");
       
       // 确保报警相关传感器引脚不被关闭
@@ -274,6 +275,10 @@ void PowerManager::enterLowPowerMode() {
     // 5. 降低传感器采样频率，但保留报警相关传感器的正常采样频率
     DEBUG_PRINTLN("Low power mode enabled, reducing non-alarm sensor sampling rate");
     DEBUG_PRINTLN("报警相关传感器保持正常采样频率");
+    
+    // 6. 优化内存使用
+    coreSystem->cleanupMemory();
+    DEBUG_PRINTLN("Memory cleaned up");
     
     // 发布传感器采样频率调整事件
     EVENT_PUBLISH(EVENT_LOW_POWER_SENSOR_ADJUST, nullptr);
@@ -300,15 +305,14 @@ void PowerManager::exitLowPowerMode() {
     #endif
     
     // 2. 恢复WiFi连接
-      // 恢复WiFi连接
-      #if defined(ESP32) || defined(ESP8266)
-        #if defined(ESP32)
-          WiFi.mode(WIFI_MODE_STA);
-        #elif defined(ESP8266)
-          WiFi.mode(WIFI_STA);
-        #endif
-        DEBUG_PRINTLN("WiFi mode set to STA");
+    #if defined(ESP32) || defined(ESP8266)
+      #if defined(ESP32)
+        WiFi.mode(WIFI_MODE_STA);
+      #elif defined(ESP8266)
+        WiFi.mode(WIFI_STA);
       #endif
+      DEBUG_PRINTLN("WiFi mode set to STA");
+    #endif
     
     // 恢复蓝牙（如果支持）
     #if defined(CONFIG_BT_ENABLED)
@@ -319,11 +323,9 @@ void PowerManager::exitLowPowerMode() {
     // 3. 恢复GPIO状态
     #if defined(ESP32)
       // 恢复GPIO状态
-      
-      gpio_hold_dis(GPIO_NUM_0);
-      gpio_hold_dis(GPIO_NUM_1);
-      gpio_hold_dis(GPIO_NUM_2);
-      gpio_hold_dis(GPIO_NUM_3);
+      for (int i = 0; i < 32; i++) {
+        gpio_hold_dis((gpio_num_t)i);
+      }
       DEBUG_PRINTLN("GPIO hold disabled");
     #endif
     
@@ -333,6 +335,10 @@ void PowerManager::exitLowPowerMode() {
     
     // 5. 恢复正常的传感器采样频率
     DEBUG_PRINTLN("Normal mode enabled, restoring sensor sampling rate");
+    
+    // 6. 恢复默认任务优先级
+    coreSystem->setDefaultTaskPriority(5);
+    DEBUG_PRINTLN("Task priority restored to default");
   }
 }
 

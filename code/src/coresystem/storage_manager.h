@@ -238,8 +238,14 @@ private:
   // 私有方法：压缩数据
   bool compressData(const String& dataId);
   
-  // 私有方法：解压缩数据
+  // 解压缩数据
   bool decompressData(const String& dataId);
+  
+  // 加密数据
+  bool encryptData(const String& dataId, const String& key);
+  
+  // 解密数据
+  bool decryptData(const String& dataId, const String& key);
   
 public:
   // 获取单例实例

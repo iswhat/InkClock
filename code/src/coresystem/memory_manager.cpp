@@ -434,6 +434,12 @@ void MemoryManager::optimizeMemoryUsage() {
   
   // 更新内存统计
   updateMemoryStats();
+  
+  // 打印内存优化结果
+  size_t totalMemory, usedMemory, peakMemory, freeMemory;
+  getMemoryStats(totalMemory, usedMemory, peakMemory, freeMemory);
+  Serial.printf("[MemoryManager] Memory optimization completed. Free: %zu bytes, Used: %zu bytes, Peak: %zu bytes\n", 
+               freeMemory, usedMemory, peakMemory);
 }
 
 // 设置内存警告阈值

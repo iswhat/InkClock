@@ -74,6 +74,20 @@ bool PluginManager::loadPluginFromFile(const String& filePath) {
     
     // 解析插件信息
     // 这里简化处理，实际应该解析JSON格式的插件配置
+    // 暂时实现一个简单的插件加载逻辑
+    
+    // 从文件路径提取插件名称
+    String pluginName = filePath.substring(filePath.lastIndexOf('/') + 1);
+    pluginName = pluginName.substring(0, pluginName.lastIndexOf('.'));
+    
+    // 检查插件是否已存在
+    std::string nameStr = pluginName.c_str();
+    if (plugins.find(nameStr) != plugins.end()) {
+        xSemaphoreGive(pluginMutex);
+        return false; // 插件已存在
+    }
+    
+    // 这里应该根据插件配置创建相应的插件实例
     // 暂时返回false，需要实现完整的插件加载逻辑
     
     xSemaphoreGive(pluginMutex);
@@ -149,6 +163,87 @@ void PluginManager::shutdownAll() {
     }
     
     xSemaphoreGive(pluginMutex);
+}
+
+bool PluginManager::reloadPlugin(const std::string& name) {
+    xSemaphoreTake(pluginMutex, portMAX_DELAY);
+    
+    auto it = plugins.find(name);
+    if (it == plugins.end()) {
+        xSemaphoreGive(pluginMutex);
+        return false; // 插件不存在
+    }
+    
+    // 保存插件状态
+    bool wasEnabled = it->second->isEnabled();
+    
+    // 关闭插件
+    if (wasEnabled && it->second->isReady()) {
+        it->second->shutdown();
+    }
+    
+    // 重新初始化插件
+    if (wasEnabled) {
+        it->second->initialize();
+    }
+    
+    updatePluginInfo(name, it->second.get());
+    
+    xSemaphoreGive(pluginMutex);
+    return true;
+}
+
+bool PluginManager::reloadAllPlugins() {
+    xSemaphoreTake(pluginMutex, portMAX_DELAY);
+    
+    bool allSuccess = true;
+    for (const auto& pair : plugins) {
+        const std::string& name = pair.first;
+        if (!reloadPlugin(name)) {
+            allSuccess = false;
+        }
+    }
+    
+    xSemaphoreGive(pluginMutex);
+    return allSuccess;
+}
+
+void PluginManager::setPluginPriority(const std::string& name, int priority) {
+    xSemaphoreTake(pluginMutex, portMAX_DELAY);
+    
+    auto it = plugins.find(name);
+    if (it != plugins.end()) {
+        it->second->setPriority(priority);
+        updatePluginInfo(name, it->second.get());
+    }
+    
+    xSemaphoreGive(pluginMutex);
+}
+
+std::vector<std::string> PluginManager::getPluginDependencies(const std::string& name) {
+    xSemaphoreTake(pluginMutex, portMAX_DELAY);
+    
+    std::vector<std::string> dependencies;
+    auto it = plugins.find(name);
+    if (it != plugins.end()) {
+        dependencies = it->second->getDependencies();
+    }
+    
+    xSemaphoreGive(pluginMutex);
+    return dependencies;
+}
+
+std::vector<std::string> PluginManager::getPluginDependents(const std::string& name) {
+    xSemaphoreTake(pluginMutex, portMAX_DELAY);
+    
+    std::vector<std::string> dependents;
+    auto it = pluginInfos.find(name);
+    if (it != pluginInfos.end()) {
+        dependents = it->second.dependents;
+    }
+    
+    xSemaphoreGive(pluginMutex);
+    return dependents;
 }
 
 IPlugin* PluginManager::getPlugin(const std::string& name) {

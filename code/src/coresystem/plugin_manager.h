@@ -99,6 +99,21 @@ public:
     // 扫描插件目录
     void scanPlugins();
     
+    // 重新加载插件
+    bool reloadPlugin(const std::string& name);
+    
+    // 重新加载所有插件
+    bool reloadAllPlugins();
+    
+    // 设置插件优先级
+    void setPluginPriority(const std::string& name, int priority);
+    
+    // 获取插件依赖
+    std::vector<std::string> getPluginDependencies(const std::string& name);
+    
+    // 获取依赖于该插件的其他插件
+    std::vector<std::string> getPluginDependents(const std::string& name);
+    
 private:
     PluginManager();
     ~PluginManager();
