@@ -237,4 +237,5 @@
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFiClient.h \
  src/application/wifi_manager.h \
- C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFiUdp.h
+ C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFiUdp.h \
+ src/application/../coresystem/config_manager.h

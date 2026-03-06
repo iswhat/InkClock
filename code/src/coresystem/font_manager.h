@@ -20,8 +20,13 @@ struct FontInfo {
 
 class FontManager {
 public:
-  FontManager();
-  ~FontManager();
+  static FontManager* getInstance() {
+    static FontManager instance;
+    return &instance;
+  }
+  
+  FontManager(const FontManager&) = delete;
+  FontManager& operator=(const FontManager&) = delete;
   
   void init();
   bool loadFont(String fontName);
@@ -34,6 +39,9 @@ public:
   bool uploadFont(String name, const uint8_t* data, size_t size);
   
 private:
+  FontManager();
+  ~FontManager();
+  
   std::vector<FontInfo> fonts;
   String currentFont;
   bool initialized;

@@ -40,6 +40,7 @@
 #include "coresystem/feature_manager.h"
 #include "coresystem/performance_monitor.h"
 #include "coresystem/storage_manager.h"
+#include "coresystem/error_handling.h"
 #include <memory>  // 添加智能指针支持
 #include "coresystem/module_registry.h"  // 添加模块注册表支持
 
@@ -209,6 +210,10 @@ T* getModule() {
       return MODULE_TYPE_AUDIO;
     }
     
+    bool shouldRun() const override {
+      return true;
+    }
+    
     AudioManager& getAudioManager() {
       return audioManager;
     }
@@ -237,6 +242,10 @@ T* getModule() {
     
     ModuleType getModuleType() const override {
       return MODULE_TYPE_SCENE;
+    }
+    
+    bool shouldRun() const override {
+      return true;
     }
     
     SceneManager& getSceneManager() {
@@ -269,6 +278,10 @@ T* getModule() {
       return MODULE_TYPE_BLUETOOTH;
     }
     
+    bool shouldRun() const override {
+      return true;
+    }
+    
     BluetoothManager& getBluetoothManager() {
       return bluetoothManager;
     }
@@ -297,6 +310,10 @@ T* getModule() {
     
     ModuleType getModuleType() const override {
       return MODULE_TYPE_CAMERA;
+    }
+    
+    bool shouldRun() const override {
+      return true;
     }
     
     CameraManager& getCameraManager() {
@@ -329,6 +346,10 @@ T* getModule() {
       return MODULE_TYPE_STOCK;
     }
     
+    bool shouldRun() const override {
+      return true;
+    }
+    
     StockManager& getStockManager() {
       return stockManager;
     }
@@ -357,6 +378,10 @@ T* getModule() {
     
     ModuleType getModuleType() const override {
       return MODULE_TYPE_MESSAGE;
+    }
+    
+    bool shouldRun() const override {
+      return true;
     }
     
     MessageManager& getMessageManager() {
@@ -389,6 +414,10 @@ T* getModule() {
       return MODULE_TYPE_PLUGIN;
     }
     
+    bool shouldRun() const override {
+      return true;
+    }
+    
     PluginManager& getPluginManager() {
       return pluginManager;
     }
@@ -419,6 +448,10 @@ T* getModule() {
       return MODULE_TYPE_WEBCLIENT;
     }
     
+    bool shouldRun() const override {
+      return true;
+    }
+    
     WebClient& getWebClient() {
       return webClient;
     }
@@ -431,10 +464,10 @@ T* getModule() {
 #if ENABLE_FONT
   class FontModuleWrapper : public IModule {
   public:
-    FontModuleWrapper() : fontManager() {}
+    FontModuleWrapper() {}
     
     void init() override {
-      fontManager.init();
+      FontManager::getInstance()->init();
     }
     
     void loop() override {
@@ -450,11 +483,8 @@ T* getModule() {
     }
     
     FontManager& getFontManager() {
-      return fontManager;
+      return *FontManager::getInstance();
     }
-    
-  private:
-    FontManager fontManager;
   };
 #endif
 
@@ -477,6 +507,10 @@ T* getModule() {
     
     ModuleType getModuleType() const override {
       return MODULE_TYPE_FIRMWARE;
+    }
+    
+    bool shouldRun() const override {
+      return true;
     }
     
     FirmwareManager& getFirmwareManager() {
@@ -507,6 +541,10 @@ T* getModule() {
     
     ModuleType getModuleType() const override {
       return MODULE_TYPE_TOUCH;
+    }
+    
+    bool shouldRun() const override {
+      return true;
     }
     
     TouchManager& getTouchManager() {
@@ -567,6 +605,10 @@ public:
     return MODULE_TYPE_WIFI;
   }
   
+  bool shouldRun() const override {
+    return true;
+  }
+  
   WiFiManager& getWiFiManager() {
     return wifiManager;
   }
@@ -593,6 +635,10 @@ public:
   
   ModuleType getModuleType() const override {
     return MODULE_TYPE_TIME;
+  }
+  
+  bool shouldRun() const override {
+    return true;
   }
   
   TimeManager& getTimeManager() {
@@ -623,6 +669,10 @@ public:
     return MODULE_TYPE_LUNAR;
   }
   
+  bool shouldRun() const override {
+    return true;
+  }
+  
   LunarManager& getLunarManager() {
     return lunarManager;
   }
@@ -649,6 +699,10 @@ public:
   
   ModuleType getModuleType() const override {
     return MODULE_TYPE_WEATHER;
+  }
+  
+  bool shouldRun() const override {
+    return true;
   }
   
   WeatherManager& getWeatherManager() {
@@ -679,6 +733,10 @@ public:
     return MODULE_TYPE_SENSOR;
   }
   
+  bool shouldRun() const override {
+    return true;
+  }
+  
   SensorManager& getSensorManager() {
     return sensorManager;
   }
@@ -707,6 +765,10 @@ public:
     return MODULE_TYPE_BUTTON;
   }
   
+  bool shouldRun() const override {
+    return true;
+  }
+  
   ButtonManager& getButtonManager() {
     return buttonManager;
   }
@@ -733,6 +795,10 @@ public:
   
   ModuleType getModuleType() const override {
     return MODULE_TYPE_FEEDBACK;
+  }
+  
+  bool shouldRun() const override {
+    return true;
   }
   
   FeedbackManager& getFeedbackManager() {
@@ -769,6 +835,10 @@ class PowerModuleWrapper : public IModule {
       return MODULE_TYPE_POWER;
     }
     
+    bool shouldRun() const override {
+      return true;
+    }
+    
     PowerManager& getPowerManager() {
       static PowerManager* powerManager = nullptr;
       if (!powerManager) {
@@ -780,7 +850,7 @@ class PowerModuleWrapper : public IModule {
 
 class WebServerModuleWrapper : public IModule {
 public:
-  WebServerModuleWrapper() : webServerManager() {}
+  WebServerModuleWrapper() : webServerManager(8080) {}
   
   void init() override {
     webServerManager.init();
@@ -796,6 +866,10 @@ public:
   
   ModuleType getModuleType() const override {
     return MODULE_TYPE_WEB_SERVER;
+  }
+  
+  bool shouldRun() const override {
+    return true;
   }
   
   WebServerManager& getWebServerManager() {
@@ -854,6 +928,10 @@ public:
     return MODULE_TYPE_GEO;
   }
   
+  bool shouldRun() const override {
+    return true;
+  }
+  
   GeoManager& getGeoManager() {
     return geoManager;
   }
@@ -862,10 +940,10 @@ private:
   GeoManager geoManager;
 };
 
-// 全局变量用于按钮回调
-ButtonModuleWrapper* globalButtonModule;
-FeedbackModuleWrapper* globalFeedbackModule;
-DisplayModuleWrapper* globalDisplayModule;
+// 全局变量用于按钮回调 - 使用依赖注入容器获取实例
+ButtonModuleWrapper* globalButtonModule = nullptr;
+FeedbackModuleWrapper* globalFeedbackModule = nullptr;
+DisplayModuleWrapper* globalDisplayModule = nullptr;
 
 /**
  * @brief 初始化函数
@@ -904,6 +982,15 @@ void initSystem() {
   // 初始化SPIFFS，确保在其他模块之前初始化
   initSPIFFS();
   Serial.println("SPIFFS初始化完成");
+  
+  // 初始化错误处理系统
+  ErrorHandlingManager* errorHandler = ErrorHandlingManager::getInstance();
+  if (errorHandler) {
+    errorHandler->init();
+    Serial.println("错误处理系统初始化完成");
+  } else {
+    Serial.println("警告: 错误处理系统初始化失败");
+  }
   
   // 初始化硬件检测器，用于硬件资源评估
   HardwareDetector* hardwareDetector = HardwareDetector::getInstance();
@@ -1096,6 +1183,11 @@ void initInputDevices() {
   FeedbackModuleWrapper* feedbackModule = getModule<FeedbackModuleWrapper>();
   DisplayModuleWrapper* displayModule = getModule<DisplayModuleWrapper>();
   CoreSystem* coreSystem = CoreSystem::getInstance();
+  
+  // 更新全局变量，使用模块注册表获取实例
+  globalButtonModule = buttonModule;
+  globalFeedbackModule = feedbackModule;
+  globalDisplayModule = displayModule;
   
   if (buttonModule) {
     buttonModule->getButtonManager().init();       // 按键事件处理
@@ -1390,9 +1482,6 @@ void initNetworkDependentModules() {
   }
   
   // 初始化Web服务器
-  // 设置web_server.cpp中的coreSystem指针
-  extern CoreSystem* coreSystem;
-  coreSystem = CoreSystem::getInstance();
   
   auto webServerModule = getModule<WebServerModuleWrapper>();
   if (webServerModule) {

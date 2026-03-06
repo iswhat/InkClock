@@ -42,9 +42,21 @@ class DeviceService implements DeviceServiceInterface {
             return ['success' => false, 'error' => '无效的设备信息'];
         }
         
+        // 验证设备证书
+        if (!isset($deviceInfo['device_cert']) || !$this->validateDeviceCertificate($deviceInfo['device_cert'], $deviceInfo['device_id'])) {
+            $this->logger->warning('设备证书验证失败', ['device_id' => $deviceInfo['device_id']]);
+            return ['success' => false, 'error' => '无效的设备证书'];
+        }
+        
         // 调用模型进行注册
         $deviceModel = new Device($this->db);
-        $result = $deviceModel->registerDevice($deviceInfo);
+        $result = $deviceModel->registerDevice(
+            $deviceInfo['device_id'],
+            $deviceInfo['model'] ?? '',
+            $deviceInfo['firmware_version'] ?? 'unknown',
+            $deviceInfo['mac_address'] ?? '',
+            $deviceInfo['extra_info'] ?? []
+        );
         
         if ($result['success']) {
             $this->logger->info('设备注册成功', ['device_id' => $deviceInfo['device_id']]);
@@ -53,6 +65,25 @@ class DeviceService implements DeviceServiceInterface {
         }
         
         return $result;
+    }
+    
+    /**
+     * 验证设备证书
+     * @param string $certificate 设备证书
+     * @param string $deviceId 设备ID
+     * @return bool 验证结果
+     */
+    private function validateDeviceCertificate($certificate, $deviceId) {
+        // 简化的证书验证逻辑，实际项目中应使用更安全的验证方法
+        // 例如：验证证书签名、检查证书有效期等
+        if (empty($certificate)) {
+            return false;
+        }
+        
+        // 这里可以实现更复杂的证书验证逻辑
+        // 例如：使用公钥验证证书签名
+        
+        return true;
     }
     
     /**

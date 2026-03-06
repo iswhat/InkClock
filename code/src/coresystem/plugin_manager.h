@@ -42,6 +42,11 @@ public:
         return 5; // 默认中等优先级
     }
     
+    // 设置插件优先级
+    virtual void setPriority(int priority) {
+        // 默认实现，子类可以重写
+    }
+    
     // 获取插件依赖
     virtual std::vector<std::string> getDependencies() const {
         return {}; // 默认无依赖

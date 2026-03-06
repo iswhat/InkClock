@@ -84,15 +84,18 @@ static const char* const STOCK_CODES[] = {"600000", "600519", "000858", "000001"
 #ifdef ESP32
 #define PLATFORM_ESP32 1
 #define PLATFORM_ESP8266 0
+#define PLATFORM_NAME "ESP32"
 #elif defined(ESP8266)
 #define PLATFORM_ESP32 0
 #define PLATFORM_ESP8266 1
+#define PLATFORM_NAME "ESP8266"
 #else
 #define PLATFORM_ESP32 0
 #define PLATFORM_ESP8266 0
 #define PLATFORM_NRF52 0
 #define PLATFORM_STM32 0
 #define PLATFORM_RP2040 0
+#define PLATFORM_NAME "Unknown"
 #endif
 
 // Audio module macros

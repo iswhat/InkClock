@@ -411,7 +411,7 @@ void FileErrorHandler::logError(std::shared_ptr<ErrorInfo> error) {
     // 使用SPIFFS写入错误日志
     if (isSPIFFSMounted()) {
         FS& fs = getSPIFFS();
-        File file = fs.open(logFileName, FILE_APPEND);
+        File file = fs.open(logFileName, "a");
         if (file) {
             String errorJson = error->toJson();
             file.println(errorJson);
@@ -471,7 +471,7 @@ void FileErrorHandler::rotateLogFile() {
     if (isSPIFFSMounted()) {
         FS& fs = getSPIFFS();
         if (fs.exists(logFileName)) {
-            File file = fs.open(logFileName, FILE_READ);
+            File file = fs.open(logFileName, "r");
             if (file) {
                 size_t fileSize = file.size();
                 file.close();

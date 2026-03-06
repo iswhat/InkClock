@@ -214,4 +214,9 @@
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/cores/esp32/cbuf.h \
  src/application/wifi_manager.h src/application/../coresystem/config.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFiClient.h \
- C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFiUdp.h
+ C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFiUdp.h \
+ src/coresystem/module_registry.h src/coresystem/event_bus.h \
+ src/coresystem/data_types.h \
+ src/coresystem/../drivers/peripherals/sensor_driver.h \
+ d:\inkclock\code\src\coresystem\config.h \
+ d:\inkclock\code\src\coresystem\data_types.h

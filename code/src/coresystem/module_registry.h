@@ -68,7 +68,9 @@ public:
   virtual void init() = 0;
 
   // 运行模块
-  virtual void loop() = 0;
+  virtual void loop() {
+    // 默认实现，子类可以重写
+  }
 
   // 获取模块名称
   virtual String getName() const = 0;
@@ -78,7 +80,7 @@ public:
 
   // 检查模块是否需要运行
   virtual bool shouldRun() const {
-    return true;
+    return false; // 默认不运行，需要运行的模块重写此方法返回true
   }
 };
 

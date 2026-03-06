@@ -157,6 +157,24 @@ public:
      */
     String getStats();
     
+    /**
+     * @brief 发送队列化的API请求
+     * @param request API请求结构体
+     * @return ApiResponse API响应结构体
+     */
+    ApiResponse sendQueuedRequest(const ApiRequest& request);
+    
+    /**
+     * @brief 处理请求队列
+     * @return ApiResponse API响应结构体
+     */
+    ApiResponse processRequestQueue();
+    
+    /**
+     * @brief 优化缓存
+     */
+    void optimizeCache();
+    
 private:
     /**
      * @brief 生成缓存键
@@ -217,6 +235,7 @@ private:
     unsigned long connectionTimeout; // 连接超时时间（毫秒）
     int maxRetries; // 最大重试次数
     unsigned long retryDelay; // 重试延迟（毫秒）
+    int requestQueueSize; // 请求队列大小
     
     // 统计信息
     unsigned long totalRequests;
@@ -226,6 +245,15 @@ private:
     unsigned long totalResponseTime;
     unsigned long cacheHits; // 缓存命中次数
     unsigned long cacheMisses; // 缓存未命中次数
+    
+    // 缓存时间配置
+    unsigned long defaultCacheTime; // 默认缓存时间（毫秒）
+    unsigned long weatherCacheTime; // 天气API缓存时间（毫秒）
+    unsigned long stockCacheTime; // 股票API缓存时间（毫秒）
+    unsigned long lunarCacheTime; // 农历API缓存时间（毫秒）
+    
+    // 请求队列
+    std::vector<ApiRequest> requestQueue;
 };
 
 #endif // API_MANAGER_H

@@ -1,4 +1,13 @@
 #include "bluetooth_manager.h"
+#include "coresystem/config.h"
+#include "application/wifi_manager.h"
+#include "coresystem/module_registry.h"
+
+// 前向声明
+class WiFiModuleWrapper {
+public:
+    WiFiManager& getWiFiManager();
+};
 
 #if PLATFORM_ESP32
 
@@ -44,18 +53,20 @@ void BluetoothManager::MyWiFiPasswordCallbacks::onWrite(BLECharacteristic* pChar
       manager->setWiFiConfigStatus(true);
       DEBUG_PRINTLN("WiFi configuration completed");
       
-      // 注意：WiFi管理器的使用需要进一步实现，暂时注释掉
-      // 目前无法直接访问全局WiFiManager实例
-      // WiFiManager wifiManager;
-      // wifiManager.setConfiguredWiFi(manager->wifiSSID, manager->wifiPassword);
-      // wifiManager.connect(manager->wifiSSID, manager->wifiPassword);
-      
-      // 发送连接状态通知
-      // 暂时使用固定状态，因为WiFi库的使用存在问题
-      String status = "Connecting";
-      if (manager->pWiFiStatusCharacteristic != nullptr) {
-        manager->pWiFiStatusCharacteristic->setValue(status.c_str());
-        manager->pWiFiStatusCharacteristic->notify();
+      // 尝试获取WiFiManager实例并连接
+      static ModuleRegistry* moduleRegistry = ModuleRegistry::getInstance();
+      if (moduleRegistry) {
+        auto wifiModule = moduleRegistry->getModule<WiFiModuleWrapper>();
+        if (wifiModule) {
+          wifiModule->getWiFiManager().setConfiguredWiFi(manager->wifiSSID, manager->wifiPassword);
+          wifiModule->getWiFiManager().connect(manager->wifiSSID, manager->wifiPassword);
+          // 发送连接状态通知
+          String status = "Connecting";
+          if (manager->pWiFiStatusCharacteristic != nullptr) {
+            manager->pWiFiStatusCharacteristic->setValue(status.c_str());
+            manager->pWiFiStatusCharacteristic->notify();
+          }
+        }
       }
     }
   }

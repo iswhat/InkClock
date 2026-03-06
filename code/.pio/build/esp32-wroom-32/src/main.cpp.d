@@ -280,8 +280,8 @@
  src/coresystem/spiffs_manager.h src/application/feedback_manager.h \
  src/coresystem/hardware_detector.h src/coresystem/feature_manager.h \
  src/coresystem/hardware_detector.h src/coresystem/performance_monitor.h \
- src/coresystem/storage_manager.h src/coresystem/module_registry.h \
- src/drivers/peripherals/dht22_driver.h \
+ src/coresystem/storage_manager.h src/coresystem/error_handling.h \
+ src/coresystem/module_registry.h src/drivers/peripherals/dht22_driver.h \
  src/drivers/peripherals/sensor_driver.h \
  .pio/libdeps/esp32-wroom-32/DHT\ sensor\ library/DHT.h \
  src/drivers/peripherals/sht30_driver.h \

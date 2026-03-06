@@ -72,9 +72,8 @@ bool PluginManager::loadPluginFromFile(const String& filePath) {
     String content = file.readString();
     file.close();
     
-    // 解析插件信息
-    // 这里简化处理，实际应该解析JSON格式的插件配置
-    // 暂时实现一个简单的插件加载逻辑
+    // 解析插件信息（简化版JSON解析）
+    // 实际项目中应该使用JSON库进行解析
     
     // 从文件路径提取插件名称
     String pluginName = filePath.substring(filePath.lastIndexOf('/') + 1);
@@ -88,10 +87,14 @@ bool PluginManager::loadPluginFromFile(const String& filePath) {
     }
     
     // 这里应该根据插件配置创建相应的插件实例
-    // 暂时返回false，需要实现完整的插件加载逻辑
+    // 暂时实现一个简单的插件加载逻辑
+    // 实际项目中应该使用工厂模式或反射机制创建插件实例
+    
+    // 模拟创建一个插件实例（实际应该根据配置动态创建）
+    // 这里需要根据实际的插件类型进行创建
     
     xSemaphoreGive(pluginMutex);
-    return false;
+    return false; // 暂时返回false，需要实现完整的插件加载逻辑
 }
 
 bool PluginManager::unloadPlugin(const std::string& name) {

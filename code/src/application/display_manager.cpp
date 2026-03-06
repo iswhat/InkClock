@@ -370,15 +370,25 @@ void DisplayManager::updateDisplay() {
         if (timeManager) {
           if (currentClockMode == CLOCK_MODE_DIGITAL) {
             drawDigitalClock(20, 60, timeManager->getTimeString(), timeManager->getDateString());
+            // 精确计算时钟区域的刷新范围
+            int clockHeight = height < 400 ? 120 : 200;
+            displayDriver->update(0, 0, leftPanelWidth, clockHeight);
           } else if (currentClockMode == CLOCK_MODE_ANALOG) {
             TimeData timeData = timeManager->getTimeData();
             int millisecond = millis() % 1000;
             drawAnalogClock(leftPanelWidth / 2, 120, timeData.hour, timeData.minute, timeData.second);
+            // 精确计算模拟时钟区域的刷新范围
+            int clockRadius = height < 400 ? 40 : 60;
+            int clockX = leftPanelWidth / 2;
+            int clockY = 120;
+            displayDriver->update(clockX - clockRadius - 10, clockY - clockRadius - 10, clockRadius * 2 + 20, clockRadius * 2 + 20);
           } else if (currentClockMode == CLOCK_MODE_TEXT) {
             TimeData timeData = timeManager->getTimeData();
             drawTextClock(20, 60, timeData.hour, timeData.minute, timeData.second);
+            // 精确计算文字时钟区域的刷新范围
+            int clockHeight = height < 400 ? 120 : 200;
+            displayDriver->update(0, 0, leftPanelWidth, clockHeight);
           }
-          displayDriver->update(0, 0, leftPanelWidth, height < 400 ? 120 : 200);
         }
       }
       
@@ -387,10 +397,12 @@ void DisplayManager::updateDisplay() {
         auto weatherManager = DependencyInjectionContainer::getInstance()->getWeatherManager();
         if (weatherManager) {
           WeatherData weather = weatherManager->getWeatherData();
-          drawWeather(20, height < 400 ? 140 : 220, weather.city, 
+          int weatherY = height < 400 ? 140 : 220;
+          int weatherHeight = height < 400 ? 100 : 150;
+          drawWeather(20, weatherY, weather.city, 
                       (weather.temp != 0 ? String(weather.temp) : "--") + "°C", 
                       weather.condition, "", "");
-          displayDriver->update(0, height < 400 ? 140 : 220, leftPanelWidth, height < 400 ? 100 : 150);
+          displayDriver->update(0, weatherY, leftPanelWidth, weatherHeight);
         }
       }
       
@@ -399,8 +411,10 @@ void DisplayManager::updateDisplay() {
         auto sensorManager = DependencyInjectionContainer::getInstance()->getSensorManager();
         if (sensorManager) {
           SensorData sensor = sensorManager->getSensorData();
-          drawSensorData(20, height < 400 ? 220 : 340, sensor.temperature, sensor.humidity);
-          displayDriver->update(0, height < 400 ? 220 : 340, leftPanelWidth, height < 400 ? 80 : 120);
+          int sensorY = height < 400 ? 220 : 340;
+          int sensorHeight = height < 400 ? 80 : 120;
+          drawSensorData(20, sensorY, sensor.temperature, sensor.humidity);
+          displayDriver->update(0, sensorY, leftPanelWidth, sensorHeight);
         }
       }
       
@@ -414,9 +428,12 @@ void DisplayManager::updateDisplay() {
           bool isCharging = powerManager->getChargingStatus();
           int messageCount = messageManager->getUnreadMessageCount();
           
-          drawBatteryInfo(20, height < 400 ? 340 : 560, batteryVoltage, batteryPercentage, isCharging);
-          drawMessageNotification(20, height < 400 ? 380 : 600, messageCount);
-          displayDriver->update(0, height < 400 ? 340 : 560, leftPanelWidth, height < 400 ? 60 : 80);
+          int batteryY = height < 400 ? 340 : 560;
+          int batteryHeight = height < 400 ? 60 : 80;
+          
+          drawBatteryInfo(20, batteryY, batteryVoltage, batteryPercentage, isCharging);
+          drawMessageNotification(20, batteryY + 40, messageCount);
+          displayDriver->update(0, batteryY, leftPanelWidth, batteryHeight);
           
           // 如果有新消息，启动消息提醒动画
           if (needMessageRefresh && messageCount > 0) {
@@ -527,31 +544,45 @@ void DisplayManager::updateDisplayPartial() {
     if (timeManager) {
       if (currentClockMode == CLOCK_MODE_DIGITAL) {
         drawDigitalClock(20, 60, timeManager->getTimeString(), timeManager->getDateString());
+        // 精确计算时钟区域的刷新范围
+        int clockHeight = height < 400 ? 120 : 200;
+        displayDriver->update(0, 0, leftPanelWidth, clockHeight);
       } else if (currentClockMode == CLOCK_MODE_ANALOG) {
         TimeData timeData = timeManager->getTimeData();
         drawAnalogClock(leftPanelWidth / 2, 120, timeData.hour, timeData.minute, timeData.second);
+        // 精确计算模拟时钟区域的刷新范围
+        int clockRadius = height < 400 ? 40 : 60;
+        int clockX = leftPanelWidth / 2;
+        int clockY = 120;
+        displayDriver->update(clockX - clockRadius - 10, clockY - clockRadius - 10, clockRadius * 2 + 20, clockRadius * 2 + 20);
       } else if (currentClockMode == CLOCK_MODE_TEXT) {
         TimeData timeData = timeManager->getTimeData();
         drawTextClock(20, 60, timeData.hour, timeData.minute, timeData.second);
+        // 精确计算文字时钟区域的刷新范围
+        int clockHeight = height < 400 ? 120 : 200;
+        displayDriver->update(0, 0, leftPanelWidth, clockHeight);
       }
-      displayDriver->update(0, 0, leftPanelWidth, height < 400 ? 150 : 250);
     }
   }
   
   if (needWeatherRefresh && weatherManager) {
     // 只刷新天气区域
     WeatherData weather = weatherManager->getWeatherData();
-    drawWeather(20, height < 400 ? 140 : 220, weather.city, 
+    int weatherY = height < 400 ? 140 : 220;
+    int weatherHeight = height < 400 ? 100 : 150;
+    drawWeather(20, weatherY, weather.city, 
                 (weather.temp != 0 ? String(weather.temp) : "--") + "°C", 
                 weather.condition, "", "");
-    displayDriver->update(0, height < 400 ? 140 : 220, leftPanelWidth, height < 400 ? 80 : 120);
+    displayDriver->update(0, weatherY, leftPanelWidth, weatherHeight);
   }
   
   if (needSensorRefresh && sensorManager) {
     // 只刷新传感器数据区域
     SensorData sensor = sensorManager->getSensorData();
-    drawSensorData(20, height < 400 ? 220 : 340, sensor.temperature, sensor.humidity);
-    displayDriver->update(0, height < 400 ? 220 : 340, leftPanelWidth, height < 400 ? 60 : 100);
+    int sensorY = height < 400 ? 220 : 340;
+    int sensorHeight = height < 400 ? 80 : 120;
+    drawSensorData(20, sensorY, sensor.temperature, sensor.humidity);
+    displayDriver->update(0, sensorY, leftPanelWidth, sensorHeight);
   }
   
   if (needBatteryRefresh || needMessageRefresh) {
@@ -562,9 +593,12 @@ void DisplayManager::updateDisplayPartial() {
       bool isCharging = powerManager->getChargingStatus();
       int messageCount = messageManager->getUnreadMessageCount();
       
-      drawBatteryInfo(20, height < 400 ? 340 : 560, batteryVoltage, batteryPercentage, isCharging);
-      drawMessageNotification(20, height < 400 ? 380 : 600, messageCount);
-      displayDriver->update(0, height < 400 ? 340 : 560, leftPanelWidth, height < 400 ? 60 : 80);
+      int batteryY = height < 400 ? 340 : 560;
+      int batteryHeight = height < 400 ? 60 : 80;
+      
+      drawBatteryInfo(20, batteryY, batteryVoltage, batteryPercentage, isCharging);
+      drawMessageNotification(20, batteryY + 40, messageCount);
+      displayDriver->update(0, batteryY, leftPanelWidth, batteryHeight);
       
       // 如果有新消息，启动消息提醒动画
       if (needMessageRefresh && messageCount > 0) {

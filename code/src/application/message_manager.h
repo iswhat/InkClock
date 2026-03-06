@@ -49,6 +49,9 @@ public:
   bool saveMessages();
   bool loadMessages();
   
+  // 消息清理功能
+  void cleanExpiredMessages();
+  
 private:
   // 消息数组
   MessageData messages[MAX_MESSAGES];

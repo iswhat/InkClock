@@ -240,6 +240,9 @@
  .pio/libdeps/esp32-wroom-32/ArduinoJson/src/ArduinoJson.hpp \
  .pio/libdeps/esp32-wroom-32/ArduinoJson/src/ArduinoJson/Configuration.hpp \
  src/application/message_manager.h src/application/api_manager.h \
+ src/application/../coresystem/module_registry.h \
+ src/application/../coresystem/config_manager.h \
+ src/application/../coresystem/dependency_injection.h \
  src/application/../coresystem/tf_card_manager.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/SD/src/SD.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src/SPI.h \

@@ -15,6 +15,7 @@ extern WiFiManager wifiManager;
 
 // 使用config.h中定义的配置参数
 #include "../coresystem/config.h"
+#include "../coresystem/config_manager.h"
 
 APIManager::APIManager() {
     // 初始化成员变量
@@ -33,6 +34,13 @@ APIManager::APIManager() {
     connectionTimeout = 10000; // 连接超时时间（毫秒）
     maxRetries = 3; // 最大重试次数
     retryDelay = 1000; // 重试延迟（毫秒）
+    requestQueueSize = 10; // 请求队列大小
+    
+    // 初始化缓存时间配置
+    defaultCacheTime = 3600000; // 默认1小时
+    weatherCacheTime = 600000; // 默认10分钟
+    stockCacheTime = 300000; // 默认5分钟
+    lunarCacheTime = 86400000; // 默认1天
     
     // 初始化统计信息
     totalRequests = 0;
@@ -42,6 +50,9 @@ APIManager::APIManager() {
     totalResponseTime = 0;
     cacheHits = 0;
     cacheMisses = 0;
+    
+    // 初始化请求队列
+    requestQueue.clear();
 }
 
 APIManager::~APIManager() {
@@ -77,10 +88,23 @@ void APIManager::init() {
     // 配置客户端
     wifiClient->setInsecure(); // 禁用证书验证
     
+    // 从配置文件读取缓存配置
+    defaultCacheTime = CONFIG_GET_INT("api.cache_time", 3600000); // 默认1小时
+    weatherCacheTime = CONFIG_GET_INT("api.weather_cache_time", 600000); // 默认10分钟
+    stockCacheTime = CONFIG_GET_INT("api.stock_cache_time", 300000); // 默认5分钟
+    lunarCacheTime = CONFIG_GET_INT("api.lunar_cache_time", 86400000); // 默认1天
+    
     // 记录初始时间
     lastCacheCleanup = millis();
     
-    DEBUG_PRINTLN("API管理器初始化完成");
+    DEBUG_PRINT("API管理器初始化完成，默认缓存时间：");
+    DEBUG_PRINTLN(defaultCacheTime / 1000);
+    DEBUG_PRINT("天气缓存时间：");
+    DEBUG_PRINTLN(weatherCacheTime / 1000);
+    DEBUG_PRINT("股票缓存时间：");
+    DEBUG_PRINTLN(stockCacheTime / 1000);
+    DEBUG_PRINT("农历缓存时间：");
+    DEBUG_PRINTLN(lunarCacheTime / 1000);
 }
 
 ApiResponse APIManager::sendRequest(const ApiRequest& request) {
@@ -232,7 +256,61 @@ ApiResponse APIManager::sendRequest(const ApiRequest& request) {
     return response;
 }
 
+ApiResponse APIManager::sendQueuedRequest(const ApiRequest& request) {
+    // 检查请求队列大小
+    if (requestQueue.size() >= requestQueueSize) {
+        // 队列已满，移除最早的请求
+        requestQueue.erase(requestQueue.begin());
+    }
+    
+    // 将请求添加到队列
+    requestQueue.push_back(request);
+    
+    // 处理队列中的请求
+    return processRequestQueue();
+}
+
+ApiResponse APIManager::processRequestQueue() {
+    if (requestQueue.empty()) {
+        ApiResponse response;
+        response.status = API_STATUS_ERROR;
+        response.error = "请求队列为空";
+        return response;
+    }
+    
+    // 获取队列中的第一个请求
+    ApiRequest request = requestQueue.front();
+    requestQueue.erase(requestQueue.begin());
+    
+    // 处理请求
+    return sendRequest(request);
+}
+
+void APIManager::optimizeCache() {
+    // 优化缓存，使用LRU策略
+    // 这里可以实现LRU缓存淘汰算法
+    DEBUG_PRINTLN("优化缓存，当前缓存大小：" + String(getCacheSize()));
+}
+
 ApiResponse APIManager::get(const String& url, ApiType type, unsigned long cacheTime) {
+    // 根据API类型设置默认缓存时间
+    if (cacheTime == 0) {
+        switch (type) {
+            case API_TYPE_WEATHER:
+                cacheTime = weatherCacheTime;
+                break;
+            case API_TYPE_STOCK:
+                cacheTime = stockCacheTime;
+                break;
+            case API_TYPE_LUNAR:
+                cacheTime = lunarCacheTime;
+                break;
+            default:
+                cacheTime = defaultCacheTime;
+                break;
+        }
+    }
+    
     // 创建GET请求
     ApiRequest request;
     request.url = url;
@@ -246,6 +324,24 @@ ApiResponse APIManager::get(const String& url, ApiType type, unsigned long cache
 }
 
 ApiResponse APIManager::post(const String& url, const String& body, ApiType type, unsigned long cacheTime) {
+    // 根据API类型设置默认缓存时间
+    if (cacheTime == 0) {
+        switch (type) {
+            case API_TYPE_WEATHER:
+                cacheTime = weatherCacheTime;
+                break;
+            case API_TYPE_STOCK:
+                cacheTime = stockCacheTime;
+                break;
+            case API_TYPE_LUNAR:
+                cacheTime = lunarCacheTime;
+                break;
+            default:
+                cacheTime = defaultCacheTime;
+                break;
+        }
+    }
+    
     // 创建POST请求
     ApiRequest request;
     request.url = url;

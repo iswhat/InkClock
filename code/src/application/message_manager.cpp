@@ -80,6 +80,9 @@ void MessageManager::update() {
     saveMessages();
     dataUpdated = false;
   }
+  
+  // 清理过期消息
+  cleanExpiredMessages();
 }
 
 void MessageManager::loop() {
@@ -101,6 +104,7 @@ bool MessageManager::addMessage(String sender, String content, MessageType type,
   }
   
   // 获取当前时间
+  unsigned long currentTime = millis();
   String timeStr = timeManager.getTimeString();
   
   // 创建新消息
@@ -109,7 +113,7 @@ bool MessageManager::addMessage(String sender, String content, MessageType type,
   newMessage.sender = sender;
   newMessage.content = content;
   newMessage.receiver = "";
-  newMessage.timestamp = timeStr;
+  newMessage.timestamp = String(currentTime);
   newMessage.priority = priority;
   newMessage.category = category;
   newMessage.read = false;
@@ -475,4 +479,80 @@ MessageData* MessageManager::filterMessages(MessageCategory category, MessagePri
   }
   
   return count > 0 ? filteredMessages : nullptr;
+}
+
+// 清理过期消息
+void MessageManager::cleanExpiredMessages() {
+  DEBUG_PRINTLN("清理过期消息...");
+  
+  // 消息过期时间（毫秒）
+  const unsigned long MESSAGE_EXPIRY_TIME = 7 * 24 * 60 * 60 * 1000; // 7天
+  
+  // 获取当前时间
+  unsigned long currentTime = millis();
+  
+  // 计算过期消息数量
+  int expiredCount = 0;
+  for (int i = 0; i < messageCount; i++) {
+    // 尝试解析消息时间戳
+    unsigned long messageTime = 0;
+    if (messages[i].timestamp.length() > 0) {
+      messageTime = strtoul(messages[i].timestamp.c_str(), NULL, 10);
+    }
+    
+    // 检查消息是否过期
+    if (messageTime > 0 && (currentTime - messageTime) > MESSAGE_EXPIRY_TIME) {
+      expiredCount++;
+    }
+  }
+  
+  // 如果有过期消息，清理它们
+  if (expiredCount > 0) {
+    // 创建新的消息数组
+    MessageData newMessages[MAX_MESSAGES];
+    int newIndex = 0;
+    
+    // 复制未过期的消息
+    for (int i = 0; i < messageCount; i++) {
+      // 尝试解析消息时间戳
+      unsigned long messageTime = 0;
+      if (messages[i].timestamp.length() > 0) {
+        messageTime = strtoul(messages[i].timestamp.c_str(), NULL, 10);
+      }
+      
+      // 检查消息是否未过期
+      if (messageTime == 0 || (currentTime - messageTime) <= MESSAGE_EXPIRY_TIME) {
+        newMessages[newIndex++] = messages[i];
+      }
+    }
+    
+    // 清空原消息数组
+    for (int i = 0; i < messageCount; i++) {
+      messages[i].id = "";
+      messages[i].content = "";
+      messages[i].sender = "";
+      messages[i].receiver = "";
+      messages[i].timestamp = "";
+      messages[i].priority = MESSAGE_PRIORITY_NORMAL;
+      messages[i].category = MESSAGE_CATEGORY_GENERAL;
+      messages[i].read = false;
+      messages[i].archived = false;
+      messages[i].valid = false;
+    }
+    
+    // 复制新消息数组到原数组
+    for (int i = 0; i < newIndex; i++) {
+      messages[i] = newMessages[i];
+    }
+    
+    // 更新消息计数
+    int oldCount = messageCount;
+    messageCount = newIndex;
+    
+    // 设置数据更新标志
+    if (oldCount != messageCount) {
+      dataUpdated = true;
+      DEBUG_PRINT("已清理 " + String(oldCount - messageCount) + " 条过期消息");
+    }
+  }
 }
