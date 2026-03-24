@@ -165,13 +165,23 @@ bool WeatherManager::fetchWeatherData() {
 }
 
 void WeatherManager::parseWeatherData(String json) {
-  // 解析JSON数据 (wttr.in格式)
+  // 解析 JSON 数据 (wttr.in 格式)
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, json);
   
   if (error) {
-    DEBUG_PRINT("JSON解析错误: ");
+    DEBUG_PRINT("JSON 解析错误：");
     DEBUG_PRINTLN(error.c_str());
+    // 设置默认值，避免后续使用空数据
+    currentWeather.city = "未知";
+    currentWeather.temp = 0.0f;
+    currentWeather.humidity = 0;
+    currentWeather.condition = "未知";
+    currentWeather.feelsLike = 0.0f;
+    currentWeather.pressure = 0;
+    currentWeather.visibility = 0;
+    currentWeather.airQuality = 0;
+    currentWeather.airQualityLevel = "未知";
     return;
   }
   
@@ -255,6 +265,11 @@ void WeatherManager::parseWeatherData(String json) {
     float forecastWindDeg = day["hourly"][0]["winddirDegree"].as<float>();
     forecastData[i].wind = convertWindSpeed(forecastWindSpeed) + " " + convertWindDirection(forecastWindDeg);
     forecastData[i].humidity = day["hourly"][0]["humidity"].as<int>();
+    
+    if (i == 0) {
+      currentWeather.tempHigh = forecastData[i].tempDay;
+      currentWeather.tempLow = forecastData[i].tempNight;
+    }
   }
   
 
@@ -477,22 +492,12 @@ bool WeatherManager::parseWeatherDataBackup(String json) {
     forecastData[i].wind = convertWindSpeed(windSpeedMax[i].as<float>()) + " 未知风向";
     forecastData[i].humidity = humidityMax[i].as<int>();
     
-    // 保存最高和最低温度到当前天气
     if (i == 0) {
-
+      currentWeather.tempHigh = forecastData[i].tempDay;
+      currentWeather.tempLow = forecastData[i].tempNight;
     }
   }
   
 
   return true;
 }
-
-// parseWeatherDataSecondaryBackup方法暂时禁用，因为未在头文件中声明
-// void WeatherManager::parseWeatherDataSecondaryBackup(String json) {
-//   // 实现代码已注释
-// }
-
-// parseWeatherDataTertiaryBackup方法暂时禁用，因为未在头文件中声明
-// void WeatherManager::parseWeatherDataTertiaryBackup(String json) {
-//   // 实现代码已注释
-// }

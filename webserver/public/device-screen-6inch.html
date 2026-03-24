@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { margin: 0; padding: 0; }
+.eink-screen {
+    width: 1448px;
+    height: 1072px;
+    background: #FFF;
+    display: flex;
+}
+.left-panel {
+    width: 652px;
+    background: #FFF;
+    border-right: 3px solid #ccc;
+    padding: 18px 25px;
+}
+.right-panel {
+    flex: 1;
+    background: #FAFAFA;
+    padding: 18px 25px;
+}
+.status-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 15px;
+}
+.battery-icon {
+    width: 28px;
+    height: 14px;
+    border: 2px solid #333;
+    border-radius: 2px;
+    position: relative;
+    padding: 2px;
+}
+.battery-icon::before {
+    content: '';
+    position: absolute;
+    right: -4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 7px;
+    background: #333;
+}
+.battery-level {
+    height: 100%;
+    background: #4caf50;
+    width: 75%;
+}
+.time-display {
+    font-size: 90px;
+    font-weight: bold;
+    color: #000;
+    line-height: 1;
+    margin-bottom: 8px;
+}
+.date-row {
+    font-size: 22px;
+    color: #666;
+    margin-bottom: 6px;
+}
+.weather-section {
+    margin: 15px 0;
+}
+.weather-temp {
+    font-size: 42px;
+    font-weight: bold;
+}
+.weather-forecast {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 2px dashed #90caf9;
+}
+.forecast-item {
+    text-align: center;
+}
+.forecast-day {
+    font-size: 16px;
+    color: #666;
+    font-weight: bold;
+}
+.forecast-icon {
+    font-size: 28px;
+}
+.forecast-temp {
+    font-size: 18px;
+    font-weight: bold;
+    color: #1976d2;
+}
+.sensor-section {
+    display: flex;
+    justify-content: space-around;
+    font-size: 16px;
+    border-top: 2px solid #ddd;
+    padding-top: 12px;
+    margin-top: 15px;
+}
+.calendar-header {
+    text-align: center;
+    padding: 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+.calendar-title {
+    font-size: 22px;
+    font-weight: bold;
+}
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+    margin-bottom: 15px;
+}
+.calendar-day {
+    text-align: center;
+    padding: 6px 3px;
+    background: white;
+    border-radius: 3px;
+    font-size: 16px;
+}
+.calendar-day.today {
+    background: #f44336;
+    color: white;
+    font-weight: bold;
+}
+.festival-section, .almanac-section {
+    padding: 12px 15px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    border-left: 4px solid;
+}
+.festival-section {
+    background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+    border-left-color: #ff9800;
+}
+.almanac-section {
+    background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+    border-left-color: #9c27b0;
+}
+.section-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+.festival-item {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 3px;
+}
+.almanac-item {
+    font-size: 14px;
+}
+.almanac-item.good { color: #2e7d32; }
+.almanac-item.bad { color: #c62828; }
+</style>
+</head>
+<body>
+<div class="eink-screen">
+    <div class="left-panel">
+        <div class="status-bar">
+            <div class="battery-icon"><div class="battery-level"></div></div>
+            <span style="font-size:16px;font-weight:bold;">75%</span>
+            <span style="font-size:16px;">🔔 3</span>
+        </div>
+        <div class="time-display">14:35</div>
+        <div class="date-row">2026-03-18 星期三</div>
+        <div class="date-row">农历二月初九</div>
+        <div class="weather-section">
+            <div class="weather-temp">23°C ☀️</div>
+            <div class="weather-forecast">
+                <div class="forecast-item">
+                    <div class="forecast-day">今天</div>
+                    <div class="forecast-icon">☀️</div>
+                    <div class="forecast-temp">23°</div>
+                </div>
+                <div class="forecast-item">
+                    <div class="forecast-day">明天</div>
+                    <div class="forecast-icon">⛅</div>
+                    <div class="forecast-temp">25°</div>
+                </div>
+                <div class="forecast-item">
+                    <div class="forecast-day">后天</div>
+                    <div class="forecast-icon">🌤️</div>
+                    <div class="forecast-temp">24°</div>
+                </div>
+            </div>
+        </div>
+        <div class="sensor-section">
+            <span>🌡️25.5°</span>
+            <span>💧60%</span>
+            <span>🌿优</span>
+        </div>
+    </div>
+    <div class="right-panel">
+        <div class="calendar-header">
+            <div class="calendar-title">📅 2026年3月</div>
+        </div>
+        <div class="calendar-grid">
+            <div class="calendar-day">日</div>
+            <div class="calendar-day">一</div>
+            <div class="calendar-day">二</div>
+            <div class="calendar-day">三</div>
+            <div class="calendar-day">四</div>
+            <div class="calendar-day">五</div>
+            <div class="calendar-day">六</div>
+            <div class="calendar-day">1</div>
+            <div class="calendar-day">2</div>
+            <div class="calendar-day">3</div>
+            <div class="calendar-day">4</div>
+            <div class="calendar-day">5</div>
+            <div class="calendar-day">6</div>
+            <div class="calendar-day">7</div>
+            <div class="calendar-day">8</div>
+            <div class="calendar-day">9</div>
+            <div class="calendar-day">10</div>
+            <div class="calendar-day">11</div>
+            <div class="calendar-day">12</div>
+            <div class="calendar-day">13</div>
+            <div class="calendar-day">14</div>
+            <div class="calendar-day">15</div>
+            <div class="calendar-day">16</div>
+            <div class="calendar-day">17</div>
+            <div class="calendar-day today">18</div>
+            <div class="calendar-day">19</div>
+            <div class="calendar-day">20</div>
+            <div class="calendar-day">21</div>
+            <div class="calendar-day">22</div>
+            <div class="calendar-day">23</div>
+            <div class="calendar-day">24</div>
+            <div class="calendar-day">25</div>
+            <div class="calendar-day">26</div>
+            <div class="calendar-day">27</div>
+            <div class="calendar-day">28</div>
+            <div class="calendar-day">29</div>
+            <div class="calendar-day">30</div>
+            <div class="calendar-day">31</div>
+        </div>
+        <div class="festival-section">
+            <div class="section-title">🎉 节日</div>
+            <div class="festival-item">🌸 春分 (3月21日)</div>
+            <div class="festival-item">🎊 清明 (4月5日)</div>
+        </div>
+        <div class="almanac-section">
+            <div class="section-title">📜 黄历</div>
+            <div class="almanac-item good">宜：祭祀 祈福</div>
+            <div class="almanac-item bad">忌：嫁娶 出行</div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

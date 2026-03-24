@@ -2271,13 +2271,19 @@ void WebServerManager::handleFactoryReset() {
 void WebServerManager::handleLogin() {
     DEBUG_PRINTLN("处理登录请求");
     
-    // 读取表单数据
     String username = server.arg("username");
     String password = server.arg("password");
     
-    // 简单的用户名密码验证（实际应用中应该从配置或数据库中获取）
-    if (username == "admin" && password == "admin123") {
-        // 登录成功
+    ConfigManager* configManager = ConfigManager::getInstance();
+    String configUsername = WEB_SERVER_DEFAULT_USERNAME;
+    String configPassword = WEB_SERVER_DEFAULT_PASSWORD;
+    
+    if (configManager) {
+        configUsername = configManager->getString("web_server.auth.username", WEB_SERVER_DEFAULT_USERNAME);
+        configPassword = configManager->getString("web_server.auth.password", WEB_SERVER_DEFAULT_PASSWORD);
+    }
+    
+    if (username == configUsername && password == configPassword && username.length() > 0) {
         isLoggedIn = true;
         currentUser = username;
         lastLoginTime = platformGetMillis();
@@ -2286,7 +2292,6 @@ void WebServerManager::handleLogin() {
         server.sendHeader("Location", "/");
         server.send(302, "text/plain", "");
     } else {
-        // 登录失败
         DEBUG_PRINTLN("登录失败");
         server.sendHeader("Location", "/login");
         server.send(302, "text/plain", "");

@@ -1,0 +1,41 @@
+{
+    "C_Cpp.default.configurationProvider": "ms-vscode.cpptools",
+    "C_Cpp.errorSquiggles": "EnabledIfIncludesResolve",
+    "C_Cpp.intelliSenseEngine": "Default",
+    "C_Cpp.autocomplete": "Default",
+    "C_Cpp.enhancedColorization": "Enabled",
+    "C_Cpp.commentContinuationPatterns": [
+        "/** */",
+        "/* */",
+        "//"
+    ],
+    "files.associations": {
+        "*.h": "cpp",
+        "*.hpp": "cpp",
+        "Arduino.h": "cpp",
+        "WiFi.h": "cpp",
+        "SPI.h": "cpp",
+        "Wire.h": "cpp",
+        "FS.h": "cpp",
+        "SPIFFS.h": "cpp",
+        "Update.h": "cpp"
+    },
+    "files.exclude": {
+        "**/.pio": true,
+        "**/.vscode": false
+    },
+    "search.exclude": {
+        "**/.pio": true,
+        "**/libdeps": true
+    },
+    "platformio-ide.useBuiltinPlatformio": true,
+    "platformio-ide.autoScrollTerminal": true,
+    "platformio-ide.autoClearTerminal": false,
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "xaver.clang-format",
+    "[cpp]": {
+        "editor.defaultFormatter": "xaver.clang-format"
+    },
+    "clang-format.executable": "clang-format",
+    "clang-format.style": "file"
+}

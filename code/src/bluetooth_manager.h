@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include "coresystem/config.h"
+#include <memory>
 
 #if PLATFORM_ESP32
 #include <BLEDevice.h>
@@ -60,9 +61,10 @@ private:
     void onWrite(BLECharacteristic* pCharacteristic) override;
   };
   
-  MyServerCallbacks* serverCallbacks;
-  MyWiFiSSIDCallbacks* wifiSSIDCallbacks;
-  MyWiFiPasswordCallbacks* wifiPasswordCallbacks;
+  // 使用智能指针管理回调对象
+  std::shared_ptr<MyServerCallbacks> serverCallbacks;
+  std::shared_ptr<MyWiFiSSIDCallbacks> wifiSSIDCallbacks;
+  std::shared_ptr<MyWiFiPasswordCallbacks> wifiPasswordCallbacks;
 #endif
 
 public:

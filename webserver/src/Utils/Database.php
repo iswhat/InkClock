@@ -8,6 +8,25 @@ namespace InkClock\Utils;
 use InkClock\Config\Config;
 use InkClock\Utils\Logger;
 
+// ========================================
+// 数据库配置常量
+// ========================================
+ifndef('DB_DEFAULT_LIMIT', define('DB_DEFAULT_LIMIT', 1000));              // 默认查询限制
+ifndef('DB_MAX_LIMIT', define('DB_MAX_LIMIT', 10000));                     // 最大查询限制
+ifndef('DB_CACHE_MIN_EXPIRE', define('DB_CACHE_MIN_EXPIRE', 10));          // 最小缓存过期时间（秒）
+ifndef('DB_CACHE_MAX_EXPIRE', define('DB_CACHE_MAX_EXPIRE', 3600));        // 最大缓存过期时间（秒）
+ifndef('DB_CACHE_TIME_FACTOR_MAX', define('DB_CACHE_TIME_FACTOR_MAX', 5)); // 缓存时间因子最大值
+ifndef('DB_CACHE_ROW_FACTOR_MIN', define('DB_CACHE_ROW_FACTOR_MIN', 0.1)); // 缓存行因子最小值
+
+/**
+ * 辅助函数：如果常量未定义则定义
+ */
+function ifndef($name, $callback) {
+    if (!defined($name)) {
+        $callback();
+    }
+}
+
 class Database {
     private static $instance = null;
     private $db = null;
@@ -163,7 +182,8 @@ class Database {
                 is_admin INTEGER DEFAULT 0,
                 status INTEGER DEFAULT 1,
                 two_factor_enabled INTEGER DEFAULT 0,
-                two_factor_secret TEXT
+                two_factor_secret TEXT,
+                must_change_password INTEGER DEFAULT 1
             )");
         
         // 为用户表添加索引
@@ -608,18 +628,18 @@ class Database {
     }
     
     /**
-     * 优化SQL查询
-     * @param string $sql 原始SQL语句
-     * @return string 优化后的SQL语句
+     * 优化 SQL 查询
+     * @param string $sql 原始 SQL 语句
+     * @return string 优化后的 SQL 语句
      */
     private function optimizeSqlQuery($sql) {
         // 去除多余空格
         $sql = preg_replace('/\s+/', ' ', trim($sql));
         
-        // 如果是SELECT查询且没有LIMIT子句，添加默认LIMIT
+        // 如果是 SELECT 查询且没有 LIMIT 子句，添加默认 LIMIT
         if (preg_match('/^SELECT/i', $sql) && !preg_match('/LIMIT\s+\d+/i', $sql)) {
-            // 添加默认LIMIT 1000，防止返回过多数据
-            $sql .= ' LIMIT 1000';
+            // 添加默认 LIMIT，防止返回过多数据
+            $sql .= ' LIMIT ' . DB_DEFAULT_LIMIT;
         }
         
         return $sql;
@@ -634,15 +654,15 @@ class Database {
      */
     private function calculateCacheExpire($duration, $rows, $baseExpire) {
         // 执行时间越长，缓存时间越长
-        $timeFactor = min($duration * 100, 5);
+        $timeFactor = min($duration * 100, DB_CACHE_TIME_FACTOR_MAX);
         
         // 结果行数越少，缓存时间越长
-        $rowFactor = max(1 / (count($rows) + 1), 0.1);
+        $rowFactor = max(1 / (count($rows) + 1), DB_CACHE_ROW_FACTOR_MIN);
         
-        // 动态调整缓存时间，范围在baseExpire/10到baseExpire*5之间
+        // 动态调整缓存时间，范围在 baseExpire/10 到 baseExpire*5 之间
         $adjustedExpire = round($baseExpire * $timeFactor * $rowFactor);
-        $minExpire = max(10, $baseExpire / 10);
-        $maxExpire = $baseExpire * 5;
+        $minExpire = max(DB_CACHE_MIN_EXPIRE, $baseExpire / 10);
+        $maxExpire = min(DB_CACHE_MAX_EXPIRE, $baseExpire * 5);
         
         return max($minExpire, min($maxExpire, $adjustedExpire));
     }
@@ -719,5 +739,21 @@ class Database {
      */
     public function isConnected() {
         return $this->connected && $this->db !== null;
+    }
+    
+    /**
+     * 获取最后插入的行 ID
+     * @return int 最后插入的行 ID
+     */
+    public function lastInsertId() {
+        return $this->db ? $this->db->lastInsertRowID() : 0;
+    }
+    
+    /**
+     * 获取受影响的行数
+     * @return int 受影响的行数
+     */
+    public function changes() {
+        return $this->db ? $this->db->changes() : 0;
     }
 }

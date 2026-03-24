@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InkClock UI Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .size-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+        
+        .size-btn {
+            padding: 8px 16px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        
+        .size-btn:hover {
+            border-color: #2196F3;
+            background: #E3F2FD;
+        }
+        
+        .size-btn.active {
+            background: #2196F3;
+            color: white;
+            border-color: #2196F3;
+        }
+        
+        .preview-area {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #333;
+            border-radius: 12px;
+            padding: 30px;
+            min-height: 500px;
+        }
+        
+        .screen-frame {
+            background: #f8f8f8;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow:
+                0 8px 30px rgba(0,0,0,0.3),
+                inset 0 0 0 1px rgba(0,0,0,0.1),
+                inset 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .screen-frame::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0.2));
+            pointer-events: none;
+            border-radius: 12px;
+        }
+        
+        .screen-content {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+            position: relative;
+            transition: all 0.3s ease-in-out;
+        }
+        
+        .screen-content.fade-out {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        
+        .screen-content.fade-in {
+            opacity: 1;
+            transform: scale(1);
+        }
+        
+        iframe {
+            border: none;
+            display: block;
+            transition: all 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="size-selector">
+            <button class="size-btn active" onclick="setScreenSize('7-5inch')">7.5" 800x480</button>
+            <button class="size-btn" onclick="setScreenSize('7-3inch')">7.3" 1920x1080</button>
+            <button class="size-btn" onclick="setScreenSize('6inch')">6" 1448x1072</button>
+            <button class="size-btn" onclick="setScreenSize('5-83inch')">5.83" 1448x1072</button>
+            <button class="size-btn" onclick="setScreenSize('4-2inch')">4.2" 400x300</button>
+            <button class="size-btn" onclick="setScreenSize('3-7inch')">3.7" 480x280</button>
+            <button class="size-btn" onclick="setScreenSize('2-9inch')">2.9" 296x128</button>
+            <button class="size-btn" onclick="setScreenSize('2-66inch')">2.66" 296x152</button>
+            <button class="size-btn" onclick="setScreenSize('2-13inch')">2.13" 250x122</button>
+            <button class="size-btn" onclick="setScreenSize('1-54inch')">1.54" 200x200</button>
+            <button class="size-btn" onclick="setScreenSize('1-44inch')">1.44" 128x128</button>
+            <button class="size-btn" onclick="setScreenSize('1-02inch')">1.02" 80x128</button>
+        </div>
+        
+        <div class="preview-area">
+            <div class="screen-frame">
+                <div class="screen-content">
+                    <iframe id="screenFrame" src="device-screen-7.5inch.html"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const screenConfigs = {
+            '7-5inch':   { file: 'device-screen-7.5inch.html',   width: 800,  height: 480,  portrait: false },
+            '7-3inch':   { file: 'device-screen-7.3inch.html',   width: 1920, height: 1080, portrait: false },
+            '6inch':     { file: 'device-screen-6inch.html',     width: 1448, height: 1072, portrait: false },
+            '5-83inch':  { file: 'device-screen-5.83inch.html',  width: 1448, height: 1072, portrait: false },
+            '4-2inch':   { file: 'device-screen-4.2inch.html',   width: 400,  height: 300,  portrait: false },
+            '3-7inch':   { file: 'device-screen-3.7inch.html',   width: 480,  height: 280,  portrait: false },
+            '2-9inch':   { file: 'device-screen-2.9inch.html',   width: 296,  height: 128,  portrait: true },
+            '2-66inch':  { file: 'device-screen-2.66inch.html',  width: 296,  height: 152,  portrait: true },
+            '2-13inch':  { file: 'device-screen-2.13inch.html',  width: 250,  height: 122,  portrait: true },
+            '1-54inch':  { file: 'device-screen-1.54inch.html',  width: 200,  height: 200,  portrait: false },
+            '1-44inch':  { file: 'device-screen-1.44inch.html',  width: 128,  height: 128,  portrait: false },
+            '1-02inch':  { file: 'device-screen-1.02inch.html',  width: 80,   height: 128,  portrait: true }
+        };
+        
+        function setScreenSize(size) {
+            document.querySelectorAll('.size-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const config = screenConfigs[size];
+            const iframe = document.getElementById('screenFrame');
+            const screenFrame = document.querySelector('.screen-frame');
+            const screenContent = document.querySelector('.screen-content');
+            
+            // 开始淡出动画
+            screenContent.classList.add('fade-out');
+            
+            // 等待动画完成后加载新内容
+            setTimeout(() => {
+                let displayWidth = config.width;
+                let displayHeight = config.height;
+                
+                if (config.portrait) {
+                    const temp = displayWidth;
+                    displayWidth = displayHeight;
+                    displayHeight = temp;
+                }
+                
+                const maxDisplayWidth = 1000;
+                const maxDisplayHeight = 600;
+                
+                const scale = Math.min(
+                    maxDisplayWidth / displayWidth,
+                    maxDisplayHeight / displayHeight,
+                    0.8 // 限制最大缩放比例，避免大屏显示过大
+                );
+                
+                const finalWidth = displayWidth * scale;
+                const finalHeight = displayHeight * scale;
+                
+                iframe.src = config.file;
+                iframe.style.width = config.width + 'px';
+                iframe.style.height = config.height + 'px';
+                
+                if (config.portrait) {
+                    screenFrame.style.width = finalHeight + 'px';
+                    screenFrame.style.height = finalWidth + 'px';
+                    iframe.style.transform = 'rotate(90deg)';
+                    iframe.style.transformOrigin = 'top left';
+                    iframe.style.position = 'absolute';
+                    iframe.style.top = '0';
+                    iframe.style.left = finalHeight + 'px';
+                } else {
+                    screenFrame.style.width = finalWidth + 'px';
+                    screenFrame.style.height = finalHeight + 'px';
+                    iframe.style.transform = 'none';
+                    iframe.style.position = 'relative';
+                    iframe.style.top = 'auto';
+                    iframe.style.left = 'auto';
+                }
+                
+                // 开始淡入动画
+                setTimeout(() => {
+                    screenContent.classList.remove('fade-out');
+                    screenContent.classList.add('fade-in');
+                    
+                    // 动画完成后移除类
+                    setTimeout(() => {
+                        screenContent.classList.remove('fade-in');
+                    }, 300);
+                }, 100);
+            }, 300);
+        }
+        
+        window.onload = function() {
+            setScreenSize('7-5inch');
+        };
+    </script>
+</body>
+</html>

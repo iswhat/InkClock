@@ -699,6 +699,72 @@ class ApiGatewayController extends BaseController {
                     'method' => 'getGatewayInfo',
                     'params' => [],
                     'methods' => ['GET']
+                ],
+                // 设备相关路径 | Device related paths
+                '/device/list' => [
+                    'controller' => 'DeviceController',
+                    'method' => 'getDevices',
+                    'params' => [],
+                    'methods' => ['GET']
+                ],
+                '/device' => [
+                    'controller' => 'DeviceController',
+                    'method' => 'getDevices',
+                    'params' => [],
+                    'methods' => ['GET']
+                ],
+                // 固件相关路径 | Firmware related paths
+                '/firmware/list' => [
+                    'controller' => 'FirmwareController',
+                    'method' => 'getAllVersions',
+                    'params' => [],
+                    'methods' => ['GET']
+                ],
+                '/firmware' => [
+                    'controller' => 'FirmwareController',
+                    'method' => 'getAllVersions',
+                    'params' => [],
+                    'methods' => ['GET']
+                ],
+                // 用户相关路径 | User related paths
+                '/user/info' => [
+                    'controller' => 'UserController',
+                    'method' => 'getInfo',
+                    'params' => [],
+                    'methods' => ['GET']
+                ],
+                '/user/devices' => [
+                    'controller' => 'UserController',
+                    'method' => 'getDevices',
+                    'params' => [],
+                    'methods' => ['GET']
+                ],
+                // 通知相关路径 | Notification related paths
+                '/notification' => [
+                    'controller' => 'NotificationController',
+                    'method' => 'getNotifications',
+                    'params' => [],
+                    'methods' => ['GET']
+                ],
+                // 消息相关路径 | Message related paths
+                '/message/recent' => [
+                    'controller' => 'MessageController',
+                    'method' => 'getMessages',
+                    'params' => [],
+                    'methods' => ['GET']
+                ],
+                '/message/list' => [
+                    'controller' => 'MessageController',
+                    'method' => 'getMessages',
+                    'params' => [],
+                    'methods' => ['GET']
+                ],
+                // 系统状态路径 | System status paths
+                '/system/status' => [
+                    'controller' => 'SystemController',
+                    'method' => 'getSystemInfo',
+                    'params' => [],
+                    'methods' => ['GET']
                 ]
             ];
         }

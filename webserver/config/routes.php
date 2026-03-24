@@ -123,6 +123,11 @@ return [
     'POST /api/system/restart' => 'SystemController@restartSystem',
     'POST /api/system/cache/clear' => 'SystemController@clearCache',
     
+    // 配置管理相关路由
+    'GET /api/config' => 'ConfigController@getAll',
+    'PUT /api/config' => 'ConfigController@update',
+    'GET /api/config/{key}' => 'ConfigController@get',
+    
     // API网关路由
     'GET /api/gateway/*' => 'ApiGatewayController@gateway',
     'POST /api/gateway/*' => 'ApiGatewayController@gateway',

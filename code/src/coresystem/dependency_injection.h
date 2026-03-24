@@ -37,7 +37,7 @@ public:
   // 注册实例
   template<typename T>
   void registerInstance(T* instance, const String& key) {
-    instances[key] = reinterpret_cast<void*>(instance);
+    instances[key] = {reinterpret_cast<void*>(instance), [](void* p) { delete static_cast<T*>(p); }};
   }
   
   // 注册工厂函数
@@ -53,14 +53,16 @@ public:
   T* getInstance(const String& key) {
     // 首先检查是否已有实例
     if (instances.find(key) != instances.end()) {
-      return reinterpret_cast<T*>(instances[key]);
+      return reinterpret_cast<T*>(instances[key].first);
     }
     
     // 如果没有实例，尝试使用工厂函数创建
     if (factories.find(key) != factories.end()) {
-      void* instance = factories[key]();
-      instances[key] = instance;
-      return reinterpret_cast<T*>(instance);
+      auto result = factories[key]();
+      if (result) {
+        instances[key] = {result, [](void* p) { delete static_cast<T*>(p); }};
+      }
+      return reinterpret_cast<T*>(result);
     }
     
     return nullptr;
@@ -95,7 +97,7 @@ private:
   
   static DependencyInjectionContainer* instance;
   
-  std::map<String, void*> instances;
+  std::map<String, std::pair<void*, std::function<void(void*)>>> instances;
   std::map<String, std::function<void*()>> factories;
   
   bool initialized;

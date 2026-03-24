@@ -406,9 +406,9 @@ void APIManager::saveCache(const String& key, const ApiResponse& response, unsig
     CacheItem item;
     item.value = response.response;
     item.expireTime = millis() + cacheTime;
-    item.type = response.status == API_STATUS_SUCCESS ? API_TYPE_CUSTOM : API_TYPE_CUSTOM;
+    item.type = request.type;  // 使用请求的类型而非硬编码
     
-    // 添加到缓存（会自动覆盖已存在的键）
+    // 添加到缓存（会自动覆盖已存在的键)
     cache[key] = item;
     
     DEBUG_PRINTLN("缓存数据：" + key + "，过期时间：" + String(item.expireTime));

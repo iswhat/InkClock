@@ -18,27 +18,24 @@ class FirmwareVersion {
      * @return array 操作结果
      */
     public function addVersion($model, $version, $file_path, $description = '', $changelog = '', $user_id = 0) {
-        // 简化实现，只保存必要字段
-        $sql = "INSERT INTO firmware_versions (version, device_model, file_path, release_notes, is_active, created_at) 
-                VALUES (?, ?, ?, ?, 0, ?)";
-        
         $createdAt = date('Y-m-d H:i:s');
         
-        $stmt = $this->db->prepare($sql);
-        if (!$stmt) {
-            return array('success' => false, 'error' => 'SQL准备失败: ' . $this->db->lastErrorMsg());
-        }
+        $sql = "INSERT INTO firmware_versions (version, device_model, file_path, release_notes, is_active, created_at) 
+                VALUES (:version, :model, :file_path, :description, 0, :created_at)";
         
-        $stmt->bindValue(1, $version, SQLITE3_TEXT);
-        $stmt->bindValue(2, $model, SQLITE3_TEXT);
-        $stmt->bindValue(3, $file_path, SQLITE3_TEXT);
-        $stmt->bindValue(4, $description, SQLITE3_TEXT);
-        $stmt->bindValue(5, $createdAt, SQLITE3_TEXT);
+        $params = [
+            'version' => $version,
+            'model' => $model,
+            'file_path' => $file_path,
+            'description' => $description,
+            'created_at' => $createdAt
+        ];
         
-        if ($stmt->execute()) {
-            return array('success' => true, 'firmware_id' => $this->db->lastInsertRowID());
+        $result = $this->db->execute($sql, $params);
+        if ($result) {
+            return array('success' => true, 'firmware_id' => $this->db->lastInsertId());
         } else {
-            return array('success' => false, 'error' => '添加固件版本失败: ' . $stmt->lastErrorMsg());
+            return array('success' => false, 'error' => '添加固件版本失败');
         }
     }
     
@@ -49,18 +46,9 @@ class FirmwareVersion {
      * @return array 固件版本列表
      */
     public function getAllVersions($limit = 50, $offset = 0) {
-        $sql = "SELECT * FROM firmware_versions ORDER BY created_at DESC LIMIT ? OFFSET ?";
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(1, $limit, SQLITE3_INTEGER);
-        $stmt->bindValue(2, $offset, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        
-        $versions = array();
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-            $versions[] = $row;
-        }
-        
-        return $versions;
+        $sql = "SELECT * FROM firmware_versions ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
+        $params = ['limit' => $limit, 'offset' => $offset];
+        return $this->db->query($sql, $params);
     }
     
     /**
@@ -71,19 +59,9 @@ class FirmwareVersion {
      * @return array 固件版本列表
      */
     public function getVersionsByModel($model, $limit = 50, $offset = 0) {
-        $sql = "SELECT * FROM firmware_versions WHERE device_model = ? ORDER BY created_at DESC LIMIT ? OFFSET ?";
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(1, $model, SQLITE3_TEXT);
-        $stmt->bindValue(2, $limit, SQLITE3_INTEGER);
-        $stmt->bindValue(3, $offset, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        
-        $versions = array();
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-            $versions[] = $row;
-        }
-        
-        return $versions;
+        $sql = "SELECT * FROM firmware_versions WHERE device_model = :model ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
+        $params = ['model' => $model, 'limit' => $limit, 'offset' => $offset];
+        return $this->db->query($sql, $params);
     }
     
     /**
@@ -92,12 +70,10 @@ class FirmwareVersion {
      * @return array 活跃的固件版本
      */
     public function getActiveVersion($model) {
-        $sql = "SELECT * FROM firmware_versions WHERE device_model = ? AND is_active = 1 LIMIT 1";
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(1, $model, SQLITE3_TEXT);
-        $result = $stmt->execute();
-        
-        return $result->fetchArray(SQLITE3_ASSOC);
+        $sql = "SELECT * FROM firmware_versions WHERE device_model = :model AND is_active = 1 LIMIT 1";
+        $params = ['model' => $model];
+        $result = $this->db->query($sql, $params);
+        return !empty($result) ? $result[0] : null;
     }
     
     /**
@@ -106,12 +82,10 @@ class FirmwareVersion {
      * @return array 固件版本信息
      */
     public function getVersion($id) {
-        $sql = "SELECT * FROM firmware_versions WHERE id = ?";
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(1, $id, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        
-        return $result->fetchArray(SQLITE3_ASSOC);
+        $sql = "SELECT * FROM firmware_versions WHERE id = :id";
+        $params = ['id' => $id];
+        $result = $this->db->query($sql, $params);
+        return !empty($result) ? $result[0] : null;
     }
     
     /**
@@ -127,93 +101,73 @@ class FirmwareVersion {
         }
         
         $updateFields = array();
-        $updateValues = array();
-        $types = array();
+        $params = array();
         
         if (isset($data['version'])) {
-            $updateFields[] = "version = ?";
-            $updateValues[] = $data['version'];
-            $types[] = SQLITE3_TEXT;
+            $updateFields[] = "version = :version";
+            $params['version'] = $data['version'];
         }
         if (isset($data['device_model'])) {
-            $updateFields[] = "device_model = ?";
-            $updateValues[] = $data['device_model'];
-            $types[] = SQLITE3_TEXT;
+            $updateFields[] = "device_model = :device_model";
+            $params['device_model'] = $data['device_model'];
         }
         if (isset($data['filename'])) {
-            $updateFields[] = "filename = ?";
-            $updateValues[] = $data['filename'];
-            $types[] = SQLITE3_TEXT;
+            $updateFields[] = "filename = :filename";
+            $params['filename'] = $data['filename'];
         }
         if (isset($data['file_path'])) {
-            $updateFields[] = "file_path = ?";
-            $updateValues[] = $data['file_path'];
-            $types[] = SQLITE3_TEXT;
+            $updateFields[] = "file_path = :file_path";
+            $params['file_path'] = $data['file_path'];
         }
         if (isset($data['file_size'])) {
-            $updateFields[] = "file_size = ?";
-            $updateValues[] = $data['file_size'];
-            $types[] = SQLITE3_INTEGER;
+            $updateFields[] = "file_size = :file_size";
+            $params['file_size'] = (int)$data['file_size'];
         }
         if (isset($data['sha256'])) {
-            $updateFields[] = "sha256 = ?";
-            $updateValues[] = $data['sha256'];
-            $types[] = SQLITE3_TEXT;
+            $updateFields[] = "sha256 = :sha256";
+            $params['sha256'] = $data['sha256'];
         }
         if (isset($data['signature'])) {
-            $updateFields[] = "signature = ?";
-            $updateValues[] = $data['signature'];
-            $types[] = SQLITE3_TEXT;
+            $updateFields[] = "signature = :signature";
+            $params['signature'] = $data['signature'];
         }
         if (isset($data['public_key'])) {
-            $updateFields[] = "public_key = ?";
-            $updateValues[] = $data['public_key'];
-            $types[] = SQLITE3_TEXT;
+            $updateFields[] = "public_key = :public_key";
+            $params['public_key'] = $data['public_key'];
         }
         if (isset($data['release_notes'])) {
-            $updateFields[] = "release_notes = ?";
-            $updateValues[] = $data['release_notes'];
-            $types[] = SQLITE3_TEXT;
+            $updateFields[] = "release_notes = :release_notes";
+            $params['release_notes'] = $data['release_notes'];
         }
         if (isset($data['is_active'])) {
-            $updateFields[] = "is_active = ?";
-            $updateValues[] = (int)$data['is_active'];
-            $types[] = SQLITE3_INTEGER;
+            $updateFields[] = "is_active = :is_active";
+            $params['is_active'] = (int)$data['is_active'];
         }
         if (isset($data['is_forced'])) {
-            $updateFields[] = "is_forced = ?";
-            $updateValues[] = (int)$data['is_forced'];
-            $types[] = SQLITE3_INTEGER;
+            $updateFields[] = "is_forced = :is_forced";
+            $params['is_forced'] = (int)$data['is_forced'];
         }
         if (isset($data['published_at'])) {
-            $updateFields[] = "published_at = ?";
-            $updateValues[] = $data['published_at'];
-            $types[] = SQLITE3_TEXT;
+            $updateFields[] = "published_at = :published_at";
+            $params['published_at'] = $data['published_at'];
         }
         
         if (empty($updateFields)) {
             return array('error' => '没有需要更新的字段');
         }
         
-        $sql = "UPDATE firmware_versions SET " . implode(', ', $updateFields) . " WHERE id = ?";
-        $updateValues[] = $id;
-        $types[] = SQLITE3_INTEGER;
+        $params['id'] = $id;
+        $sql = "UPDATE firmware_versions SET " . implode(', ', $updateFields) . " WHERE id = :id";
         
-        $stmt = $this->db->prepare($sql);
-        
-        for ($i = 0; $i < count($updateValues); $i++) {
-            $stmt->bindValue($i + 1, $updateValues[$i], $types[$i]);
-        }
-        
-        if ($stmt->execute()) {
+        $result = $this->db->execute($sql, $params);
+        if ($result) {
             // 如果设为活跃版本，将其他版本设为非活跃
             if (isset($data['is_active']) && $data['is_active']) {
                 $this->setOnlyActiveVersion($version['device_model'], $id);
             }
-            
             return array('success' => true);
         } else {
-            return array('error' => '更新固件版本失败: ' . $stmt->lastErrorMsg());
+            return array('error' => '更新固件版本失败');
         }
     }
     
@@ -223,14 +177,13 @@ class FirmwareVersion {
      * @return array 操作结果
      */
     public function deleteVersion($id) {
-        $sql = "DELETE FROM firmware_versions WHERE id = ?";
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(1, $id, SQLITE3_INTEGER);
-        
-        if ($stmt->execute()) {
+        $sql = "DELETE FROM firmware_versions WHERE id = :id";
+        $params = ['id' => $id];
+        $result = $this->db->execute($sql, $params);
+        if ($result) {
             return array('success' => true);
         } else {
-            return array('error' => '删除固件版本失败: ' . $stmt->lastErrorMsg());
+            return array('error' => '删除固件版本失败');
         }
     }
     
@@ -241,11 +194,9 @@ class FirmwareVersion {
      * @return bool 操作结果
      */
     private function setOnlyActiveVersion($model, $activeId) {
-        $sql = "UPDATE firmware_versions SET is_active = CASE WHEN id = ? THEN 1 ELSE 0 END WHERE device_model = ?";
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(1, $activeId, SQLITE3_INTEGER);
-        $stmt->bindValue(2, $model, SQLITE3_TEXT);
-        return $stmt->execute() !== false;
+        $sql = "UPDATE firmware_versions SET is_active = CASE WHEN id = :active_id THEN 1 ELSE 0 END WHERE device_model = :model";
+        $params = ['active_id' => $activeId, 'model' => $model];
+        return $this->db->execute($sql, $params) !== false;
     }
     
     /**
@@ -254,14 +205,12 @@ class FirmwareVersion {
      * @return array 操作结果
      */
     public function publishVersion($id) {
-        $sql = "UPDATE firmware_versions SET is_active = 1, published_at = ? WHERE id = ?";
-        $stmt = $this->db->prepare($sql);
-        
         $publishedAt = date('Y-m-d H:i:s');
-        $stmt->bindValue(1, $publishedAt, SQLITE3_TEXT);
-        $stmt->bindValue(2, $id, SQLITE3_INTEGER);
+        $sql = "UPDATE firmware_versions SET is_active = 1, published_at = :published_at WHERE id = :id";
+        $params = ['published_at' => $publishedAt, 'id' => $id];
         
-        if ($stmt->execute()) {
+        $result = $this->db->execute($sql, $params);
+        if ($result) {
             // 获取该版本的设备型号
             $version = $this->getVersion($id);
             if ($version) {
@@ -269,7 +218,7 @@ class FirmwareVersion {
             }
             return array('success' => true);
         } else {
-            return array('error' => '发布固件版本失败: ' . $stmt->lastErrorMsg());
+            return array('error' => '发布固件版本失败');
         }
     }
 }

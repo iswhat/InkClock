@@ -2,20 +2,13 @@
 /**
  * 固件推送任务模型
  */
+
 namespace InkClock\Model;
 
-use InkClock\Utils\Database;
+use InkClock\Model\BaseModel;
 
-class FirmwarePushTask {
-    private $db;
+class FirmwarePushTask extends BaseModel {
     
-    public function __construct($db) {
-        $this->db = $db;
-    }
-    
-    /**
-     * 创建固件推送任务（控制器调用的方法）
-     */
     public function createPushTask($firmwareId, $targetType, $targetIds, $strategy, $scheduleTime = null, $description = '', $userId) {
         $createdAt = date('Y-m-d H:i:s');
         $status = 'pending';
@@ -24,313 +17,160 @@ class FirmwarePushTask {
         $successCount = 0;
         $failedCount = 0;
         
-        // 计算目标设备数量
         if ($targetType == 'all') {
-            // 所有设备
             $totalDevices = $this->getTotalDevicesCount($userId);
         } elseif ($targetType == 'group' && $targetIds) {
-            // 按分组推送
             $totalDevices = $this->getDevicesCountByGroups($targetIds);
         } elseif ($targetType == 'device_list' && $targetIds) {
-            // 按设备列表推送
             $totalDevices = count($targetIds);
         }
         
-        $stmt = $this->db->prepare("INSERT INTO firmware_push_tasks (firmware_id, user_id, target_type, target_ids, status, progress, total_devices, success_count, failed_count, created_at, schedule_time, description, strategy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bindValue(1, $firmwareId, SQLITE3_INTEGER);
-        $stmt->bindValue(2, $userId, SQLITE3_INTEGER);
-        $stmt->bindValue(3, $targetType, SQLITE3_TEXT);
-        $stmt->bindValue(4, json_encode($targetIds), SQLITE3_TEXT);
-        $stmt->bindValue(5, $status, SQLITE3_TEXT);
-        $stmt->bindValue(6, $progress, SQLITE3_INTEGER);
-        $stmt->bindValue(7, $totalDevices, SQLITE3_INTEGER);
-        $stmt->bindValue(8, $successCount, SQLITE3_INTEGER);
-        $stmt->bindValue(9, $failedCount, SQLITE3_INTEGER);
-        $stmt->bindValue(10, $createdAt, SQLITE3_TEXT);
-        $stmt->bindValue(11, $scheduleTime, $scheduleTime ? SQLITE3_TEXT : SQLITE3_NULL);
-        $stmt->bindValue(12, $description, SQLITE3_TEXT);
-        $stmt->bindValue(13, $strategy, SQLITE3_TEXT);
-        $stmt->execute();
+        $sql = "INSERT INTO firmware_push_tasks (firmware_id, user_id, target_type, target_ids, status, progress, total_devices, success_count, failed_count, created_at, schedule_time, description, strategy) VALUES (:firmwareId, :userId, :targetType, :targetIds, :status, :progress, :totalDevices, :successCount, :failedCount, :createdAt, :scheduleTime, :description, :strategy)";
+        $params = [
+            'firmwareId' => $firmwareId,
+            'userId' => $userId,
+            'targetType' => $targetType,
+            'targetIds' => json_encode($targetIds),
+            'status' => $status,
+            'progress' => $progress,
+            'totalDevices' => $totalDevices,
+            'successCount' => $successCount,
+            'failedCount' => $failedCount,
+            'createdAt' => $createdAt,
+            'scheduleTime' => $scheduleTime,
+            'description' => $description,
+            'strategy' => $strategy
+        ];
         
-        $taskId = $this->db->lastInsertRowID();
-        $stmt->close();
+        $result = $this->execute($sql, $params);
+        $taskId = $this->lastInsertId();
         
-        return array(
-            'success' => true,
-            'task_id' => $taskId
-        );
+        return ['success' => $result !== false, 'task_id' => $taskId];
     }
     
-    /**
-     * 获取用户的所有设备数量
-     */
     private function getTotalDevicesCount($userId) {
-        $query = "SELECT COUNT(*) as count FROM devices d ".
-                 "JOIN user_devices ud ON d.device_id = ud.device_id ".
-                 "WHERE ud.user_id = ?";
-        
-        $stmt = $this->db->prepare($query);
-        $stmt->bindValue(1, $userId, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        $count = $result->fetchArray(SQLITE3_ASSOC)['count'];
-        $stmt->close();
-        return $count;
+        $sql = "SELECT COUNT(*) as count FROM devices d JOIN user_devices ud ON d.device_id = ud.device_id WHERE ud.user_id = :userId";
+        $params = ['userId' => $userId];
+        $result = $this->query($sql, $params);
+        return !empty($result) ? intval($result[0]['count']) : 0;
     }
     
-    /**
-     * 获取多个分组的设备总数
-     */
     private function getDevicesCountByGroups($groupIds) {
         if (empty($groupIds)) {
             return 0;
         }
         
         $placeholders = implode(',', array_fill(0, count($groupIds), '?'));
-        $query = "SELECT COUNT(DISTINCT device_id) as count FROM device_group_relations WHERE group_id IN ($placeholders)";
+        $sql = "SELECT COUNT(DISTINCT device_id) as count FROM device_group_relations WHERE group_id IN ($placeholders)";
         
-        $stmt = $this->db->prepare($query);
-        for ($i = 0; $i < count($groupIds); $i++) {
-            $stmt->bindValue($i + 1, $groupIds[$i], SQLITE3_INTEGER);
+        $params = [];
+        foreach ($groupIds as $i => $groupId) {
+            $params['group' . $i] = $groupId;
         }
-        $result = $stmt->execute();
-        $count = $result->fetchArray(SQLITE3_ASSOC)['count'];
-        $stmt->close();
-        return $count;
+        
+        $result = $this->query($sql, $params);
+        return !empty($result) ? intval($result[0]['count']) : 0;
     }
     
-    /**
-     * 获取推送任务列表
-     */
     public function getPushTasksByUserId($userId, $limit = 50, $offset = 0) {
-        $stmt = $this->db->prepare("SELECT * FROM firmware_push_tasks WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?");
-        $stmt->bindValue(1, $userId, SQLITE3_INTEGER);
-        $stmt->bindValue(2, $limit, SQLITE3_INTEGER);
-        $stmt->bindValue(3, $offset, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        $tasks = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-            $tasks[] = $row;
-        }
-        $stmt->close();
-        
-        return $tasks;
+        $sql = "SELECT * FROM firmware_push_tasks WHERE user_id = :userId ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
+        $params = ['userId' => $userId, 'limit' => $limit, 'offset' => $offset];
+        return $this->query($sql, $params);
     }
     
-    /**
-     * 获取推送任务列表（控制器调用的方法名）
-     */
     public function getPushTasks($userId, $limit = 50, $offset = 0) {
         return $this->getPushTasksByUserId($userId, $limit, $offset);
     }
     
-    /**
-     * 获取推送任务详情
-     */
     public function getPushTaskById($taskId, $userId = null) {
-        $query = "SELECT * FROM firmware_push_tasks WHERE id = ?";
-        $params = array($taskId);
+        $sql = "SELECT * FROM firmware_push_tasks WHERE id = :taskId";
+        $params = ['taskId' => $taskId];
         
         if ($userId) {
-            $query .= " AND user_id = ?";
-            $params[] = $userId;
+            $sql .= " AND user_id = :userId";
+            $params['userId'] = $userId;
         }
         
-        $stmt = $this->db->prepare($query);
-        for ($i = 0; $i < count($params); $i++) {
-            $stmt->bindValue($i + 1, $params[$i], SQLITE3_INTEGER);
-        }
-        $result = $stmt->execute();
-        $task = $result->fetchArray(SQLITE3_ASSOC);
-        $stmt->close();
+        $result = $this->query($sql, $params);
+        $task = !empty($result) ? $result[0] : null;
         
         if ($task) {
-            // 获取任务的日志信息
             $task['logs'] = $this->getPushLogsByTaskId($taskId);
         }
         
         return $task;
     }
     
-    /**
-     * 更新推送任务状态
-     */
-    public function updatePushTaskStatus($taskId, $status, $progress = null, $successCount = null, $failedCount = null) {
-        $query = "UPDATE firmware_push_tasks SET status = ?";
-        $params = array($status);
-        $types = [SQLITE3_TEXT];
+    public function updateTaskStatus($taskId, $status, $progress = null, $successCount = null, $failedCount = null) {
+        $sql = "UPDATE firmware_push_tasks SET status = :status";
+        $params = ['status' => $status, 'taskId' => $taskId];
         
         if ($progress !== null) {
-            $query .= ", progress = ?";
-            $params[] = $progress;
-            $types[] = SQLITE3_INTEGER;
+            $sql .= ", progress = :progress";
+            $params['progress'] = $progress;
         }
         
         if ($successCount !== null) {
-            $query .= ", success_count = ?";
-            $params[] = $successCount;
-            $types[] = SQLITE3_INTEGER;
+            $sql .= ", success_count = :successCount";
+            $params['successCount'] = $successCount;
         }
         
         if ($failedCount !== null) {
-            $query .= ", failed_count = ?";
-            $params[] = $failedCount;
-            $types[] = SQLITE3_INTEGER;
+            $sql .= ", failed_count = :failedCount";
+            $params['failedCount'] = $failedCount;
         }
         
-        if ($status == 'running' && $progress == 0) {
-            // 任务开始运行
-            $query .= ", started_at = ?";
-            $params[] = date('Y-m-d H:i:s');
-            $types[] = SQLITE3_TEXT;
-        } elseif ($status == 'completed' || $status == 'failed') {
-            // 任务完成或失败
-            $query .= ", completed_at = ?";
-            $params[] = date('Y-m-d H:i:s');
-            $types[] = SQLITE3_TEXT;
-        }
+        $sql .= " WHERE id = :taskId";
         
-        $query .= " WHERE id = ?";
-        $params[] = $taskId;
-        $types[] = SQLITE3_INTEGER;
-        
-        $stmt = $this->db->prepare($query);
-        for ($i = 0; $i < count($params); $i++) {
-            $stmt->bindValue($i + 1, $params[$i], $types[$i]);
-        }
-        $result = $stmt->execute();
-        
-        $affectedRows = $result !== false ? 1 : 0;
-        $stmt->close();
-        
-        return array('success' => $affectedRows > 0);
+        $result = $this->execute($sql, $params);
+        return ['success' => $result !== false];
     }
     
-    /**
-     * 添加推送日志
-     */
-    public function addPushLog($taskId, $deviceId, $status, $errorMessage = null) {
+    public function deleteTask($taskId, $userId) {
+        $sql = "DELETE FROM firmware_push_tasks WHERE id = :taskId AND user_id = :userId";
+        $params = ['taskId' => $taskId, 'userId' => $userId];
+        $result = $this->execute($sql, $params);
+        return ['success' => $result !== false];
+    }
+    
+    public function getPushLogsByTaskId($taskId) {
+        $sql = "SELECT * FROM firmware_push_logs WHERE task_id = :taskId ORDER BY created_at DESC";
+        $params = ['taskId' => $taskId];
+        return $this->query($sql, $params);
+    }
+    
+    public function addPushLog($taskId, $deviceId, $status, $message = '') {
         $createdAt = date('Y-m-d H:i:s');
         
-        $stmt = $this->db->prepare("INSERT INTO firmware_push_logs (push_task_id, device_id, status, error_message, created_at) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bindValue(1, $taskId, SQLITE3_INTEGER);
-        $stmt->bindValue(2, $deviceId, SQLITE3_INTEGER);
-        $stmt->bindValue(3, $status, SQLITE3_TEXT);
-        $stmt->bindValue(4, $errorMessage, $errorMessage ? SQLITE3_TEXT : SQLITE3_NULL);
-        $stmt->bindValue(5, $createdAt, SQLITE3_TEXT);
-        $result = $stmt->execute();
+        $sql = "INSERT INTO firmware_push_logs (task_id, device_id, status, message, created_at) VALUES (:taskId, :deviceId, :status, :message, :createdAt)";
+        $params = [
+            'taskId' => $taskId,
+            'deviceId' => $deviceId,
+            'status' => $status,
+            'message' => $message,
+            'createdAt' => $createdAt
+        ];
         
-        $logId = $this->db->lastInsertRowID();
-        $stmt->close();
-        
-        // 更新任务统计信息
-        $this->updateTaskStats($taskId, $status);
-        
-        return array(
-            'success' => true,
-            'log_id' => $logId,
-            'created_at' => $createdAt
-        );
+        $result = $this->execute($sql, $params);
+        return ['success' => $result !== false];
     }
     
-    /**
-     * 更新任务统计信息
-     */
-    private function updateTaskStats($taskId, $status) {
-        // 获取当前任务统计
-        $task = $this->getPushTaskById($taskId);
-        
-        if (!$task) {
-            return;
-        }
-        
-        // 更新统计信息
-        $successCount = $task['success_count'];
-        $failedCount = $task['failed_count'];
-        
-        if ($status == 'success') {
-            $successCount++;
-        } elseif ($status == 'failed') {
-            $failedCount++;
-        }
-        
-        // 计算进度
-        $totalDevices = $task['total_devices'];
-        $progress = $totalDevices > 0 ? round(($successCount + $failedCount) / $totalDevices * 100) : 100;
-        
-        // 更新任务状态
-        $this->updatePushTaskStatus($taskId, $task['status'], $progress, $successCount, $failedCount);
+    public function getPendingTasks() {
+        $sql = "SELECT * FROM firmware_push_tasks WHERE status = 'pending' AND (schedule_time IS NULL OR schedule_time <= :now) ORDER BY created_at ASC";
+        $params = ['now' => date('Y-m-d H:i:s')];
+        return $this->query($sql, $params);
     }
     
-    /**
-     * 获取推送任务日志
-     */
-    public function getPushLogsByTaskId($taskId, $limit = 50, $offset = 0) {
-        $stmt = $this->db->prepare("SELECT * FROM firmware_push_logs WHERE push_task_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?");
-        $stmt->bindValue(1, $taskId, SQLITE3_INTEGER);
-        $stmt->bindValue(2, $limit, SQLITE3_INTEGER);
-        $stmt->bindValue(3, $offset, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        $logs = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-            $logs[] = $row;
-        }
-        $stmt->close();
-        
-        return $logs;
+    public function getRunningTasks() {
+        $sql = "SELECT * FROM firmware_push_tasks WHERE status = 'running' ORDER BY created_at ASC";
+        return $this->query($sql);
     }
     
-    /**
-     * 删除推送任务
-     */
-    public function deletePushTask($taskId, $userId) {
-        $stmt = $this->db->prepare("DELETE FROM firmware_push_tasks WHERE id = ? AND user_id = ?");
-        $stmt->bindValue(1, $taskId, SQLITE3_INTEGER);
-        $stmt->bindValue(2, $userId, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        
-        $affectedRows = $result !== false ? 1 : 0;
-        $stmt->close();
-        
-        return array('success' => $affectedRows > 0);
-    }
-    
-    /**
-     * 批量添加推送日志
-     */
-    public function batchAddPushLogs($taskId, $logs) {
-        $successCount = 0;
-        $createdAt = date('Y-m-d H:i:s');
-        
-        $stmt = $this->db->prepare("INSERT INTO firmware_push_logs (push_task_id, device_id, status, error_message, created_at) VALUES (?, ?, ?, ?, ?)");
-        
-        foreach ($logs as $log) {
-            $deviceId = $log['device_id'];
-            $status = $log['status'];
-            $errorMessage = isset($log['error_message']) ? $log['error_message'] : null;
-            
-            $stmt->reset();
-            $stmt->bindValue(1, $taskId, SQLITE3_INTEGER);
-            $stmt->bindValue(2, $deviceId, SQLITE3_INTEGER);
-            $stmt->bindValue(3, $status, SQLITE3_TEXT);
-            $stmt->bindValue(4, $errorMessage, $errorMessage ? SQLITE3_TEXT : SQLITE3_NULL);
-            $stmt->bindValue(5, $createdAt, SQLITE3_TEXT);
-            if ($stmt->execute()) {
-                $successCount++;
-            }
-        }
-        
-        $stmt->close();
-        
-        // 更新任务统计信息
-        foreach ($logs as $log) {
-            $this->updateTaskStats($taskId, $log['status']);
-        }
-        
-        return array(
-            'success' => true,
-            'success_count' => $successCount,
-            'total_count' => count($logs)
-        );
+    public function getTaskCount($userId) {
+        $sql = "SELECT COUNT(*) as count FROM firmware_push_tasks WHERE user_id = :userId";
+        $params = ['userId' => $userId];
+        $result = $this->query($sql, $params);
+        return !empty($result) ? intval($result[0]['count']) : 0;
     }
 }
 ?>

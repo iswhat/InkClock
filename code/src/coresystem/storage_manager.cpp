@@ -12,11 +12,55 @@
 #include <algorithm>
 #include "config.h"
 
+// RAII 锁守卫类
+class StorageLockGuard {
+public:
+#if PLATFORM_ESP32
+  StorageLockGuard(SemaphoreHandle_t mutex) : mutex(mutex) {
+    if (mutex) {
+      xSemaphoreTake(mutex, portMAX_DELAY);
+    }
+  }
+  ~StorageLockGuard() {
+    if (mutex) {
+      xSemaphoreGive(mutex);
+    }
+  }
+#elif PLATFORM_ESP8266
+  StorageLockGuard(volatile bool& lockFlag) : lockFlag(lockFlag) {
+    while (lockFlag) {
+      delay(1);
+    }
+    lockFlag = true;
+  }
+  ~StorageLockGuard() {
+    lockFlag = false;
+  }
+#else
+  StorageLockGuard() {}
+  ~StorageLockGuard() {}
+#endif
+  
+private:
+#if PLATFORM_ESP32
+  SemaphoreHandle_t mutex;
+#elif PLATFORM_ESP8266
+  volatile bool& lockFlag;
+#endif
+};
+
 // 存储管理器单例实例
 StorageManager* StorageManager::instance = nullptr;
 
 // 构造函数
 StorageManager::StorageManager() : initialized(false), lastCleanupTime(0) {
+#if PLATFORM_ESP32
+  // 初始化互斥锁
+  storageMutex = xSemaphoreCreateMutex();
+#elif PLATFORM_ESP8266
+  storageLocked = false;
+#endif
+  
   // 初始化存储介质
   initDefaultStorageMedia();
 }
@@ -87,6 +131,13 @@ bool StorageManager::registerDataConfig(const DataStorageConfig& config) {
 
 // 读取数据
 bool StorageManager::read(const String& dataId, String& value) {
+  // 使用 RAII 锁守卫保护
+#if PLATFORM_ESP32
+  StorageLockGuard lock(storageMutex);
+#elif PLATFORM_ESP8266
+  StorageLockGuard lock(storageLocked);
+#endif
+  
   if (!dataConfigs.count(dataId)) {
     return false;
   }
@@ -135,6 +186,13 @@ bool StorageManager::read(const String& dataId, std::vector<byte>& value) {
 
 // 写入数据
 bool StorageManager::write(const String& dataId, const String& value) {
+  // 使用 RAII 锁守卫保护
+#if PLATFORM_ESP32
+  StorageLockGuard lock(storageMutex);
+#elif PLATFORM_ESP8266
+  StorageLockGuard lock(storageLocked);
+#endif
+  
   if (!dataConfigs.count(dataId)) {
     // 如果数据配置不存在，创建默认配置
     DataStorageConfig defaultConfig;

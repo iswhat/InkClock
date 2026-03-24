@@ -385,5 +385,13 @@ class BaseController {
         return bin2hex($bytes);
     }
     
+    /**
+     * 检查是否为开发环境
+     */
+    protected function isDevelopmentEnvironment() {
+        $env = $_ENV['APP_ENV'] ?? $_SERVER['APP_ENV'] ?? 'production';
+        return $env === 'development' || $env === 'local';
+    }
+    
 }
 ?>

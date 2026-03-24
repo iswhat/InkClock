@@ -14,6 +14,7 @@ use InkClock\Config\Config;
 use InkClock\Service\AuthService;
 use InkClock\Service\DeviceService;
 use InkClock\Service\MessageService;
+use InkClock\Service\UserService;
 
 class Services {
     /**
@@ -29,33 +30,8 @@ class Services {
 
         // 注册数据库服务
         $container->register('db', function() {
-            // 检查SQLite3扩展是否存在
-            if (!class_exists('SQLite3')) {
-                // 返回一个假的连接对象
-                return (object) [
-                    'prepare' => function() {
-                        return (object) [
-                            'bindValue' => function() {},
-                            'execute' => function() {
-                                return (object) [
-                                    'fetchArray' => function() { return false; }
-                                ];
-                            }
-                        ];
-                    },
-                    'query' => function() {
-                        return (object) [
-                            'fetchArray' => function() { return false; }
-                        ];
-                    },
-                    'exec' => function() { return false; },
-                    'lastInsertRowID' => function() { return 0; },
-                    'changes' => function() { return 0; },
-                    'close' => function() { return true; }
-                ];
-            }
             $db = Database::getInstance();
-            return $db ? $db->getConnection() : null;
+            return $db;
         });
 
         // 注册日志服务
@@ -100,6 +76,11 @@ class Services {
         // 注册消息服务
         $container->register('messageService', function($container) {
             return new MessageService($container->get('db'), $container->get('logger'), $container->get('cache'));
+        });
+        
+        // 注册用户服务
+        $container->register('userService', function($container) {
+            return new UserService($container->get('db'), $container->get('logger'), $container->get('cache'));
         });
     }
 }

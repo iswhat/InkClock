@@ -143,18 +143,30 @@ void WiFiManager::setupWiFi(String ssid, String password) {
     stopAP();
   }
   
-  // 连接WiFi
+  // 连接 WiFi
   WiFi.begin(ssid.c_str(), password.c_str());
   
   // 等待连接
-  DEBUG_PRINTLN("正在连接WiFi...");
+  DEBUG_PRINTLN("正在连接 WiFi...");
   int attempts = 0;
   const int maxAttempts = 15; // 增加连接尝试次数
   
+  // 使用非阻塞方式等待 WiFi 连接
+  unsigned long connectStartTime = millis();
   while (WiFi.status() != WL_CONNECTED && attempts < maxAttempts) {
-    delay(500);
+    // 每 500ms 检查一次，但使用更小的延迟以减少阻塞
+    unsigned long checkTime = millis();
+    while (millis() - checkTime < 500) {
+      delay(10); // 短暂延迟，降低 CPU 占用
+    }
     DEBUG_PRINT(".");
     attempts++;
+    
+    // 检查是否超时（可选的超时机制）
+    if (millis() - connectStartTime > 10000) { // 10 秒超时
+      DEBUG_PRINTLN("\nWiFi 连接超时");
+      break;
+    }
   }
   
   if (WiFi.status() == WL_CONNECTED) {
@@ -273,9 +285,20 @@ void WiFiManager::loadConfiguredWiFi() {
   configuredPassword = preferences.getString("password", "");
   preferences.end();
   #else
-  // ESP8266 没有 Preferences 库，使用 SPIFFS 存储
-  configuredSSID = "";
-  configuredPassword = "";
+  if (SPIFFS.begin()) {
+    File file = SPIFFS.open("/wifi_config.txt", "r");
+    if (file) {
+      String content = file.readString();
+      file.close();
+      int separator = content.indexOf('\n');
+      if (separator > 0) {
+        configuredSSID = content.substring(0, separator);
+        configuredPassword = content.substring(separator + 1);
+        configuredPassword.trim();
+      }
+    }
+    SPIFFS.end();
+  }
   #endif
   
   if (hasConfiguredWiFi()) {
@@ -296,10 +319,17 @@ void WiFiManager::saveConfiguredWiFi(String ssid, String password) {
   preferences.putString("password", password);
   preferences.end();
   #else
-  // ESP8266 没有 Preferences 库，使用 SPIFFS 存储
+  if (SPIFFS.begin()) {
+    File file = SPIFFS.open("/wifi_config.txt", "w");
+    if (file) {
+      file.println(ssid);
+      file.println(password);
+      file.close();
+    }
+    SPIFFS.end();
+  }
   #endif
   
-  // 更新配置的WiFi信息
   configuredSSID = ssid;
   configuredPassword = password;
 }

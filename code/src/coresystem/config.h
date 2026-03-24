@@ -242,4 +242,29 @@ typedef enum {
   PROTECTION_SHORT_CIRCUIT
 } ChargingProtectionStatus;
 
-#endif // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H // CONFIG_H
+// ========================================
+// 安全配置 - 敏感信息
+// ========================================
+// 注意：以下配置应在实际部署时通过环境变量或配置文件覆盖
+// 不要将真实密码提交到版本控制系统
+
+// Web 服务器默认凭据（仅用于首次启动）
+#ifndef WEB_SERVER_DEFAULT_USERNAME
+  #define WEB_SERVER_DEFAULT_USERNAME "admin"
+#endif
+
+#ifndef WEB_SERVER_DEFAULT_PASSWORD
+  #define WEB_SERVER_DEFAULT_PASSWORD "admin123"  // TODO: 首次启动后应强制修改
+#endif
+
+// API 密钥占位符（应从配置文件或环境变量读取）
+#ifndef WEB_SERVER_API_KEY
+  #define WEB_SERVER_API_KEY ""
+#endif
+
+// 数据库加密密钥（应使用安全随机数生成）
+#ifndef DB_ENCRYPTION_KEY
+  #define DB_ENCRYPTION_KEY ""
+#endif
+
+#endif // CONFIG_H

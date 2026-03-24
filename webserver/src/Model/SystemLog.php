@@ -5,214 +5,136 @@
 
 namespace InkClock\Model;
 
-class SystemLog {
-    private $db;
+use InkClock\Model\BaseModel;
+
+class SystemLog extends BaseModel {
     
-    /**
-     * 构造函数
-     * @param \SQLite3 $db 数据库连接
-     */
-    public function __construct($db) {
-        $this->db = $db;
-    }
-    
-    /**
-     * 记录系统日志
-     */
     public function log($level, $category, $message, $userId = null, $deviceId = null) {
         $createdAt = date('Y-m-d H:i:s');
         $ipAddress = $_SERVER['REMOTE_ADDR'] ?? '';
         
-        $stmt = $this->db->prepare("INSERT INTO system_logs (level, category, message, user_id, device_id, ip_address, created_at) VALUES (:level, :category, :message, :userId, :deviceId, :ipAddress, :createdAt)");
-        $stmt->bindValue(':level', $level, SQLITE3_TEXT);
-        $stmt->bindValue(':category', $category, SQLITE3_TEXT);
-        $stmt->bindValue(':message', $message, SQLITE3_TEXT);
-        $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
-        $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
-        $stmt->bindValue(':ipAddress', $ipAddress, SQLITE3_TEXT);
-        $stmt->bindValue(':createdAt', $createdAt, SQLITE3_TEXT);
-        $result = $stmt->execute();
-        $logId = $this->db->lastInsertRowID();
+        $sql = "INSERT INTO system_logs (level, category, message, user_id, device_id, ip_address, created_at) VALUES (:level, :category, :message, :userId, :deviceId, :ipAddress, :createdAt)";
+        $params = [
+            'level' => $level,
+            'category' => $category,
+            'message' => $message,
+            'userId' => $userId,
+            'deviceId' => $deviceId,
+            'ipAddress' => $ipAddress,
+            'createdAt' => $createdAt
+        ];
         
-        return array('success' => $result !== false, 'log_id' => $logId);
+        $result = $this->execute($sql, $params);
+        $logId = $this->lastInsertId();
+        
+        return ['success' => $result !== false, 'log_id' => $logId];
     }
     
-    /**
-     * 获取系统日志列表
-     */
     public function getLogs($limit = 50, $offset = 0, $level = null, $startTime = null, $endTime = null) {
-        $query = "SELECT * FROM system_logs WHERE 1=1";
-        $params = array();
-        $conditions = array();
+        $sql = "SELECT * FROM system_logs WHERE 1=1";
+        $params = [];
         
-        // 应用过滤条件
         if ($level) {
-            $conditions[] = "level = :level";
-            $params[':level'] = $level;
+            $sql .= " AND level = :level";
+            $params['level'] = $level;
         }
         
         if ($startTime) {
-            $conditions[] = "created_at >= :startTime";
-            $params[':startTime'] = $startTime;
+            $sql .= " AND created_at >= :startTime";
+            $params['startTime'] = $startTime;
         }
         
         if ($endTime) {
-            $conditions[] = "created_at <= :endTime";
-            $params[':endTime'] = $endTime;
+            $sql .= " AND created_at <= :endTime";
+            $params['endTime'] = $endTime;
         }
         
-        // 添加条件
-        if (!empty($conditions)) {
-            $query .= " AND " . implode(" AND ", $conditions);
-        }
+        $sql .= " ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
+        $params['limit'] = $limit;
+        $params['offset'] = $offset;
         
-        // 排序和分页
-        $query .= " ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
-        $params[':limit'] = $limit;
-        $params[':offset'] = $offset;
-        
-        // 执行查询
-        $stmt = $this->db->prepare($query);
-        
-        // 绑定参数
-        foreach ($params as $key => $value) {
-            if (is_int($value)) {
-                $stmt->bindValue($key, $value, SQLITE3_INTEGER);
-            } else {
-                $stmt->bindValue($key, $value, SQLITE3_TEXT);
-            }
-        }
-        
-        $result = $stmt->execute();
-        $logs = array();
-        
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-            $logs[] = $row;
-        }
-        
-        return $logs;
+        return $this->query($sql, $params);
     }
     
-    /**
-     * 获取单个日志详情
-     */
     public function getLog($logId) {
-        $stmt = $this->db->prepare("SELECT * FROM system_logs WHERE id = :logId");
-        $stmt->bindValue(':logId', $logId, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        
-        return $result->fetchArray(SQLITE3_ASSOC);
+        $sql = "SELECT * FROM system_logs WHERE id = :logId";
+        $params = ['logId' => $logId];
+        $result = $this->query($sql, $params);
+        return !empty($result) ? $result[0] : null;
     }
     
-    /**
-     * 清除日志
-     */
     public function clearLogs() {
-        $result = $this->db->exec("DELETE FROM system_logs");
-        return array('success' => $result !== false);
+        $result = $this->execute("DELETE FROM system_logs");
+        return ['success' => $result !== false];
     }
     
-    /**
-     * 获取日志数量统计
-     */
-    public function getLogCount($filters = array()) {
-        $query = "SELECT COUNT(*) as count FROM system_logs WHERE 1=1";
-        $params = array();
-        $conditions = array();
+    public function getLogCount($filters = []) {
+        $sql = "SELECT COUNT(*) as count FROM system_logs WHERE 1=1";
+        $params = [];
         
-        // 应用过滤条件
         if (isset($filters['level'])) {
-            $conditions[] = "level = :level";
-            $params[':level'] = $filters['level'];
+            $sql .= " AND level = :level";
+            $params['level'] = $filters['level'];
         }
         
         if (isset($filters['category'])) {
-            $conditions[] = "category = :category";
-            $params[':category'] = $filters['category'];
+            $sql .= " AND category = :category";
+            $params['category'] = $filters['category'];
         }
         
         if (isset($filters['user_id'])) {
-            $conditions[] = "user_id = :userId";
-            $params[':userId'] = $filters['user_id'];
+            $sql .= " AND user_id = :userId";
+            $params['userId'] = $filters['user_id'];
         }
         
         if (isset($filters['device_id'])) {
-            $conditions[] = "device_id = :deviceId";
-            $params[':deviceId'] = $filters['device_id'];
+            $sql .= " AND device_id = :deviceId";
+            $params['deviceId'] = $filters['device_id'];
         }
         
         if (isset($filters['start_time'])) {
-            $conditions[] = "created_at >= :startTime";
-            $params[':startTime'] = $filters['start_time'];
+            $sql .= " AND created_at >= :startTime";
+            $params['startTime'] = $filters['start_time'];
         }
         
         if (isset($filters['end_time'])) {
-            $conditions[] = "created_at <= :endTime";
-            $params[':endTime'] = $filters['end_time'];
+            $sql .= " AND created_at <= :endTime";
+            $params['endTime'] = $filters['end_time'];
         }
         
-        // 添加条件
-        if (!empty($conditions)) {
-            $query .= " AND " . implode(" AND ", $conditions);
+        $result = $this->query($sql, $params);
+        return !empty($result) ? intval($result[0]['count']) : 0;
+    }
+    
+    public function getLogsByUserId($userId, $limit = 50, $offset = 0) {
+        $sql = "SELECT * FROM system_logs WHERE user_id = :userId ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
+        $params = ['userId' => $userId, 'limit' => $limit, 'offset' => $offset];
+        return $this->query($sql, $params);
+    }
+    
+    public function getLogsByDeviceId($deviceId, $limit = 50, $offset = 0) {
+        $sql = "SELECT * FROM system_logs WHERE device_id = :deviceId ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
+        $params = ['deviceId' => $deviceId, 'limit' => $limit, 'offset' => $offset];
+        return $this->query($sql, $params);
+    }
+    
+    public function getLogStats() {
+        $stats = [];
+        
+        $result = $this->query("SELECT level, COUNT(*) as count FROM system_logs GROUP BY level");
+        foreach ($result as $row) {
+            $stats[$row['level']] = intval($row['count']);
         }
         
-        // 执行查询
-        $stmt = $this->db->prepare($query);
-        
-        // 绑定参数
-        foreach ($params as $key => $value) {
-            if (is_int($value)) {
-                $stmt->bindValue($key, $value, SQLITE3_INTEGER);
-            } else {
-                $stmt->bindValue($key, $value, SQLITE3_TEXT);
-            }
-        }
-        
-        $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
-        
-        return $row['count'];
+        return $stats;
     }
     
-    /**
-     * 删除旧日志（按时间）
-     */
-    public function deleteOldLogs($days) {
-        $cutoffDate = date('Y-m-d H:i:s', strtotime("-$days days"));
-        
-        $stmt = $this->db->prepare("DELETE FROM system_logs WHERE created_at < :cutoffDate");
-        $stmt->bindValue(':cutoffDate', $cutoffDate, SQLITE3_TEXT);
-        $result = $stmt->execute();
-        $affectedRows = $this->db->changes();
-        
-        return array('success' => $result !== false, 'deleted_count' => $affectedRows);
-    }
-    
-    /**
-     * 记录info级别的日志
-     */
-    public function info($category, $message, $userId = null, $deviceId = null) {
-        return $this->log('info', $category, $message, $userId, $deviceId);
-    }
-    
-    /**
-     * 记录warning级别的日志
-     */
-    public function warning($category, $message, $userId = null, $deviceId = null) {
-        return $this->log('warning', $category, $message, $userId, $deviceId);
-    }
-    
-    /**
-     * 记录error级别的日志
-     */
-    public function error($category, $message, $userId = null, $deviceId = null) {
-        return $this->log('error', $category, $message, $userId, $deviceId);
-    }
-    
-    /**
-     * 记录critical级别的日志
-     */
-    public function critical($category, $message, $userId = null, $deviceId = null) {
-        return $this->log('critical', $category, $message, $userId, $deviceId);
+    public function deleteOldLogs($days = 30) {
+        $expireDate = date('Y-m-d H:i:s', strtotime("-$days days"));
+        $sql = "DELETE FROM system_logs WHERE created_at < :expireDate";
+        $params = ['expireDate' => $expireDate];
+        $result = $this->execute($sql, $params);
+        return ['success' => $result !== false];
     }
 }
+?>

@@ -223,15 +223,15 @@ void DependencyInjectionContainer::initializeAll() {
 
 // 清理资源
 void DependencyInjectionContainer::cleanup() {
-  // 清理所有实例
+  // 清理所有实例，使用正确的删除器
   for (auto& pair : instances) {
-    void* instance = pair.second;
-    if (instance) {
-      delete instance;
+    void* instance = pair.second.first;
+    auto& deleter = pair.second.second;
+    if (instance && deleter) {
+      deleter(instance);  // 使用类型安全的删除器
     }
   }
   instances.clear();
   factories.clear();
-  
   initialized = false;
 }

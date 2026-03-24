@@ -5,64 +5,46 @@
 
 namespace InkClock\Model;
 
-class Message {
-    private $db;
+use InkClock\Model\BaseModel;
+
+class Message extends BaseModel {
     
-    /**
-     * 构造函数
-     * @param \SQLite3 $db 数据库连接
-     */
-    public function __construct($db) {
-        $this->db = $db;
+    private function generateMessageId() {
+        return 'msg_' . bin2hex(random_bytes(16));
     }
     
-    /**
-     * 发送消息
-     * @param array $messageInfo 消息信息
-     * @return array 发送结果
-     */
     public function sendMessage($messageInfo) {
         try {
-            // 开始事务
-            $this->db->exec('BEGIN TRANSACTION');
-            
             $deviceId = $messageInfo['device_id'];
             $sender = isset($messageInfo['sender']) ? $messageInfo['sender'] : 'Unknown';
             $content = $messageInfo['content'];
             $type = isset($messageInfo['type']) ? $messageInfo['type'] : 'text';
-            $userId = isset($messageInfo['user_id']) ? $messageInfo['user_id'] : null;
             $scheduledTime = isset($messageInfo['scheduled_time']) ? $messageInfo['scheduled_time'] : null;
             $messageId = $this->generateMessageId();
             $status = $scheduledTime ? 'pending' : 'unread';
-            $syncStatus = 'pending'; // 同步状态：pending, synced, failed
+            $syncStatus = 'pending';
             $createdAt = date('Y-m-d H:i:s');
-            $syncAttempts = 0;
             
-            // 插入消息
-            $stmt = $this->db->prepare("INSERT INTO messages (message_id, device_id, sender, content, type, is_read, status, sync_status, sync_attempts, scheduled_time, created_at) VALUES (:messageId, :deviceId, :sender, :content, :type, :isRead, :status, :syncStatus, :syncAttempts, :scheduledTime, :createdAt)");
-            $stmt->bindValue(':messageId', $messageId, SQLITE3_TEXT);
-            $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
-            $stmt->bindValue(':sender', $sender, SQLITE3_TEXT);
-            $stmt->bindValue(':content', $content, SQLITE3_TEXT);
-            $stmt->bindValue(':type', $type, SQLITE3_TEXT);
-            $stmt->bindValue(':isRead', 0, SQLITE3_INTEGER);
-            $stmt->bindValue(':status', $status, SQLITE3_TEXT);
-            $stmt->bindValue(':syncStatus', $syncStatus, SQLITE3_TEXT);
-            $stmt->bindValue(':syncAttempts', $syncAttempts, SQLITE3_INTEGER);
-            $stmt->bindValue(':scheduledTime', $scheduledTime, SQLITE3_TEXT);
-            $stmt->bindValue(':createdAt', $createdAt, SQLITE3_TEXT);
+            $sql = "INSERT INTO messages (message_id, device_id, sender, content, type, is_read, status, sync_status, sync_attempts, scheduled_time, created_at) VALUES (:messageId, :deviceId, :sender, :content, :type, 0, :status, :syncStatus, 0, :scheduledTime, :createdAt)";
+            $params = [
+                'messageId' => $messageId,
+                'deviceId' => $deviceId,
+                'sender' => $sender,
+                'content' => $content,
+                'type' => $type,
+                'status' => $status,
+                'syncStatus' => $syncStatus,
+                'scheduledTime' => $scheduledTime,
+                'createdAt' => $createdAt
+            ];
             
-            $result = $stmt->execute();
+            $result = $this->execute($sql, $params);
+            
             if (!$result) {
-                throw new \Exception('消息发送失败: ' . $this->db->lastErrorMsg());
+                return ['success' => false, 'error' => '消息发送失败'];
             }
-            $stmt->close();
             
-            // 限制设备消息数量
             $this->limitDeviceMessages($deviceId);
-            
-            // 提交事务
-            $this->db->exec('COMMIT');
             
             return [
                 'success' => true,
@@ -70,380 +52,127 @@ class Message {
                 'sync_status' => $syncStatus
             ];
         } catch (\Exception $e) {
-            // 回滚事务
-            $this->db->exec('ROLLBACK');
-            
-            return [
-                'success' => false,
-                'error' => $e->getMessage()
-            ];
+            return ['success' => false, 'error' => $e->getMessage()];
         }
     }
     
-    /**
-     * 获取设备未读消息
-     * @param string $deviceId 设备ID
-     * @return array 未读消息列表
-     */
     public function getUnreadMessages($deviceId) {
-        $stmt = $this->db->prepare("SELECT * FROM messages WHERE device_id = :deviceId AND status = 'unread' ORDER BY created_at DESC");
-        $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
-        $result = $stmt->execute();
-        
-        $messages = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-            $messages[] = $row;
-        }
-        $result->finalize();
-        $stmt->close();
-        
-        return $messages;
+        $sql = "SELECT * FROM messages WHERE device_id = :deviceId AND status = 'unread' ORDER BY created_at DESC";
+        $params = ['deviceId' => $deviceId];
+        return $this->query($sql, $params);
     }
     
-    /**
-     * 获取设备所有消息
-     * @param string $deviceId 设备ID
-     * @param int $limit 限制数量
-     * @param int $offset 偏移量
-     * @return array 消息列表
-     */
     public function getAllMessages($deviceId, $limit = 20, $offset = 0) {
-        $stmt = $this->db->prepare("SELECT * FROM messages WHERE device_id = :deviceId ORDER BY created_at DESC LIMIT :limit OFFSET :offset");
-        $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
-        $stmt->bindValue(':limit', $limit, SQLITE3_INTEGER);
-        $stmt->bindValue(':offset', $offset, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        
-        $messages = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-            $messages[] = $row;
-        }
-        $result->finalize();
-        $stmt->close();
-        
-        return $messages;
+        $sql = "SELECT * FROM messages WHERE device_id = :deviceId ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
+        $params = ['deviceId' => $deviceId, 'limit' => $limit, 'offset' => $offset];
+        return $this->query($sql, $params);
     }
     
-    /**
-     * 标记消息为已读
-     * @param string $messageId 消息ID
-     * @return array 操作结果
-     */
+    public function getMessages($deviceId, $limit = 20, $offset = 0) {
+        return $this->getAllMessages($deviceId, $limit, $offset);
+    }
+    
     public function markAsRead($messageId) {
-        $stmt = $this->db->prepare("UPDATE messages SET status = 'read', read_at = :readAt WHERE message_id = :messageId");
         $readAt = date('Y-m-d H:i:s');
-        $stmt->bindValue(':readAt', $readAt, SQLITE3_TEXT);
-        $stmt->bindValue(':messageId', $messageId, SQLITE3_TEXT);
-        
-        $result = $stmt->execute();
-        $stmt->close();
-        
-        return [
-            'success' => $result !== false
-        ];
+        $sql = "UPDATE messages SET status = 'read', read_at = :readAt WHERE message_id = :messageId";
+        $params = ['readAt' => $readAt, 'messageId' => $messageId];
+        $result = $this->execute($sql, $params);
+        return ['success' => $result !== false];
     }
     
-    /**
-     * 标记所有消息为已读
-     * @param string $deviceId 设备ID
-     * @return bool 操作结果
-     */
     public function markAllAsRead($deviceId) {
-        $stmt = $this->db->prepare("UPDATE messages SET status = 'read', read_at = :readAt WHERE device_id = :deviceId AND status = 'unread'");
         $readAt = date('Y-m-d H:i:s');
-        $stmt->bindValue(':readAt', $readAt, SQLITE3_TEXT);
-        $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
-        
-        $result = $stmt->execute();
-        $stmt->close();
-        
-        return $result !== false;
+        $sql = "UPDATE messages SET status = 'read', read_at = :readAt WHERE device_id = :deviceId AND status = 'unread'";
+        $params = ['readAt' => $readAt, 'deviceId' => $deviceId];
+        return $this->execute($sql, $params) !== false;
     }
     
-    /**
-     * 删除消息
-     * @param string $messageId 消息ID
-     * @return array 操作结果
-     */
     public function deleteMessage($messageId) {
-        $stmt = $this->db->prepare("DELETE FROM messages WHERE message_id = :messageId");
-        $stmt->bindValue(':messageId', $messageId, SQLITE3_TEXT);
-        
-        $result = $stmt->execute();
-        $stmt->close();
-        
-        return [
-            'success' => $result !== false
-        ];
+        $sql = "DELETE FROM messages WHERE message_id = :messageId";
+        $params = ['messageId' => $messageId];
+        $result = $this->execute($sql, $params);
+        return ['success' => $result !== false];
     }
     
-    /**
-     * 限制设备消息数量
-     * @param string $deviceId 设备ID
-     */
     private function limitDeviceMessages($deviceId) {
-        $maxMessages = 100; // 默认限制每个设备100条消息
+        $maxMessages = 100;
         
-        // 获取设备消息总数
-        $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM messages WHERE device_id = :deviceId");
-        $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
-        $result = $stmt->execute();
-        $count = $result->fetchArray(SQLITE3_ASSOC)['count'];
-        $result->finalize();
-        $stmt->close();
+        $sql = "SELECT COUNT(*) as count FROM messages WHERE device_id = :deviceId";
+        $params = ['deviceId' => $deviceId];
+        $result = $this->query($sql, $params);
+        $count = !empty($result) ? intval($result[0]['count']) : 0;
         
         if ($count > $maxMessages) {
-            // 删除最旧的消息
             $deleteCount = $count - $maxMessages;
-            $stmt = $this->db->prepare("DELETE FROM messages WHERE device_id = :deviceId ORDER BY created_at ASC LIMIT :limit");
-            $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
-            $stmt->bindValue(':limit', $deleteCount, SQLITE3_INTEGER);
-            $stmt->execute();
-            $stmt->close();
+            $sql = "DELETE FROM messages WHERE device_id = :deviceId AND id IN (SELECT id FROM messages WHERE device_id = :deviceId2 ORDER BY created_at ASC LIMIT :limit)";
+            $params = ['deviceId' => $deviceId, 'deviceId2' => $deviceId, 'limit' => $deleteCount];
+            $this->execute($sql, $params);
         }
     }
     
-    /**
-     * 获取消息数量
-     * @param string $deviceId 设备ID
-     * @param string $status 状态筛选
-     * @return int 消息数量
-     */
     public function getMessageCount($deviceId, $status = '') {
         if ($status) {
-            $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM messages WHERE device_id = :deviceId AND status = :status");
-            $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
-            $stmt->bindValue(':status', $status, SQLITE3_TEXT);
+            $sql = "SELECT COUNT(*) as count FROM messages WHERE device_id = :deviceId AND status = :status";
+            $params = ['deviceId' => $deviceId, 'status' => $status];
         } else {
-            $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM messages WHERE device_id = :deviceId");
-            $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
+            $sql = "SELECT COUNT(*) as count FROM messages WHERE device_id = :deviceId";
+            $params = ['deviceId' => $deviceId];
         }
-        $result = $stmt->execute();
-        $count = $result->fetchArray(SQLITE3_ASSOC)['count'];
-        $result->finalize();
-        $stmt->close();
-        
-        return $count;
+        $result = $this->query($sql, $params);
+        return !empty($result) ? intval($result[0]['count']) : 0;
     }
     
-    /**
-     * 删除过期消息
-     */
     public function deleteExpiredMessages() {
-        $expireDays = 30; // 默认保留30天消息
+        $expireDays = 30;
         $expireDate = date('Y-m-d H:i:s', strtotime("-$expireDays days"));
-        
-        $stmt = $this->db->prepare("DELETE FROM messages WHERE created_at < :expireDate");
-        $stmt->bindValue(':expireDate', $expireDate, SQLITE3_TEXT);
-        $stmt->execute();
-        $stmt->close();
+        $sql = "DELETE FROM messages WHERE created_at < :expireDate";
+        $params = ['expireDate' => $expireDate];
+        $this->execute($sql, $params);
     }
     
-    /**
-     * 获取待同步的消息
-     * @param string $deviceId 设备ID
-     * @param int $limit 限制数量
-     * @return array 待同步消息列表
-     */
     public function getPendingSyncMessages($deviceId, $limit = 50) {
-        $stmt = $this->db->prepare("SELECT * FROM messages WHERE device_id = :deviceId AND sync_status IN ('pending', 'failed') ORDER BY created_at ASC LIMIT :limit");
-        $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
-        $stmt->bindValue(':limit', $limit, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        
-        $messages = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-            $messages[] = $row;
-        }
-        $result->finalize();
-        $stmt->close();
-        
-        return $messages;
+        $sql = "SELECT * FROM messages WHERE device_id = :deviceId AND sync_status IN ('pending', 'failed') ORDER BY created_at ASC LIMIT :limit";
+        $params = ['deviceId' => $deviceId, 'limit' => $limit];
+        return $this->query($sql, $params);
     }
     
-    /**
-     * 更新消息同步状态
-     * @param string $messageId 消息ID
-     * @param string $syncStatus 同步状态
-     * @return array 操作结果
-     */
     public function updateSyncStatus($messageId, $syncStatus) {
         try {
             $syncAttempts = $syncStatus === 'failed' ? 1 : 0;
             $syncTime = $syncStatus === 'synced' ? date('Y-m-d H:i:s') : null;
             
-            $stmt = $this->db->prepare("UPDATE messages SET sync_status = :syncStatus, sync_attempts = sync_attempts + :syncAttempts, last_sync_at = :syncTime WHERE message_id = :messageId");
-            $stmt->bindValue(':syncStatus', $syncStatus, SQLITE3_TEXT);
-            $stmt->bindValue(':syncAttempts', $syncAttempts, SQLITE3_INTEGER);
-            $stmt->bindValue(':syncTime', $syncTime, SQLITE3_TEXT);
-            $stmt->bindValue(':messageId', $messageId, SQLITE3_TEXT);
-            
-            $result = $stmt->execute();
-            $stmt->close();
-            
-            return [
-                'success' => $result !== false
+            $sql = "UPDATE messages SET sync_status = :syncStatus, sync_attempts = sync_attempts + :syncAttempts, last_sync_at = :syncTime WHERE message_id = :messageId";
+            $params = [
+                'syncStatus' => $syncStatus,
+                'syncAttempts' => $syncAttempts,
+                'syncTime' => $syncTime,
+                'messageId' => $messageId
             ];
+            
+            $result = $this->execute($sql, $params);
+            return ['success' => $result !== false];
         } catch (\Exception $e) {
-            return [
-                'success' => false,
-                'error' => $e->getMessage()
-            ];
-        }
-    }
-    
-    /**
-     * 批量更新消息同步状态
-     * @param array $messageIds 消息ID列表
-     * @param string $syncStatus 同步状态
-     * @return array 操作结果
-     */
-    public function batchUpdateSyncStatus($messageIds, $syncStatus) {
-        if (empty($messageIds)) {
-            return ['success' => true];
-        }
-        
-        try {
-            // 开始事务
-            $this->db->exec('BEGIN TRANSACTION');
-            
-            $syncAttempts = $syncStatus === 'failed' ? 1 : 0;
-            $syncTime = $syncStatus === 'synced' ? date('Y-m-d H:i:s') : null;
-            
-            foreach ($messageIds as $messageId) {
-                $stmt = $this->db->prepare("UPDATE messages SET sync_status = :syncStatus, sync_attempts = sync_attempts + :syncAttempts, last_sync_at = :syncTime WHERE message_id = :messageId");
-                $stmt->bindValue(':syncStatus', $syncStatus, SQLITE3_TEXT);
-                $stmt->bindValue(':syncAttempts', $syncAttempts, SQLITE3_INTEGER);
-                $stmt->bindValue(':syncTime', $syncTime, SQLITE3_TEXT);
-                $stmt->bindValue(':messageId', $messageId, SQLITE3_TEXT);
-                $result = $stmt->execute();
-                $stmt->close();
-                
-                if (!$result) {
-                    throw new \Exception('批量更新同步状态失败');
-                }
-            }
-            
-            // 提交事务
-            $this->db->exec('COMMIT');
-            
-            return ['success' => true];
-        } catch (\Exception $e) {
-            // 回滚事务
-            $this->db->exec('ROLLBACK');
-            
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
     
-    /**
-     * 处理设备消息同步
-     * @param string $deviceId 设备ID
-     * @param array $syncedMessageIds 已同步的消息ID列表
-     * @return array 同步结果
-     */
-    public function syncMessages($deviceId, $syncedMessageIds = []) {
-        try {
-            // 开始事务
-            $this->db->exec('BEGIN TRANSACTION');
-            
-            // 更新已同步的消息状态
-            if (!empty($syncedMessageIds)) {
-                foreach ($syncedMessageIds as $messageId) {
-                    $this->updateSyncStatus($messageId, 'synced');
-                    $this->markAsRead($messageId);
-                }
-            }
-            
-            // 获取待同步的消息
-            $pendingMessages = $this->getPendingSyncMessages($deviceId);
-            
-            // 提交事务
-            $this->db->exec('COMMIT');
-            
-            return [
-                'success' => true,
-                'pending_messages' => $pendingMessages,
-                'synced_count' => count($syncedMessageIds)
-            ];
-        } catch (\Exception $e) {
-            // 回滚事务
-            $this->db->exec('ROLLBACK');
-            
-            return ['success' => false, 'error' => $e->getMessage()];
-        }
-    }
-    
-    /**
-     * 获取消息详情
-     * @param string $messageId 消息ID
-     * @return array|null 消息详情
-     */
     public function getMessageById($messageId) {
-        $stmt = $this->db->prepare("SELECT * FROM messages WHERE message_id = :messageId");
-        $stmt->bindValue(':messageId', $messageId, SQLITE3_TEXT);
-        $result = $stmt->execute();
-        $message = $result->fetchArray(SQLITE3_ASSOC);
-        $result->finalize();
-        $stmt->close();
-        
-        return $message;
+        $sql = "SELECT * FROM messages WHERE message_id = :messageId";
+        $params = ['messageId' => $messageId];
+        $result = $this->query($sql, $params);
+        return !empty($result) ? $result[0] : null;
     }
     
-    /**
-     * 根据设备ID获取消息
-     * @param string $deviceId 设备ID
-     * @return array 消息列表
-     */
     public function getMessagesByDeviceId($deviceId) {
-        $stmt = $this->db->prepare("SELECT * FROM messages WHERE device_id = :deviceId ORDER BY created_at DESC");
-        $stmt->bindValue(':deviceId', $deviceId, SQLITE3_TEXT);
-        $result = $stmt->execute();
-        
-        $messages = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-            $messages[] = $row;
-        }
-        $result->finalize();
-        $stmt->close();
-        
-        return $messages;
+        $sql = "SELECT * FROM messages WHERE device_id = :deviceId ORDER BY created_at DESC";
+        $params = ['deviceId' => $deviceId];
+        return $this->query($sql, $params);
     }
     
-    /**
-     * 根据设备ID列表获取消息
-     * @param array $deviceIds 设备ID列表
-     * @return array 消息列表
-     */
-    public function getMessagesByDeviceIds($deviceIds) {
-        if (empty($deviceIds)) {
-            return [];
-        }
-        
-        $placeholders = rtrim(str_repeat('?,', count($deviceIds)), ',');
-        $stmt = $this->db->prepare("SELECT * FROM messages WHERE device_id IN ($placeholders) ORDER BY created_at DESC");
-        
-        $i = 1;
-        foreach ($deviceIds as $deviceId) {
-            $stmt->bindValue($i++, $deviceId, SQLITE3_TEXT);
-        }
-        
-        $result = $stmt->execute();
-        $messages = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-            $messages[] = $row;
-        }
-        $result->finalize();
-        $stmt->close();
-        
-        return $messages;
-    }
-    
-    /**
-     * 生成消息ID
-     * @return string 消息ID
-     */
-    private function generateMessageId() {
-        return uniqid('msg_', true);
+    public function getRecentMessages($deviceId, $limit = 10) {
+        $sql = "SELECT * FROM messages WHERE device_id = :deviceId ORDER BY created_at DESC LIMIT :limit";
+        $params = ['deviceId' => $deviceId, 'limit' => $limit];
+        return $this->query($sql, $params);
     }
 }
+?>

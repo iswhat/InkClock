@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { margin: 0; padding: 0; }
+.eink-screen {
+    width: 80px;
+    height: 128px;
+    background: #FFF;
+    position: relative;
+}
+.status-bar {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    right: 2px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 5px;
+    font-weight: bold;
+}
+.battery-icon {
+    width: 8px;
+    height: 4px;
+    border: 1px solid #333;
+    border-radius: 1px;
+    position: relative;
+    padding: 1px;
+    display: inline-block;
+}
+.battery-icon::before {
+    content: '';
+    position: absolute;
+    right: -1px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1px;
+    height: 2px;
+    background: #333;
+}
+.battery-level {
+    height: 100%;
+    background: #4caf50;
+    width: 75%;
+}
+.time-section {
+    position: absolute;
+    top: 8px;
+    left: 0;
+    right: 0;
+    text-align: center;
+}
+.time-display {
+    font-size: 18px;
+    font-weight: bold;
+    color: #000;
+    line-height: 1;
+}
+.date-section {
+    position: absolute;
+    top: 30px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 6px;
+    color: #666;
+}
+.date-row {
+    margin-bottom: 1px;
+}
+.weather-section {
+    position: absolute;
+    top: 50px;
+    left: 0;
+    right: 0;
+    text-align: center;
+}
+.weather-temp {
+    font-size: 12px;
+    font-weight: bold;
+    color: #000;
+}
+.weather-forecast {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    margin-top: 2px;
+}
+.forecast-item {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    font-size: 6px;
+}
+.forecast-icon {
+    font-size: 6px;
+}
+.forecast-temp {
+    font-weight: bold;
+    color: #1976d2;
+}
+.sensor-section {
+    position: absolute;
+    bottom: 2px;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 6px;
+    border-top: 1px solid #ddd;
+    padding-top: 2px;
+    gap: 1px;
+}
+</style>
+</head>
+<body>
+<div class="eink-screen">
+    <div class="status-bar">
+        <div>
+            <div class="battery-icon"><div class="battery-level"></div></div>
+            <span>75%</span>
+        </div>
+        <span>🔔3</span>
+    </div>
+    <div class="time-section">
+        <div class="time-display">14:35</div>
+    </div>
+    <div class="date-section">
+        <div class="date-row">03-18 周三</div>
+        <div class="date-row">农历二月初九</div>
+    </div>
+    <div class="weather-section">
+        <div class="weather-temp">23°C</div>
+        <div class="weather-forecast">
+            <div class="forecast-item">
+                <span class="forecast-icon">☀️</span>
+                <span class="forecast-temp">23°</span>
+            </div>
+            <div class="forecast-item">
+                <span class="forecast-icon">⛅</span>
+                <span class="forecast-temp">25°</span>
+            </div>
+            <div class="forecast-item">
+                <span class="forecast-icon">🌤️</span>
+                <span class="forecast-temp">24°</span>
+            </div>
+        </div>
+    </div>
+    <div class="sensor-section">
+        <span>🌡️25°</span>
+        <span>💧60%</span>
+    </div>
+</div>
+</body>
+</html>

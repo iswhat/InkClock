@@ -5,230 +5,139 @@
 
 namespace InkClock\Model;
 
-class User {
-    private $db;
+use InkClock\Model\BaseModel;
+
+class User extends BaseModel {
     
-    /**
-     * 构造函数
-     * @param \SQLite3 $db 数据库连接
-     */
-    public function __construct($db) {
-        $this->db = $db;
-    }
-    
-    /**
-     * 生成API密钥
-     * @return string 生成的API密钥
-     */
     private function generateApiKey() {
         return bin2hex(random_bytes(32));
     }
     
-    /**
-     * 生成双因素认证密钥
-     * @return string 生成的密钥
-     */
     public function generate2faSecret() {
         return bin2hex(random_bytes(16));
     }
     
-    /**
-     * 验证TOTP验证码
-     * @param string $secret 双因素认证密钥
-     * @param string $code 用户输入的验证码
-     * @return bool 验证结果
-     */
     public function verify2faCode($secret, $code) {
         $timestamp = floor(time() / 30);
-        
-        // 验证当前时间戳和前后各一个时间戳的验证码
         for ($i = -1; $i <= 1; $i++) {
             $hash = hash_hmac('sha1', pack('N', $timestamp + $i), hex2bin($secret));
             $offset = ord(hex2bin(substr($hash, -1)));
             $truncatedHash = substr($hash, $offset * 2, 8);
             $calculatedCode = hexdec($truncatedHash) & 0x7fffffff;
             $calculatedCode = str_pad($calculatedCode % 1000000, 6, '0', STR_PAD_LEFT);
-            
             if ($calculatedCode === $code) {
                 return true;
             }
         }
-        
         return false;
     }
     
-    /**
-     * 启用双因素认证
-     * @param int $userId 用户ID
-     * @param string $secret 双因素认证密钥
-     * @return array 操作结果
-     */
     public function enable2fa($userId, $secret) {
         try {
-            // 安全处理可能缺失的列，使用单独的UPDATE语句
-            $stmt = $this->db->prepare("UPDATE users SET two_factor_secret = :secret WHERE id = :id");
-            $stmt->bindValue(':secret', $secret, SQLITE3_TEXT);
-            $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
-            $stmt->execute();
-            
-            // 单独更新two_factor_enabled列
-            $stmt = $this->db->prepare("UPDATE users SET two_factor_enabled = 1 WHERE id = :id");
-            $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
-            $result = $stmt->execute();
-            
+            $sql = "UPDATE users SET two_factor_secret = :secret, two_factor_enabled = 1 WHERE id = :id";
+            $params = ['secret' => $secret, 'id' => $userId];
+            $result = $this->db->execute($sql, $params);
             return ['success' => $result !== false];
         } catch (\Exception $e) {
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
     
-    /**
-     * 禁用双因素认证
-     * @param int $userId 用户ID
-     * @return array 操作结果
-     */
     public function disable2fa($userId) {
         try {
-            // 安全处理可能缺失的列，使用单独的UPDATE语句
-            $stmt = $this->db->prepare("UPDATE users SET two_factor_secret = NULL WHERE id = :id");
-            $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
-            $stmt->execute();
-            
-            // 单独更新two_factor_enabled列
-            $stmt = $this->db->prepare("UPDATE users SET two_factor_enabled = 0 WHERE id = :id");
-            $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
-            $result = $stmt->execute();
-            
+            $sql = "UPDATE users SET two_factor_secret = NULL, two_factor_enabled = 0 WHERE id = :id";
+            $params = ['id' => $userId];
+            $result = $this->db->execute($sql, $params);
             return ['success' => $result !== false];
         } catch (\Exception $e) {
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
     
-    /**
-     * 获取用户的双因素认证设置
-     * @param int $userId 用户ID
-     * @return array|null 双因素认证设置
-     */
     public function get2faSettings($userId) {
         try {
-            // 使用COALESCE处理可能缺失的列
-            $stmt = $this->db->prepare("SELECT COALESCE(two_factor_secret, '') as two_factor_secret, 
-                                            COALESCE(two_factor_enabled, 0) as two_factor_enabled 
-                                     FROM users 
-                                     WHERE id = :id");
-            $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
-            $result = $stmt->execute();
-            return $result->fetchArray(SQLITE3_ASSOC);
+            $sql = "SELECT COALESCE(two_factor_secret, '') as two_factor_secret, COALESCE(two_factor_enabled, 0) as two_factor_enabled FROM users WHERE id = :id";
+            $params = ['id' => $userId];
+            $result = $this->db->query($sql, $params);
+            return !empty($result) ? $result[0] : null;
         } catch (\Exception $e) {
             return null;
         }
     }
     
-    /**
-     * 用户注册
-     * @param array $userInfo 用户信息
-     * @return array 注册结果
-     */
     public function register($userInfo) {
-        // 检查数据库连接是否有效
-        if (!method_exists($this->db, 'prepare')) {
-            return array('success' => false, 'error' => '数据库连接失败，请联系管理员');
-        }
-        
         $username = $userInfo['username'];
         $email = $userInfo['email'];
         $password = $userInfo['password'];
         
         try {
-            // 检查用户名或邮箱是否已存在
-            $stmt = $this->db->prepare("SELECT id FROM users WHERE username = :username OR email = :email");
-            $stmt->bindValue(':username', $username, SQLITE3_TEXT);
-            $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-            $result = $stmt->execute();
+            $sql = "SELECT id FROM users WHERE username = :username OR email = :email";
+            $params = ['username' => $username, 'email' => $email];
+            $result = $this->db->query($sql, $params);
             
-            if ($result->fetchArray(SQLITE3_ASSOC)) {
-                return array('success' => false, 'error' => '用户名或邮箱已存在');
+            if (!empty($result)) {
+                return ['success' => false, 'error' => '用户名或邮箱已存在'];
             }
             
-            // 哈希密码
             $passwordHash = password_hash($password, PASSWORD_DEFAULT);
             $apiKey = $this->generateApiKey();
             $createdAt = date('Y-m-d H:i:s');
-            
-            // 设置API密钥过期时间（默认365天）
             $apiKeyExpiresAt = date('Y-m-d H:i:s', strtotime('+365 days'));
             
-            // 插入用户
-            $stmt = $this->db->prepare("INSERT INTO users (username, email, password_hash, api_key, api_key_created_at, api_key_expires_at, created_at) VALUES (:username, :email, :password_hash, :api_key, :apiKeyCreatedAt, :apiKeyExpiresAt, :createdAt)");
-            $stmt->bindValue(':username', $username, SQLITE3_TEXT);
-            $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-            $stmt->bindValue(':password_hash', $passwordHash, SQLITE3_TEXT);
-            $stmt->bindValue(':api_key', $apiKey, SQLITE3_TEXT);
-            $stmt->bindValue(':apiKeyCreatedAt', $createdAt, SQLITE3_TEXT);
-            $stmt->bindValue(':apiKeyExpiresAt', $apiKeyExpiresAt, SQLITE3_TEXT);
-            $stmt->bindValue(':createdAt', $createdAt, SQLITE3_TEXT);
+            $sql = "INSERT INTO users (username, email, password_hash, api_key, api_key_created_at, api_key_expires_at, created_at) VALUES (:username, :email, :password_hash, :api_key, :apiKeyCreatedAt, :apiKeyExpiresAt, :createdAt)";
+            $params = [
+                'username' => $username,
+                'email' => $email,
+                'password_hash' => $passwordHash,
+                'api_key' => $apiKey,
+                'apiKeyCreatedAt' => $createdAt,
+                'apiKeyExpiresAt' => $apiKeyExpiresAt,
+                'createdAt' => $createdAt
+            ];
             
-            $result = $stmt->execute();
+            $result = $this->db->execute($sql, $params);
             
             if ($result) {
-                $userId = $this->db->lastInsertRowID();
-                return array('success' => true, 'user_id' => $userId, 'api_key' => $apiKey);
+                $userId = $this->db->lastInsertId();
+                return ['success' => true, 'user_id' => $userId, 'api_key' => $apiKey];
             } else {
-                return array('success' => false, 'error' => '注册失败');
+                return ['success' => false, 'error' => '注册失败'];
             }
         } catch (\Exception $e) {
-            return array('success' => false, 'error' => '数据库操作失败: ' . $e->getMessage());
+            return ['success' => false, 'error' => '数据库操作失败: ' . $e->getMessage()];
         }
     }
     
-    /**
-     * 用户登录
-     * @param string $username 用户名或邮箱
-     * @param string $password 密码
-     * @return array 登录结果
-     */
     public function login($username, $password) {
         try {
-            // 使用Database::query方法查询用户
-            $sql = "SELECT u.id, u.username, u.email, u.password_hash, u.api_key, u.api_key_expires_at, u.status, u.is_admin 
-                     FROM users u 
-                     WHERE u.username = :username OR u.email = :email";
-            $params = [
-                'username' => $username,
-                'email' => $username
-            ];
+            $sql = "SELECT id, username, email, password_hash, api_key, api_key_expires_at, status, is_admin FROM users WHERE username = :username OR email = :email";
+            $params = ['username' => $username, 'email' => $username];
             $result = $this->db->query($sql, $params);
             
             if (empty($result)) {
-                return array('success' => false, 'error' => '用户名或密码错误');
+                return ['success' => false, 'error' => '用户名或密码错误'];
             }
             
             $user = $result[0];
             
-            // 检查用户状态
-            if ($user['status'] === 0) {
-                return array('success' => false, 'error' => '用户账号已禁用');
+            if (intval($user['status']) === 0) {
+                return ['success' => false, 'error' => '用户账号已禁用'];
             }
             
-            // 验证密码
             if (!password_verify($password, $user['password_hash'])) {
-                return array('success' => false, 'error' => '用户名或密码错误');
+                return ['success' => false, 'error' => '用户名或密码错误'];
             }
             
-            // 检查API密钥是否即将过期（30天内），如果是则生成新密钥
             $now = time();
             $expiresAt = strtotime($user['api_key_expires_at']);
             $daysUntilExpiry = ($expiresAt - $now) / (60 * 60 * 24);
             
             $apiKey = $user['api_key'];
             if ($daysUntilExpiry < 30) {
-                // 生成新的API密钥
                 $apiKey = $this->generateApiKey();
                 $apiKeyCreatedAt = date('Y-m-d H:i:s');
                 $apiKeyExpiresAt = date('Y-m-d H:i:s', strtotime('+365 days'));
                 
-                // 更新API密钥信息
                 $updateSql = "UPDATE users SET api_key = :apiKey, api_key_created_at = :apiKeyCreatedAt, api_key_expires_at = :apiKeyExpiresAt WHERE id = :id";
                 $updateParams = [
                     'apiKey' => $apiKey,
@@ -236,66 +145,44 @@ class User {
                     'apiKeyExpiresAt' => $apiKeyExpiresAt,
                     'id' => $user['id']
                 ];
-                $stmt = $this->db->prepare($updateSql);
-                foreach ($updateParams as $key => $value) {
-                    $stmt->bindValue($key, $value);
-                }
-                $stmt->execute();
+                $this->db->execute($updateSql, $updateParams);
             }
             
-            // 更新最后登录时间
             $lastLogin = date('Y-m-d H:i:s');
             $loginSql = "UPDATE users SET last_login = :last_login WHERE id = :id";
-            $loginParams = [
-                'last_login' => $lastLogin,
-                'id' => $user['id']
-            ];
-            $stmt = $this->db->prepare($loginSql);
-            foreach ($loginParams as $key => $value) {
-                $stmt->bindValue($key, $value);
-            }
-            $stmt->execute();
+            $loginParams = ['last_login' => $lastLogin, 'id' => $user['id']];
+            $this->db->execute($loginSql, $loginParams);
             
-            // 构建返回数据
-            $returnData = array(
-                'success' => true, 
-                'user_id' => $user['id'], 
+            return [
+                'success' => true,
+                'user_id' => $user['id'],
                 'username' => $user['username'],
                 'email' => $user['email'],
                 'api_key' => $apiKey,
                 'is_admin' => $user['is_admin'],
                 'role' => $user['is_admin'] ? 'admin' : 'user'
-            );
-            
-            return $returnData;
+            ];
         } catch (\Exception $e) {
-            return array('success' => false, 'error' => '数据库操作失败: ' . $e->getMessage());
+            return ['success' => false, 'error' => '数据库操作失败: ' . $e->getMessage()];
         }
     }
     
-    /**
-     * 通过API密钥获取用户信息，带安全性检查
-     * @param string $apiKey API密钥
-     * @param string $ipAddress 请求IP地址
-     * @return array|null 用户信息
-     */
     public function getUserByApiKey($apiKey, $ipAddress = '') {
-        $stmt = $this->db->prepare("SELECT id, username, email, is_admin, status, api_key_expires_at, api_key_ip_whitelist FROM users WHERE api_key = :api_key AND status = 1");
-        $stmt->bindValue(':api_key', $apiKey, SQLITE3_TEXT);
-        $result = $stmt->execute();
-        $user = $result->fetchArray(SQLITE3_ASSOC);
+        $sql = "SELECT id, username, email, is_admin, status, api_key_expires_at, api_key_ip_whitelist FROM users WHERE api_key = :api_key AND status = 1";
+        $params = ['api_key' => $apiKey];
+        $result = $this->db->query($sql, $params);
         
-        if (!$user) {
+        if (empty($result)) {
             return null;
         }
         
-        // 检查API密钥是否过期
+        $user = $result[0];
+        
         $now = date('Y-m-d H:i:s');
         if ($user['api_key_expires_at'] && $user['api_key_expires_at'] < $now) {
             return null;
         }
         
-        // 检查IP白名单
         if ($user['api_key_ip_whitelist']) {
             $whitelist = explode(',', $user['api_key_ip_whitelist']);
             $whitelist = array_map('trim', $whitelist);
@@ -307,122 +194,67 @@ class User {
         return $user;
     }
     
-    /**
-     * 轮换API密钥
-     * @param int $userId 用户ID
-     * @return array 轮换结果
-     */
     public function rotateApiKey($userId) {
         $newApiKey = $this->generateApiKey();
         $now = date('Y-m-d H:i:s');
         $expiresAt = date('Y-m-d H:i:s', strtotime('+365 days'));
         
-        $stmt = $this->db->prepare("UPDATE users SET api_key = :apiKey, api_key_created_at = :createdAt, api_key_expires_at = :expiresAt WHERE id = :userId");
-        $stmt->bindValue(':apiKey', $newApiKey, SQLITE3_TEXT);
-        $stmt->bindValue(':createdAt', $now, SQLITE3_TEXT);
-        $stmt->bindValue(':expiresAt', $expiresAt, SQLITE3_TEXT);
-        $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+        $sql = "UPDATE users SET api_key = :apiKey, api_key_created_at = :createdAt, api_key_expires_at = :expiresAt WHERE id = :userId";
+        $params = [
+            'apiKey' => $newApiKey,
+            'createdAt' => $now,
+            'expiresAt' => $expiresAt,
+            'userId' => $userId
+        ];
         
-        $result = $stmt->execute();
+        $this->db->execute($sql, $params);
         
-        if ($result) {
-            return array('success' => true, 'api_key' => $newApiKey);
-        } else {
-            return array('success' => false, 'error' => 'API密钥轮换失败');
-        }
+        return ['success' => true, 'api_key' => $newApiKey, 'expires_at' => $expiresAt];
     }
     
-    /**
-     * 更新API密钥过期时间
-     * @param int $userId 用户ID
-     * @param string $expiresAt 过期时间
-     * @return array 更新结果
-     */
     public function updateApiKeyExpiration($userId, $expiresAt) {
-        $stmt = $this->db->prepare("UPDATE users SET api_key_expires_at = :expiresAt WHERE id = :userId");
-        $stmt->bindValue(':expiresAt', $expiresAt, SQLITE3_TEXT);
-        $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
-        
-        $result = $stmt->execute();
-        
-        return array('success' => $result !== false);
+        $sql = "UPDATE users SET api_key_expires_at = :expiresAt WHERE id = :userId";
+        $params = ['expiresAt' => $expiresAt, 'userId' => $userId];
+        $result = $this->db->execute($sql, $params);
+        return ['success' => $result !== false];
     }
     
-    /**
-     * 更新API密钥IP白名单
-     * @param int $userId 用户ID
-     * @param array $ipList IP地址列表
-     * @return array 更新结果
-     */
     public function updateApiKeyIpWhitelist($userId, $ipList) {
         $whitelist = implode(',', $ipList);
-        
-        $stmt = $this->db->prepare("UPDATE users SET api_key_ip_whitelist = :whitelist WHERE id = :userId");
-        $stmt->bindValue(':whitelist', $whitelist, SQLITE3_TEXT);
-        $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
-        
-        $result = $stmt->execute();
-        
-        return array('success' => $result !== false);
+        $sql = "UPDATE users SET api_key_ip_whitelist = :whitelist WHERE id = :userId";
+        $params = ['whitelist' => $whitelist, 'userId' => $userId];
+        $result = $this->db->execute($sql, $params);
+        return ['success' => $result !== false];
     }
     
-    /**
-     * 通过用户名获取用户信息
-     * @param string $username 用户名
-     * @return array|null 用户信息
-     */
     public function getUserByUsername($username) {
-        $stmt = $this->db->prepare("SELECT * FROM users WHERE username = :username");
-        $stmt->bindValue(':username', $username, SQLITE3_TEXT);
-        $result = $stmt->execute();
-        return $result->fetchArray(SQLITE3_ASSOC);
+        $sql = "SELECT * FROM users WHERE username = :username";
+        $params = ['username' => $username];
+        $result = $this->db->query($sql, $params);
+        return !empty($result) ? $result[0] : null;
     }
     
-    /**
-     * 检查用户是否为管理员
-     * @param int $userId 用户ID
-     * @return bool 是否为管理员
-     */
     public function isAdmin($userId) {
-        $stmt = $this->db->prepare("SELECT is_admin FROM users WHERE id = :id");
-        $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        $user = $result->fetchArray(SQLITE3_ASSOC);
-        return $user ? $user['is_admin'] : false;
+        $sql = "SELECT is_admin FROM users WHERE id = :id";
+        $params = ['id' => $userId];
+        $result = $this->db->query($sql, $params);
+        if (!empty($result)) {
+            return intval($result[0]['is_admin']) === 1;
+        }
+        return false;
     }
     
-    /**
-     * 检查是否有用户存在
-     * @return bool 是否有用户
-     */
     public function hasUsers() {
         try {
-            // 直接使用SQLite3的query方法
             $result = $this->db->query("SELECT * FROM users LIMIT 1");
-            if ($result) {
-                // 尝试获取第一行数据
-                $row = $result->fetchArray(SQLITE3_ASSOC);
-                return $row !== false;
-            }
-            return false;
+            return !empty($result);
         } catch (\Exception $e) {
             return false;
         }
     }
     
-    /**
-     * 创建第一个管理员用户
-     * @param array $adminInfo 管理员信息
-     * @return array 创建结果
-     */
     public function createFirstAdmin($adminInfo) {
-        // 检查数据库连接是否有效
-        if (!method_exists($this->db, 'prepare') && !method_exists($this->db, 'execute')) {
-            return ['success' => false, 'error' => '数据库连接失败，请联系管理员'];
-        }
-        
         try {
-            // 检查是否已有用户
             if ($this->hasUsers()) {
                 return ['success' => false, 'error' => '已有用户存在，无法创建第一个管理员'];
             }
@@ -431,18 +263,15 @@ class User {
             $email = $adminInfo['email'];
             $password = $adminInfo['password'];
             
-            // 验证用户信息
             if (empty($username) || strlen($username) < 3 || empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL) || empty($password) || strlen($password) < 6) {
                 return ['success' => false, 'error' => '无效的用户信息'];
             }
             
-            // 哈希密码
             $passwordHash = password_hash($password, PASSWORD_DEFAULT);
             $apiKey = $this->generateApiKey();
             $createdAt = date('Y-m-d H:i:s');
             
-            // 准备SQL语句，使用命名占位符
-            $sql = "INSERT INTO users (username, email, password_hash, api_key, created_at, is_admin) VALUES (:username, :email, :password_hash, :api_key, :created_at, 1)";
+            $sql = "INSERT INTO users (username, email, password_hash, api_key, created_at, is_admin, status, must_change_password) VALUES (:username, :email, :password_hash, :api_key, :created_at, 1, 1, 1)";
             $params = [
                 'username' => $username,
                 'email' => $email,
@@ -451,21 +280,10 @@ class User {
                 'created_at' => $createdAt
             ];
             
-            // 假设是直接的SQLite3连接
-            $stmt = $this->db->prepare($sql);
-            if ($stmt) {
-                // 绑定参数
-                $stmt->bindValue(':username', $username, SQLITE3_TEXT);
-                $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-                $stmt->bindValue(':password_hash', $passwordHash, SQLITE3_TEXT);
-                $stmt->bindValue(':api_key', $apiKey, SQLITE3_TEXT);
-                $stmt->bindValue(':created_at', $createdAt, SQLITE3_TEXT);
-                    
-                    $result = $stmt->execute();
-                    if ($result) {
-                        $userId = $this->db->lastInsertRowID();
-                        return ['success' => true, 'user_id' => $userId, 'api_key' => $apiKey];
-                    }
+            $result = $this->db->execute($sql, $params);
+            if ($result) {
+                $userId = $this->db->lastInsertId();
+                return ['success' => true, 'user_id' => $userId, 'api_key' => $apiKey];
             }
             
             return ['success' => false, 'error' => '管理员创建失败'];
@@ -474,134 +292,77 @@ class User {
         }
     }
     
-    /**
-     * 获取用户的所有设备
-     * @param int $userId 用户ID
-     * @return array 用户设备列表
-     */
     public function getUserDevices($userId) {
-        $stmt = $this->db->prepare("SELECT d.* FROM devices d JOIN user_devices ud ON d.device_id = ud.device_id WHERE ud.user_id = :user_id");
-        $stmt->bindValue(':user_id', $userId, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        
-        $devices = [];
-        while ($device = $result->fetchArray(SQLITE3_ASSOC)) {
-            $devices[] = $device;
-        }
-        return $devices;
+        $sql = "SELECT d.* FROM devices d JOIN user_devices ud ON d.device_id = ud.device_id WHERE ud.user_id = :user_id";
+        $params = ['user_id' => $userId];
+        return $this->db->query($sql, $params);
     }
     
-    /**
-     * 检查设备是否属于用户
-     * @param int $userId 用户ID
-     * @param int $deviceId 设备ID
-     * @return bool 是否属于用户
-     */
     public function isDeviceOwnedByUser($userId, $deviceId) {
-        $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM user_devices WHERE device_id = :device_id AND user_id = :user_id");
-        $stmt->bindValue(':device_id', $deviceId, SQLITE3_TEXT);
-        $stmt->bindValue(':user_id', $userId, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
-        return $row['count'] > 0;
+        $sql = "SELECT COUNT(*) as count FROM user_devices WHERE device_id = :device_id AND user_id = :user_id";
+        $params = ['device_id' => $deviceId, 'user_id' => $userId];
+        $result = $this->db->query($sql, $params);
+        if (!empty($result)) {
+            return intval($result[0]['count']) > 0;
+        }
+        return false;
     }
     
-    /**
-     * 绑定设备到用户
-     * @param int $userId 用户ID
-     * @param string $deviceId 设备ID
-     * @param string $nickname 设备昵称
-     * @return array 绑定结果
-     */
     public function bindDevice($userId, $deviceId, $nickname = '') {
-        // 检查设备是否存在
-        $deviceStmt = $this->db->prepare("SELECT device_id FROM devices WHERE device_id = :device_id");
-        $deviceStmt->bindValue(':device_id', $deviceId, SQLITE3_TEXT);
-        $deviceResult = $deviceStmt->execute();
-        if (!$deviceResult->fetchArray(SQLITE3_ASSOC)) {
+        $sql = "SELECT device_id FROM devices WHERE device_id = :device_id";
+        $params = ['device_id' => $deviceId];
+        $result = $this->db->query($sql, $params);
+        
+        if (empty($result)) {
             return ['success' => false, 'error' => '设备不存在'];
         }
         
-        // 检查是否已绑定
-        $checkStmt = $this->db->prepare("SELECT id FROM user_devices WHERE user_id = :user_id AND device_id = :device_id");
-        $checkStmt->bindValue(':user_id', $userId, SQLITE3_INTEGER);
-        $checkStmt->bindValue(':device_id', $deviceId, SQLITE3_TEXT);
-        $checkResult = $checkStmt->execute();
-        if ($checkResult->fetchArray(SQLITE3_ASSOC)) {
+        $sql = "SELECT id FROM user_devices WHERE user_id = :user_id AND device_id = :device_id";
+        $params = ['user_id' => $userId, 'device_id' => $deviceId];
+        $result = $this->db->query($sql, $params);
+        
+        if (!empty($result)) {
             return ['success' => false, 'error' => '设备已绑定到该用户'];
         }
         
-        // 绑定设备
-        $stmt = $this->db->prepare("INSERT INTO user_devices (user_id, device_id, nickname, created_at) VALUES (:user_id, :device_id, :nickname, CURRENT_TIMESTAMP)");
-        $stmt->bindValue(':user_id', $userId, SQLITE3_INTEGER);
-        $stmt->bindValue(':device_id', $deviceId, SQLITE3_TEXT);
-        $stmt->bindValue(':nickname', $nickname, SQLITE3_TEXT);
-        $result = $stmt->execute();
+        $sql = "INSERT INTO user_devices (user_id, device_id, nickname, created_at) VALUES (:user_id, :device_id, :nickname, CURRENT_TIMESTAMP)";
+        $params = ['user_id' => $userId, 'device_id' => $deviceId, 'nickname' => $nickname];
+        $result = $this->db->execute($sql, $params);
         
         return ['success' => $result !== false];
     }
     
-    /**
-     * 解绑设备
-     * @param int $userId 用户ID
-     * @param string $deviceId 设备ID
-     * @return array 解绑结果
-     */
     public function unbindDevice($userId, $deviceId) {
-        $stmt = $this->db->prepare("DELETE FROM user_devices WHERE user_id = :user_id AND device_id = :device_id");
-        $stmt->bindValue(':user_id', $userId, SQLITE3_INTEGER);
-        $stmt->bindValue(':device_id', $deviceId, SQLITE3_TEXT);
-        $stmt->execute();
-        
-        return ['success' => $this->db->changes() > 0];
+        $sql = "DELETE FROM user_devices WHERE user_id = :user_id AND device_id = :device_id";
+        $params = ['user_id' => $userId, 'device_id' => $deviceId];
+        $result = $this->db->execute($sql, $params);
+        return ['success' => $result !== false];
     }
     
-    /**
-     * 更新设备昵称
-     * @param int $userId 用户ID
-     * @param string $deviceId 设备ID
-     * @param string $nickname 设备昵称
-     * @return array 更新结果
-     */
     public function updateDeviceNickname($userId, $deviceId, $nickname) {
-        $stmt = $this->db->prepare("UPDATE user_devices SET nickname = :nickname WHERE user_id = :user_id AND device_id = :device_id");
-        $stmt->bindValue(':nickname', $nickname, SQLITE3_TEXT);
-        $stmt->bindValue(':user_id', $userId, SQLITE3_INTEGER);
-        $stmt->bindValue(':device_id', $deviceId, SQLITE3_TEXT);
-        $stmt->execute();
-        
-        return ['success' => $this->db->changes() > 0];
+        $sql = "UPDATE user_devices SET nickname = :nickname WHERE user_id = :user_id AND device_id = :device_id";
+        $params = ['nickname' => $nickname, 'user_id' => $userId, 'device_id' => $deviceId];
+        $result = $this->db->execute($sql, $params);
+        return ['success' => $result !== false];
     }
     
-    /**
-     * 获取所有用户列表
-     * @param string $search 搜索关键词
-     * @return array 用户列表
-     */
     public function getAllUsers($search = '') {
         try {
-            $query = "SELECT id, username, email, is_admin, created_at, last_login, status FROM users";
+            $sql = "SELECT id, username, email, is_admin, created_at, last_login, status FROM users";
+            $params = [];
             
             if (!empty($search)) {
-                $query .= " WHERE username LIKE :search OR email LIKE :search";
-                $search = "%$search%";
+                $sql .= " WHERE username LIKE :search OR email LIKE :search";
+                $params['search'] = "%$search%";
             }
             
-            $query .= " ORDER BY created_at DESC";
+            $sql .= " ORDER BY created_at DESC";
             
-            $stmt = $this->db->prepare($query);
-            if (!empty($search)) {
-                $stmt->bindValue(':search', $search, SQLITE3_TEXT);
-            }
+            $users = $this->db->query($sql, $params);
             
-            $result = $stmt->execute();
-            $users = [];
-            
-            while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-                // 转换is_admin为role字段
+            foreach ($users as &$row) {
                 $row['role'] = $row['is_admin'] ? 'admin' : 'user';
                 unset($row['is_admin']);
-                $users[] = $row;
             }
             
             return $users;
@@ -610,77 +371,43 @@ class User {
         }
     }
     
-    /**
-     * 获取用户统计数据
-     * @return array 统计数据
-     */
     public function getUserStats() {
         try {
-            // 获取总用户数
-            $totalStmt = $this->db->prepare("SELECT COUNT(*) as count FROM users");
-            $totalResult = $totalStmt->execute();
-            $total = $totalResult->fetchArray(SQLITE3_ASSOC)['count'];
+            $totalResult = $this->db->query("SELECT COUNT(*) as count FROM users");
+            $total = !empty($totalResult) ? intval($totalResult[0]['count']) : 0;
             
-            // 获取管理员数
-            $adminStmt = $this->db->prepare("SELECT COUNT(*) as count FROM users WHERE is_admin = 1");
-            $adminResult = $adminStmt->execute();
-            $admin = $adminResult->fetchArray(SQLITE3_ASSOC)['count'];
+            $adminResult = $this->db->query("SELECT COUNT(*) as count FROM users WHERE is_admin = 1");
+            $admin = !empty($adminResult) ? intval($adminResult[0]['count']) : 0;
             
-            // 获取普通用户数
-            $userStmt = $this->db->prepare("SELECT COUNT(*) as count FROM users WHERE is_admin = 0");
-            $userResult = $userStmt->execute();
-            $user = $userResult->fetchArray(SQLITE3_ASSOC)['count'];
+            $userResult = $this->db->query("SELECT COUNT(*) as count FROM users WHERE is_admin = 0");
+            $user = !empty($userResult) ? intval($userResult[0]['count']) : 0;
             
-            // 获取活跃用户数（最近30天登录过的）
-            $activeStmt = $this->db->prepare("SELECT COUNT(*) as count FROM users WHERE last_login >= datetime('now', '-30 days')");
-            $activeResult = $activeStmt->execute();
-            $active = $activeResult->fetchArray(SQLITE3_ASSOC)['count'];
+            $activeResult = $this->db->query("SELECT COUNT(*) as count FROM users WHERE last_login >= datetime('now', '-30 days')");
+            $active = !empty($activeResult) ? intval($activeResult[0]['count']) : 0;
             
-            return [
-                'total' => $total,
-                'admin' => $admin,
-                'user' => $user,
-                'active' => $active
-            ];
+            return ['total' => $total, 'admin' => $admin, 'user' => $user, 'active' => $active];
         } catch (\Exception $e) {
-            return [
-                'total' => 0,
-                'admin' => 0,
-                'user' => 0,
-                'active' => 0
-            ];
+            return ['total' => 0, 'admin' => 0, 'user' => 0, 'active' => 0];
         }
     }
     
-    /**
-     * 通过ID获取用户信息
-     * @param int $userId 用户ID
-     * @return array|null 用户信息
-     */
     public function getUserById($userId) {
         try {
-            $stmt = $this->db->prepare("SELECT id, username, email, is_admin as role, created_at, last_login, status FROM users WHERE id = :id");
-            $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
-            $result = $stmt->execute();
-            $user = $result->fetchArray(SQLITE3_ASSOC);
+            $sql = "SELECT id, username, email, is_admin, created_at, last_login, status FROM users WHERE id = :id";
+            $params = ['id' => $userId];
+            $result = $this->db->query($sql, $params);
             
-            if ($user) {
-                // 转换role字段
-                $user['role'] = $user['role'] ? 'admin' : 'user';
+            if (!empty($result)) {
+                $user = $result[0];
+                $user['role'] = $user['is_admin'] ? 'admin' : 'user';
+                return $user;
             }
-            
-            return $user;
+            return null;
         } catch (\Exception $e) {
             return null;
         }
     }
     
-    /**
-     * 更新用户信息
-     * @param int $userId 用户ID
-     * @param array $userData 用户数据
-     * @return array 更新结果
-     */
     public function updateUser($userId, $userData) {
         try {
             $fields = [];
@@ -688,44 +415,39 @@ class User {
             
             if (isset($userData['username'])) {
                 $fields[] = "username = :username";
-                $params[':username'] = $userData['username'];
+                $params['username'] = $userData['username'];
             }
             
             if (isset($userData['email'])) {
                 $fields[] = "email = :email";
-                $params[':email'] = $userData['email'];
+                $params['email'] = $userData['email'];
             }
             
             if (!empty($userData['password'])) {
                 $fields[] = "password_hash = :password_hash";
-                $params[':password_hash'] = password_hash($userData['password'], PASSWORD_DEFAULT);
+                $params['password_hash'] = password_hash($userData['password'], PASSWORD_DEFAULT);
             }
             
             if (isset($userData['role'])) {
                 $fields[] = "is_admin = :is_admin";
-                $params[':is_admin'] = $userData['role'] === 'admin' ? 1 : 0;
+                $params['is_admin'] = $userData['role'] === 'admin' ? 1 : 0;
             }
             
             if (isset($userData['status'])) {
                 $fields[] = "status = :status";
-                $params[':status'] = $userData['status'];
+                $params['status'] = $userData['status'];
             }
             
             if (empty($fields)) {
                 return ['success' => true, 'message' => '无需要更新的字段'];
             }
             
-            $query = "UPDATE users SET " . implode(', ', $fields) . " WHERE id = :id";
-            $params[':id'] = $userId;
+            $sql = "UPDATE users SET " . implode(', ', $fields) . " WHERE id = :id";
+            $params['id'] = $userId;
             
-            $stmt = $this->db->prepare($query);
-            foreach ($params as $key => $value) {
-                $stmt->bindValue($key, $value, is_numeric($value) ? SQLITE3_INTEGER : SQLITE3_TEXT);
-            }
+            $result = $this->db->execute($sql, $params);
             
-            $result = $stmt->execute();
-            
-            if ($result && $this->db->changes() > 0) {
+            if ($result !== false) {
                 return ['success' => true, 'message' => '用户信息更新成功'];
             } else {
                 return ['success' => false, 'error' => '更新失败或无变化'];
@@ -735,44 +457,26 @@ class User {
         }
     }
     
-    /**
-     * 删除用户
-     * @param int $userId 用户ID
-     * @return array 删除结果
-     */
     public function deleteUser($userId) {
         try {
-            // 开始事务
-            $this->db->exec('BEGIN TRANSACTION');
+            $sql = "DELETE FROM user_devices WHERE user_id = :user_id";
+            $params = ['user_id' => $userId];
+            $this->db->execute($sql, $params);
             
-            // 删除用户的设备绑定
-            $deviceStmt = $this->db->prepare("DELETE FROM user_devices WHERE user_id = :user_id");
-            $deviceStmt->bindValue(':user_id', $userId, SQLITE3_INTEGER);
-            $deviceStmt->execute();
+            $sql = "DELETE FROM users WHERE id = :user_id";
+            $params = ['user_id' => $userId];
+            $result = $this->db->execute($sql, $params);
             
-            // 删除用户
-            $userStmt = $this->db->prepare("DELETE FROM users WHERE id = :user_id");
-            $userStmt->bindValue(':user_id', $userId, SQLITE3_INTEGER);
-            $userResult = $userStmt->execute();
-            
-            if ($userResult && $this->db->changes() > 0) {
-                $this->db->exec('COMMIT');
+            if ($result !== false) {
                 return ['success' => true, 'message' => '用户删除成功'];
             } else {
-                $this->db->exec('ROLLBACK');
                 return ['success' => false, 'error' => '删除失败或用户不存在'];
             }
         } catch (\Exception $e) {
-            $this->db->exec('ROLLBACK');
             return ['success' => false, 'error' => '数据库操作失败: ' . $e->getMessage()];
         }
     }
     
-    /**
-     * 添加用户
-     * @param array $userData 用户数据
-     * @return array 添加结果
-     */
     public function addUser($userData) {
         try {
             $username = $userData['username'];
@@ -780,35 +484,33 @@ class User {
             $password = $userData['password'];
             $role = $userData['role'];
             
-            // 检查用户名或邮箱是否已存在
-            $checkStmt = $this->db->prepare("SELECT id FROM users WHERE username = :username OR email = :email");
-            $checkStmt->bindValue(':username', $username, SQLITE3_TEXT);
-            $checkStmt->bindValue(':email', $email, SQLITE3_TEXT);
-            $checkResult = $checkStmt->execute();
+            $sql = "SELECT id FROM users WHERE username = :username OR email = :email";
+            $params = ['username' => $username, 'email' => $email];
+            $result = $this->db->query($sql, $params);
             
-            if ($checkResult->fetchArray(SQLITE3_ASSOC)) {
+            if (!empty($result)) {
                 return ['success' => false, 'error' => '用户名或邮箱已存在'];
             }
             
-            // 哈希密码
             $passwordHash = password_hash($password, PASSWORD_DEFAULT);
             $apiKey = $this->generateApiKey();
             $createdAt = date('Y-m-d H:i:s');
             $isAdmin = $role === 'admin' ? 1 : 0;
             
-            // 插入用户
-            $stmt = $this->db->prepare("INSERT INTO users (username, email, password_hash, api_key, created_at, is_admin, status) VALUES (:username, :email, :password_hash, :api_key, :created_at, :is_admin, 1)");
-            $stmt->bindValue(':username', $username, SQLITE3_TEXT);
-            $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-            $stmt->bindValue(':password_hash', $passwordHash, SQLITE3_TEXT);
-            $stmt->bindValue(':api_key', $apiKey, SQLITE3_TEXT);
-            $stmt->bindValue(':created_at', $createdAt, SQLITE3_TEXT);
-            $stmt->bindValue(':is_admin', $isAdmin, SQLITE3_INTEGER);
+            $sql = "INSERT INTO users (username, email, password_hash, api_key, created_at, is_admin, status) VALUES (:username, :email, :password_hash, :api_key, :created_at, :is_admin, 1)";
+            $params = [
+                'username' => $username,
+                'email' => $email,
+                'password_hash' => $passwordHash,
+                'api_key' => $apiKey,
+                'created_at' => $createdAt,
+                'is_admin' => $isAdmin
+            ];
             
-            $result = $stmt->execute();
+            $result = $this->db->execute($sql, $params);
             
             if ($result) {
-                $userId = $this->db->lastInsertRowID();
+                $userId = $this->db->lastInsertId();
                 return ['success' => true, 'user_id' => $userId, 'message' => '用户添加成功'];
             } else {
                 return ['success' => false, 'error' => '添加失败'];
@@ -817,4 +519,113 @@ class User {
             return ['success' => false, 'error' => '数据库操作失败: ' . $e->getMessage()];
         }
     }
+    
+    public function checkUsers() {
+        try {
+            $result = $this->db->query("SELECT COUNT(*) as count FROM users");
+            return !empty($result) && intval($result[0]['count']) > 0;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+    
+    /**
+     * 检查用户是否需要首次修改密码
+     * @param int $userId 用户 ID
+     * @return bool 是否需要修改密码
+     */
+    public function mustChangePassword($userId) {
+        try {
+            $sql = "SELECT must_change_password FROM users WHERE id = :id";
+            $params = ['id' => $userId];
+            $result = $this->db->query($sql, $params);
+            
+            if (empty($result)) {
+                return false;
+            }
+            
+            return intval($result[0]['must_change_password']) === 1;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+    
+    /**
+     * 设置用户必须修改密码标志
+     * @param int $userId 用户 ID
+     * @param bool $mustChange 是否必须修改
+     * @return array 操作结果
+     */
+    public function setMustChangePassword($userId, $mustChange) {
+        try {
+            $sql = "UPDATE users SET must_change_password = :must_change WHERE id = :id";
+            $params = [
+                'must_change' => $mustChange ? 1 : 0,
+                'id' => $userId
+            ];
+            $result = $this->db->execute($sql, $params);
+            return ['success' => $result !== false];
+        } catch (\Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+    
+    /**
+     * 修改用户密码
+     * @param int $userId 用户 ID
+     * @param string $oldPassword 旧密码
+     * @param string $newPassword 新密码
+     * @return array 操作结果
+     */
+    public function changePassword($userId, $oldPassword, $newPassword) {
+        try {
+            // 验证旧密码
+            $sql = "SELECT password_hash FROM users WHERE id = :id";
+            $params = ['id' => $userId];
+            $result = $this->db->query($sql, $params);
+            
+            if (empty($result)) {
+                return ['success' => false, 'error' => '用户不存在'];
+            }
+            
+            if (!password_verify($oldPassword, $result[0]['password_hash'])) {
+                return ['success' => false, 'error' => '旧密码错误'];
+            }
+            
+            // 更新密码
+            $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
+            $sql = "UPDATE users SET password_hash = :password_hash, must_change_password = 0 WHERE id = :id";
+            $params = [
+                'password_hash' => $passwordHash,
+                'id' => $userId
+            ];
+            $result = $this->db->execute($sql, $params);
+            
+            return ['success' => $result !== false];
+        } catch (\Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+    
+    /**
+     * 强制重置用户密码（管理员功能）
+     * @param int $userId 用户 ID
+     * @param string $newPassword 新密码
+     * @return array 操作结果
+     */
+    public function forceResetPassword($userId, $newPassword) {
+        try {
+            $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
+            $sql = "UPDATE users SET password_hash = :password_hash, must_change_password = 1 WHERE id = :id";
+            $params = [
+                'password_hash' => $passwordHash,
+                'id' => $userId
+            ];
+            $result = $this->db->execute($sql, $params);
+            return ['success' => $result !== false];
+        } catch (\Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
 }
+?>

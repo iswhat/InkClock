@@ -194,32 +194,39 @@ bool TimeManager::sendNTPRequest(const char* serverName) {
   ntpUDP.write(packetBuffer, NTP_PACKET_SIZE);
   ntpUDP.endPacket();
   
-  // 等待响应
-  delay(1000);
+  // 使用非阻塞方式等待 NTP 响应
+  unsigned long requestTime = millis();
+  const unsigned long timeout = 2000; // 2 秒超时
   
-  if (ntpUDP.parsePacket()) {
-    ntpUDP.read(packetBuffer, NTP_PACKET_SIZE);
-    
-    // 解析NTP时间
-    uint32_t secsSince1900 = (uint32_t)packetBuffer[40] << 24 |
-                              (uint32_t)packetBuffer[41] << 16 |
-                              (uint32_t)packetBuffer[42] << 8  |
-                              (uint32_t)packetBuffer[43];
-    
-    // NTP时间是从1900年开始，转换为Unix时间（从1970年开始）
-    const uint32_t seventyYears = 2208988800UL;
-    uint32_t unixTime = secsSince1900 - seventyYears;
-    
-    // 应用时区偏移
-    unixTime += TIME_ZONE_OFFSET * 3600;
-    
-    // 解析时间
-    parseNTPTime(unixTime);
-    
-    return true;
-  } else {
-    return false;
+  // 等待响应，但使用非阻塞方式
+  while (millis() - requestTime < timeout) {
+    if (ntpUDP.parsePacket()) {
+      // 读取响应包
+      ntpUDP.read(packetBuffer, NTP_PACKET_SIZE);
+      
+      // 解析 NTP 时间
+      uint32_t secsSince1900 = (uint32_t)packetBuffer[40] << 24 |
+                                (uint32_t)packetBuffer[41] << 16 |
+                                (uint32_t)packetBuffer[42] << 8  |
+                                (uint32_t)packetBuffer[43];
+      
+      // NTP 时间是从 1900 年开始，转换为 Unix 时间（从 1970 年开始）
+      const uint32_t seventyYears = 2208988800UL;
+      uint32_t unixTime = secsSince1900 - seventyYears;
+      
+      // 应用时区偏移
+      unixTime += TIME_ZONE_OFFSET * 3600;
+      
+      // 解析时间
+      parseNTPTime(unixTime);
+      
+      return true;
+    }
+    delay(10); // 短暂延迟，降低 CPU 占用
   }
+  
+  // 超时未收到响应
+  return false;
 }
 
 void TimeManager::updateNTPTime() {

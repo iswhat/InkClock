@@ -11,6 +11,17 @@
 #include <memory>
 #include <vector>
 
+#if defined(ESP32)
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#elif defined(ESP8266)
+typedef void* SemaphoreHandle_t;
+#define xSemaphoreCreateMutex() nullptr
+#define xSemaphoreTake(mutex, delay) (void)mutex
+#define xSemaphoreGive(mutex) (void)mutex
+#define portMAX_DELAY 0
+#endif
+
 // 错误级别枚举
 enum ErrorLevel {
     ERROR_LEVEL_DEBUG,
@@ -108,6 +119,7 @@ private:
     std::vector<std::shared_ptr<ErrorInfo>> errorHistory;
     size_t maxErrorHistorySize;
     bool initialized;
+    SemaphoreHandle_t errorMutex;
 
     ErrorHandlingManager();
 

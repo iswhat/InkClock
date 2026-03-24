@@ -366,6 +366,10 @@ class Logger {
     private function formatLogMessage($level, $message, $context) {
         $timestamp = date($this->dateFormat);
         
+        // 脱敏敏感信息
+        $context = $this->sanitizeContext($context);
+        $message = $this->sanitizeMessage($message);
+        
         if ($this->logFormat === 'json') {
             $logData = array_merge([
                 'timestamp' => $timestamp,
@@ -379,6 +383,44 @@ class Logger {
             $contextStr = !empty($context) ? ' ' . json_encode($context, JSON_UNESCAPED_UNICODE) : '';
             return sprintf("[%s] %s: %s%s\n", $timestamp, strtoupper($level), $message, $contextStr);
         }
+    }
+
+    /**
+     * 脱敏上下文中的敏感信息
+     * @param array $context 上下文信息
+     * @return array 脱敏后的上下文
+     */
+    private function sanitizeContext($context) {
+        $sensitiveKeys = ['password', 'api_key', 'secret', 'secret_key', 'token', 'access_token', 'refresh_token'];
+        
+        foreach ($sensitiveKeys as $key) {
+            if (isset($context[$key])) {
+                $context[$key] = '***REDACTED***';
+            }
+            // 检查带下划线的变体
+            $keyWithUnderscore = str_replace('_', '', $key);
+            if (isset($context[$keyWithUnderscore])) {
+                $context[$keyWithUnderscore] = '***REDACTED***';
+            }
+        }
+        
+        return $context;
+    }
+
+    /**
+     * 脱敏消息中的敏感信息
+     * @param string $message 消息内容
+     * @return string 脱敏后的消息
+     */
+    private function sanitizeMessage($message) {
+        $sensitivePatterns = [
+            '/password=\w+/i' => 'password=***REDACTED***',
+            '/api_key=[^&\s]+/i' => 'api_key=***REDACTED***',
+            '/secret=[^&\s]+/i' => 'secret=***REDACTED***',
+            '/token=[^&\s]+/i' => 'token=***REDACTED***',
+        ];
+        
+        return preg_replace(array_keys($sensitivePatterns), array_values($sensitivePatterns), $message);
     }
 
     /**

@@ -66,11 +66,8 @@ bool MemoryPool::allocateBlocks(int count, size_t blockSize) {
     // For ESP32, prefer ps_malloc (PSRAM) if available
     void* address = malloc(blockSize);
     if (address == nullptr) {
-      // Fallback to regular malloc (already using malloc)
-      if (address == nullptr) {
-        Serial.println("MemoryPool: Memory allocation failed");
-        return false;
-      }
+      Serial.println("MemoryPool: Memory allocation failed");
+      return false;
     }
 
     MemoryBlock block;

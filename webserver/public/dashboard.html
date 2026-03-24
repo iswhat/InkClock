@@ -451,12 +451,12 @@
             try {
                 // 并行执行所有API请求
                 const [devicesResponse, firmwareResponse, notificationsResponse] = await Promise.all([
-                    fetch('/api/gateway/device/list', {
+                    fetch('/api/device', {
                         headers: {
                             'X-API-Key': apiKey
                         }
                     }),
-                    fetch('/api/gateway/firmware/list', {
+                    fetch('/api/firmware', {
                         headers: {
                             'X-API-Key': apiKey
                         }
@@ -529,7 +529,7 @@
             const apiKey = localStorage.getItem('token');
             
             try {
-                const response = await fetch('/api/gateway/device/list', {
+                const response = await fetch('/api/device', {
                     headers: {
                         'X-API-Key': apiKey
                     }
@@ -584,7 +584,7 @@
                     if (devicesData.success && devicesData.data.length > 0) {
                         // 并行获取所有设备的消息
                         const messagePromises = devicesData.data.map(device => 
-                            fetch(`/api/gateway/message/list?device_id=${device.device_id}`, {
+                            fetch(`/api/message/${device.device_id}`, {
                                 headers: {
                                     'X-API-Key': apiKey
                                 }
@@ -638,7 +638,7 @@
         async function loadSystemStatus() {
             const apiKey = localStorage.getItem('token');
             try {
-                const response = await fetch('/api/gateway/system/status', {
+                const response = await fetch('/api/system/info', {
                     headers: {
                         'X-API-Key': apiKey
                     }

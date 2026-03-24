@@ -3,19 +3,55 @@
 #include <map>
 #include <Arduino.h>
 
+#if PLATFORM_ESP32
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+
+// 定义互斥锁
+static SemaphoreHandle_t memoryMutex = nullptr;
+
+static void initMemoryMutex() {
+  if (memoryMutex == nullptr) {
+    memoryMutex = xSemaphoreCreateMutex();
+  }
+}
+
+#define LOCK_MEMORY() \
+  if (memoryMutex) { \
+    xSemaphoreTake(memoryMutex, portMAX_DELAY); \
+  }
+
+#define UNLOCK_MEMORY() \
+  if (memoryMutex) { \
+    xSemaphoreGive(memoryMutex); \
+  }
+
+#else
+// 其他平台不使用互斥锁
+#define initMemoryMutex()
+#define LOCK_MEMORY()
+#define UNLOCK_MEMORY()
+#endif
+
 // 初始化单例实例
 MemoryManager* MemoryManager::instance = nullptr;
 
-// 获取单例实例
+// 获取单例实例（线程安全）
 MemoryManager* MemoryManager::getInstance() {
   if (instance == nullptr) {
-    instance = new MemoryManager();
+    LOCK_MEMORY();
+    if (instance == nullptr) {
+      instance = new MemoryManager();
+    }
+    UNLOCK_MEMORY();
   }
   return instance;
 }
 
 // 初始化
 bool MemoryManager::init() {
+  // 初始化互斥锁
+  initMemoryMutex();
   return true;
 }
 
@@ -55,6 +91,7 @@ void* MemoryManager::createMemoryPool(size_t blockSize, size_t blockCount) {
 
 // 从内存池分配内存
 void* MemoryManager::allocateFromPool(void* poolPtr, size_t size, const char* file, int line) {
+  LOCK_MEMORY();
   for (auto& pool : memoryPools) {
     if (pool.pool == poolPtr && size <= pool.blockSize && pool.freeBlocks > 0) {
       void* ptr = pool.freeList[--pool.freeBlocks];
@@ -74,9 +111,11 @@ void* MemoryManager::allocateFromPool(void* poolPtr, size_t size, const char* fi
         optimizeMemoryUsage();
       }
       
+      UNLOCK_MEMORY();
       return ptr;
     }
   }
+  UNLOCK_MEMORY();
   return nullptr;
 }
 
@@ -84,9 +123,10 @@ void* MemoryManager::allocateFromPool(void* poolPtr, size_t size, const char* fi
 
 // 释放内存回内存池
 void MemoryManager::freeToPool(void* poolPtr, void* ptr) {
+  LOCK_MEMORY();
   for (auto& pool : memoryPools) {
     if (pool.pool == poolPtr) {
-      // 检查ptr是否属于该内存池
+      // 检查 ptr 是否属于该内存池
       if (ptr >= pool.pool && ptr < (uint8_t*)pool.pool + (pool.blockSize * pool.blockCount)) {
         pool.freeList[pool.freeBlocks++] = ptr;
         
@@ -98,11 +138,13 @@ void MemoryManager::freeToPool(void* poolPtr, void* ptr) {
           }
         }
         
+        UNLOCK_MEMORY();
         return;
       }
       break;
     }
   }
+  UNLOCK_MEMORY();
 }
 
 // 销毁内存池
@@ -150,32 +192,39 @@ void MemoryManager::cleanupMemory() {
 
 // 检查内存泄漏
 void MemoryManager::checkMemoryLeaks() {
-  // 简单的内存泄漏检查，实际应用中可以更复杂
   size_t currentHeap = platformGetFreeHeap();
-  if (lastMemoryUpdate > 0) {
-    // 修复：正确检测内存泄漏（内存持续增长才是泄漏）
-    static size_t previousHeap = currentHeap;
-    static int leakCounter = 0;
-
-    // 检测内存是否持续增长（真正的泄漏）
-    // 如果当前内存比上次少超过1KB，说明可能释放了内存（正常现象）
-    // 如果当前内存比上次少，且连续多次，可能是正常的内存波动
-    // 真正的泄漏是free heap持续减少（可用内存变少）
-    if (previousHeap > currentHeap + 1024) {
-      // 内存减少了超过1KB，可能是释放了内存（正常）
-      leakCounter = 0;
-    } else if (previousHeap > currentHeap && (previousHeap - currentHeap) > 256) {
-      // 内存持续减少，可能是泄漏
+  static size_t previousHeap = 0;
+  static int leakCounter = 0;
+  static unsigned long lastCheckTime = 0;
+  
+  unsigned long currentTime = platformGetMillis();
+  if (lastCheckTime == 0) {
+    previousHeap = currentHeap;
+    lastCheckTime = currentTime;
+    return;
+  }
+  
+  if (currentTime - lastCheckTime < 5000) {
+    return;
+  }
+  lastCheckTime = currentTime;
+  
+  if (currentHeap < previousHeap) {
+    size_t heapLoss = previousHeap - currentHeap;
+    if (heapLoss > 512) {
       leakCounter++;
-      if (leakCounter > 10) { // 连续10次检测到内存泄漏
-        Serial.println("[MemoryManager] Potential memory leak detected");
+      if (leakCounter >= 5) {
+        Serial.printf("[MemoryManager] Memory leak detected! Lost %zu bytes over %d checks. Free heap: %zu\n", 
+                      heapLoss * leakCounter, leakCounter, currentHeap);
         leakCounter = 0;
       }
-    } else {
-      leakCounter = 0;
     }
-    previousHeap = currentHeap;
+  } else {
+    leakCounter = 0;
   }
+  
+  previousHeap = currentHeap;
+  lastMemoryUpdate = currentTime;
 }
 
 // 更新内存统计信息

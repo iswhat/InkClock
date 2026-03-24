@@ -522,19 +522,32 @@ bool ConfigManager::getBool(const String& key, bool defaultValue) {
 
 // 设置配置值
 bool ConfigManager::setString(const String& key, const String& value, ConfigLevel level) {
+    if (configMutex) {
+        xSemaphoreTake(configMutex, portMAX_DELAY);
+    }
+    
     auto it = configItems.find(key);
     if (it == configItems.end()) {
+        if (configMutex) {
+            xSemaphoreGive(configMutex);
+        }
         return false;
     }
     
     auto configItem = it->second;
     if (!configItem->setValue(value)) {
+        if (configMutex) {
+            xSemaphoreGive(configMutex);
+        }
         return false;
     }
     
-    // 如果是持久化配置，保存到存储
     if (level == CONFIG_LEVEL_PERSISTENT && activeStorage) {
         activeStorage->save(key, value);
+    }
+    
+    if (configMutex) {
+        xSemaphoreGive(configMutex);
     }
     
     return true;
@@ -554,34 +567,72 @@ bool ConfigManager::setBool(const String& key, bool value, ConfigLevel level) {
 
 // 检查配置项是否存在
 bool ConfigManager::hasConfig(const String& key) const {
-    return configItems.find(key) != configItems.end();
+    if (configMutex) {
+        xSemaphoreTake(configMutex, portMAX_DELAY);
+    }
+    
+    bool result = configItems.find(key) != configItems.end();
+    
+    if (configMutex) {
+        xSemaphoreGive(configMutex);
+    }
+    
+    return result;
 }
 
 // 获取配置项信息
 std::shared_ptr<ConfigItem> ConfigManager::getConfigItem(const String& key) const {
-    auto it = configItems.find(key);
-    if (it != configItems.end()) {
-        return it->second;
+    if (configMutex) {
+        xSemaphoreTake(configMutex, portMAX_DELAY);
     }
-    return nullptr;
+    
+    auto it = configItems.find(key);
+    std::shared_ptr<ConfigItem> result = nullptr;
+    if (it != configItems.end()) {
+        result = it->second;
+    }
+    
+    if (configMutex) {
+        xSemaphoreGive(configMutex);
+    }
+    
+    return result;
 }
 
 // 获取所有配置项
 std::vector<std::shared_ptr<ConfigItem>> ConfigManager::getAllConfigItems() const {
+    if (configMutex) {
+        xSemaphoreTake(configMutex, portMAX_DELAY);
+    }
+    
     std::vector<std::shared_ptr<ConfigItem>> items;
     for (const auto& pair : configItems) {
         items.push_back(pair.second);
     }
+    
+    if (configMutex) {
+        xSemaphoreGive(configMutex);
+    }
+    
     return items;
 }
 
 std::vector<std::shared_ptr<ConfigItem>> ConfigManager::getConfigItemsByLevel(ConfigLevel level) const {
+    if (configMutex) {
+        xSemaphoreTake(configMutex, portMAX_DELAY);
+    }
+    
     std::vector<std::shared_ptr<ConfigItem>> items;
     for (const auto& pair : configItems) {
         if (pair.second->getLevel() == level) {
             items.push_back(pair.second);
         }
     }
+    
+    if (configMutex) {
+        xSemaphoreGive(configMutex);
+    }
+    
     return items;
 }
 
@@ -589,6 +640,10 @@ std::vector<std::shared_ptr<ConfigItem>> ConfigManager::getConfigItemsByLevel(Co
 bool ConfigManager::loadConfig() {
     if (!activeStorage) {
         return false;
+    }
+    
+    if (configMutex) {
+        xSemaphoreTake(configMutex, portMAX_DELAY);
     }
     
     bool success = true;
@@ -603,6 +658,11 @@ bool ConfigManager::loadConfig() {
             }
         }
     }
+    
+    if (configMutex) {
+        xSemaphoreGive(configMutex);
+    }
+    
     return success;
 }
 
@@ -610,6 +670,10 @@ bool ConfigManager::loadConfig() {
 bool ConfigManager::saveConfig() {
     if (!activeStorage) {
         return false;
+    }
+    
+    if (configMutex) {
+        xSemaphoreTake(configMutex, portMAX_DELAY);
     }
     
     bool success = true;
@@ -621,18 +685,26 @@ bool ConfigManager::saveConfig() {
             }
         }
     }
+    
+    if (configMutex) {
+        xSemaphoreGive(configMutex);
+    }
+    
     return success;
 }
 
 // 重置配置
 bool ConfigManager::resetConfig(ConfigLevel level) {
+    if (configMutex) {
+        xSemaphoreTake(configMutex, portMAX_DELAY);
+    }
+    
     bool success = true;
     for (auto& pair : configItems) {
         auto configItem = pair.second;
         if (configItem->getLevel() == level) {
             configItem->resetToDefault();
             
-            // 如果是持久化配置，保存到存储
             if (level == CONFIG_LEVEL_PERSISTENT && activeStorage) {
                 if (!activeStorage->save(configItem->getKey(), configItem->getValue())) {
                     success = false;
@@ -640,6 +712,11 @@ bool ConfigManager::resetConfig(ConfigLevel level) {
             }
         }
     }
+    
+    if (configMutex) {
+        xSemaphoreGive(configMutex);
+    }
+    
     return success;
 }
 
@@ -662,16 +739,31 @@ bool ConfigManager::restoreConfig(const String& backupPath) {
 
 // 验证所有配置
 bool ConfigManager::validateAllConfig() const {
+    if (configMutex) {
+        xSemaphoreTake(configMutex, portMAX_DELAY);
+    }
+    
+    bool result = true;
     for (const auto& pair : configItems) {
         if (!pair.second->validate()) {
-            return false;
+            result = false;
+            break;
         }
     }
-    return true;
+    
+    if (configMutex) {
+        xSemaphoreGive(configMutex);
+    }
+    
+    return result;
 }
 
 // 导出配置为JSON
 String ConfigManager::exportConfigToJson() const {
+    if (configMutex) {
+        xSemaphoreTake(configMutex, portMAX_DELAY);
+    }
+    
     String result = "{";
     
     bool first = true;
@@ -690,6 +782,11 @@ String ConfigManager::exportConfigToJson() const {
     }
     
     result += "}";
+    
+    if (configMutex) {
+        xSemaphoreGive(configMutex);
+    }
+    
     return result;
 }
 

@@ -7,6 +7,63 @@
 #include "../drivers/peripherals/sensor_driver.h"
 #include "../coresystem/event_bus.h"
 
+// ========================================
+// 传感器阈值常量
+// ========================================
+#ifndef GAS_ALARM_THRESHOLD_DEFAULT
+  #define GAS_ALARM_THRESHOLD_DEFAULT      1000   // 气体报警阈值
+#endif
+
+#ifndef FLAME_ALARM_THRESHOLD_DEFAULT
+  #define FLAME_ALARM_THRESHOLD_DEFAULT    true   // 火焰报警阈值（默认启用）
+#endif
+
+#ifndef TEMP_MIN_ALARM_THRESHOLD_DEFAULT
+  #define TEMP_MIN_ALARM_THRESHOLD_DEFAULT -10.0  // 温度最低报警阈值（°C）
+#endif
+
+#ifndef TEMP_MAX_ALARM_THRESHOLD_DEFAULT
+  #define TEMP_MAX_ALARM_THRESHOLD_DEFAULT 40.0   // 温度最高报警阈值（°C）
+#endif
+
+#ifndef HUMIDITY_MIN_ALARM_THRESHOLD_DEFAULT
+  #define HUMIDITY_MIN_ALARM_THRESHOLD_DEFAULT 20.0  // 湿度最低报警阈值（%）
+#endif
+
+#ifndef HUMIDITY_MAX_ALARM_THRESHOLD_DEFAULT
+  #define HUMIDITY_MAX_ALARM_THRESHOLD_DEFAULT 80.0  // 湿度最高报警阈值（%）
+#endif
+
+#ifndef LIGHT_ALARM_THRESHOLD_DEFAULT
+  #define LIGHT_ALARM_THRESHOLD_DEFAULT    500    // 光照报警阈值
+#endif
+
+// ========================================
+// 传感器时间间隔常量（毫秒）
+// ========================================
+#ifndef SENSOR_LOW_POWER_INTERVAL
+  #define SENSOR_LOW_POWER_INTERVAL        60000UL  // 低功耗模式更新间隔：60 秒
+#endif
+
+#ifndef SENSOR_NORMAL_INTERVAL
+  #define SENSOR_NORMAL_INTERVAL           5000UL   // 正常模式更新间隔：5 秒
+#endif
+
+// ========================================
+// 传感器数据平滑常量
+// ========================================
+#ifndef TEMP_HISTORY_SIZE
+  #define TEMP_HISTORY_SIZE                10       // 温度历史记录大小
+#endif
+
+#ifndef TEMP_HISTORY_WINDOW
+  #define TEMP_HISTORY_WINDOW              5        // 温度历史计算窗口
+#endif
+
+#ifndef TEMP_SMOOTHING_FACTOR
+  #define TEMP_SMOOTHING_FACTOR            0.2f     // 温度平滑系数
+#endif
+
 
 
 class SensorManager {

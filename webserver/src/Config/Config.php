@@ -5,6 +5,8 @@
 
 namespace InkClock\Config;
 
+use InkClock\Utils\EnvLoader;
+
 class Config {
     private static $config = [];
     private static $loaded = false;
@@ -97,7 +99,7 @@ class Config {
     
     /**
      * 加载环境变量
-     * @param string $envPath .env文件路径（可选）
+     * @param string $envPath .env 文件路径（可选）
      * @return void
      */
     private static function loadEnv($envPath = null) {
@@ -105,53 +107,20 @@ class Config {
             return;
         }
         
-        // 获取环境特定的.env文件
-        $baseEnvPath = $envPath ?: __DIR__ . '/../../.env';
+        // 使用 EnvLoader 加载环境变量
+        EnvLoader::load($envPath);
+        
+        // 获取环境特定的.env 文件
         $env = getenv('APP_ENV') ?: self::$environment;
         $envSpecificPath = __DIR__ . '/../../.env.' . $env;
         
-        // 优先加载基础.env文件
-        self::loadEnvFile($baseEnvPath);
+        // 加载环境特定的.env 文件（会覆盖基础配置）
+        EnvLoader::load($envSpecificPath);
         
-        // 然后加载环境特定的.env文件（会覆盖基础配置）
-        self::loadEnvFile($envSpecificPath);
-        
-        // 最后加载.env.local文件（用于本地开发，会覆盖所有配置）
-        self::loadEnvFile(__DIR__ . '/../../.env.local');
+        // 最后加载.env.local 文件（用于本地开发，会覆盖所有配置）
+        EnvLoader::load(__DIR__ . '/../../.env.local');
         
         self::$envLoaded = true;
-    }
-    
-    /**
-     * 加载单个环境变量文件
-     * @param string $filePath .env文件路径
-     * @return void
-     */
-    private static function loadEnvFile($filePath) {
-        if (file_exists($filePath)) {
-            $lines = file($filePath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-            foreach ($lines as $line) {
-                // 跳过注释
-                if (strpos(trim($line), '#') === 0) {
-                    continue;
-                }
-                
-                // 跳过没有等号的行
-                if (strpos($line, '=') === false) {
-                    continue;
-                }
-                
-                // 解析环境变量
-                list($key, $value) = explode('=', $line, 2);
-                $key = trim($key);
-                $value = trim($value, "'\" ");
-                
-                // 设置环境变量
-                putenv("$key=$value");
-                $_ENV[$key] = $value;
-                $_SERVER[$key] = $value;
-            }
-        }
     }
     
     /**

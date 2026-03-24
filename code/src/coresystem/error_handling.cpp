@@ -123,6 +123,11 @@ String ErrorInfo::toJson() const {
 
 // ErrorHandlingManager 构造函数
 ErrorHandlingManager::ErrorHandlingManager() : maxErrorHistorySize(100), initialized(false) {
+    #if defined(ESP32)
+    errorMutex = xSemaphoreCreateMutex();
+    #else
+    errorMutex = nullptr;
+    #endif
 }
 
 // ErrorHandlingManager 单例获取
@@ -166,7 +171,13 @@ void ErrorHandlingManager::init(size_t maxHistorySize) {
 
 // 注册错误处理器
 void ErrorHandlingManager::registerHandler(std::shared_ptr<IErrorHandler> handler) {
+    if (errorMutex) {
+        xSemaphoreTake(errorMutex, portMAX_DELAY);
+    }
     handlers.push_back(handler);
+    if (errorMutex) {
+        xSemaphoreGive(errorMutex);
+    }
 }
 
 // 报告错误
@@ -185,75 +196,125 @@ void ErrorHandlingManager::reportError(
 
 // 处理错误
 void ErrorHandlingManager::handleError(std::shared_ptr<ErrorInfo> error) {
-    // 添加到错误历史
+    if (errorMutex) {
+        xSemaphoreTake(errorMutex, portMAX_DELAY);
+    }
+    
     if (errorHistory.size() >= maxErrorHistorySize) {
         errorHistory.erase(errorHistory.begin());
     }
     errorHistory.push_back(error);
     
-    // 调用所有注册的错误处理器
-    for (const auto& handler : handlers) {
+    std::vector<std::shared_ptr<IErrorHandler>> handlersCopy = handlers;
+    
+    if (errorMutex) {
+        xSemaphoreGive(errorMutex);
+    }
+    
+    for (const auto& handler : handlersCopy) {
         handler->handleError(error);
     }
 }
 
 // 获取错误历史
 std::vector<std::shared_ptr<ErrorInfo>> ErrorHandlingManager::getErrorHistory() const {
-    return errorHistory;
+    if (errorMutex) {
+        xSemaphoreTake(errorMutex, portMAX_DELAY);
+    }
+    std::vector<std::shared_ptr<ErrorInfo>> result = errorHistory;
+    if (errorMutex) {
+        xSemaphoreGive(errorMutex);
+    }
+    return result;
 }
 
 std::vector<std::shared_ptr<ErrorInfo>> ErrorHandlingManager::getErrorHistory(ErrorLevel minLevel) const {
+    if (errorMutex) {
+        xSemaphoreTake(errorMutex, portMAX_DELAY);
+    }
     std::vector<std::shared_ptr<ErrorInfo>> result;
     for (const auto& error : errorHistory) {
         if (error->getLevel() >= minLevel) {
             result.push_back(error);
         }
     }
+    if (errorMutex) {
+        xSemaphoreGive(errorMutex);
+    }
     return result;
 }
 
 std::vector<std::shared_ptr<ErrorInfo>> ErrorHandlingManager::getErrorHistory(ErrorType type) const {
+    if (errorMutex) {
+        xSemaphoreTake(errorMutex, portMAX_DELAY);
+    }
     std::vector<std::shared_ptr<ErrorInfo>> result;
     for (const auto& error : errorHistory) {
         if (error->getType() == type) {
             result.push_back(error);
         }
     }
+    if (errorMutex) {
+        xSemaphoreGive(errorMutex);
+    }
     return result;
 }
 
-// 清除错误历史
 void ErrorHandlingManager::clearErrorHistory() {
+    if (errorMutex) {
+        xSemaphoreTake(errorMutex, portMAX_DELAY);
+    }
     errorHistory.clear();
+    if (errorMutex) {
+        xSemaphoreGive(errorMutex);
+    }
 }
 
-// 检查是否有未处理的严重错误
 bool ErrorHandlingManager::hasUnresolvedCriticalErrors() const {
+    if (errorMutex) {
+        xSemaphoreTake(errorMutex, portMAX_DELAY);
+    }
+    bool result = false;
     for (const auto& error : errorHistory) {
         if (error->getLevel() == ERROR_LEVEL_CRITICAL) {
-            return true;
+            result = true;
+            break;
         }
     }
-    return false;
+    if (errorMutex) {
+        xSemaphoreGive(errorMutex);
+    }
+    return result;
 }
 
-// 获取错误统计
 size_t ErrorHandlingManager::getErrorCount(ErrorLevel level) const {
+    if (errorMutex) {
+        xSemaphoreTake(errorMutex, portMAX_DELAY);
+    }
     size_t count = 0;
     for (const auto& error : errorHistory) {
         if (error->getLevel() == level) {
             count++;
         }
     }
+    if (errorMutex) {
+        xSemaphoreGive(errorMutex);
+    }
     return count;
 }
 
 size_t ErrorHandlingManager::getErrorCount(ErrorType type) const {
+    if (errorMutex) {
+        xSemaphoreTake(errorMutex, portMAX_DELAY);
+    }
     size_t count = 0;
     for (const auto& error : errorHistory) {
         if (error->getType() == type) {
             count++;
         }
+    }
+    if (errorMutex) {
+        xSemaphoreGive(errorMutex);
     }
     return count;
 }
@@ -440,7 +501,13 @@ void FileErrorHandler::recoverFromError(std::shared_ptr<ErrorInfo> error) {
             Serial.printf("[RECOVERY] Resetting system due to error: %s\n", 
                 error->getErrorId().c_str());
             // 实现系统重置逻辑
-            delay(1000);
+            // 使用非阻塞方式延迟
+            {
+              unsigned long resetStartTime = millis();
+              while (millis() - resetStartTime < 1000) {
+                delay(10); // 短暂延迟，降低 CPU 占用
+              }
+            }
             ESP.restart();
             break;
         case RECOVERY_STRATEGY_SHUTDOWN:

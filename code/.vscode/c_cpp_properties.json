@@ -1,0 +1,72 @@
+{
+    "configurations": [
+        {
+            "name": "ESP32-PlatformIO",
+            "compilerPath": "${env:USERPROFILE}\\.platformio\\packages\\toolchain-xtensa-esp32\\bin\\xtensa-esp32-elf-gcc.exe",
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "gcc-x64",
+            "includePath": [
+                "${default}",
+                "${env:USERPROFILE}\\.platformio\\packages\\framework-arduinoespressif32\\cores\\esp32",
+                "${env:USERPROFILE}\\.platformio\\packages\\framework-arduinoespressif32\\variants\\esp32",
+                "${env:USERPROFILE}\\.platformio\\packages\\framework-arduinoespressif32\\libraries\\**",
+                "${env:USERPROFILE}\\.platformio\\packages\\framework-arduinoespressif32\\tools\\sdk\\include\\**",
+                "${env:USERPROFILE}\\.platformio\\packages\\toolchain-xtensa-esp32\\xtensa-esp32-elf\\include\\c++\\**",
+                "${env:USERPROFILE}\\.platformio\\packages\\toolchain-xtensa-esp32\\lib\\gcc\\xtensa-esp32-elf\\**",
+                "${env:USERPROFILE}\\.platformio\\include\\**",
+                "${workspaceFolder}\\src\\**",
+                "${workspaceFolder}\\**",
+                "${workspaceFolder}/.pio/libdeps/**"
+            ],
+            "defines": [
+                "ESP32",
+                "ESP32_C3",
+                "ARDUINO=10805",
+                "ARDUINO_ARCH_ESP32",
+                "ARDUINO_ESP32C3_DEV",
+                "F_CPU=160000000L",
+                "PLATFORMIO=60111",
+                "ESP_IDF_VERSION_MAJOR=5",
+                "ESP_IDF_VERSION_MINOR=0",
+                "ESP_IDF_VERSION_PATCH=2",
+                "CONFIG_IDF_TARGET_ESP32C3=1",
+                "_GLIBCXX_USE_C99=1",
+                "_POSIX_C_SOURCE=200809L",
+                "CONFIG_SPIFFS_MAX_PARTITIONS=3",
+                "CONFIG_SPIFFS_PAGE_CHECK=1",
+                "CONFIG_SPIFFS_CACHE=1",
+                "CONFIG_SPIFFS_CACHE_STATS=0",
+                "CONFIG_SPIFFS_USE_MAGIC=1",
+                "CONFIG_SPIFFS_USE_MAGIC_LENGTH=1",
+                "CONFIG_SPIFFS_META_LENGTH=4",
+                "CONFIG_SPIFFS_PAGE_SIZE=256",
+                "CONFIG_SPIFFS_OBJ_NAME_LEN=32",
+                "ARDUINO_USB_CDC_ON_BOOT=1",
+                "ARDUINO_USB_MODE=1",
+                "CONFIG_ARDUHAL_LOG_COLORS=1",
+                "CONFIG_ARDUINO_LOG_LEVEL=3",
+                "ARDUINO_LOG_LEVEL=3",
+                "MBEDTLS_CONFIG_FILE=\"mbedtls/esp_config.h\""
+            ],
+            "forcedInclude": [
+                "${env:USERPROFILE}\\.platformio\\packages\\framework-arduinoespressif32\\cores\\esp32\\Arduino.h"
+            ],
+            "browse": {
+                "path": [
+                    "${workspaceFolder}",
+                    "${env:USERPROFILE}\\.platformio\\packages\\framework-arduinoespressif32\\cores\\esp32",
+                    "${env:USERPROFILE}\\.platformio\\packages\\framework-arduinoespressif32\\variants\\esp32",
+                    "${env:USERPROFILE}\\.platformio\\packages\\framework-arduinoespressif32\\libraries\\**",
+                    "${env:USERPROFILE}\\.platformio\\packages\\framework-arduinoespressif32\\tools\\sdk\\include\\**",
+                    "${workspaceFolder}/.pio/libdeps/**"
+                ],
+                "limitSymbolsToIncludedHeaders": false,
+                "databaseFilename": "${workspaceFolder}/.vscode/browse.vc.db"
+            }
+        }
+    ],
+    "version": 4,
+    "enableConfigurationSquiggles": false,
+    "disableParsingFallback": false
+}

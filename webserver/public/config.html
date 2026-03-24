@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>配置管理 - InkClock</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="dist/app.min.css">
+    <style>
+        .config-section {
+            margin-bottom: 30px;
+        }
+        .config-card {
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .config-item {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+        .config-item label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #495057;
+        }
+        .config-item .description {
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+        .config-item input[type="text"],
+        .config-item input[type="number"],
+        .config-item select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .config-item input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        .btn-save {
+            margin-top: 20px;
+        }
+        .alert {
+            margin-top: 20px;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+        }
+        .loading i {
+            font-size: 48px;
+            color: #007bff;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="hold-transition sidebar-mini">
+<div class="wrapper">
+    <!-- 导航栏 -->
+    <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+        <ul class="navbar-nav">
+            <li class="nav-item">
+                <a class="nav-link" data-widget="pushmenu" href="#"><i class="fas fa-bars"></i></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="dashboard.html"><i class="fas fa-home"></i></a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- 主侧边栏 -->
+    <aside class="main-sidebar sidebar-dark-primary elevation-4">
+        <a href="dashboard.html" class="brand-link">
+            <img src="adminlte/img/AdminLTELogo.png" class="brand-image img-circle elevation-3">
+            <span class="brand-text font-weight-light">InkClock</span>
+        </a>
+
+        <div class="sidebar">
+            <nav class="mt-2">
+                <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu">
+                    <li class="nav-item">
+                        <a href="dashboard.html" class="nav-link">
+                            <i class="nav-icon fas fa-tachometer-alt"></i>
+                            <p>仪表盘</p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="config.html" class="nav-link active">
+                            <i class="nav-icon fas fa-cogs"></i>
+                            <p>配置管理</p>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </aside>
+
+    <!-- 内容区域 -->
+    <div class="content-wrapper">
+        <div class="content-header">
+            <div class="container-fluid">
+                <div class="row mb-2">
+                    <div class="col-sm-6">
+                        <h1 class="m-0">配置管理</h1>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="container-fluid">
+                <div id="loading" class="loading">
+                    <i class="fas fa-spinner"></i>
+                    <p>正在加载配置...</p>
+                </div>
+
+                <div id="configContent" style="display: none;">
+                    <div id="alertContainer"></div>
+
+                    <form id="configForm">
+                        <!-- 数据库配置 -->
+                        <div class="config-section">
+                            <div class="card config-card">
+                                <div class="card-header">
+                                    <h3 class="card-title"><i class="fas fa-database"></i> 数据库配置</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="config-item">
+                                        <label for="DB_PATH">数据库路径</label>
+                                        <p class="description">SQLite 数据库文件路径</p>
+                                        <input type="text" id="DB_PATH" name="DB_PATH" required>
+                                    </div>
+                                    <div class="config-item">
+                                        <label>
+                                            <input type="checkbox" id="DB_CACHE_ENABLED" name="DB_CACHE_ENABLED">
+                                            启用数据库缓存
+                                        </label>
+                                        <p class="description">启用查询结果缓存以提高性能</p>
+                                    </div>
+                                    <div class="config-item">
+                                        <label for="DB_CACHE_DEFAULT_EXPIRE">默认缓存过期时间（秒）</label>
+                                        <p class="description">查询结果的默认缓存时间</p>
+                                        <input type="number" id="DB_CACHE_DEFAULT_EXPIRE" name="DB_CACHE_DEFAULT_EXPIRE" min="0">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Web 服务器配置 -->
+                        <div class="config-section">
+                            <div class="card config-card">
+                                <div class="card-header">
+                                    <h3 class="card-title"><i class="fas fa-server"></i> Web 服务器配置</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="config-item">
+                                        <label for="WEB_SERVER_HOST">监听地址</label>
+                                        <p class="description">Web 服务器监听的 IP 地址</p>
+                                        <input type="text" id="WEB_SERVER_HOST" name="WEB_SERVER_HOST" required>
+                                    </div>
+                                    <div class="config-item">
+                                        <label for="WEB_SERVER_PORT">监听端口</label>
+                                        <p class="description">Web 服务器监听的端口号</p>
+                                        <input type="number" id="WEB_SERVER_PORT" name="WEB_SERVER_PORT" min="1" max="65535" required>
+                                    </div>
+                                    <div class="config-item">
+                                        <label>
+                                            <input type="checkbox" id="WEB_SERVER_DEBUG" name="WEB_SERVER_DEBUG">
+                                            调试模式
+                                        </label>
+                                        <p class="description">启用后显示详细错误信息（生产环境请禁用）</p>
+                                    </div>
+                                    <div class="config-item">
+                                        <label>
+                                            <input type="checkbox" id="WEB_SERVER_FORCE_HTTPS" name="WEB_SERVER_FORCE_HTTPS">
+                                            强制 HTTPS
+                                        </label>
+                                        <p class="description">强制所有请求使用 HTTPS 协议</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 安全配置 -->
+                        <div class="config-section">
+                            <div class="card config-card">
+                                <div class="card-header">
+                                    <h3 class="card-title"><i class="fas fa-shield-alt"></i> 安全配置</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="config-item">
+                                        <label for="WEB_SERVER_DEFAULT_USERNAME">默认管理员用户名</label>
+                                        <p class="description">首次启动时的默认管理员用户名</p>
+                                        <input type="text" id="WEB_SERVER_DEFAULT_USERNAME" name="WEB_SERVER_DEFAULT_USERNAME" required>
+                                    </div>
+                                    <div class="alert alert-warning">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        <strong>注意：</strong> 修改默认密码请在用户管理页面进行，此处仅显示用户名。
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 日志配置 -->
+                        <div class="config-section">
+                            <div class="card config-card">
+                                <div class="card-header">
+                                    <h3 class="card-title"><i class="fas fa-file-alt"></i> 日志配置</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="config-item">
+                                        <label for="LOG_LEVEL">日志级别</label>
+                                        <p class="description">最低日志记录级别</p>
+                                        <select id="LOG_LEVEL" name="LOG_LEVEL">
+                                            <option value="debug">DEBUG（调试）</option>
+                                            <option value="info">INFO（信息）</option>
+                                            <option value="warning">WARNING（警告）</option>
+                                            <option value="error">ERROR（错误）</option>
+                                            <option value="critical">CRITICAL（严重）</option>
+                                        </select>
+                                    </div>
+                                    <div class="config-item">
+                                        <label for="LOG_FORMAT">日志格式</label>
+                                        <p class="description">日志输出的格式</p>
+                                        <select id="LOG_FORMAT" name="LOG_FORMAT">
+                                            <option value="text">文本格式</option>
+                                            <option value="json">JSON 格式</option>
+                                        </select>
+                                    </div>
+                                    <div class="config-item">
+                                        <label for="LOG_MAX_SIZE">最大日志文件大小（字节）</label>
+                                        <p class="description">日志文件轮转的大小阈值</p>
+                                        <input type="number" id="LOG_MAX_SIZE" name="LOG_MAX_SIZE" min="1024">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 应用配置 -->
+                        <div class="config-section">
+                            <div class="card config-card">
+                                <div class="card-header">
+                                    <h3 class="card-title"><i class="fas fa-cog"></i> 应用配置</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="config-item">
+                                        <label for="APP_ENV">运行环境</label>
+                                        <p class="description">当前应用运行环境</p>
+                                        <select id="APP_ENV" name="APP_ENV">
+                                            <option value="development">开发环境</option>
+                                            <option value="production">生产环境</option>
+                                            <option value="testing">测试环境</option>
+                                        </select>
+                                    </div>
+                                    <div class="config-item">
+                                        <label>
+                                            <input type="checkbox" id="APP_DEBUG" name="APP_DEBUG">
+                                            应用调试模式
+                                        </label>
+                                        <p class="description">启用应用级别的调试功能</p>
+                                    </div>
+                                    <div class="config-item">
+                                        <label for="APP_URL">应用 URL</label>
+                                        <p class="description">应用的访问地址</p>
+                                        <input type="text" id="APP_URL" name="APP_URL" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="btn-save">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> 保存配置
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="location.reload()">
+                                <i class="fas fa-undo"></i> 重置
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="main-footer">
+        <strong>Copyright &copy; 2024 InkClock.</strong> All rights reserved.
+    </footer>
+</div>
+
+<script>
+// 配置管理 JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    loadConfig();
+    
+    // 表单提交事件
+    document.getElementById('configForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        saveConfig();
+    });
+});
+
+// 加载配置
+async function loadConfig() {
+    try {
+        const response = await fetch('/api/config', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('api_key')
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            fillConfigForm(result.data);
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('configContent').style.display = 'block';
+        } else {
+            showAlert('加载配置失败：' + result.error, 'danger');
+            document.getElementById('loading').style.display = 'none';
+        }
+    } catch (error) {
+        showAlert('加载配置失败：' + error.message, 'danger');
+        document.getElementById('loading').style.display = 'none';
+    }
+}
+
+// 填充表单
+function fillConfigForm(config) {
+    for (const key in config) {
+        const element = document.getElementById(key);
+        if (element) {
+            if (element.type === 'checkbox') {
+                element.checked = config[key];
+            } else {
+                element.value = config[key];
+            }
+        }
+    }
+}
+
+// 保存配置
+async function saveConfig() {
+    const formData = new FormData(document.getElementById('configForm'));
+    const configData = {};
+    
+    // 处理表单数据
+    for (let [key, value] of formData.entries()) {
+        // 处理布尔值
+        const checkbox = document.getElementById(key);
+        if (checkbox && checkbox.type === 'checkbox') {
+            configData[key] = checkbox.checked;
+        } else if (key.includes('PORT') || key.includes('SIZE') || key.includes('EXPIRE')) {
+            configData[key] = parseInt(value);
+        } else {
+            configData[key] = value;
+        }
+    }
+    
+    try {
+        const response = await fetch('/api/config', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('api_key')
+            },
+            body: JSON.stringify(configData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('配置保存成功！', 'success');
+            // 3 秒后刷新页面
+            setTimeout(() => {
+                location.reload();
+            }, 3000);
+        } else {
+            showAlert('保存配置失败：' + result.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('保存配置失败：' + error.message, 'danger');
+    }
+}
+
+// 显示提示信息
+function showAlert(message, type) {
+    const alertContainer = document.getElementById('alertContainer');
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible`;
+    alertDiv.innerHTML = `
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+        ${message}
+    `;
+    
+    alertContainer.appendChild(alertDiv);
+    
+    // 5 秒后自动消失
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+</script>
+
+<script src="adminlte/plugins/jquery/jquery.min.js"></script>
+<script src="adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="adminlte/js/adminlte.min.js"></script>
+</body>
+</html>

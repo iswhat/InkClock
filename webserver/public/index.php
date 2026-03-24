@@ -6,8 +6,12 @@
 // 设置默认时区
 date_default_timezone_set('Asia/Shanghai');
 
-// 强制HTTPS重定向（生产环境）
-$forceHttps = false; // 在生产环境中设置为true
+// 加载环境变量
+require_once __DIR__ . '/../src/Utils/EnvLoader.php';
+\InkClock\Utils\EnvLoader::load(__DIR__ . '/../.env');
+
+// 强制 HTTPS 重定向（生产环境）
+$forceHttps = \InkClock\Utils\EnvLoader::getBool('WEB_SERVER_FORCE_HTTPS', false);
 if ($forceHttps && (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS'] !== 'on')) {
     $httpsUrl = 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
     header('Location: ' . $httpsUrl, true, 301);
@@ -15,8 +19,9 @@ if ($forceHttps && (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS'] !== 'on')) {
 }
 
 // 错误报告设置
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+$debugMode = \InkClock\Utils\EnvLoader::getBool('WEB_SERVER_DEBUG', true);
+error_reporting($debugMode ? E_ALL : 0);
+ini_set('display_errors', $debugMode ? '1' : '0');
 
 // 移除手动加载DIContainer.php的代码，使用统一的自动加载机制
 

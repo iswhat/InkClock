@@ -176,7 +176,12 @@ class AuthService implements AuthServiceInterface {
         $result = $userModel->createFirstAdmin($adminInfo);
         
         if ($result['success']) {
-            $this->logger->info('第一个管理员用户创建成功', ['username' => $adminInfo['username']]);
+            $userId = $result['user_id'];
+            $this->logger->info('第一个管理员用户创建成功', ['username' => $adminInfo['username'], 'user_id' => $userId]);
+            
+            // 设置首次登录必须修改密码
+            $userModel->setMustChangePassword($userId, true);
+            $this->logger->info('已设置首次登录必须修改密码', ['user_id' => $userId]);
         } else {
             $this->logger->warning('第一个管理员用户创建失败', ['error' => $result['error']]);
         }

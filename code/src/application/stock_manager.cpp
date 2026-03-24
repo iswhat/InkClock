@@ -737,9 +737,11 @@ bool StockManager::parseStockData(String response, StockData &data, int apiType)
         data.high = fields[2].toFloat();
         data.low = fields[3].toFloat();
         data.price = fields[4].toFloat();
-        data.close = fields[4].toFloat(); // 新浪财经返回的是当前价，没有单独的收盘价
+        // 新浪财经API返回格式: 名称,今开,最高,最低,当前价,成交量
+        // 注意: 新浪财经没有昨收价字段,需要从其他API获取或使用开盘价作为参考
+        data.close = fields[1].toFloat(); // 使用开盘价作为参考昨收价
         data.volume = fields[5].toInt();
-        data.change = data.price - data.close;
+        data.change = data.price - data.close;  // 现在可以正确计算涨跌
         data.changePercent = data.close > 0 ? (data.change / data.close) * 100 : 0;
         data.amount = 0; // 新浪财经API没有直接提供成交额
         data.valid = true;

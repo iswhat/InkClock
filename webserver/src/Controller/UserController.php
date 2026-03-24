@@ -354,5 +354,95 @@ class UserController extends BaseController {
             $this->response->error($result['error'], 400);
         }
     }
+    
+    /**
+     * 检查是否需要修改密码
+     */
+    public function checkPasswordChange($params) {
+        $user = $this->checkApiPermission(true);
+        $this->logAction('check_password_change', array('user_id' => $user['id']));
+        
+        $userService = $this->getUserService();
+        $mustChange = $userService->mustChangePassword($user['id']);
+        
+        $this->response->success('检查完成', array('must_change_password' => $mustChange));
+    }
+    
+    /**
+     * 修改密码
+     */
+    public function changePassword($params) {
+        $user = $this->checkApiPermission(true);
+        $this->logAction('change_password', array('user_id' => $user['id']));
+        
+        $data = $this->parseRequestBody();
+        
+        // 验证输入
+        if (!isset($data['old_password']) || !isset($data['new_password'])) {
+            $this->response->error('缺少必要参数', 400);
+        }
+        
+        if (empty($data['old_password']) || empty($data['new_password'])) {
+            $this->response->error('密码不能为空', 400);
+        }
+        
+        if (strlen($data['new_password']) < 6) {
+            $this->response->error('新密码长度至少为 6 个字符', 400);
+        }
+        
+        $userService = $this->getUserService();
+        $result = $userService->changePassword($user['id'], $data['old_password'], $data['new_password']);
+        
+        if ($result['success']) {
+            $this->response->success('密码修改成功');
+        } else {
+            $this->response->error($result['error'], 400);
+        }
+    }
+    
+    /**
+     * 强制重置用户密码（管理员）
+     */
+    public function forceResetPassword($params) {
+        $user = $this->checkApiPermission(true);
+        
+        // 检查是否为管理员
+        if (!$this->isAdmin()) {
+            $this->response->error('权限不足', 403);
+        }
+        
+        $userId = $params['id'] ?? null;
+        if (!$userId) {
+            $this->response->error('缺少用户 ID', 400);
+        }
+        
+        $data = $this->parseRequestBody();
+        
+        if (!isset($data['new_password'])) {
+            $this->response->error('缺少新密码', 400);
+        }
+        
+        if (strlen($data['new_password']) < 6) {
+            $this->response->error('新密码长度至少为 6 个字符', 400);
+        }
+        
+        $this->logAction('force_reset_password', array('admin_id' => $user['id'], 'target_user_id' => $userId]);
+        
+        $userService = $this->getUserService();
+        $result = $userService->forceResetPassword($userId, $data['new_password']);
+        
+        if ($result['success']) {
+            $this->response->success('密码重置成功，用户下次登录时需要修改密码');
+        } else {
+            $this->response->error($result['error'], 400);
+        }
+    }
+    
+    /**
+     * 获取 UserService 实例
+     */
+    private function getUserService() {
+        return \InkClock\Config\Services::getInstance()->getUserService();
+    }
 }
 ?>

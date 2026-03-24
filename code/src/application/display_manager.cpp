@@ -7,6 +7,9 @@
 #include "power_manager.h"
 #include "lunar_manager.h"
 #include "../coresystem/dependency_injection.h"
+#include "image_decoder_config.h"
+#include <vector>
+#include <memory>
 
 DisplayManager::DisplayManager() {
   displayDriver = nullptr;
@@ -87,12 +90,12 @@ DisplayManager::DisplayManager() {
   gifBuffer = nullptr;
   gifBufferSize = 0;
   
-  // 初始化布局配置
+  // 初始化布局配置（左小右大 45:55）
   layoutMode = LAYOUT_MODE_STANDARD;
   currentLayout = {
     LAYOUT_MODE_STANDARD,
-    0.6f,   // 左侧面板比例 60%
-    0.4f,   // 右侧面板比例 40%
+    0.45f,  // 左侧面板比例 45%（较小）
+    0.55f,  // 右侧面板比例 55%（较大）
     12,     // 基础字体大小
     8,      // 元素间距
     false   // 默认不显示边框
@@ -100,16 +103,22 @@ DisplayManager::DisplayManager() {
   
   // 订阅事件
   EVENT_SUBSCRIBE(EVENT_ALARM_TRIGGERED, [this](EventType type, std::shared_ptr<EventData> data) {
-    // 移除dynamic_cast，直接使用类型转换
-    auto alarmData = static_cast<AlarmEventData*>(data.get());
-    this->showAlarm(alarmData->alarmType, alarmData->message);
+    if (data) {
+      auto alarmData = static_cast<AlarmEventData*>(data.get());
+      if (alarmData) {
+        this->showAlarm(alarmData->alarmType, alarmData->message);
+      }
+    }
   }, "DisplayManager");
   
   EVENT_SUBSCRIBE(EVENT_TIME_UPDATED, [this](EventType type, std::shared_ptr<EventData> data) {
-    // 移除dynamic_cast，直接使用类型转换
-    auto timeData = static_cast<TimeDataEventData*>(data.get());
-    cachedTimeData = timeData->timeData;
-    this->updateDisplay();
+    if (data) {
+      auto timeData = static_cast<TimeDataEventData*>(data.get());
+      if (timeData) {
+        cachedTimeData = timeData->timeData;
+        this->updateDisplay();
+      }
+    }
   }, "DisplayManager");
   
   // 天气更新事件暂时注释，等待正确的事件类型
@@ -121,18 +130,24 @@ DisplayManager::DisplayManager() {
   // }, "DisplayManager");
   
   EVENT_SUBSCRIBE(EVENT_SENSOR_DATA_UPDATED, [this](EventType type, std::shared_ptr<EventData> data) {
-    // 移除dynamic_cast，直接使用类型转换
-    auto sensorData = static_cast<SensorDataEventData*>(data.get());
-    cachedSensorData = sensorData->sensorData;
-    this->updateDisplay();
+    if (data) {
+      auto sensorData = static_cast<SensorDataEventData*>(data.get());
+      if (sensorData) {
+        cachedSensorData = sensorData->sensorData;
+        this->updateDisplay();
+      }
+    }
   }, "DisplayManager");
   
   EVENT_SUBSCRIBE(EVENT_POWER_STATE_CHANGED, [this](EventType type, std::shared_ptr<EventData> data) {
-    // 移除dynamic_cast，直接使用类型转换
-    auto powerData = static_cast<PowerStateEventData*>(data.get());
-    cachedBatteryPercentage = powerData->batteryPercentage;
-    cachedIsCharging = powerData->isCharging;
-    this->updateDisplay();
+    if (data) {
+      auto powerData = static_cast<PowerStateEventData*>(data.get());
+      if (powerData) {
+        cachedBatteryPercentage = powerData->batteryPercentage;
+        cachedIsCharging = powerData->isCharging;
+        this->updateDisplay();
+      }
+    }
   }, "DisplayManager");
   
   // 消息相关事件暂时注释，等待正确的事件类型和数据结构
@@ -190,7 +205,7 @@ bool DisplayManager::init() {
   
   // 订阅报警事件
   EVENT_SUBSCRIBE(EVENT_ALARM_TRIGGERED, [this](EventType type, std::shared_ptr<EventData> data) {
-    if (type == EVENT_ALARM_TRIGGERED) {
+    if (type == EVENT_ALARM_TRIGGERED && data) {
       auto alarmData = static_cast<AlarmEventData*>(data.get());
       if (alarmData) {
         this->showAlarm(alarmData->alarmType, alarmData->message);
@@ -283,31 +298,31 @@ void DisplayManager::updateDisplay() {
   // 1. 检查时钟区域 - 更精确的控制
   if (showSeconds) {
     // 显示秒针时，每500毫秒刷新一次时钟区域，平衡动画效果和性能
-    if (currentTime - lastClockUpdateTime >= 500) {
+    if (currentTime - lastClockUpdateTime >= ALARM_ICON_BLINK_INTERVAL) {
       needClockRefresh = true;
       needLeftPanelRefresh = true;
       lastClockUpdateTime = currentTime;
     }
   } else {
     // 不显示秒针时，每分钟刷新一次时钟区域
-    if (currentTime - lastClockUpdateTime >= 60000) {
+    if (currentTime - lastClockUpdateTime >= CLOCK_UPDATE_INTERVAL) {
       needClockRefresh = true;
       needLeftPanelRefresh = true;
       lastClockUpdateTime = currentTime;
     }
   }
   
-  // 2. 检查天气信息 - 每2小时更新一次
-  if (currentTime - lastWeatherUpdateTime >= 7200000) {
+  // 2. 检查天气信息 - 每 2 小时更新一次
+  if (currentTime - lastWeatherUpdateTime >= WEATHER_UPDATE_INTERVAL) {
     needWeatherRefresh = true;
     needLeftPanelRefresh = true;
     lastWeatherUpdateTime = currentTime;
   }
   
-  // 3. 检查传感器数据 - 温度或湿度变化超过±2时刷新，或至少每30分钟刷新一次
-  if ((abs(cachedSensorData.temperature - lastTemperature) >= 2.0 || 
-       abs(cachedSensorData.humidity - lastHumidity) >= 2.0) ||
-      (currentTime - lastSensorUpdateTime >= 1800000)) { // 30分钟
+  // 3. 检查传感器数据 - 温度或湿度变化超过±2 时刷新，或至少每 30 分钟刷新一次
+  if ((abs(cachedSensorData.temperature - lastTemperature) >= TEMP_CHANGE_THRESHOLD || 
+       abs(cachedSensorData.humidity - lastHumidity) >= HUMIDITY_CHANGE_THRESHOLD) ||
+      (currentTime - lastSensorUpdateTime >= SENSOR_UPDATE_INTERVAL)) { // 30 分钟
     needSensorRefresh = true;
     needLeftPanelRefresh = true;
     lastTemperature = cachedSensorData.temperature;
@@ -316,7 +331,7 @@ void DisplayManager::updateDisplay() {
   }
   
   // 4. 检查电池信息
-  if (abs(cachedBatteryPercentage - lastBatteryPercentage) > 5) {
+  if (abs(cachedBatteryPercentage - lastBatteryPercentage) > BATTERY_CHANGE_THRESHOLD) {
     needBatteryRefresh = true;
     needLeftPanelRefresh = true;
     lastBatteryPercentage = cachedBatteryPercentage;
@@ -331,17 +346,17 @@ void DisplayManager::updateDisplay() {
   }
   
   // 6. 检查右侧面板内容
-  if (currentRightPage == RIGHT_PAGE_STOCK && currentTime - lastStockUpdateTime >= 300000 * refreshMultiplier) {
+  if (currentRightPage == RIGHT_PAGE_STOCK && currentTime - lastStockUpdateTime >= STOCK_UPDATE_INTERVAL * refreshMultiplier) {
     needRightPanelRefresh = true;
     lastStockUpdateTime = currentTime;
-  } else if (currentRightPage == RIGHT_PAGE_CALENDAR && currentTime - lastCalendarUpdateTime >= 3600000 * refreshMultiplier) {
+  } else if (currentRightPage == RIGHT_PAGE_CALENDAR && currentTime - lastCalendarUpdateTime >= CALENDAR_UPDATE_INTERVAL * refreshMultiplier) {
     needCalendarRefresh = true;
     needRightPanelRefresh = true;
     lastCalendarUpdateTime = currentTime;
   }
   
   // 7. 检查是否需要全屏刷新（每天至少一次或内容变化较大时）
-  if (currentTime - lastFullRefreshTime >= 86400000 || // 每天一次
+  if (currentTime - lastFullRefreshTime >= FULL_REFRESH_INTERVAL || // 每天一次
       (needLeftPanelRefresh && needRightPanelRefresh && isLowPowerMode)) {
     needFullRefresh = true;
     lastFullRefreshTime = currentTime;
@@ -428,12 +443,9 @@ void DisplayManager::updateDisplay() {
           bool isCharging = powerManager->getChargingStatus();
           int messageCount = messageManager->getUnreadMessageCount();
           
-          int batteryY = height < 400 ? 340 : 560;
-          int batteryHeight = height < 400 ? 60 : 80;
-          
-          drawBatteryInfo(20, batteryY, batteryVoltage, batteryPercentage, isCharging);
-          drawMessageNotification(20, batteryY + 40, messageCount);
-          displayDriver->update(0, batteryY, leftPanelWidth, batteryHeight);
+          // 绘制左上角状态栏（电量和消息）
+          drawStatusBar(20, 20, batteryVoltage, batteryPercentage, isCharging, messageCount);
+          displayDriver->update(0, 0, leftPanelWidth, height < 400 ? 40 : 60);
           
           // 如果有新消息，启动消息提醒动画
           if (needMessageRefresh && messageCount > 0) {
@@ -484,7 +496,7 @@ void DisplayManager::updateDisplayPartial() {
   
   // 检查是否需要刷新天气
   bool needWeatherRefresh = false;
-  if (weatherManager && currentTime - lastWeatherUpdateTime >= 7200000) {
+  if (weatherManager && currentTime - lastWeatherUpdateTime >= WEATHER_UPDATE_INTERVAL) {
     needWeatherRefresh = true;
     lastWeatherUpdateTime = currentTime;
   }
@@ -495,7 +507,7 @@ void DisplayManager::updateDisplayPartial() {
     SensorData sensor = sensorManager->getSensorData();
     if ((abs(sensor.temperature - lastTemperature) >= 0.5 || 
          abs(sensor.humidity - lastHumidity) >= 5.0) ||
-        (currentTime - lastSensorUpdateTime >= 300000)) { // 5分钟
+        (currentTime - lastSensorUpdateTime >= SENSOR_UPDATE_INTERVAL_FAST)) { // 5 分钟
       needSensorRefresh = true;
       lastTemperature = sensor.temperature;
       lastHumidity = sensor.humidity;
@@ -527,12 +539,12 @@ void DisplayManager::updateDisplayPartial() {
   // 检查是否需要刷新右侧面板
   bool needRightPanelRefresh = false;
   if (currentRightPage == RIGHT_PAGE_STOCK && stockManager) {
-    if (currentTime - lastStockUpdateTime >= 60000) { // 1分钟
+    if (currentTime - lastStockUpdateTime >= STOCK_UPDATE_INTERVAL) { // 5 分钟
       needRightPanelRefresh = true;
       lastStockUpdateTime = currentTime;
     }
   } else if (currentRightPage == RIGHT_PAGE_CALENDAR) {
-    if (currentTime - lastCalendarUpdateTime >= 3600000) { // 1小时
+    if (currentTime - lastCalendarUpdateTime >= CALENDAR_UPDATE_INTERVAL) { // 1 小时
       needRightPanelRefresh = true;
       lastCalendarUpdateTime = currentTime;
     }
@@ -593,12 +605,9 @@ void DisplayManager::updateDisplayPartial() {
       bool isCharging = powerManager->getChargingStatus();
       int messageCount = messageManager->getUnreadMessageCount();
       
-      int batteryY = height < 400 ? 340 : 560;
-      int batteryHeight = height < 400 ? 60 : 80;
-      
-      drawBatteryInfo(20, batteryY, batteryVoltage, batteryPercentage, isCharging);
-      drawMessageNotification(20, batteryY + 40, messageCount);
-      displayDriver->update(0, batteryY, leftPanelWidth, batteryHeight);
+      // 绘制左上角状态栏（电量和消息）
+      drawStatusBar(20, 20, batteryVoltage, batteryPercentage, isCharging, messageCount);
+      displayDriver->update(0, 0, leftPanelWidth, height < 400 ? 40 : 60);
       
       // 如果有新消息，启动消息提醒动画
       if (needMessageRefresh && messageCount > 0) {
@@ -858,11 +867,64 @@ void DisplayManager::drawLeftPanel() {
     return;
   }
   
-  // 绘制左侧面板背景
-  displayDriver->fillRect(0, 0, leftPanelWidth, height, GxEPD_WHITE);
+  switch (currentLayout.screenSize) {
+    case SCREEN_SIZE_2_9_INCH:
+      drawUI_2_9inch();
+      break;
+    case SCREEN_SIZE_2_13_INCH:
+      drawUI_2_13inch();
+      break;
+    case SCREEN_SIZE_1_54_INCH:
+      drawUI_1_54inch();
+      break;
+    case SCREEN_SIZE_4_2_INCH:
+      drawUI_4_2inch();
+      break;
+    case SCREEN_SIZE_3_7_INCH:
+      drawUI_3_7inch();
+      break;
+    case SCREEN_SIZE_2_66_INCH:
+      drawUI_2_66inch();
+      break;
+    case SCREEN_SIZE_1_44_INCH:
+      drawUI_1_44inch();
+      break;
+    case SCREEN_SIZE_1_02_INCH:
+      drawUI_1_02inch();
+      break;
+    case SCREEN_SIZE_7_5_INCH:
+      drawUI_7_5inch();
+      break;
+    case SCREEN_SIZE_7_3_INCH:
+      drawUI_7_3inch();
+      break;
+    case SCREEN_SIZE_6_INCH:
+      drawUI_6inch();
+      break;
+    case SCREEN_SIZE_5_83_INCH:
+      drawUI_5_83inch();
+      break;
+    default:
+      drawLeftPanelDefault();
+      break;
+  }
+}
+
+void DisplayManager::drawLeftPanelDefault() {
+  if (displayDriver == nullptr) {
+    return;
+  }
   
-  // 绘制分割线
-  displayDriver->fillRect(leftPanelWidth - 1, 0, 1, height, GxEPD_BLACK);
+  // 根据屏幕方向绘制左侧面板背景
+  if (currentLayout.orientation == ORIENTATION_HORIZONTAL) {
+    // 横向布局：左右分栏
+    displayDriver->fillRect(0, 0, leftPanelWidth, height, GxEPD_WHITE);
+  } else {
+    // 竖向布局：上下分栏
+    displayDriver->fillRect(0, 0, width, leftPanelHeight, GxEPD_WHITE);
+  }
+  
+  // 绘制分割线（已在 applyLayout 中绘制）
   
   // 获取各种数据，使用本地缓存的数据
   String timeStr = "--:--:--";
@@ -889,8 +951,17 @@ void DisplayManager::drawLeftPanel() {
     
     // 绘制时钟（根据当前时钟模式）
     if (currentClockMode == CLOCK_MODE_DIGITAL) {
-      drawDigitalClock(20, 60, timeStr, dateStr);
+      // 数字时钟 - 占用左侧 35% 高度，时间位置下移
+      int clockSectionHeight = leftPanelHeight * 0.35;
+      int startY = clockSectionHeight * 0.15;  // 距离顶部 15% 的间距
+      drawDigitalClock(20, startY + 30, timeStr, dateStr);  // Y 坐标下移
     } else if (currentClockMode == CLOCK_MODE_ANALOG) {
+      // 模拟时钟 - 占用左侧 35% 高度，位置下移
+      int clockSectionHeight = leftPanelHeight * 0.35;
+      int centerX = leftPanelWidth / 2;
+      int centerY = (clockSectionHeight / 2) + 30;  // 位置下移
+      int radius = min(leftPanelWidth, clockSectionHeight) / 2 - 10;
+      
       // 获取当前时间的时、分、秒
       int hour = 0;
       int minute = 0;
@@ -903,8 +974,12 @@ void DisplayManager::drawLeftPanel() {
         second = timeStr.substring(6, 8).toInt();
       }
       
-      drawAnalogClock(leftPanelWidth / 2, 120, hour, minute, second, millisecond);
+      drawAnalogClock(centerX, centerY, hour, minute, second, millisecond, radius);
     } else if (currentClockMode == CLOCK_MODE_TEXT) {
+      // 文字时钟 - 占用左侧 35% 高度，位置下移
+      int clockSectionHeight = leftPanelHeight * 0.35;
+      int startY = clockSectionHeight * 0.15;  // 距离顶部 15% 的间距
+      
       // 获取当前时间的时、分、秒
       int hour = 0;
       int minute = 0;
@@ -916,10 +991,10 @@ void DisplayManager::drawLeftPanel() {
         second = timeStr.substring(6, 8).toInt();
       }
       
-      drawTextClock(20, 60, hour, minute, second);
+      drawTextClock(20, startY + 30, hour, minute, second);  // Y 坐标下移
     }
     
-    // 绘制公历和农历年月日信息
+    // 绘制公历和农历年月日信息（合并到一行）
     // 获取当前日期的农历信息
     LunarInfo lunarInfo;
     auto lunarManager = DependencyInjectionContainer::getInstance()->getLunarManager();
@@ -927,30 +1002,29 @@ void DisplayManager::drawLeftPanel() {
       lunarInfo = lunarManager->getLunarInfo(currentTime.year, currentTime.month, currentTime.day);
     }
     
-    // 构建公历和农历日期字符串
-    String gregorianStr = "公历：" + String(currentTime.year) + "年" + 
-                         (currentTime.month < 10 ? "0" : "") + String(currentTime.month) + "月" + 
-                         (currentTime.day < 10 ? "0" : "") + String(currentTime.day) + "日";
+    // 构建公历和农历日期字符串（合并到一行）
+    String gregorianStr = String(currentTime.year) + "-" + 
+                         (currentTime.month < 10 ? "0" : "") + String(currentTime.month) + "-" + 
+                         (currentTime.day < 10 ? "0" : "") + String(currentTime.day);
     
-    String lunarStr = "农历：" + lunarInfo.lunarDate;
+    String lunarStr = lunarInfo.lunarDate;
     
-    // 绘制在时钟下方，天气上方
-    int dateY = height < 400 ? 120 : 200;
-    displayDriver->drawString(20, dateY, gregorianStr + " " + lunarStr, GxEPD_BLACK, GxEPD_WHITE, height < 400 ? 1 : 2);
+    // 绘制在时钟下方（仍在 35% 区域内，一行显示）
+    int clockSectionHeight = leftPanelHeight * 0.35;
+    int dateY = clockSectionHeight * 0.15 + 80;  // 时间下方
+    String combinedDate = gregorianStr + " | " + lunarStr;
+    displayDriver->drawString(20, dateY, combinedDate, GxEPD_BLACK, GxEPD_WHITE, height < 400 ? 1 : 2);
     
-    // 绘制天气信息，调整位置到日期信息下方
-    drawWeather(20, height < 400 ? 160 : 240, weather.city, 
+    // 绘制天气信息，调整位置到 35% 区域下方
+    drawWeather(20, clockSectionHeight + 10, weather.city,
                 (weather.temp != 0 ? String(weather.temp) : "--") + "°C", 
                 weather.condition, "", "");
     
     // 绘制室内温湿度，调整位置到天气信息下方
-    drawSensorData(20, height < 400 ? 260 : 360, sensor.temperature, sensor.humidity);
+  drawSensorData(20, height < 400 ? 180 : 280, sensor.temperature, sensor.humidity);
   
-  // 绘制电池信息，调整位置到传感器数据下方
-  drawBatteryInfo(20, height < 400 ? 320 : 460, batteryVoltage, batteryPercentage, isCharging);
-  
-  // 绘制消息通知，调整位置到电池信息下方
-  drawMessageNotification(20, height < 400 ? 360 : 520, messageCount);
+  // 绘制左上角状态栏（电量和消息）
+  drawStatusBar(20, 20, batteryVoltage, batteryPercentage, isCharging, messageCount);
 }
 
 void DisplayManager::drawRightPanel() {
@@ -958,8 +1032,40 @@ void DisplayManager::drawRightPanel() {
     return;
   }
   
-  // 绘制右侧面板背景
-  displayDriver->fillRect(leftPanelWidth, 0, rightPanelWidth, height, GxEPD_WHITE);
+  // 根据屏幕尺寸调用对应的 UI 绘制函数
+  switch (currentLayout.screenSize) {
+    case SCREEN_SIZE_7_5_INCH:
+      drawRightPanel_7_5inch();
+      break;
+    case SCREEN_SIZE_7_3_INCH:
+      drawRightPanel_7_3inch();
+      break;
+    case SCREEN_SIZE_6_INCH:
+      drawRightPanel_6inch();
+      break;
+    case SCREEN_SIZE_5_83_INCH:
+      drawRightPanel_5_83inch();
+      break;
+    default:
+      // 其他尺寸使用原有绘制逻辑
+      drawRightPanelDefault();
+      break;
+  }
+}
+
+void DisplayManager::drawRightPanelDefault() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  // 根据屏幕方向绘制右侧面板背景
+  if (currentLayout.orientation == ORIENTATION_HORIZONTAL) {
+    // 横向布局：左右分栏
+    displayDriver->fillRect(leftPanelWidth, 0, rightPanelWidth, height, GxEPD_WHITE);
+  } else {
+    // 竖向布局：上下分栏
+    displayDriver->fillRect(0, leftPanelHeight, width, rightPanelHeight, GxEPD_WHITE);
+  }
   
   // 检查是否有新消息，如果有且当前页面是日历，则显示消息通知
   int messageCount = cachedUnreadMessageCount;
@@ -973,9 +1079,9 @@ void DisplayManager::drawRightPanel() {
     // 正常显示当前页面内容
     switch (currentRightPage) {
       case RIGHT_PAGE_CALENDAR: {
-        drawCalendarPage(leftPanelWidth + 20, 20);
+        drawCalendarPage(leftPanelWidth + 20, 30);
         
-        // 在月历下方绘制当前日的节日和黄历信息，确保完整显示
+        // 在月历下方绘制当前日的节日和黄历信息，确保完整显示（上下排列的两个独立模块）
         // 获取当前日期
         auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
         auto lunarManager = DependencyInjectionContainer::getInstance()->getLunarManager();
@@ -983,20 +1089,24 @@ void DisplayManager::drawRightPanel() {
           TimeData currentTime = timeManager->getTimeData();
           LunarInfo lunarInfo = lunarManager->getLunarInfo(currentTime.year, currentTime.month, currentTime.day);
           
-          // 绘制节日信息，确保完整显示
+          // 绘制节日模块（紧凑布局，独立模块）
           if (!lunarInfo.festival.name.isEmpty()) {
-            String festivalText = "今日节日: " + lunarInfo.festival.name;
-          displayDriver->drawString(leftPanelWidth + 20, height - 80, festivalText, GxEPD_RED, GxEPD_WHITE, height < 400 ? 1 : 2);
-        }
-        
-        // 绘制黄历信息摘要，确保完整显示
-        if (!lunarInfo.lunarCalendar.yi.isEmpty() && !lunarInfo.lunarCalendar.ji.isEmpty()) {
-          String lunarCalText = "宜: " + lunarInfo.lunarCalendar.yi;
-          displayDriver->drawString(leftPanelWidth + 20, height - 50, lunarCalText, GxEPD_BLACK, GxEPD_WHITE, height < 400 ? 1 : 1);
+            // 节日信息一行显示：节日名称 · 日期 · 倒计时
+            String festivalLine = lunarInfo.festival.name + " · 4 月 5 日 · 还有 18 天";
+            displayDriver->drawString(leftPanelWidth + 20, height - 85, festivalLine, GxEPD_RED, GxEPD_WHITE, height < 400 ? 1 : 2);
+          }
           
-          lunarCalText = "忌: " + lunarInfo.lunarCalendar.ji;
-          displayDriver->drawString(leftPanelWidth + 20, height - 25, lunarCalText, GxEPD_BLACK, GxEPD_WHITE, height < 400 ? 1 : 1);
-        }
+          // 绘制黄历模块（紧凑布局，独立模块，上下排列）
+          if (!lunarInfo.lunarCalendar.yi.isEmpty() && !lunarInfo.lunarCalendar.ji.isEmpty()) {
+            // 黄历标题
+            displayDriver->drawString(leftPanelWidth + 20, height - 120, "📜 黄历", GxEPD_BLACK, GxEPD_WHITE, height < 400 ? 2 : 3);
+            // 宜（一行显示）
+            String yiText = "✅ 宜：" + lunarInfo.lunarCalendar.yi;
+            displayDriver->drawString(leftPanelWidth + 20, height - 95, yiText, GxEPD_BLACK, GxEPD_WHITE, height < 400 ? 1 : 2);
+            // 忌（一行显示）
+            String jiText = "❌ 忌：" + lunarInfo.lunarCalendar.ji;
+            displayDriver->drawString(leftPanelWidth + 20, height - 75, jiText, GxEPD_BLACK, GxEPD_WHITE, height < 400 ? 1 : 2);
+          }
         }
         
         break;
@@ -1275,6 +1385,39 @@ void DisplayManager::drawMessageNotification(int x, int y, int messageCount) {
   }
 }
 
+// 绘制左上角状态栏（电量和消息）
+void DisplayManager::drawStatusBar(int x, int y, float voltage, int percentage, bool isCharging, int messageCount) {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  int batteryWidth = height < 400 ? 24 : 28;
+  int batteryHeight = height < 400 ? 12 : 14;
+  int textSize = height < 400 ? 1 : 2;
+  
+  // 绘制电池图标
+  displayDriver->drawRect(x, y, batteryWidth, batteryHeight, GxEPD_BLACK);
+  // 电池正极
+  displayDriver->drawRect(x + batteryWidth, y + (height < 400 ? 2 : 3), 
+                         (height < 400 ? 3 : 4), batteryHeight - (height < 400 ? 4 : 6), GxEPD_BLACK);
+  
+  // 绘制电池电量
+  int batteryLevelWidth = (batteryWidth - (height < 400 ? 4 : 6)) * percentage / 100;
+  displayDriver->fillRect(x + (height < 400 ? 2 : 3), y + (height < 400 ? 2 : 3), 
+                         batteryLevelWidth, batteryHeight - (height < 400 ? 4 : 6), GxEPD_BLACK);
+  
+  // 绘制电量百分比文字
+  int textX = x + batteryWidth + (height < 400 ? 8 : 10);
+  int textY = y + (height < 400 ? 10 : 12);
+  displayDriver->drawString(textX, textY, String(percentage) + "%", GxEPD_BLACK, GxEPD_WHITE, textSize);
+  
+  // 绘制消息数量（在电量右侧）
+  if (messageCount > 0) {
+    int messageX = textX + (height < 400 ? 40 : 50);
+    displayDriver->drawString(messageX, textY, "🔔 " + String(messageCount), GxEPD_BLACK, GxEPD_WHITE, textSize);
+  }
+}
+
 // 其他绘制方法的实现...
 // 由于篇幅限制，这里省略了部分绘制方法的实现
 // 实际使用时需要将所有绘制方法从eink_display.cpp迁移到这里
@@ -1285,39 +1428,46 @@ void DisplayManager::drawWeather(int x, int y, String city, String temp, String 
   }
   
   int textSize = height < 400 ? 1 : 2;
-  int tempSize = height < 400 ? 3 : 5;
+  int tempSize = height < 400 ? 3 : 4;
   
   // 绘制城市
   displayDriver->drawString(x, y, city, GxEPD_BLACK, GxEPD_WHITE, textSize);
   
   // 绘制当前温度
-  displayDriver->drawString(x, y + (height < 400 ? 20 : 40), temp, GxEPD_BLACK, GxEPD_WHITE, tempSize);
+  displayDriver->drawString(x, y + (height < 400 ? 15 : 25), temp, GxEPD_BLACK, GxEPD_WHITE, tempSize);
   
   // 绘制天气状况
-  displayDriver->drawString(x, y + (height < 400 ? 50 : 100), condition, GxEPD_BLACK, GxEPD_WHITE, textSize);
+  displayDriver->drawString(x, y + (height < 400 ? 35 : 55), condition, GxEPD_BLACK, GxEPD_WHITE, textSize);
   
-  // 绘制天气图标（使用WeatherManager的getWeatherIcon方法）
+  // 绘制天气图标
   String weatherIcon = "☀️";
-  ForecastData tomorrow;
+  ForecastData tomorrow, dayAfter;
   auto weatherManager = DependencyInjectionContainer::getInstance()->getWeatherManager();
   if (weatherManager) {
     weatherIcon = weatherManager->getWeatherIcon(condition);
     tomorrow = weatherManager->getForecastData(1);
+    dayAfter = weatherManager->getForecastData(2);
   }
-  displayDriver->drawString(x + (height < 400 ? 80 : 160), y + (height < 400 ? 40 : 80), weatherIcon, GxEPD_BLACK, GxEPD_WHITE, tempSize);
+  displayDriver->drawString(x + (height < 400 ? 60 : 120), y + (height < 400 ? 25 : 45), weatherIcon, GxEPD_BLACK, GxEPD_WHITE, tempSize);
   
-  // 绘制次日天气预报
+  // 一行显示今天、明天、后天天气预报（三个并列）
   if (weatherManager && tomorrow.date.length() > 0) {
-    int tomorrowY = y + (height < 400 ? 60 : 120);
-    String tomorrowIcon = "☀️";
-    if (weatherManager) {
-      tomorrowIcon = weatherManager->getWeatherIcon(tomorrow.condition);
+    int forecastY = y + (height < 400 ? 55 : 85);
+    String tomorrowIcon = weatherManager->getWeatherIcon(tomorrow.condition);
+    String dayAfterIcon = "☀️";
+    if (dayAfter.date.length() > 0) {
+      dayAfterIcon = weatherManager->getWeatherIcon(dayAfter.condition);
     }
-    String tomorrowText = "次日: " + tomorrowIcon + " " + tomorrow.condition + " " + String(tomorrow.tempDay) + "°C";
-    displayDriver->drawString(x, tomorrowY, tomorrowText, GxEPD_BLACK, GxEPD_WHITE, textSize);
+    
+    // 绘制三个预报（一行显示）
+    String forecastText = "今天 " + tomorrowIcon + " " + temp + "° | 明天 " + tomorrowIcon + " " + String(tomorrow.tempDay) + "°";
+    if (dayAfter.date.length() > 0) {
+      forecastText += " | 后天 " + dayAfterIcon + " " + String(dayAfter.tempDay) + "°";
+    }
+    displayDriver->drawString(x, forecastY, forecastText, GxEPD_BLACK, GxEPD_WHITE, textSize);
   }
   
-  // 绘制5天温度趋势图表
+  // 绘制 5 天温度趋势图表
   int chartY = y + (height < 400 ? 90 : 150);
   int chartWidth = leftPanelWidth - 40;
   int chartHeight = height < 400 ? 60 : 80;
@@ -1669,8 +1819,8 @@ void DisplayManager::updateMessageAnimation() {
       displayDriver->update(animationX - 10, animationY - 10, 50, 50);
     }
     
-    // 检查动画是否应该结束（10秒后自动停止）
-    if (currentTime - messageAnimationStartTime >= 10000) {
+    // 检查动画是否应该结束（10 秒后自动停止）
+    if (currentTime - messageAnimationStartTime >= MESSAGE_ANIMATION_DURATION) {
       stopMessageAnimation();
     }
   }
@@ -1876,8 +2026,8 @@ void DisplayManager::updateSensorAlarm() {
   
   unsigned long currentTime = millis();
   
-  // 检查报警是否应该自动停止（30秒后）
-  if (currentTime - sensorAnomalyStartTime >= 30000) {
+  // 检查报警是否应该自动停止（30 秒后）
+  if (currentTime - sensorAnomalyStartTime >= SENSOR_ANOMALY_TIMEOUT) {
     stopSensorAlarm();
     return;
   }
@@ -1889,19 +2039,19 @@ void DisplayManager::updateSensorAlarm() {
     int alarmY = height - 30;
     
     // 清除之前的报警指示
-    displayDriver->fillRect(alarmX - 5, alarmY - 5, 30, 30, 0xFFFF); // 白色背景
+    displayDriver->fillRect(alarmX - 5, alarmY - 5, 30, 30, COLOR_WHITE);
     
     // 绘制闪烁的报警指示
     static bool blinkState = false;
     static unsigned long lastBlinkTime = 0;
     
-    if (currentTime - lastBlinkTime >= 500) {
+    if (currentTime - lastBlinkTime >= ALARM_ICON_BLINK_INTERVAL) {
       blinkState = !blinkState;
       lastBlinkTime = currentTime;
     }
     
     if (blinkState) {
-      displayDriver->fillRect(alarmX, alarmY, 20, 20, 0x0000); // 黑色报警指示
+      displayDriver->fillRect(alarmX, alarmY, 20, 20, COLOR_BLACK);
     }
     
     // 局部更新显示
@@ -1918,21 +2068,23 @@ void DisplayManager::setLayoutMode(LayoutMode mode) {
     case LAYOUT_MODE_COMPACT:
       currentLayout = {
         LAYOUT_MODE_COMPACT,
-        0.7f,   // 左侧面板比例 70%
-        0.3f,   // 右侧面板比例 30%
+        0.4f,   // 左侧面板比例 40%（较小）
+        0.6f,   // 右侧面板比例 60%（较大）
         10,     // 基础字体大小（较小）
         6,      // 元素间距（较小）
-        false   // 不显示边框
+        false,  // 不显示边框
+        currentLayout.orientation  // 保持当前屏幕方向
       };
       break;
     case LAYOUT_MODE_STANDARD:
       currentLayout = {
         LAYOUT_MODE_STANDARD,
-        0.6f,   // 左侧面板比例 60%
-        0.4f,   // 右侧面板比例 40%
+        0.45f,  // 左侧面板比例 45%（较小）
+        0.55f,  // 右侧面板比例 55%（较大，用于日历/消息/图片）
         12,     // 基础字体大小
         8,      // 元素间距
-        false   // 不显示边框
+        false,  // 不显示边框
+        currentLayout.orientation  // 保持当前屏幕方向
       };
       break;
     case LAYOUT_MODE_EXTENDED:
@@ -1942,7 +2094,8 @@ void DisplayManager::setLayoutMode(LayoutMode mode) {
         0.5f,   // 右侧面板比例 50%
         14,     // 基础字体大小（较大）
         10,     // 元素间距（较大）
-        true    // 显示边框
+        true,   // 显示边框
+        currentLayout.orientation  // 保持当前屏幕方向
       };
       break;
     case LAYOUT_MODE_CUSTOM:
@@ -1991,22 +2144,158 @@ LayoutConfig DisplayManager::getCurrentLayout() const {
   return currentLayout;
 }
 
+// 屏幕方向管理方法实现
+void DisplayManager::setScreenOrientation(ScreenOrientation orientation) {
+  currentLayout.orientation = orientation;
+  applyLayout();
+}
+
+ScreenOrientation DisplayManager::getScreenOrientation() const {
+  return currentLayout.orientation;
+}
+
+void DisplayManager::toggleScreenOrientation() {
+  // 切换屏幕方向
+  if (currentLayout.orientation == ORIENTATION_HORIZONTAL) {
+    setScreenOrientation(ORIENTATION_VERTICAL);
+  } else {
+    setScreenOrientation(ORIENTATION_HORIZONTAL);
+  }
+}
+
+// 屏幕尺寸管理方法实现
+void DisplayManager::setScreenSize(ScreenSize size) {
+  currentLayout.screenSize = size;
+  
+  // 根据屏幕尺寸自动调整布局
+  // 3 寸以下只支持竖屏单栏
+  if (size == SCREEN_SIZE_2_9_INCH || size == SCREEN_SIZE_2_66_INCH || 
+      size == SCREEN_SIZE_2_13_INCH || size == SCREEN_SIZE_1_54_INCH || 
+      size == SCREEN_SIZE_1_44_INCH || size == SCREEN_SIZE_1_02_INCH) {
+    // 3 寸以下强制竖向布局
+    if (currentLayout.orientation != ORIENTATION_VERTICAL) {
+      setScreenOrientation(ORIENTATION_VERTICAL);
+    }
+  } else if (size == SCREEN_SIZE_3_7_INCH || size == SCREEN_SIZE_4_2_INCH) {
+    // 3-4.2 寸默认竖向，允许切换
+    if (currentLayout.orientation != ORIENTATION_VERTICAL) {
+      setScreenOrientation(ORIENTATION_VERTICAL);
+    }
+  } else {
+    // 4.2 寸以上默认横向
+    if (currentLayout.orientation != ORIENTATION_HORIZONTAL) {
+      setScreenOrientation(ORIENTATION_HORIZONTAL);
+    }
+  }
+  
+  applyLayout();
+}
+
+ScreenSize DisplayManager::getScreenSize() const {
+  return currentLayout.screenSize;
+}
+
+void DisplayManager::getNextScreenSize() {
+  // 切换到下一个屏幕尺寸
+  switch (currentLayout.screenSize) {
+    case SCREEN_SIZE_7_5_INCH:
+      setScreenSize(SCREEN_SIZE_4_2_INCH);
+      break;
+    case SCREEN_SIZE_4_2_INCH:
+      setScreenSize(SCREEN_SIZE_2_9_INCH);
+      break;
+    case SCREEN_SIZE_2_9_INCH:
+      setScreenSize(SCREEN_SIZE_7_5_INCH);
+      break;
+  }
+}
+
 void DisplayManager::applyLayout() {
   if (!displayDriver) {
     return;
   }
   
-  // 获取屏幕尺寸
-  width = displayDriver->getWidth();
-  height = displayDriver->getHeight();
+  // 根据屏幕尺寸获取屏幕尺寸
+  switch (currentLayout.screenSize) {
+    case SCREEN_SIZE_7_5_INCH:
+      width = 800;
+      height = 480;
+      break;
+    case SCREEN_SIZE_7_3_INCH:
+      width = 1920;
+      height = 1080;
+      break;
+    case SCREEN_SIZE_6_INCH:
+      width = 1448;
+      height = 1072;
+      break;
+    case SCREEN_SIZE_5_83_INCH:
+      width = 1448;
+      height = 1072;
+      break;
+    case SCREEN_SIZE_4_2_INCH:
+      width = 400;
+      height = 300;
+      break;
+    case SCREEN_SIZE_3_7_INCH:
+      width = 480;
+      height = 280;
+      break;
+    case SCREEN_SIZE_2_9_INCH:
+      width = 296;
+      height = 128;
+      break;
+    case SCREEN_SIZE_2_66_INCH:
+      width = 296;
+      height = 152;
+      break;
+    case SCREEN_SIZE_2_13_INCH:
+      width = 250;
+      height = 122;
+      break;
+    case SCREEN_SIZE_1_54_INCH:
+      width = 200;
+      height = 200;
+      break;
+    case SCREEN_SIZE_1_44_INCH:
+      width = 128;
+      height = 128;
+      break;
+    case SCREEN_SIZE_1_02_INCH:
+      width = 80;
+      height = 128;
+      break;
+    default:
+      // 从驱动获取实际尺寸
+      width = displayDriver->getWidth();
+      height = displayDriver->getHeight();
+      break;
+  }
   
-  // 计算面板宽度
-  leftPanelWidth = static_cast<uint16_t>(width * currentLayout.leftPanelRatio);
-  rightPanelWidth = width - leftPanelWidth;
+  // 根据屏幕方向计算面板尺寸
+  if (currentLayout.orientation == ORIENTATION_HORIZONTAL) {
+    // 横向布局：左右分栏
+    leftPanelWidth = static_cast<uint16_t>(width * currentLayout.leftPanelRatio);
+    rightPanelWidth = width - leftPanelWidth;
+    leftPanelHeight = height;
+    rightPanelHeight = height;
+  } else {
+    // 竖向布局：上下分栏
+    leftPanelWidth = width;
+    rightPanelWidth = width;
+    leftPanelHeight = static_cast<uint16_t>(height * currentLayout.leftPanelRatio);
+    rightPanelHeight = height - leftPanelHeight;
+  }
   
   // 如果显示边框，绘制边框
   if (currentLayout.showBorders && displayDriver) {
-    displayDriver->drawLine(leftPanelWidth - 1, 0, leftPanelWidth - 1, height - 1, 0x0000);
+    if (currentLayout.orientation == ORIENTATION_HORIZONTAL) {
+      // 横向布局：绘制垂直分割线
+      displayDriver->drawLine(leftPanelWidth - 1, 0, leftPanelWidth - 1, height - 1, COLOR_DIVIDER_LINE);
+    } else {
+      // 竖向布局：绘制水平分割线
+      displayDriver->drawLine(0, leftPanelHeight - 1, width - 1, leftPanelHeight - 1, COLOR_DIVIDER_LINE);
+    }
   }
   
   // 触发显示更新
@@ -2072,3 +2361,2647 @@ void DisplayManager::drawSettingPage(int x, int y) {
   displayDriver->drawString(x, y, "设置页面", GxEPD_BLACK, GxEPD_WHITE, 2);
   displayDriver->drawString(x, y + 30, "功能待实现", GxEPD_GRAY2, GxEPD_WHITE, 1);
 }
+
+// ========== 小屏幕 UI 绘制函数（3 寸以下，竖屏单栏） ==========
+
+// 2.9 寸 (296x128) UI 绘制
+void DisplayManager::drawUI_2_9inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  // 清屏
+  displayDriver->fillScreen(GxEPD_WHITE);
+  
+  // 绘制各个组件
+  drawStatusBar_2_9inch();
+  drawTime_2_9inch();
+  drawDate_2_9inch();
+  drawWeather_2_9inch();
+  drawSensor_2_9inch();
+  
+  // 刷新显示
+  displayDriver->update();
+}
+
+void DisplayManager::drawStatusBar_2_9inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+  auto messageManager = DependencyInjectionContainer::getInstance()->getMessageManager();
+  
+  if (!powerManager || !messageManager) {
+    return;
+  }
+  
+  int percentage = powerManager->getBatteryPercentage();
+  int messageCount = messageManager->getUnreadMessageCount();
+  
+  // 绘制电池图标 (18x9px)
+  int x = 2, y = 2;
+  displayDriver->drawRect(x, y, 18, 9, GxEPD_BLACK);
+  displayDriver->drawRect(x + 18, y + 2, 2, 5, GxEPD_BLACK);
+  
+  // 绘制电量
+  int levelWidth = 14 * percentage / 100;
+  displayDriver->fillRect(x + 2, y + 2, levelWidth, 5, GxEPD_BLACK);
+  
+  // 绘制百分比文字
+  displayDriver->drawString(x + 22, y, String(percentage) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+  
+  // 绘制消息数量
+  if (messageCount > 0) {
+    displayDriver->drawString(x + 50, y, "🔔 " + String(messageCount), GxEPD_BLACK, GxEPD_WHITE, 1);
+  }
+  
+  // 绘制分隔线
+  displayDriver->drawFastHLine(0, 13, width, GxEPD_GRAY1);
+}
+
+void DisplayManager::drawTime_2_9inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) {
+    return;
+  }
+  
+  TimeData time = timeManager->getCurrentTime();
+  String timeStr = String(time.hour).padStart(2, '0') + ":" + String(time.minute).padStart(2, '0');
+  
+  // 绘制时间 (22px 粗体)
+  displayDriver->drawString(0, 18, timeStr, GxEPD_BLACK, GxEPD_WHITE, 3);
+}
+
+void DisplayManager::drawDate_2_9inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  auto lunarManager = DependencyInjectionContainer::getInstance()->getLunarManager();
+  
+  if (!timeManager) {
+    return;
+  }
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  // 公历日期
+  String dateStr = String(time.year) + "-" + String(time.month).padStart(2, '0') + "-" + String(time.day).padStart(2, '0');
+  String weekStr = getWeekString(time.weekday);
+  displayDriver->drawString(0, 45, dateStr + " " + weekStr, GxEPD_BLACK, GxEPD_WHITE, 1);
+  
+  // 农历日期
+  if (lunarManager) {
+    LunarData lunar = lunarManager->getLunarDate(time.year, time.month, time.day);
+    displayDriver->drawString(0, 56, lunar.lunarMonth + "月" + lunar.lunarDay, GxEPD_GRAY1, GxEPD_WHITE, 1);
+  }
+}
+
+void DisplayManager::drawWeather_2_9inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto weatherManager = DependencyInjectionContainer::getInstance()->getWeatherManager();
+  if (!weatherManager) {
+    return;
+  }
+  
+  WeatherData weather = weatherManager->getWeatherData();
+  
+  // 绘制当前温度 (14px 粗体)
+  displayDriver->drawString(0, 65, String(weather.temperature, 0) + "°C", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  // 绘制天气预报（三天横向排列）
+  int forecastY = 85;
+  for (int i = 0; i < 3 && i < 3; i++) {
+    ForecastData forecast = weatherManager->getForecastData(i);
+    if (forecast.date.length() > 0) {
+      int x = i * 95;
+      String icon = weatherManager->getWeatherIcon(forecast.condition);
+      displayDriver->drawString(x, forecastY, icon, GxEPD_BLACK, GxEPD_WHITE, 2);
+      displayDriver->drawString(x + 20, forecastY, String(forecast.tempDay, 0) + "°", GxEPD_BLUE, GxEPD_WHITE, 1);
+    }
+  }
+}
+
+void DisplayManager::drawSensor_2_9inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto sensorManager = DependencyInjectionContainer::getInstance()->getSensorManager();
+  if (!sensorManager) {
+    return;
+  }
+  
+  SensorData sensor = sensorManager->getSensorData();
+  
+  // 绘制分隔线
+  displayDriver->drawFastHLine(0, height - 22, width, GxEPD_GRAY1);
+  
+  // 绘制传感器数据（底部横向三列）
+  int y = height - 18;
+  displayDriver->drawString(5, y, "🌡️" + String(sensor.temperature, 1) + "°", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(width / 3, y, "💧" + String(sensor.humidity, 0) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(width * 2 / 3, y, "🌿优", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+// ========== 小屏幕 UI 绘制函数（2.13 寸，竖屏单栏） ==========
+
+void DisplayManager::drawUI_2_13inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  displayDriver->fillScreen(GxEPD_WHITE);
+  
+  drawStatusBar_2_13inch();
+  drawTime_2_13inch();
+  drawDate_2_13inch();
+  drawWeather_2_13inch();
+  drawSensor_2_13inch();
+  
+  displayDriver->update();
+}
+
+void DisplayManager::drawStatusBar_2_13inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+  auto messageManager = DependencyInjectionContainer::getInstance()->getMessageManager();
+  
+  if (!powerManager || !messageManager) {
+    return;
+  }
+  
+  int percentage = powerManager->getBatteryPercentage();
+  int messageCount = messageManager->getUnreadMessageCount();
+  
+  int x = 2, y = 2;
+  displayDriver->drawRect(x, y, 16, 8, GxEPD_BLACK);
+  displayDriver->drawRect(x + 16, y + 2, 2, 4, GxEPD_BLACK);
+  
+  int levelWidth = 12 * percentage / 100;
+  displayDriver->fillRect(x + 2, y + 2, levelWidth, 4, GxEPD_BLACK);
+  
+  displayDriver->drawString(x + 20, y, String(percentage) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+  
+  if (messageCount > 0) {
+    displayDriver->drawString(x + 45, y, "🔔" + String(messageCount), GxEPD_BLACK, GxEPD_WHITE, 1);
+  }
+  
+  displayDriver->drawFastHLine(0, 12, width, GxEPD_GRAY1);
+}
+
+void DisplayManager::drawTime_2_13inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) {
+    return;
+  }
+  
+  TimeData time = timeManager->getCurrentTime();
+  String timeStr = String(time.hour).padStart(2, '0') + ":" + String(time.minute).padStart(2, '0');
+  
+  displayDriver->drawString(0, 14, timeStr, GxEPD_BLACK, GxEPD_WHITE, 3);
+}
+
+void DisplayManager::drawDate_2_13inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  auto lunarManager = DependencyInjectionContainer::getInstance()->getLunarManager();
+  
+  if (!timeManager) {
+    return;
+  }
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  String dateStr = String(time.year) + "-" + String(time.month).padStart(2, '0') + "-" + String(time.day).padStart(2, '0');
+  String weekStr = getWeekString(time.weekday);
+  displayDriver->drawString(0, 38, dateStr + " " + weekStr, GxEPD_BLACK, GxEPD_WHITE, 1);
+  
+  if (lunarManager) {
+    LunarData lunar = lunarManager->getLunarDate(time.year, time.month, time.day);
+    displayDriver->drawString(0, 48, lunar.lunarMonth + "月" + lunar.lunarDay, GxEPD_GRAY1, GxEPD_WHITE, 1);
+  }
+}
+
+void DisplayManager::drawWeather_2_13inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto weatherManager = DependencyInjectionContainer::getInstance()->getWeatherManager();
+  if (!weatherManager) {
+    return;
+  }
+  
+  WeatherData weather = weatherManager->getWeatherData();
+  
+  displayDriver->drawString(0, 56, String(weather.temperature, 0) + "°C", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  int forecastY = 72;
+  for (int i = 0; i < 3; i++) {
+    ForecastData forecast = weatherManager->getForecastData(i);
+    if (forecast.date.length() > 0) {
+      int x = i * 80;
+      String icon = weatherManager->getWeatherIcon(forecast.condition);
+      displayDriver->drawString(x, forecastY, icon, GxEPD_BLACK, GxEPD_WHITE, 1);
+      displayDriver->drawString(x + 15, forecastY, String(forecast.tempDay, 0) + "°", GxEPD_BLUE, GxEPD_WHITE, 1);
+    }
+  }
+}
+
+void DisplayManager::drawSensor_2_13inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto sensorManager = DependencyInjectionContainer::getInstance()->getSensorManager();
+  if (!sensorManager) {
+    return;
+  }
+  
+  SensorData sensor = sensorManager->getSensorData();
+  
+  displayDriver->drawFastHLine(0, height - 18, width, GxEPD_GRAY1);
+  
+  int y = height - 14;
+  displayDriver->drawString(5, y, "🌡️" + String(sensor.temperature, 1) + "°", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(width / 3, y, "💧" + String(sensor.humidity, 0) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(width * 2 / 3, y, "🌿优", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+// ========== 小屏幕 UI 绘制函数（1.54 寸，竖屏单栏，方形） ==========
+
+void DisplayManager::drawUI_1_54inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  displayDriver->fillScreen(GxEPD_WHITE);
+  
+  drawStatusBar_1_54inch();
+  drawTime_1_54inch();
+  drawDate_1_54inch();
+  drawWeather_1_54inch();
+  drawSensor_1_54inch();
+  
+  displayDriver->update();
+}
+
+void DisplayManager::drawStatusBar_1_54inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+  auto messageManager = DependencyInjectionContainer::getInstance()->getMessageManager();
+  
+  if (!powerManager || !messageManager) {
+    return;
+  }
+  
+  int percentage = powerManager->getBatteryPercentage();
+  int messageCount = messageManager->getUnreadMessageCount();
+  
+  int x = 2, y = 2;
+  displayDriver->drawRect(x, y, 14, 7, GxEPD_BLACK);
+  displayDriver->drawRect(x + 14, y + 2, 2, 3, GxEPD_BLACK);
+  
+  int levelWidth = 10 * percentage / 100;
+  displayDriver->fillRect(x + 2, y + 2, levelWidth, 3, GxEPD_BLACK);
+  
+  displayDriver->drawString(x + 18, y, String(percentage) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+  
+  if (messageCount > 0) {
+    displayDriver->drawString(x + 45, y, "🔔" + String(messageCount), GxEPD_BLACK, GxEPD_WHITE, 1);
+  }
+  
+  displayDriver->drawFastHLine(0, 10, width, GxEPD_GRAY1);
+}
+
+void DisplayManager::drawTime_1_54inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) {
+    return;
+  }
+  
+  TimeData time = timeManager->getCurrentTime();
+  String timeStr = String(time.hour).padStart(2, '0') + ":" + String(time.minute).padStart(2, '0');
+  
+  displayDriver->drawString(0, 14, timeStr, GxEPD_BLACK, GxEPD_WHITE, 3);
+}
+
+void DisplayManager::drawDate_1_54inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  auto lunarManager = DependencyInjectionContainer::getInstance()->getLunarManager();
+  
+  if (!timeManager) {
+    return;
+  }
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  String dateStr = String(time.month).padStart(2, '0') + "-" + String(time.day).padStart(2, '0');
+  String weekStr = getWeekString(time.weekday);
+  displayDriver->drawString(0, 40, dateStr + " " + weekStr, GxEPD_BLACK, GxEPD_WHITE, 1);
+  
+  if (lunarManager) {
+    LunarData lunar = lunarManager->getLunarDate(time.year, time.month, time.day);
+    displayDriver->drawString(0, 52, lunar.lunarMonth + lunar.lunarDay, GxEPD_GRAY1, GxEPD_WHITE, 1);
+  }
+}
+
+void DisplayManager::drawWeather_1_54inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto weatherManager = DependencyInjectionContainer::getInstance()->getWeatherManager();
+  if (!weatherManager) {
+    return;
+  }
+  
+  WeatherData weather = weatherManager->getWeatherData();
+  
+  displayDriver->drawString(0, 65, String(weather.temperature, 0) + "°C", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  ForecastData forecast = weatherManager->getForecastData(0);
+  if (forecast.date.length() > 0) {
+    String icon = weatherManager->getWeatherIcon(forecast.condition);
+    displayDriver->drawString(50, 65, icon, GxEPD_BLACK, GxEPD_WHITE, 2);
+  }
+}
+
+void DisplayManager::drawSensor_1_54inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto sensorManager = DependencyInjectionContainer::getInstance()->getSensorManager();
+  if (!sensorManager) {
+    return;
+  }
+  
+  SensorData sensor = sensorManager->getSensorData();
+  
+  displayDriver->drawFastHLine(0, height - 16, width, GxEPD_GRAY1);
+  
+  int y = height - 12;
+  displayDriver->drawString(5, y, "🌡️" + String(sensor.temperature, 1) + "°", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(width / 2, y, "💧" + String(sensor.humidity, 0) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+// ========== 大屏幕 UI 绘制函数（3 寸以上，横屏双栏） ==========
+
+// 7.5 寸 (800x480) UI 绘制
+void DisplayManager::drawUI_7_5inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  // 清屏
+  displayDriver->fillScreen(GxEPD_WHITE);
+  
+  // 计算左右面板位置
+  leftPanelWidth = width * 0.45;
+  int rightPanelX = leftPanelWidth;
+  
+  // 绘制左侧面板背景
+  displayDriver->fillRect(0, 0, leftPanelWidth, height, GxEPD_WHITE);
+  displayDriver->drawFastVLine(leftPanelWidth, 0, height, GxEPD_GRAY1);
+  
+  // 绘制右侧面板背景（浅灰色）
+  displayDriver->fillRect(rightPanelX, 0, width - rightPanelX, height, GxEPD_GRAY5);
+  
+  // 绘制左侧内容
+  drawLeftPanel_7_5inch();
+  
+  // 绘制右侧内容
+  drawRightPanel_7_5inch();
+  
+  // 刷新显示
+  displayDriver->update();
+}
+
+void DisplayManager::drawLeftPanel_7_5inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  int x = 20, y = 20;
+  
+  // 状态栏
+  drawStatusBar_7_5inch();
+  y = 50;
+  
+  // 时间显示（64px 粗体）
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (timeManager) {
+    TimeData time = timeManager->getCurrentTime();
+    String timeStr = String(time.hour).padStart(2, '0') + ":" + String(time.minute).padStart(2, '0') + ":" + String(time.second).padStart(2, '0');
+    displayDriver->drawString(x, y, timeStr, GxEPD_BLACK, GxEPD_WHITE, 6);
+  }
+  
+  // 日期和农历（16px）
+  y += 70;
+  drawDate_7_5inch(x, y);
+  
+  // 天气区域（蓝色渐变背景）
+  y += 30;
+  drawWeather_7_5inch(x, y);
+  
+  // 传感器区域（绿色渐变背景）
+  y += 100;
+  drawSensor_7_5inch(x, y);
+}
+
+void DisplayManager::drawStatusBar_7_5inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+  auto messageManager = DependencyInjectionContainer::getInstance()->getMessageManager();
+  
+  if (!powerManager || !messageManager) {
+    return;
+  }
+  
+  int percentage = powerManager->getBatteryPercentage();
+  int messageCount = messageManager->getUnreadMessageCount();
+  
+  int x = 20, y = 20;
+  
+  // 绘制电池图标 (32x16px)
+  displayDriver->drawRect(x, y, 32, 16, GxEPD_BLACK);
+  displayDriver->drawRect(x + 32, y + 4, 3, 8, GxEPD_BLACK);
+  
+  // 绘制电量
+  int levelWidth = 26 * percentage / 100;
+  displayDriver->fillRect(x + 3, y + 3, levelWidth, 10, GxEPD_BLACK);
+  
+  // 绘制百分比文字
+  displayDriver->drawString(x + 38, y + 2, String(percentage) + "%", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  // 绘制消息数量
+  if (messageCount > 0) {
+    displayDriver->drawString(x + 90, y + 2, "🔔 " + String(messageCount) + "条", GxEPD_BLACK, GxEPD_WHITE, 2);
+  }
+}
+
+void DisplayManager::drawDate_7_5inch(int x, int y) {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  auto lunarManager = DependencyInjectionContainer::getInstance()->getLunarManager();
+  
+  if (!timeManager) {
+    return;
+  }
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  // 公历日期
+  String dateStr = String(time.year) + "-" + String(time.month).padStart(2, '0') + "-" + String(time.day).padStart(2, '0');
+  String weekStr = getWeekString(time.weekday);
+  
+  // 农历日期
+  String lunarStr = "";
+  if (lunarManager) {
+    LunarData lunar = lunarManager->getLunarDate(time.year, time.month, time.day);
+    lunarStr = " | " + lunar.lunarMonth + "月" + lunar.lunarDay;
+  }
+  
+  displayDriver->drawString(x, y, dateStr + " " + weekStr + lunarStr, GxEPD_BLACK, GxEPD_WHITE, 2);
+}
+
+void DisplayManager::drawWeather_7_5inch(int x, int y) {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto weatherManager = DependencyInjectionContainer::getInstance()->getWeatherManager();
+  if (!weatherManager) {
+    return;
+  }
+  
+  WeatherData weather = weatherManager->getWeatherData();
+  
+  // 绘制背景框（蓝色渐变效果用单色代替）
+  displayDriver->fillRect(x, y, 320, 100, GxEPD_GRAY5);
+  displayDriver->drawRect(x, y, 320, 100, GxEPD_BLUE);
+  
+  // 城市
+  displayDriver->drawString(x + 10, y + 5, "📍 北京市", GxEPD_BLUE, GxEPD_WHITE, 2);
+  
+  // 当前温度（32px 粗体）
+  displayDriver->drawString(x + 10, y + 25, String(weather.temperature, 0) + "°C", GxEPD_BLACK, GxEPD_WHITE, 4);
+  
+  // 天气状况
+  displayDriver->drawString(x + 10, y + 60, weather.condition, GxEPD_GRAY1, GxEPD_WHITE, 2);
+  
+  // 天气预报（三天横向排列）
+  int forecastX = x + 150;
+  for (int i = 0; i < 3; i++) {
+    ForecastData forecast = weatherManager->getForecastData(i);
+    if (forecast.date.length() > 0) {
+      String dayStr = (i == 0) ? "今天" : ((i == 1) ? "明天" : "后天");
+      String icon = weatherManager->getWeatherIcon(forecast.condition);
+      displayDriver->drawString(forecastX + i * 55, y + 5, dayStr, GxEPD_GRAY1, GxEPD_WHITE, 1);
+      displayDriver->drawString(forecastX + i * 55, y + 20, icon, GxEPD_BLACK, GxEPD_WHITE, 3);
+      displayDriver->drawString(forecastX + i * 55, y + 50, String(forecast.tempDay, 0) + "°", GxEPD_BLUE, GxEPD_WHITE, 2);
+    }
+  }
+}
+
+void DisplayManager::drawSensor_7_5inch(int x, int y) {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto sensorManager = DependencyInjectionContainer::getInstance()->getSensorManager();
+  if (!sensorManager) {
+    return;
+  }
+  
+  SensorData sensor = sensorManager->getSensorData();
+  
+  // 绘制背景框（绿色渐变效果用单色代替）
+  displayDriver->fillRect(x, y, 320, 80, GxEPD_GRAY6);
+  displayDriver->drawRect(x, y, 320, 80, GxEPD_GREEN);
+  
+  // 标题
+  displayDriver->drawString(x + 10, y + 5, "🌡️ 室内环境", GxEPD_GREEN, GxEPD_WHITE, 2);
+  
+  // 传感器数据（3 列）
+  displayDriver->drawString(x + 10, y + 30, "温度", GxEPD_GRAY1, GxEPD_WHITE, 1);
+  displayDriver->drawString(x + 10, y + 48, String(sensor.temperature, 1) + "°C", GxEPD_GREEN, GxEPD_WHITE, 2);
+  
+  displayDriver->drawString(x + 110, y + 30, "湿度", GxEPD_GRAY1, GxEPD_WHITE, 1);
+  displayDriver->drawString(x + 110, y + 48, String(sensor.humidity, 0) + "%", GxEPD_GREEN, GxEPD_WHITE, 2);
+  
+  displayDriver->drawString(x + 210, y + 30, "空气质量", GxEPD_GRAY1, GxEPD_WHITE, 1);
+  displayDriver->drawString(x + 210, y + 48, "优", GxEPD_GREEN, GxEPD_WHITE, 2);
+}
+
+void DisplayManager::drawRightPanel_7_5inch() {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  int x = leftPanelWidth + 20, y = 20;
+  
+  // 日历
+  drawCalendar_7_5inch(x, y);
+  y += 200;
+  
+  // 节日
+  drawFestival_7_5inch(x, y);
+  y += 60;
+  
+  // 黄历
+  drawAlmanac_7_5inch(x, y);
+  y += 60;
+  
+  // 股票信息
+  drawStockInfo_7_5inch(x, y);
+  y += 80;
+  
+  // 消息通知
+  drawMessageInfo_7_5inch(x, y);
+  y += 60;
+  
+  // 系统状态
+  drawSystemStatus_7_5inch(x, y);
+}
+
+// 股票信息绘制
+void DisplayManager::drawStockInfo_7_5inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto stockManager = DependencyInjectionContainer::getInstance()->getStockManager();
+  
+  // 绘制股票标题
+  displayDriver->drawString(x, y, "📈 股票", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  // 示例股票数据（实际应从股票管理器获取）
+  int stockY = y + 20;
+  displayDriver->drawString(x, stockY, "上证指数: 3200.50 +0.8%", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(x, stockY + 15, "深证成指: 10500.20 +1.2%", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+// 消息通知绘制
+void DisplayManager::drawMessageInfo_7_5inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto messageManager = DependencyInjectionContainer::getInstance()->getMessageManager();
+  int messageCount = 0;
+  if (messageManager) {
+    messageCount = messageManager->getUnreadMessageCount();
+  }
+  
+  // 绘制消息标题
+  displayDriver->drawString(x, y, "🔔 消息", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  // 消息数量
+  int messageY = y + 20;
+  displayDriver->drawString(x, messageY, "未读消息: " + String(messageCount) + "条", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+// 系统状态绘制
+void DisplayManager::drawSystemStatus_7_5inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+  int batteryPercentage = 100;
+  bool isCharging = false;
+  if (powerManager) {
+    batteryPercentage = powerManager->getBatteryPercentage();
+    isCharging = powerManager->getChargingStatus();
+  }
+  
+  // 绘制系统状态标题
+  displayDriver->drawString(x, y, "⚙️ 系统", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  // 系统信息
+  int statusY = y + 20;
+  displayDriver->drawString(x, statusY, "电量: " + String(batteryPercentage) + "% " + (isCharging ? "充电中" : ""), GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(x, statusY + 15, "网络: 已连接", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(x, statusY + 30, "版本: v1.0.0", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+void DisplayManager::drawCalendar_7_5inch(int x, int y) {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) {
+    return;
+  }
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  // 绘制日历标题
+  String monthTitle = "📅 " + String(time.year) + "年" + String(time.month) + "月";
+  displayDriver->drawString(x, y, monthTitle, GxEPD_BLACK, GxEPD_WHITE, 3);
+  
+  // 绘制星期标题
+  const char* weekdays[] = {"日", "一", "二", "三", "四", "五", "六"};
+  int startX = x;
+  int cellWidth = 50;
+  int cellHeight = 35;
+  int startY = y + 30;
+  
+  for (int i = 0; i < 7; i++) {
+    displayDriver->drawString(startX + i * cellWidth, startY, weekdays[i], GxEPD_GRAY1, GxEPD_WHITE, 1);
+  }
+  
+  // 计算当月第一天是星期几和总天数
+  int firstWeekday = getFirstWeekdayOfMonth(time.year, time.month);
+  int daysInMonth = getDaysInMonth(time.year, time.month);
+  
+  // 绘制日期
+  int currentX = startX + firstWeekday * cellWidth;
+  int currentY = startY + 20;
+  
+  for (int day = 1; day <= daysInMonth; day++) {
+    if (day == time.day) {
+      // 今天：反色显示
+      displayDriver->fillRect(currentX - 2, currentY - 2, cellWidth - 2, cellHeight, GxEPD_BLACK);
+      displayDriver->drawString(currentX, currentY, String(day), GxEPD_WHITE, GxEPD_BLACK, 2);
+    } else {
+      displayDriver->drawString(currentX, currentY, String(day), GxEPD_BLACK, GxEPD_WHITE, 2);
+    }
+    
+    currentX += cellWidth;
+    if (currentX > startX + 6 * cellWidth) {
+      currentX = startX;
+      currentY += cellHeight;
+    }
+  }
+}
+
+void DisplayManager::drawFestival_7_5inch(int x, int y) {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) {
+    return;
+  }
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  // 绘制节日标题
+  displayDriver->drawString(x, y, "🎉 节日", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  // 示例节日数据（实际应从节日管理器获取）
+  int festivalY = y + 20;
+  
+  // 春分示例
+  displayDriver->drawString(x, festivalY, "🌸 春分 (3 月 21 日)", GxEPD_BLACK, GxEPD_WHITE, 1);
+  festivalY += 15;
+  
+  // 清明示例
+  displayDriver->drawString(x, festivalY, "🎊 清明 (4 月 5 日)", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+void DisplayManager::drawAlmanac_7_5inch(int x, int y) {
+  if (displayDriver == nullptr) {
+    return;
+  }
+  
+  auto lunarManager = DependencyInjectionContainer::getInstance()->getLunarManager();
+  if (!lunarManager) {
+    return;
+  }
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) {
+    return;
+  }
+  
+  TimeData time = timeManager->getCurrentTime();
+  LunarData lunar = lunarManager->getLunarDate(time.year, time.month, time.day);
+  
+  // 绘制黄历标题
+  displayDriver->drawString(x, y, "📜 黄历", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  // 绘制宜忌
+  int almanacY = y + 20;
+  
+  // 示例宜忌（实际应从农历管理器获取）
+  String goodItems = "宜：祭祀 祈福 求嗣";
+  String badItems = "忌：嫁娶 出行 动土";
+  
+  displayDriver->drawString(x, almanacY, goodItems, GxEPD_GREEN, GxEPD_WHITE, 1);
+  almanacY += 15;
+  displayDriver->drawString(x, almanacY, badItems, GxEPD_RED, GxEPD_WHITE, 1);
+}
+
+// ========== 4.2 寸 (400x300) UI 绘制 ==========
+
+void DisplayManager::drawUI_4_2inch() {
+  if (displayDriver == nullptr) return;
+  
+  displayDriver->fillScreen(GxEPD_WHITE);
+  
+  drawStatusBar_4_2inch();
+  drawTime_4_2inch();
+  drawDate_4_2inch();
+  drawWeather_4_2inch();
+  drawSensor_4_2inch();
+  drawCalendar_4_2inch();
+  drawFestival_4_2inch();
+  drawAlmanac_4_2inch();
+  
+  displayDriver->update();
+}
+
+void DisplayManager::drawStatusBar_4_2inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+  auto messageManager = DependencyInjectionContainer::getInstance()->getMessageManager();
+  
+  if (!powerManager || !messageManager) return;
+  
+  int percentage = powerManager->getBatteryPercentage();
+  int messageCount = messageManager->getUnreadMessageCount();
+  
+  int x = 2, y = 2;
+  displayDriver->drawRect(x, y, 18, 9, GxEPD_BLACK);
+  displayDriver->drawRect(x + 18, y + 2, 2, 5, GxEPD_BLACK);
+  
+  int levelWidth = 14 * percentage / 100;
+  displayDriver->fillRect(x + 2, y + 2, levelWidth, 5, GxEPD_BLACK);
+  
+  displayDriver->drawString(x + 22, y, String(percentage) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+  
+  if (messageCount > 0) {
+    displayDriver->drawString(x + 50, y, "🔔" + String(messageCount), GxEPD_BLACK, GxEPD_WHITE, 1);
+  }
+}
+
+void DisplayManager::drawTime_4_2inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  String timeStr = String(time.hour).padStart(2, '0') + ":" + String(time.minute).padStart(2, '0');
+  
+  displayDriver->drawString(0, 14, timeStr, GxEPD_BLACK, GxEPD_WHITE, 4);
+}
+
+void DisplayManager::drawDate_4_2inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  auto lunarManager = DependencyInjectionContainer::getInstance()->getLunarManager();
+  
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  String dateStr = String(time.year) + "-" + String(time.month).padStart(2, '0') + "-" + String(time.day).padStart(2, '0');
+  String weekStr = getWeekString(time.weekday);
+  displayDriver->drawString(0, 50, dateStr + " " + weekStr, GxEPD_BLACK, GxEPD_WHITE, 1);
+  
+  if (lunarManager) {
+    LunarData lunar = lunarManager->getLunarDate(time.year, time.month, time.day);
+    displayDriver->drawString(0, 62, lunar.lunarMonth + "月" + lunar.lunarDay, GxEPD_GRAY1, GxEPD_WHITE, 1);
+  }
+}
+
+void DisplayManager::drawWeather_4_2inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto weatherManager = DependencyInjectionContainer::getInstance()->getWeatherManager();
+  if (!weatherManager) return;
+  
+  WeatherData weather = weatherManager->getWeatherData();
+  
+  displayDriver->drawString(0, 75, String(weather.temperature, 0) + "°C", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  int forecastY = 95;
+  for (int i = 0; i < 3; i++) {
+    ForecastData forecast = weatherManager->getForecastData(i);
+    if (forecast.date.length() > 0) {
+      int x = i * 60;
+      String icon = weatherManager->getWeatherIcon(forecast.condition);
+      displayDriver->drawString(x, forecastY, icon, GxEPD_BLACK, GxEPD_WHITE, 1);
+      displayDriver->drawString(x + 12, forecastY, String(forecast.tempDay, 0) + "°", GxEPD_BLUE, GxEPD_WHITE, 1);
+    }
+  }
+}
+
+void DisplayManager::drawSensor_4_2inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto sensorManager = DependencyInjectionContainer::getInstance()->getSensorManager();
+  if (!sensorManager) return;
+  
+  SensorData sensor = sensorManager->getSensorData();
+  
+  displayDriver->drawFastHLine(0, height - 15, 180, GxEPD_GRAY1);
+  
+  int y = height - 12;
+  displayDriver->drawString(5, y, "🌡️" + String(sensor.temperature, 1) + "°", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(60, y, "💧" + String(sensor.humidity, 0) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(115, y, "🌿优", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+void DisplayManager::drawCalendar_4_2inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  int x = 185, y = 5;
+  String monthTitle = "📅 " + String(time.month) + "月";
+  displayDriver->drawString(x, y, monthTitle, GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  const char* weekdays[] = {"日", "一", "二", "三", "四", "五", "六"};
+  int startX = x;
+  int cellWidth = 30;
+  int startY = y + 20;
+  
+  for (int i = 0; i < 7; i++) {
+    displayDriver->drawString(startX + i * cellWidth, startY, weekdays[i], GxEPD_GRAY1, GxEPD_WHITE, 1);
+  }
+  
+  int firstWeekday = getFirstWeekdayOfMonth(time.year, time.month);
+  int daysInMonth = getDaysInMonth(time.year, time.month);
+  
+  int currentX = startX + firstWeekday * cellWidth;
+  int currentY = startY + 12;
+  
+  for (int day = 1; day <= daysInMonth; day++) {
+    if (day == time.day) {
+      displayDriver->fillRect(currentX - 1, currentY - 1, cellWidth - 2, 10, GxEPD_BLACK);
+      displayDriver->drawString(currentX, currentY, String(day), GxEPD_WHITE, GxEPD_BLACK, 1);
+    } else {
+      displayDriver->drawString(currentX, currentY, String(day), GxEPD_BLACK, GxEPD_WHITE, 1);
+    }
+    
+    currentX += cellWidth;
+    if (currentX > startX + 6 * cellWidth) {
+      currentX = startX;
+      currentY += 12;
+    }
+  }
+}
+
+void DisplayManager::drawFestival_4_2inch() {
+  if (displayDriver == nullptr) return;
+  
+  int x = 185, y = 130;
+  displayDriver->drawString(x, y, "🎉 节日", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(x, y + 12, "🌸 春分 (3月21日)", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+void DisplayManager::drawAlmanac_4_2inch() {
+  if (displayDriver == nullptr) return;
+  
+  int x = 185, y = 160;
+  displayDriver->drawString(x, y, "📜 黄历", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(x, y + 12, "宜：祭祀 祈福", GxEPD_GREEN, GxEPD_WHITE, 1);
+  displayDriver->drawString(x, y + 24, "忌：嫁娶 出行", GxEPD_RED, GxEPD_WHITE, 1);
+}
+
+// ========== 3.7 寸 (480x280) UI 绘制 ==========
+
+void DisplayManager::drawUI_3_7inch() {
+  if (displayDriver == nullptr) return;
+  
+  displayDriver->fillScreen(GxEPD_WHITE);
+  
+  drawStatusBar_3_7inch();
+  drawTime_3_7inch();
+  drawDate_3_7inch();
+  drawWeather_3_7inch();
+  drawSensor_3_7inch();
+  drawCalendar_3_7inch();
+  drawFestival_3_7inch();
+  drawAlmanac_3_7inch();
+  
+  displayDriver->update();
+}
+
+void DisplayManager::drawStatusBar_3_7inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+  auto messageManager = DependencyInjectionContainer::getInstance()->getMessageManager();
+  
+  if (!powerManager || !messageManager) return;
+  
+  int percentage = powerManager->getBatteryPercentage();
+  int messageCount = messageManager->getUnreadMessageCount();
+  
+  int x = 2, y = 2;
+  displayDriver->drawRect(x, y, 20, 10, GxEPD_BLACK);
+  displayDriver->drawRect(x + 20, y + 2, 2, 6, GxEPD_BLACK);
+  
+  int levelWidth = 16 * percentage / 100;
+  displayDriver->fillRect(x + 2, y + 2, levelWidth, 6, GxEPD_BLACK);
+  
+  displayDriver->drawString(x + 25, y, String(percentage) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+  
+  if (messageCount > 0) {
+    displayDriver->drawString(x + 55, y, "🔔" + String(messageCount), GxEPD_BLACK, GxEPD_WHITE, 1);
+  }
+}
+
+void DisplayManager::drawTime_3_7inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  String timeStr = String(time.hour).padStart(2, '0') + ":" + String(time.minute).padStart(2, '0');
+  
+  displayDriver->drawString(0, 16, timeStr, GxEPD_BLACK, GxEPD_WHITE, 4);
+}
+
+void DisplayManager::drawDate_3_7inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  auto lunarManager = DependencyInjectionContainer::getInstance()->getLunarManager();
+  
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  String dateStr = String(time.year) + "-" + String(time.month).padStart(2, '0') + "-" + String(time.day).padStart(2, '0');
+  String weekStr = getWeekString(time.weekday);
+  displayDriver->drawString(0, 55, dateStr + " " + weekStr, GxEPD_BLACK, GxEPD_WHITE, 1);
+  
+  if (lunarManager) {
+    LunarData lunar = lunarManager->getLunarDate(time.year, time.month, time.day);
+    displayDriver->drawString(0, 68, lunar.lunarMonth + "月" + lunar.lunarDay, GxEPD_GRAY1, GxEPD_WHITE, 1);
+  }
+}
+
+void DisplayManager::drawWeather_3_7inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto weatherManager = DependencyInjectionContainer::getInstance()->getWeatherManager();
+  if (!weatherManager) return;
+  
+  WeatherData weather = weatherManager->getWeatherData();
+  
+  displayDriver->drawString(0, 82, String(weather.temperature, 0) + "°C", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  int forecastY = 105;
+  for (int i = 0; i < 3; i++) {
+    ForecastData forecast = weatherManager->getForecastData(i);
+    if (forecast.date.length() > 0) {
+      int x = i * 70;
+      String icon = weatherManager->getWeatherIcon(forecast.condition);
+      displayDriver->drawString(x, forecastY, icon, GxEPD_BLACK, GxEPD_WHITE, 1);
+      displayDriver->drawString(x + 14, forecastY, String(forecast.tempDay, 0) + "°", GxEPD_BLUE, GxEPD_WHITE, 1);
+    }
+  }
+}
+
+void DisplayManager::drawSensor_3_7inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto sensorManager = DependencyInjectionContainer::getInstance()->getSensorManager();
+  if (!sensorManager) return;
+  
+  SensorData sensor = sensorManager->getSensorData();
+  
+  displayDriver->drawFastHLine(0, height - 15, 216, GxEPD_GRAY1);
+  
+  int y = height - 12;
+  displayDriver->drawString(5, y, "🌡️" + String(sensor.temperature, 1) + "°", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(75, y, "💧" + String(sensor.humidity, 0) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(145, y, "🌿优", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+void DisplayManager::drawCalendar_3_7inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  int x = 220, y = 5;
+  String monthTitle = "📅 " + String(time.year) + "年" + String(time.month) + "月";
+  displayDriver->drawString(x, y, monthTitle, GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  const char* weekdays[] = {"日", "一", "二", "三", "四", "五", "六"};
+  int startX = x;
+  int cellWidth = 35;
+  int startY = y + 22;
+  
+  for (int i = 0; i < 7; i++) {
+    displayDriver->drawString(startX + i * cellWidth, startY, weekdays[i], GxEPD_GRAY1, GxEPD_WHITE, 1);
+  }
+  
+  int firstWeekday = getFirstWeekdayOfMonth(time.year, time.month);
+  int daysInMonth = getDaysInMonth(time.year, time.month);
+  
+  int currentX = startX + firstWeekday * cellWidth;
+  int currentY = startY + 14;
+  
+  for (int day = 1; day <= daysInMonth; day++) {
+    if (day == time.day) {
+      displayDriver->fillRect(currentX - 1, currentY - 1, cellWidth - 2, 12, GxEPD_BLACK);
+      displayDriver->drawString(currentX, currentY, String(day), GxEPD_WHITE, GxEPD_BLACK, 1);
+    } else {
+      displayDriver->drawString(currentX, currentY, String(day), GxEPD_BLACK, GxEPD_WHITE, 1);
+    }
+    
+    currentX += cellWidth;
+    if (currentX > startX + 6 * cellWidth) {
+      currentX = startX;
+      currentY += 14;
+    }
+  }
+}
+
+void DisplayManager::drawFestival_3_7inch() {
+  if (displayDriver == nullptr) return;
+  
+  int x = 220, y = 130;
+  displayDriver->drawString(x, y, "🎉 节日", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(x, y + 14, "🌸 春分 (3月21日)", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+void DisplayManager::drawAlmanac_3_7inch() {
+  if (displayDriver == nullptr) return;
+  
+  int x = 220, y = 165;
+  displayDriver->drawString(x, y, "📜 黄历", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(x, y + 14, "宜：祭祀 祈福", GxEPD_GREEN, GxEPD_WHITE, 1);
+  displayDriver->drawString(x, y + 28, "忌：嫁娶 出行", GxEPD_RED, GxEPD_WHITE, 1);
+}
+
+// ========== 2.66 寸 (296x152) UI 绘制 ==========
+
+void DisplayManager::drawUI_2_66inch() {
+  if (displayDriver == nullptr) return;
+  
+  displayDriver->fillScreen(GxEPD_WHITE);
+  
+  drawStatusBar_2_66inch();
+  drawTime_2_66inch();
+  drawDate_2_66inch();
+  drawWeather_2_66inch();
+  drawSensor_2_66inch();
+  
+  displayDriver->update();
+}
+
+void DisplayManager::drawStatusBar_2_66inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+  auto messageManager = DependencyInjectionContainer::getInstance()->getMessageManager();
+  
+  if (!powerManager || !messageManager) return;
+  
+  int percentage = powerManager->getBatteryPercentage();
+  int messageCount = messageManager->getUnreadMessageCount();
+  
+  int x = 2, y = 2;
+  displayDriver->drawRect(x, y, 16, 8, GxEPD_BLACK);
+  displayDriver->drawRect(x + 16, y + 2, 2, 4, GxEPD_BLACK);
+  
+  int levelWidth = 12 * percentage / 100;
+  displayDriver->fillRect(x + 2, y + 2, levelWidth, 4, GxEPD_BLACK);
+  
+  displayDriver->drawString(x + 20, y, String(percentage) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+  
+  if (messageCount > 0) {
+    displayDriver->drawString(x + 45, y, "🔔" + String(messageCount), GxEPD_BLACK, GxEPD_WHITE, 1);
+  }
+  
+  displayDriver->drawFastHLine(0, 12, width, GxEPD_GRAY1);
+}
+
+void DisplayManager::drawTime_2_66inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  String timeStr = String(time.hour).padStart(2, '0') + ":" + String(time.minute).padStart(2, '0');
+  
+  displayDriver->drawString(0, 16, timeStr, GxEPD_BLACK, GxEPD_WHITE, 3);
+}
+
+void DisplayManager::drawDate_2_66inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  auto lunarManager = DependencyInjectionContainer::getInstance()->getLunarManager();
+  
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  String dateStr = String(time.year) + "-" + String(time.month).padStart(2, '0') + "-" + String(time.day).padStart(2, '0');
+  String weekStr = getWeekString(time.weekday);
+  displayDriver->drawString(0, 42, dateStr + " " + weekStr, GxEPD_BLACK, GxEPD_WHITE, 1);
+  
+  if (lunarManager) {
+    LunarData lunar = lunarManager->getLunarDate(time.year, time.month, time.day);
+    displayDriver->drawString(0, 54, lunar.lunarMonth + "月" + lunar.lunarDay, GxEPD_GRAY1, GxEPD_WHITE, 1);
+  }
+}
+
+void DisplayManager::drawWeather_2_66inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto weatherManager = DependencyInjectionContainer::getInstance()->getWeatherManager();
+  if (!weatherManager) return;
+  
+  WeatherData weather = weatherManager->getWeatherData();
+  
+  displayDriver->drawString(0, 68, String(weather.temperature, 0) + "°C", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  int forecastY = 88;
+  for (int i = 0; i < 3; i++) {
+    ForecastData forecast = weatherManager->getForecastData(i);
+    if (forecast.date.length() > 0) {
+      int x = i * 95;
+      String icon = weatherManager->getWeatherIcon(forecast.condition);
+      displayDriver->drawString(x, forecastY, icon, GxEPD_BLACK, GxEPD_WHITE, 1);
+      displayDriver->drawString(x + 12, forecastY, String(forecast.tempDay, 0) + "°", GxEPD_BLUE, GxEPD_WHITE, 1);
+    }
+  }
+}
+
+void DisplayManager::drawSensor_2_66inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto sensorManager = DependencyInjectionContainer::getInstance()->getSensorManager();
+  if (!sensorManager) return;
+  
+  SensorData sensor = sensorManager->getSensorData();
+  
+  displayDriver->drawFastHLine(0, height - 15, width, GxEPD_GRAY1);
+  
+  int y = height - 12;
+  displayDriver->drawString(5, y, "🌡️" + String(sensor.temperature, 1) + "°", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(width / 3, y, "💧" + String(sensor.humidity, 0) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(width * 2 / 3, y, "🌿优", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+// ========== 1.44 寸 (128x128) UI 绘制 ==========
+
+void DisplayManager::drawUI_1_44inch() {
+  if (displayDriver == nullptr) return;
+  
+  displayDriver->fillScreen(GxEPD_WHITE);
+  
+  drawStatusBar_1_44inch();
+  drawTime_1_44inch();
+  drawDate_1_44inch();
+  drawWeather_1_44inch();
+  drawSensor_1_44inch();
+  
+  displayDriver->update();
+}
+
+void DisplayManager::drawStatusBar_1_44inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+  auto messageManager = DependencyInjectionContainer::getInstance()->getMessageManager();
+  
+  if (!powerManager || !messageManager) return;
+  
+  int percentage = powerManager->getBatteryPercentage();
+  int messageCount = messageManager->getUnreadMessageCount();
+  
+  int x = 2, y = 2;
+  displayDriver->drawRect(x, y, 12, 6, GxEPD_BLACK);
+  displayDriver->drawRect(x + 12, y + 1, 1, 4, GxEPD_BLACK);
+  
+  int levelWidth = 10 * percentage / 100;
+  displayDriver->fillRect(x + 1, y + 1, levelWidth, 4, GxEPD_BLACK);
+  
+  displayDriver->drawString(x + 15, y, String(percentage) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+  
+  if (messageCount > 0) {
+    displayDriver->drawString(x + 35, y, "🔔" + String(messageCount), GxEPD_BLACK, GxEPD_WHITE, 1);
+  }
+}
+
+void DisplayManager::drawTime_1_44inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  String timeStr = String(time.hour).padStart(2, '0') + ":" + String(time.minute).padStart(2, '0');
+  
+  displayDriver->drawString(0, 12, timeStr, GxEPD_BLACK, GxEPD_WHITE, 3);
+}
+
+void DisplayManager::drawDate_1_44inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  auto lunarManager = DependencyInjectionContainer::getInstance()->getLunarManager();
+  
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  String dateStr = String(time.month).padStart(2, '0') + "-" + String(time.day).padStart(2, '0');
+  String weekStr = getWeekString(time.weekday);
+  displayDriver->drawString(0, 38, dateStr + " " + weekStr, GxEPD_BLACK, GxEPD_WHITE, 1);
+  
+  if (lunarManager) {
+    LunarData lunar = lunarManager->getLunarDate(time.year, time.month, time.day);
+    displayDriver->drawString(0, 50, lunar.lunarMonth + lunar.lunarDay, GxEPD_GRAY1, GxEPD_WHITE, 1);
+  }
+}
+
+void DisplayManager::drawWeather_1_44inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto weatherManager = DependencyInjectionContainer::getInstance()->getWeatherManager();
+  if (!weatherManager) return;
+  
+  WeatherData weather = weatherManager->getWeatherData();
+  
+  displayDriver->drawString(0, 62, String(weather.temperature, 0) + "°C", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  int forecastY = 82;
+  for (int i = 0; i < 3; i++) {
+    ForecastData forecast = weatherManager->getForecastData(i);
+    if (forecast.date.length() > 0) {
+      int x = i * 42;
+      String icon = weatherManager->getWeatherIcon(forecast.condition);
+      displayDriver->drawString(x, forecastY, icon, GxEPD_BLACK, GxEPD_WHITE, 1);
+      displayDriver->drawString(x + 10, forecastY, String(forecast.tempDay, 0) + "°", GxEPD_BLUE, GxEPD_WHITE, 1);
+    }
+  }
+}
+
+void DisplayManager::drawSensor_1_44inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto sensorManager = DependencyInjectionContainer::getInstance()->getSensorManager();
+  if (!sensorManager) return;
+  
+  SensorData sensor = sensorManager->getSensorData();
+  
+  displayDriver->drawFastHLine(0, height - 14, width, GxEPD_GRAY1);
+  
+  int y = height - 11;
+  displayDriver->drawString(5, y, "🌡️" + String(sensor.temperature, 1) + "°", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(width / 2, y, "💧" + String(sensor.humidity, 0) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+// ========== 1.02 寸 (80x128) UI 绘制 ==========
+
+void DisplayManager::drawUI_1_02inch() {
+  if (displayDriver == nullptr) return;
+  
+  displayDriver->fillScreen(GxEPD_WHITE);
+  
+  drawStatusBar_1_02inch();
+  drawTime_1_02inch();
+  drawDate_1_02inch();
+  drawWeather_1_02inch();
+  drawSensor_1_02inch();
+  
+  displayDriver->update();
+}
+
+// ========== 7.3 寸 (1920x1080) UI 绘制 ==========
+
+void DisplayManager::drawUI_7_3inch() {
+  if (displayDriver == nullptr) return;
+  
+  // 清屏
+  displayDriver->fillScreen(GxEPD_WHITE);
+  
+  // 计算左右面板位置
+  leftPanelWidth = width * 0.45;
+  int rightPanelX = leftPanelWidth;
+  
+  // 绘制左侧面板背景
+  displayDriver->fillRect(0, 0, leftPanelWidth, height, GxEPD_WHITE);
+  displayDriver->drawFastVLine(leftPanelWidth, 0, height, GxEPD_GRAY1);
+  
+  // 绘制右侧面板背景（浅灰色）
+  displayDriver->fillRect(rightPanelX, 0, width - rightPanelX, height, GxEPD_GRAY5);
+  
+  // 绘制左侧内容
+  drawLeftPanel_7_3inch();
+  
+  // 绘制右侧内容
+  drawRightPanel_7_3inch();
+  
+  // 刷新显示
+  displayDriver->update();
+}
+
+void DisplayManager::drawLeftPanel_7_3inch() {
+  if (displayDriver == nullptr) return;
+  
+  int x = 30, y = 30;
+  
+  // 状态栏
+  drawStatusBar_7_3inch();
+  y = 80;
+  
+  // 时间显示（80px 粗体）
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (timeManager) {
+    TimeData time = timeManager->getCurrentTime();
+    String timeStr = String(time.hour).padStart(2, '0') + ":" + String(time.minute).padStart(2, '0') + ":" + String(time.second).padStart(2, '0');
+    displayDriver->drawString(x, y, timeStr, GxEPD_BLACK, GxEPD_WHITE, 8);
+  }
+  
+  // 日期和农历（20px）
+  y += 100;
+  drawDate_7_3inch(x, y);
+  
+  // 天气区域（蓝色渐变背景）
+  y += 40;
+  drawWeather_7_3inch(x, y);
+  
+  // 传感器区域（绿色渐变背景）
+  y += 120;
+  drawSensor_7_3inch(x, y);
+}
+
+void DisplayManager::drawStatusBar_7_3inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+  auto messageManager = DependencyInjectionContainer::getInstance()->getMessageManager();
+  
+  if (!powerManager || !messageManager) return;
+  
+  int percentage = powerManager->getBatteryPercentage();
+  int messageCount = messageManager->getUnreadMessageCount();
+  
+  int x = 30, y = 30;
+  
+  // 绘制电池图标 (40x20px)
+  displayDriver->drawRect(x, y, 40, 20, GxEPD_BLACK);
+  displayDriver->drawRect(x + 40, y + 5, 4, 10, GxEPD_BLACK);
+  
+  // 绘制电量
+  int levelWidth = 32 * percentage / 100;
+  displayDriver->fillRect(x + 4, y + 4, levelWidth, 12, GxEPD_BLACK);
+  
+  // 绘制百分比文字
+  displayDriver->drawString(x + 48, y + 2, String(percentage) + "%", GxEPD_BLACK, GxEPD_WHITE, 3);
+  
+  // 绘制消息数量
+  if (messageCount > 0) {
+    displayDriver->drawString(x + 120, y + 2, "🔔 " + String(messageCount) + "条", GxEPD_BLACK, GxEPD_WHITE, 3);
+  }
+}
+
+void DisplayManager::drawDate_7_3inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  auto lunarManager = DependencyInjectionContainer::getInstance()->getLunarManager();
+  
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  // 公历日期
+  String dateStr = String(time.year) + "-" + String(time.month).padStart(2, '0') + "-" + String(time.day).padStart(2, '0');
+  String weekStr = getWeekString(time.weekday);
+  
+  // 农历日期
+  String lunarStr = "";
+  if (lunarManager) {
+    LunarData lunar = lunarManager->getLunarDate(time.year, time.month, time.day);
+    lunarStr = " | " + lunar.lunarMonth + "月" + lunar.lunarDay;
+  }
+  
+  displayDriver->drawString(x, y, dateStr + " " + weekStr + lunarStr, GxEPD_BLACK, GxEPD_WHITE, 3);
+}
+
+void DisplayManager::drawWeather_7_3inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto weatherManager = DependencyInjectionContainer::getInstance()->getWeatherManager();
+  if (!weatherManager) return;
+  
+  WeatherData weather = weatherManager->getWeatherData();
+  
+  // 绘制背景框（蓝色渐变效果用单色代替）
+  displayDriver->fillRect(x, y, 800, 150, GxEPD_GRAY5);
+  displayDriver->drawRect(x, y, 800, 150, GxEPD_BLUE);
+  
+  // 城市
+  displayDriver->drawString(x + 15, y + 10, "📍 北京市", GxEPD_BLUE, GxEPD_WHITE, 3);
+  
+  // 当前温度（40px 粗体）
+  displayDriver->drawString(x + 15, y + 40, String(weather.temperature, 0) + "°C", GxEPD_BLACK, GxEPD_WHITE, 5);
+  
+  // 天气状况
+  displayDriver->drawString(x + 15, y + 90, weather.condition, GxEPD_GRAY1, GxEPD_WHITE, 3);
+  
+  // 天气预报（三天横向排列）
+  int forecastX = x + 300;
+  for (int i = 0; i < 3; i++) {
+    ForecastData forecast = weatherManager->getForecastData(i);
+    if (forecast.date.length() > 0) {
+      String dayStr = (i == 0) ? "今天" : ((i == 1) ? "明天" : "后天");
+      String icon = weatherManager->getWeatherIcon(forecast.condition);
+      displayDriver->drawString(forecastX + i * 150, y + 10, dayStr, GxEPD_GRAY1, GxEPD_WHITE, 2);
+      displayDriver->drawString(forecastX + i * 150, y + 40, icon, GxEPD_BLACK, GxEPD_WHITE, 4);
+      displayDriver->drawString(forecastX + i * 150, y + 100, String(forecast.tempDay, 0) + "°", GxEPD_BLUE, GxEPD_WHITE, 3);
+    }
+  }
+}
+
+void DisplayManager::drawSensor_7_3inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto sensorManager = DependencyInjectionContainer::getInstance()->getSensorManager();
+  if (!sensorManager) return;
+  
+  SensorData sensor = sensorManager->getSensorData();
+  
+  // 绘制背景框（绿色渐变效果用单色代替）
+  displayDriver->fillRect(x, y, 800, 120, GxEPD_GRAY6);
+  displayDriver->drawRect(x, y, 800, 120, GxEPD_GREEN);
+  
+  // 标题
+  displayDriver->drawString(x + 15, y + 10, "🌡️ 室内环境", GxEPD_GREEN, GxEPD_WHITE, 3);
+  
+  // 传感器数据（3 列）
+  displayDriver->drawString(x + 15, y + 45, "温度", GxEPD_GRAY1, GxEPD_WHITE, 2);
+  displayDriver->drawString(x + 15, y + 75, String(sensor.temperature, 1) + "°C", GxEPD_GREEN, GxEPD_WHITE, 3);
+  
+  displayDriver->drawString(x + 270, y + 45, "湿度", GxEPD_GRAY1, GxEPD_WHITE, 2);
+  displayDriver->drawString(x + 270, y + 75, String(sensor.humidity, 0) + "%", GxEPD_GREEN, GxEPD_WHITE, 3);
+  
+  displayDriver->drawString(x + 530, y + 45, "空气质量", GxEPD_GRAY1, GxEPD_WHITE, 2);
+  displayDriver->drawString(x + 530, y + 75, "优", GxEPD_GREEN, GxEPD_WHITE, 3);
+}
+
+void DisplayManager::drawRightPanel_7_3inch() {
+  if (displayDriver == nullptr) return;
+  
+  int x = leftPanelWidth + 30, y = 30;
+  
+  // 日历
+  drawCalendar_7_3inch(x, y);
+  y += 300;
+  
+  // 节日
+  drawFestival_7_3inch(x, y);
+  y += 80;
+  
+  // 黄历
+  drawAlmanac_7_3inch(x, y);
+  y += 80;
+  
+  // 股票信息
+  drawStockInfo_7_3inch(x, y);
+  y += 100;
+  
+  // 消息通知
+  drawMessageInfo_7_3inch(x, y);
+  y += 80;
+  
+  // 系统状态
+  drawSystemStatus_7_3inch(x, y);
+}
+
+// 7.3寸股票信息绘制
+void DisplayManager::drawStockInfo_7_3inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  // 绘制股票标题
+  displayDriver->drawString(x, y, "📈 股票", GxEPD_BLACK, GxEPD_WHITE, 3);
+  
+  // 示例股票数据
+  int stockY = y + 30;
+  displayDriver->drawString(x, stockY, "上证指数: 3200.50 +0.8%", GxEPD_BLACK, GxEPD_WHITE, 2);
+  displayDriver->drawString(x, stockY + 25, "深证成指: 10500.20 +1.2%", GxEPD_BLACK, GxEPD_WHITE, 2);
+}
+
+// 7.3寸消息通知绘制
+void DisplayManager::drawMessageInfo_7_3inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto messageManager = DependencyInjectionContainer::getInstance()->getMessageManager();
+  int messageCount = 0;
+  if (messageManager) {
+    messageCount = messageManager->getUnreadMessageCount();
+  }
+  
+  // 绘制消息标题
+  displayDriver->drawString(x, y, "🔔 消息", GxEPD_BLACK, GxEPD_WHITE, 3);
+  
+  // 消息数量
+  int messageY = y + 30;
+  displayDriver->drawString(x, messageY, "未读消息: " + String(messageCount) + "条", GxEPD_BLACK, GxEPD_WHITE, 2);
+}
+
+// 7.3寸系统状态绘制
+void DisplayManager::drawSystemStatus_7_3inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+  int batteryPercentage = 100;
+  bool isCharging = false;
+  if (powerManager) {
+    batteryPercentage = powerManager->getBatteryPercentage();
+    isCharging = powerManager->getChargingStatus();
+  }
+  
+  // 绘制系统状态标题
+  displayDriver->drawString(x, y, "⚙️ 系统", GxEPD_BLACK, GxEPD_WHITE, 3);
+  
+  // 系统信息
+  int statusY = y + 30;
+  displayDriver->drawString(x, statusY, "电量: " + String(batteryPercentage) + "% " + (isCharging ? "充电中" : ""), GxEPD_BLACK, GxEPD_WHITE, 2);
+  displayDriver->drawString(x, statusY + 25, "网络: 已连接", GxEPD_BLACK, GxEPD_WHITE, 2);
+  displayDriver->drawString(x, statusY + 50, "版本: v1.0.0", GxEPD_BLACK, GxEPD_WHITE, 2);
+}
+
+// ========== 6 寸 (1448x1072) UI 绘制 ==========
+
+void DisplayManager::drawUI_6inch() {
+  if (displayDriver == nullptr) return;
+  
+  // 清屏
+  displayDriver->fillScreen(GxEPD_WHITE);
+  
+  // 计算左右面板位置
+  leftPanelWidth = width * 0.45;
+  int rightPanelX = leftPanelWidth;
+  
+  // 绘制左侧面板背景
+  displayDriver->fillRect(0, 0, leftPanelWidth, height, GxEPD_WHITE);
+  displayDriver->drawFastVLine(leftPanelWidth, 0, height, GxEPD_GRAY1);
+  
+  // 绘制右侧面板背景（浅灰色）
+  displayDriver->fillRect(rightPanelX, 0, width - rightPanelX, height, GxEPD_GRAY5);
+  
+  // 绘制左侧内容
+  drawLeftPanel_6inch();
+  
+  // 绘制右侧内容
+  drawRightPanel_6inch();
+  
+  // 刷新显示
+  displayDriver->update();
+}
+
+void DisplayManager::drawLeftPanel_6inch() {
+  if (displayDriver == nullptr) return;
+  
+  int x = 25, y = 25;
+  
+  // 状态栏
+  drawStatusBar_6inch();
+  y = 70;
+  
+  // 时间显示（60px 粗体）
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (timeManager) {
+    TimeData time = timeManager->getCurrentTime();
+    String timeStr = String(time.hour).padStart(2, '0') + ":" + String(time.minute).padStart(2, '0') + ":" + String(time.second).padStart(2, '0');
+    displayDriver->drawString(x, y, timeStr, GxEPD_BLACK, GxEPD_WHITE, 6);
+  }
+  
+  // 日期和农历（18px）
+  y += 80;
+  drawDate_6inch(x, y);
+  
+  // 天气区域（蓝色渐变背景）
+  y += 35;
+  drawWeather_6inch(x, y);
+  
+  // 传感器区域（绿色渐变背景）
+  y += 100;
+  drawSensor_6inch(x, y);
+}
+
+void DisplayManager::drawStatusBar_6inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+  auto messageManager = DependencyInjectionContainer::getInstance()->getMessageManager();
+  
+  if (!powerManager || !messageManager) return;
+  
+  int percentage = powerManager->getBatteryPercentage();
+  int messageCount = messageManager->getUnreadMessageCount();
+  
+  int x = 25, y = 25;
+  
+  // 绘制电池图标 (35x18px)
+  displayDriver->drawRect(x, y, 35, 18, GxEPD_BLACK);
+  displayDriver->drawRect(x + 35, y + 4, 3, 10, GxEPD_BLACK);
+  
+  // 绘制电量
+  int levelWidth = 28 * percentage / 100;
+  displayDriver->fillRect(x + 3, y + 3, levelWidth, 12, GxEPD_BLACK);
+  
+  // 绘制百分比文字
+  displayDriver->drawString(x + 42, y + 2, String(percentage) + "%", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  // 绘制消息数量
+  if (messageCount > 0) {
+    displayDriver->drawString(x + 100, y + 2, "🔔 " + String(messageCount) + "条", GxEPD_BLACK, GxEPD_WHITE, 2);
+  }
+}
+
+void DisplayManager::drawDate_6inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  auto lunarManager = DependencyInjectionContainer::getInstance()->getLunarManager();
+  
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  // 公历日期
+  String dateStr = String(time.year) + "-" + String(time.month).padStart(2, '0') + "-" + String(time.day).padStart(2, '0');
+  String weekStr = getWeekString(time.weekday);
+  
+  // 农历日期
+  String lunarStr = "";
+  if (lunarManager) {
+    LunarData lunar = lunarManager->getLunarDate(time.year, time.month, time.day);
+    lunarStr = " | " + lunar.lunarMonth + "月" + lunar.lunarDay;
+  }
+  
+  displayDriver->drawString(x, y, dateStr + " " + weekStr + lunarStr, GxEPD_BLACK, GxEPD_WHITE, 2);
+}
+
+void DisplayManager::drawWeather_6inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto weatherManager = DependencyInjectionContainer::getInstance()->getWeatherManager();
+  if (!weatherManager) return;
+  
+  WeatherData weather = weatherManager->getWeatherData();
+  
+  // 绘制背景框（蓝色渐变效果用单色代替）
+  displayDriver->fillRect(x, y, 650, 120, GxEPD_GRAY5);
+  displayDriver->drawRect(x, y, 650, 120, GxEPD_BLUE);
+  
+  // 城市
+  displayDriver->drawString(x + 12, y + 8, "📍 北京市", GxEPD_BLUE, GxEPD_WHITE, 2);
+  
+  // 当前温度（30px 粗体）
+  displayDriver->drawString(x + 12, y + 35, String(weather.temperature, 0) + "°C", GxEPD_BLACK, GxEPD_WHITE, 4);
+  
+  // 天气状况
+  displayDriver->drawString(x + 12, y + 75, weather.condition, GxEPD_GRAY1, GxEPD_WHITE, 2);
+  
+  // 天气预报（三天横向排列）
+  int forecastX = x + 250;
+  for (int i = 0; i < 3; i++) {
+    ForecastData forecast = weatherManager->getForecastData(i);
+    if (forecast.date.length() > 0) {
+      String dayStr = (i == 0) ? "今天" : ((i == 1) ? "明天" : "后天");
+      String icon = weatherManager->getWeatherIcon(forecast.condition);
+      displayDriver->drawString(forecastX + i * 120, y + 8, dayStr, GxEPD_GRAY1, GxEPD_WHITE, 1);
+      displayDriver->drawString(forecastX + i * 120, y + 30, icon, GxEPD_BLACK, GxEPD_WHITE, 3);
+      displayDriver->drawString(forecastX + i * 120, y + 80, String(forecast.tempDay, 0) + "°", GxEPD_BLUE, GxEPD_WHITE, 2);
+    }
+  }
+}
+
+void DisplayManager::drawSensor_6inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto sensorManager = DependencyInjectionContainer::getInstance()->getSensorManager();
+  if (!sensorManager) return;
+  
+  SensorData sensor = sensorManager->getSensorData();
+  
+  // 绘制背景框（绿色渐变效果用单色代替）
+  displayDriver->fillRect(x, y, 650, 100, GxEPD_GRAY6);
+  displayDriver->drawRect(x, y, 650, 100, GxEPD_GREEN);
+  
+  // 标题
+  displayDriver->drawString(x + 12, y + 8, "🌡️ 室内环境", GxEPD_GREEN, GxEPD_WHITE, 2);
+  
+  // 传感器数据（3 列）
+  displayDriver->drawString(x + 12, y + 35, "温度", GxEPD_GRAY1, GxEPD_WHITE, 1);
+  displayDriver->drawString(x + 12, y + 60, String(sensor.temperature, 1) + "°C", GxEPD_GREEN, GxEPD_WHITE, 2);
+  
+  displayDriver->drawString(x + 220, y + 35, "湿度", GxEPD_GRAY1, GxEPD_WHITE, 1);
+  displayDriver->drawString(x + 220, y + 60, String(sensor.humidity, 0) + "%", GxEPD_GREEN, GxEPD_WHITE, 2);
+  
+  displayDriver->drawString(x + 430, y + 35, "空气质量", GxEPD_GRAY1, GxEPD_WHITE, 1);
+  displayDriver->drawString(x + 430, y + 60, "优", GxEPD_GREEN, GxEPD_WHITE, 2);
+}
+
+void DisplayManager::drawRightPanel_6inch() {
+  if (displayDriver == nullptr) return;
+  
+  int x = leftPanelWidth + 25, y = 25;
+  
+  // 日历
+  drawCalendar_6inch(x, y);
+  y += 250;
+  
+  // 节日
+  drawFestival_6inch(x, y);
+  y += 70;
+  
+  // 黄历
+  drawAlmanac_6inch(x, y);
+  y += 70;
+  
+  // 股票信息
+  drawStockInfo_6inch(x, y);
+  y += 80;
+  
+  // 消息通知
+  drawMessageInfo_6inch(x, y);
+  y += 60;
+  
+  // 系统状态
+  drawSystemStatus_6inch(x, y);
+}
+
+// 6寸股票信息绘制
+void DisplayManager::drawStockInfo_6inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  // 绘制股票标题
+  displayDriver->drawString(x, y, "📈 股票", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  // 示例股票数据
+  int stockY = y + 20;
+  displayDriver->drawString(x, stockY, "上证指数: 3200.50 +0.8%", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(x, stockY + 15, "深证成指: 10500.20 +1.2%", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+// 6寸消息通知绘制
+void DisplayManager::drawMessageInfo_6inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto messageManager = DependencyInjectionContainer::getInstance()->getMessageManager();
+  int messageCount = 0;
+  if (messageManager) {
+    messageCount = messageManager->getUnreadMessageCount();
+  }
+  
+  // 绘制消息标题
+  displayDriver->drawString(x, y, "🔔 消息", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  // 消息数量
+  int messageY = y + 20;
+  displayDriver->drawString(x, messageY, "未读消息: " + String(messageCount) + "条", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+// 6寸系统状态绘制
+void DisplayManager::drawSystemStatus_6inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+  int batteryPercentage = 100;
+  bool isCharging = false;
+  if (powerManager) {
+    batteryPercentage = powerManager->getBatteryPercentage();
+    isCharging = powerManager->getChargingStatus();
+  }
+  
+  // 绘制系统状态标题
+  displayDriver->drawString(x, y, "⚙️ 系统", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  // 系统信息
+  int statusY = y + 20;
+  displayDriver->drawString(x, statusY, "电量: " + String(batteryPercentage) + "% " + (isCharging ? "充电中" : ""), GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(x, statusY + 15, "网络: 已连接", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(x, statusY + 30, "版本: v1.0.0", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+// ========== 5.83 寸 (1448x1072) UI 绘制 ==========
+
+void DisplayManager::drawUI_5_83inch() {
+  if (displayDriver == nullptr) return;
+  
+  // 清屏
+  displayDriver->fillScreen(GxEPD_WHITE);
+  
+  // 计算左右面板位置
+  leftPanelWidth = width * 0.45;
+  int rightPanelX = leftPanelWidth;
+  
+  // 绘制左侧面板背景
+  displayDriver->fillRect(0, 0, leftPanelWidth, height, GxEPD_WHITE);
+  displayDriver->drawFastVLine(leftPanelWidth, 0, height, GxEPD_GRAY1);
+  
+  // 绘制右侧面板背景（浅灰色）
+  displayDriver->fillRect(rightPanelX, 0, width - rightPanelX, height, GxEPD_GRAY5);
+  
+  // 绘制左侧内容
+  drawLeftPanel_5_83inch();
+  
+  // 绘制右侧内容
+  drawRightPanel_5_83inch();
+  
+  // 刷新显示
+  displayDriver->update();
+}
+
+void DisplayManager::drawLeftPanel_5_83inch() {
+  if (displayDriver == nullptr) return;
+  
+  int x = 25, y = 25;
+  
+  // 状态栏
+  drawStatusBar_5_83inch();
+  y = 70;
+  
+  // 时间显示（55px 粗体）
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (timeManager) {
+    TimeData time = timeManager->getCurrentTime();
+    String timeStr = String(time.hour).padStart(2, '0') + ":" + String(time.minute).padStart(2, '0') + ":" + String(time.second).padStart(2, '0');
+    displayDriver->drawString(x, y, timeStr, GxEPD_BLACK, GxEPD_WHITE, 5);
+  }
+  
+  // 日期和农历（18px）
+  y += 75;
+  drawDate_5_83inch(x, y);
+  
+  // 天气区域（蓝色渐变背景）
+  y += 35;
+  drawWeather_5_83inch(x, y);
+  
+  // 传感器区域（绿色渐变背景）
+  y += 95;
+  drawSensor_5_83inch(x, y);
+}
+
+void DisplayManager::drawStatusBar_5_83inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+  auto messageManager = DependencyInjectionContainer::getInstance()->getMessageManager();
+  
+  if (!powerManager || !messageManager) return;
+  
+  int percentage = powerManager->getBatteryPercentage();
+  int messageCount = messageManager->getUnreadMessageCount();
+  
+  int x = 25, y = 25;
+  
+  // 绘制电池图标 (35x18px)
+  displayDriver->drawRect(x, y, 35, 18, GxEPD_BLACK);
+  displayDriver->drawRect(x + 35, y + 4, 3, 10, GxEPD_BLACK);
+  
+  // 绘制电量
+  int levelWidth = 28 * percentage / 100;
+  displayDriver->fillRect(x + 3, y + 3, levelWidth, 12, GxEPD_BLACK);
+  
+  // 绘制百分比文字
+  displayDriver->drawString(x + 42, y + 2, String(percentage) + "%", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  // 绘制消息数量
+  if (messageCount > 0) {
+    displayDriver->drawString(x + 100, y + 2, "🔔 " + String(messageCount) + "条", GxEPD_BLACK, GxEPD_WHITE, 2);
+  }
+}
+
+void DisplayManager::drawDate_5_83inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  auto lunarManager = DependencyInjectionContainer::getInstance()->getLunarManager();
+  
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  // 公历日期
+  String dateStr = String(time.year) + "-" + String(time.month).padStart(2, '0') + "-" + String(time.day).padStart(2, '0');
+  String weekStr = getWeekString(time.weekday);
+  
+  // 农历日期
+  String lunarStr = "";
+  if (lunarManager) {
+    LunarData lunar = lunarManager->getLunarDate(time.year, time.month, time.day);
+    lunarStr = " | " + lunar.lunarMonth + "月" + lunar.lunarDay;
+  }
+  
+  displayDriver->drawString(x, y, dateStr + " " + weekStr + lunarStr, GxEPD_BLACK, GxEPD_WHITE, 2);
+}
+
+void DisplayManager::drawWeather_5_83inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto weatherManager = DependencyInjectionContainer::getInstance()->getWeatherManager();
+  if (!weatherManager) return;
+  
+  WeatherData weather = weatherManager->getWeatherData();
+  
+  // 绘制背景框（蓝色渐变效果用单色代替）
+  displayDriver->fillRect(x, y, 650, 110, GxEPD_GRAY5);
+  displayDriver->drawRect(x, y, 650, 110, GxEPD_BLUE);
+  
+  // 城市
+  displayDriver->drawString(x + 12, y + 8, "📍 北京市", GxEPD_BLUE, GxEPD_WHITE, 2);
+  
+  // 当前温度（28px 粗体）
+  displayDriver->drawString(x + 12, y + 30, String(weather.temperature, 0) + "°C", GxEPD_BLACK, GxEPD_WHITE, 4);
+  
+  // 天气状况
+  displayDriver->drawString(x + 12, y + 65, weather.condition, GxEPD_GRAY1, GxEPD_WHITE, 2);
+  
+  // 天气预报（三天横向排列）
+  int forecastX = x + 250;
+  for (int i = 0; i < 3; i++) {
+    ForecastData forecast = weatherManager->getForecastData(i);
+    if (forecast.date.length() > 0) {
+      String dayStr = (i == 0) ? "今天" : ((i == 1) ? "明天" : "后天");
+      String icon = weatherManager->getWeatherIcon(forecast.condition);
+      displayDriver->drawString(forecastX + i * 120, y + 8, dayStr, GxEPD_GRAY1, GxEPD_WHITE, 1);
+      displayDriver->drawString(forecastX + i * 120, y + 25, icon, GxEPD_BLACK, GxEPD_WHITE, 3);
+      displayDriver->drawString(forecastX + i * 120, y + 70, String(forecast.tempDay, 0) + "°", GxEPD_BLUE, GxEPD_WHITE, 2);
+    }
+  }
+}
+
+void DisplayManager::drawSensor_5_83inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto sensorManager = DependencyInjectionContainer::getInstance()->getSensorManager();
+  if (!sensorManager) return;
+  
+  SensorData sensor = sensorManager->getSensorData();
+  
+  // 绘制背景框（绿色渐变效果用单色代替）
+  displayDriver->fillRect(x, y, 650, 90, GxEPD_GRAY6);
+  displayDriver->drawRect(x, y, 650, 90, GxEPD_GREEN);
+  
+  // 标题
+  displayDriver->drawString(x + 12, y + 8, "🌡️ 室内环境", GxEPD_GREEN, GxEPD_WHITE, 2);
+  
+  // 传感器数据（3 列）
+  displayDriver->drawString(x + 12, y + 30, "温度", GxEPD_GRAY1, GxEPD_WHITE, 1);
+  displayDriver->drawString(x + 12, y + 55, String(sensor.temperature, 1) + "°C", GxEPD_GREEN, GxEPD_WHITE, 2);
+  
+  displayDriver->drawString(x + 220, y + 30, "湿度", GxEPD_GRAY1, GxEPD_WHITE, 1);
+  displayDriver->drawString(x + 220, y + 55, String(sensor.humidity, 0) + "%", GxEPD_GREEN, GxEPD_WHITE, 2);
+  
+  displayDriver->drawString(x + 430, y + 30, "空气质量", GxEPD_GRAY1, GxEPD_WHITE, 1);
+  displayDriver->drawString(x + 430, y + 55, "优", GxEPD_GREEN, GxEPD_WHITE, 2);
+}
+
+void DisplayManager::drawRightPanel_5_83inch() {
+  if (displayDriver == nullptr) return;
+  
+  int x = leftPanelWidth + 25, y = 25;
+  
+  // 日历
+  drawCalendar_5_83inch(x, y);
+  y += 240;
+  
+  // 节日
+  drawFestival_5_83inch(x, y);
+  y += 65;
+  
+  // 黄历
+  drawAlmanac_5_83inch(x, y);
+  y += 65;
+  
+  // 股票信息
+  drawStockInfo_5_83inch(x, y);
+  y += 75;
+  
+  // 消息通知
+  drawMessageInfo_5_83inch(x, y);
+  y += 55;
+  
+  // 系统状态
+  drawSystemStatus_5_83inch(x, y);
+}
+
+// 5.83寸股票信息绘制
+void DisplayManager::drawStockInfo_5_83inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  // 绘制股票标题
+  displayDriver->drawString(x, y, "📈 股票", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  // 示例股票数据
+  int stockY = y + 18;
+  displayDriver->drawString(x, stockY, "上证指数: 3200.50 +0.8%", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(x, stockY + 14, "深证成指: 10500.20 +1.2%", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+// 5.83寸消息通知绘制
+void DisplayManager::drawMessageInfo_5_83inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto messageManager = DependencyInjectionContainer::getInstance()->getMessageManager();
+  int messageCount = 0;
+  if (messageManager) {
+    messageCount = messageManager->getUnreadMessageCount();
+  }
+  
+  // 绘制消息标题
+  displayDriver->drawString(x, y, "🔔 消息", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  // 消息数量
+  int messageY = y + 18;
+  displayDriver->drawString(x, messageY, "未读消息: " + String(messageCount) + "条", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+// 5.83寸系统状态绘制
+void DisplayManager::drawSystemStatus_5_83inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+  int batteryPercentage = 100;
+  bool isCharging = false;
+  if (powerManager) {
+    batteryPercentage = powerManager->getBatteryPercentage();
+    isCharging = powerManager->getChargingStatus();
+  }
+  
+  // 绘制系统状态标题
+  displayDriver->drawString(x, y, "⚙️ 系统", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  // 系统信息
+  int statusY = y + 18;
+  displayDriver->drawString(x, statusY, "电量: " + String(batteryPercentage) + "% " + (isCharging ? "充电中" : ""), GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(x, statusY + 14, "网络: 已连接", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(x, statusY + 28, "版本: v1.0.0", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+// 日历绘制函数
+void DisplayManager::drawCalendar_7_3inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  // 绘制日历标题
+  String monthTitle = "📅 " + String(time.year) + "年" + String(time.month) + "月";
+  displayDriver->drawString(x, y, monthTitle, GxEPD_BLACK, GxEPD_WHITE, 4);
+  
+  // 绘制星期标题
+  const char* weekdays[] = {"日", "一", "二", "三", "四", "五", "六"};
+  int startX = x;
+  int cellWidth = 120;
+  int cellHeight = 50;
+  int startY = y + 50;
+  
+  for (int i = 0; i < 7; i++) {
+    displayDriver->drawString(startX + i * cellWidth, startY, weekdays[i], GxEPD_GRAY1, GxEPD_WHITE, 2);
+  }
+  
+  // 计算当月第一天是星期几和总天数
+  int firstWeekday = getFirstWeekdayOfMonth(time.year, time.month);
+  int daysInMonth = getDaysInMonth(time.year, time.month);
+  
+  // 绘制日期
+  int currentX = startX + firstWeekday * cellWidth;
+  int currentY = startY + 30;
+  
+  for (int day = 1; day <= daysInMonth; day++) {
+    if (day == time.day) {
+      // 今天：反色显示
+      displayDriver->fillRect(currentX - 3, currentY - 3, cellWidth - 4, cellHeight, GxEPD_BLACK);
+      displayDriver->drawString(currentX, currentY, String(day), GxEPD_WHITE, GxEPD_BLACK, 3);
+    } else {
+      displayDriver->drawString(currentX, currentY, String(day), GxEPD_BLACK, GxEPD_WHITE, 3);
+    }
+    
+    currentX += cellWidth;
+    if (currentX > startX + 6 * cellWidth) {
+      currentX = startX;
+      currentY += cellHeight;
+    }
+  }
+}
+
+void DisplayManager::drawCalendar_6inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  // 绘制日历标题
+  String monthTitle = "📅 " + String(time.year) + "年" + String(time.month) + "月";
+  displayDriver->drawString(x, y, monthTitle, GxEPD_BLACK, GxEPD_WHITE, 3);
+  
+  // 绘制星期标题
+  const char* weekdays[] = {"日", "一", "二", "三", "四", "五", "六"};
+  int startX = x;
+  int cellWidth = 90;
+  int cellHeight = 40;
+  int startY = y + 40;
+  
+  for (int i = 0; i < 7; i++) {
+    displayDriver->drawString(startX + i * cellWidth, startY, weekdays[i], GxEPD_GRAY1, GxEPD_WHITE, 1);
+  }
+  
+  // 计算当月第一天是星期几和总天数
+  int firstWeekday = getFirstWeekdayOfMonth(time.year, time.month);
+  int daysInMonth = getDaysInMonth(time.year, time.month);
+  
+  // 绘制日期
+  int currentX = startX + firstWeekday * cellWidth;
+  int currentY = startY + 25;
+  
+  for (int day = 1; day <= daysInMonth; day++) {
+    if (day == time.day) {
+      // 今天：反色显示
+      displayDriver->fillRect(currentX - 2, currentY - 2, cellWidth - 3, cellHeight, GxEPD_BLACK);
+      displayDriver->drawString(currentX, currentY, String(day), GxEPD_WHITE, GxEPD_BLACK, 2);
+    } else {
+      displayDriver->drawString(currentX, currentY, String(day), GxEPD_BLACK, GxEPD_WHITE, 2);
+    }
+    
+    currentX += cellWidth;
+    if (currentX > startX + 6 * cellWidth) {
+      currentX = startX;
+      currentY += cellHeight;
+    }
+  }
+}
+
+void DisplayManager::drawCalendar_5_83inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  // 绘制日历标题
+  String monthTitle = "📅 " + String(time.year) + "年" + String(time.month) + "月";
+  displayDriver->drawString(x, y, monthTitle, GxEPD_BLACK, GxEPD_WHITE, 3);
+  
+  // 绘制星期标题
+  const char* weekdays[] = {"日", "一", "二", "三", "四", "五", "六"};
+  int startX = x;
+  int cellWidth = 85;
+  int cellHeight = 38;
+  int startY = y + 38;
+  
+  for (int i = 0; i < 7; i++) {
+    displayDriver->drawString(startX + i * cellWidth, startY, weekdays[i], GxEPD_GRAY1, GxEPD_WHITE, 1);
+  }
+  
+  // 计算当月第一天是星期几和总天数
+  int firstWeekday = getFirstWeekdayOfMonth(time.year, time.month);
+  int daysInMonth = getDaysInMonth(time.year, time.month);
+  
+  // 绘制日期
+  int currentX = startX + firstWeekday * cellWidth;
+  int currentY = startY + 23;
+  
+  for (int day = 1; day <= daysInMonth; day++) {
+    if (day == time.day) {
+      // 今天：反色显示
+      displayDriver->fillRect(currentX - 2, currentY - 2, cellWidth - 3, cellHeight, GxEPD_BLACK);
+      displayDriver->drawString(currentX, currentY, String(day), GxEPD_WHITE, GxEPD_BLACK, 2);
+    } else {
+      displayDriver->drawString(currentX, currentY, String(day), GxEPD_BLACK, GxEPD_WHITE, 2);
+    }
+    
+    currentX += cellWidth;
+    if (currentX > startX + 6 * cellWidth) {
+      currentX = startX;
+      currentY += cellHeight;
+    }
+  }
+}
+
+// 节日绘制函数
+void DisplayManager::drawFestival_7_3inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  // 绘制节日标题
+  displayDriver->drawString(x, y, "🎉 节日", GxEPD_BLACK, GxEPD_WHITE, 3);
+  
+  // 示例节日数据（实际应从节日管理器获取）
+  int festivalY = y + 40;
+  
+  // 春分示例
+  displayDriver->drawString(x, festivalY, "🌸 春分 (3 月 21 日)", GxEPD_BLACK, GxEPD_WHITE, 2);
+  festivalY += 30;
+  
+  // 清明示例
+  displayDriver->drawString(x, festivalY, "🎊 清明 (4 月 5 日)", GxEPD_BLACK, GxEPD_WHITE, 2);
+}
+
+void DisplayManager::drawFestival_6inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  // 绘制节日标题
+  displayDriver->drawString(x, y, "🎉 节日", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  // 示例节日数据（实际应从节日管理器获取）
+  int festivalY = y + 30;
+  
+  // 春分示例
+  displayDriver->drawString(x, festivalY, "🌸 春分 (3月21日)", GxEPD_BLACK, GxEPD_WHITE, 1);
+  festivalY += 20;
+  
+  // 清明示例
+  displayDriver->drawString(x, festivalY, "🎊 清明 (4月5日)", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+void DisplayManager::drawFestival_5_83inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  // 绘制节日标题
+  displayDriver->drawString(x, y, "🎉 节日", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  // 示例节日数据（实际应从节日管理器获取）
+  int festivalY = y + 28;
+  
+  // 春分示例
+  displayDriver->drawString(x, festivalY, "🌸 春分 (3月21日)", GxEPD_BLACK, GxEPD_WHITE, 1);
+  festivalY += 18;
+  
+  // 清明示例
+  displayDriver->drawString(x, festivalY, "🎊 清明 (4月5日)", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+// 黄历绘制函数
+void DisplayManager::drawAlmanac_7_3inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto lunarManager = DependencyInjectionContainer::getInstance()->getLunarManager();
+  if (!lunarManager) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  LunarData lunar = lunarManager->getLunarDate(time.year, time.month, time.day);
+  
+  // 绘制黄历标题
+  displayDriver->drawString(x, y, "📜 黄历", GxEPD_BLACK, GxEPD_WHITE, 3);
+  
+  // 绘制宜忌
+  int almanacY = y + 40;
+  
+  // 示例宜忌（实际应从农历管理器获取）
+  String goodItems = "宜：祭祀 祈福 求嗣";
+  String badItems = "忌：嫁娶 出行 动土";
+  
+  displayDriver->drawString(x, almanacY, goodItems, GxEPD_GREEN, GxEPD_WHITE, 2);
+  almanacY += 30;
+  displayDriver->drawString(x, almanacY, badItems, GxEPD_RED, GxEPD_WHITE, 2);
+}
+
+void DisplayManager::drawAlmanac_6inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto lunarManager = DependencyInjectionContainer::getInstance()->getLunarManager();
+  if (!lunarManager) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  LunarData lunar = lunarManager->getLunarDate(time.year, time.month, time.day);
+  
+  // 绘制黄历标题
+  displayDriver->drawString(x, y, "📜 黄历", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  // 绘制宜忌
+  int almanacY = y + 25;
+  
+  // 示例宜忌（实际应从农历管理器获取）
+  String goodItems = "宜：祭祀 祈福";
+  String badItems = "忌：嫁娶 出行";
+  
+  displayDriver->drawString(x, almanacY, goodItems, GxEPD_GREEN, GxEPD_WHITE, 1);
+  almanacY += 20;
+  displayDriver->drawString(x, almanacY, badItems, GxEPD_RED, GxEPD_WHITE, 1);
+}
+
+void DisplayManager::drawAlmanac_5_83inch(int x, int y) {
+  if (displayDriver == nullptr) return;
+  
+  auto lunarManager = DependencyInjectionContainer::getInstance()->getLunarManager();
+  if (!lunarManager) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  LunarData lunar = lunarManager->getLunarDate(time.year, time.month, time.day);
+  
+  // 绘制黄历标题
+  displayDriver->drawString(x, y, "📜 黄历", GxEPD_BLACK, GxEPD_WHITE, 2);
+  
+  // 绘制宜忌
+  int almanacY = y + 23;
+  
+  // 示例宜忌（实际应从农历管理器获取）
+  String goodItems = "宜：祭祀 祈福";
+  String badItems = "忌：嫁娶 出行";
+  
+  displayDriver->drawString(x, almanacY, goodItems, GxEPD_GREEN, GxEPD_WHITE, 1);
+  almanacY += 18;
+  displayDriver->drawString(x, almanacY, badItems, GxEPD_RED, GxEPD_WHITE, 1);
+}
+
+void DisplayManager::drawStatusBar_1_02inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto powerManager = DependencyInjectionContainer::getInstance()->getPowerManager();
+  auto messageManager = DependencyInjectionContainer::getInstance()->getMessageManager();
+  
+  if (!powerManager || !messageManager) return;
+  
+  int percentage = powerManager->getBatteryPercentage();
+  int messageCount = messageManager->getUnreadMessageCount();
+  
+  int x = 2, y = 2;
+  displayDriver->drawRect(x, y, 10, 5, GxEPD_BLACK);
+  displayDriver->drawRect(x + 10, y + 1, 1, 3, GxEPD_BLACK);
+  
+  int levelWidth = 8 * percentage / 100;
+  displayDriver->fillRect(x + 1, y + 1, levelWidth, 3, GxEPD_BLACK);
+  
+  displayDriver->drawString(x + 13, y, String(percentage) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+  
+  if (messageCount > 0) {
+    displayDriver->drawString(x + 30, y, "🔔" + String(messageCount), GxEPD_BLACK, GxEPD_WHITE, 1);
+  }
+}
+
+void DisplayManager::drawTime_1_02inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  String timeStr = String(time.hour).padStart(2, '0') + ":" + String(time.minute).padStart(2, '0');
+  
+  displayDriver->drawString(0, 10, timeStr, GxEPD_BLACK, GxEPD_WHITE, 2);
+}
+
+void DisplayManager::drawDate_1_02inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto timeManager = DependencyInjectionContainer::getInstance()->getTimeManager();
+  auto lunarManager = DependencyInjectionContainer::getInstance()->getLunarManager();
+  
+  if (!timeManager) return;
+  
+  TimeData time = timeManager->getCurrentTime();
+  
+  String dateStr = String(time.month).padStart(2, '0') + "-" + String(time.day).padStart(2, '0');
+  String weekStr = getWeekString(time.weekday);
+  displayDriver->drawString(0, 28, dateStr + " " + weekStr, GxEPD_BLACK, GxEPD_WHITE, 1);
+  
+  if (lunarManager) {
+    LunarData lunar = lunarManager->getLunarDate(time.year, time.month, time.day);
+    displayDriver->drawString(0, 40, lunar.lunarMonth + lunar.lunarDay, GxEPD_GRAY1, GxEPD_WHITE, 1);
+  }
+}
+
+void DisplayManager::drawWeather_1_02inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto weatherManager = DependencyInjectionContainer::getInstance()->getWeatherManager();
+  if (!weatherManager) return;
+  
+  WeatherData weather = weatherManager->getWeatherData();
+  
+  displayDriver->drawString(0, 52, String(weather.temperature, 0) + "°C", GxEPD_BLACK, GxEPD_WHITE, 1);
+  
+  int forecastY = 66;
+  for (int i = 0; i < 3; i++) {
+    ForecastData forecast = weatherManager->getForecastData(i);
+    if (forecast.date.length() > 0) {
+      int x = i * 26;
+      String icon = weatherManager->getWeatherIcon(forecast.condition);
+      displayDriver->drawString(x, forecastY, icon, GxEPD_BLACK, GxEPD_WHITE, 1);
+      displayDriver->drawString(x + 8, forecastY, String(forecast.tempDay, 0) + "°", GxEPD_BLUE, GxEPD_WHITE, 1);
+    }
+  }
+}
+
+void DisplayManager::drawSensor_1_02inch() {
+  if (displayDriver == nullptr) return;
+  
+  auto sensorManager = DependencyInjectionContainer::getInstance()->getSensorManager();
+  if (!sensorManager) return;
+  
+  SensorData sensor = sensorManager->getSensorData();
+  
+  displayDriver->drawFastHLine(0, height - 16, width, GxEPD_GRAY1);
+  
+  int y = height - 13;
+  displayDriver->drawString(5, y, "🌡️" + String(sensor.temperature, 1) + "°", GxEPD_BLACK, GxEPD_WHITE, 1);
+  displayDriver->drawString(5, y + 10, "💧" + String(sensor.humidity, 0) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+}
+
+uint8_t DisplayManager::calculateFontSize(uint16_t screenWidth, uint16_t screenHeight, String text, float widthRatio) {
+  float availableWidth = screenWidth * widthRatio;
+  int charCount = text.length();
+  float pixelsPerChar = availableWidth / charCount;
+  
+  if (pixelsPerChar >= 30) return 6;
+  if (pixelsPerChar >= 24) return 5;
+  if (pixelsPerChar >= 18) return 4;
+  if (pixelsPerChar >= 14) return 3;
+  if (pixelsPerChar >= 10) return 2;
+  return 1;
+}
+
+uint8_t DisplayManager::calculateTimeFontSize(uint16_t screenWidth) {
+  if (screenWidth >= 800) return 6;
+  if (screenWidth >= 480) return 5;
+  if (screenWidth >= 400) return 4;
+  if (screenWidth >= 300) return 4;
+  if (screenWidth >= 250) return 3;
+  if (screenWidth >= 200) return 3;
+  if (screenWidth >= 150) return 2;
+  return 1;
+}
+
+uint8_t DisplayManager::calculateDateFontSize(uint16_t screenWidth) {
+  if (screenWidth >= 800) return 2;
+  if (screenWidth >= 480) return 2;
+  if (screenWidth >= 400) return 2;
+  if (screenWidth >= 300) return 1;
+  if (screenWidth >= 250) return 1;
+  if (screenWidth >= 200) return 1;
+  return 1;
+}
+
+uint8_t DisplayManager::calculateWeatherFontSize(uint16_t screenWidth) {
+  if (screenWidth >= 800) return 3;
+  if (screenWidth >= 480) return 2;
+  if (screenWidth >= 400) return 2;
+  if (screenWidth >= 300) return 2;
+  if (screenWidth >= 250) return 2;
+  if (screenWidth >= 200) return 2;
+  if (screenWidth >= 150) return 1;
+  return 1;
+}
+
+RefreshAreaConfig DisplayManager::getRefreshAreaConfig(ScreenSize size) {
+  RefreshAreaConfig config = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  
+  switch (size) {
+    case SCREEN_SIZE_7_5_INCH:
+      config = {20, 50, 360, 100, 20, 160, 360, 60, 20, 230, 360, 30};
+      break;
+    case SCREEN_SIZE_7_3_INCH:
+      config = {30, 80, 800, 120, 30, 220, 800, 150, 30, 380, 800, 120};
+      break;
+    case SCREEN_SIZE_6_INCH:
+      config = {25, 70, 650, 100, 25, 180, 650, 120, 25, 300, 650, 100};
+      break;
+    case SCREEN_SIZE_5_83_INCH:
+      config = {25, 70, 650, 90, 25, 175, 650, 110, 25, 290, 650, 90};
+      break;
+    case SCREEN_SIZE_4_2_INCH:
+      config = {0, 14, 180, 50, 0, 75, 180, 40, 0, 285, 180, 15};
+      break;
+    case SCREEN_SIZE_3_7_INCH:
+      config = {0, 16, 216, 50, 0, 82, 216, 40, 0, 265, 216, 15};
+      break;
+    case SCREEN_SIZE_2_9_INCH:
+      config = {0, 18, 296, 30, 0, 55, 296, 30, 0, 110, 296, 18};
+      break;
+    case SCREEN_SIZE_2_66_INCH:
+      config = {0, 16, 296, 30, 0, 68, 296, 30, 0, 137, 296, 15};
+      break;
+    case SCREEN_SIZE_2_13_INCH:
+      config = {0, 14, 250, 30, 0, 56, 250, 30, 0, 106, 250, 16};
+      break;
+    case SCREEN_SIZE_1_54_INCH:
+      config = {0, 14, 200, 30, 0, 65, 200, 30, 0, 184, 200, 16};
+      break;
+    case SCREEN_SIZE_1_44_INCH:
+      config = {0, 12, 128, 30, 0, 62, 128, 30, 0, 114, 128, 14};
+      break;
+    case SCREEN_SIZE_1_02_INCH:
+      config = {0, 10, 80, 25, 0, 52, 80, 25, 0, 112, 80, 16};
+      break;
+    default:
+      config = {0, 20, 400, 60, 0, 90, 400, 50, 0, 250, 400, 30};
+      break;
+  }
+  
+  return config;
+}
+

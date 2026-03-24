@@ -1,0 +1,9 @@
+{
+    "recommendations": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cpptools-extension-pack",
+        "platformio.platformio-ide",
+        "xaver.clang-format",
+        "mitaki28.vscode-clang"
+    ]
+}

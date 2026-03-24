@@ -208,6 +208,14 @@ private:
   // 最后清理时间
   unsigned long lastCleanupTime;
   
+#if PLATFORM_ESP32
+  // 线程安全互斥锁
+  SemaphoreHandle_t storageMutex;
+#elif PLATFORM_ESP8266
+  // ESP8266 使用简单的标志位保护
+  volatile bool storageLocked;
+#endif
+  
   // 私有构造函数
   StorageManager();
   

@@ -2,254 +2,123 @@
 /**
  * 通知模型
  */
+
 namespace InkClock\Model;
 
+use InkClock\Model\BaseModel;
 
-
-class Notification {
-    private $db;
+class Notification extends BaseModel {
     
-    public function __construct($db) {
-        $this->db = $db;
-    }
-    
-    /**
-     * 发送通知
-     */
     public function sendNotification($userId, $title, $content, $type = 'system') {
         $createdAt = date('Y-m-d H:i:s');
-        
-        $stmt = $this->db->prepare("INSERT INTO notifications (user_id, title, content, type, status, created_at) VALUES (?, ?, ?, ?, ?, ?)");
         $status = 'unread';
-        $stmt->bindValue(1, $userId, SQLITE3_INTEGER);
-        $stmt->bindValue(2, $title, SQLITE3_TEXT);
-        $stmt->bindValue(3, $content, SQLITE3_TEXT);
-        $stmt->bindValue(4, $type, SQLITE3_TEXT);
-        $stmt->bindValue(5, $status, SQLITE3_TEXT);
-        $stmt->bindValue(6, $createdAt, SQLITE3_TEXT);
-        $result = $stmt->execute();
-        $notificationId = $this->db->lastInsertRowID();
-        $stmt->close();
         
-        return array('success' => $result !== false, 'notification_id' => $notificationId);
+        $sql = "INSERT INTO notifications (user_id, title, content, type, status, created_at) VALUES (:userId, :title, :content, :type, :status, :createdAt)";
+        $params = [
+            'userId' => $userId,
+            'title' => $title,
+            'content' => $content,
+            'type' => $type,
+            'status' => $status,
+            'createdAt' => $createdAt
+        ];
+        
+        $result = $this->execute($sql, $params);
+        $notificationId = $this->lastInsertId();
+        
+        return ['success' => $result !== false, 'notification_id' => $notificationId];
     }
     
-    /**
-     * 获取用户的通知列表
-     */
     public function getNotifications($userId, $status = null, $limit = 50, $offset = 0) {
-        $query = "SELECT * FROM notifications WHERE user_id = ?";
-        $params = array($userId);
-        $types = array(SQLITE3_INTEGER);
+        $sql = "SELECT * FROM notifications WHERE user_id = :userId";
+        $params = ['userId' => $userId];
         
         if ($status) {
-            $query .= " AND status = ?";
-            $params[] = $status;
-            $types[] = SQLITE3_TEXT;
+            $sql .= " AND status = :status";
+            $params['status'] = $status;
         }
         
-        $query .= " ORDER BY created_at DESC LIMIT ? OFFSET ?";
-        $params[] = $limit;
-        $params[] = $offset;
-        $types[] = SQLITE3_INTEGER;
-        $types[] = SQLITE3_INTEGER;
+        $sql .= " ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
+        $params['limit'] = $limit;
+        $params['offset'] = $offset;
         
-        $stmt = $this->db->prepare($query);
-        for ($i = 0; $i < count($params); $i++) {
-            $stmt->bindValue($i + 1, $params[$i], $types[$i]);
-        }
-        $result = $stmt->execute();
-        $notifications = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-            $notifications[] = $row;
-        }
-        $stmt->close();
-        
-        return $notifications;
+        return $this->query($sql, $params);
     }
     
-    /**
-     * 获取通知详情
-     */
     public function getNotificationById($notificationId, $userId) {
-        $stmt = $this->db->prepare("SELECT * FROM notifications WHERE id = ? AND user_id = ?");
-        $stmt->bindValue(1, $notificationId, SQLITE3_INTEGER);
-        $stmt->bindValue(2, $userId, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        $notification = $result->fetchArray(SQLITE3_ASSOC);
-        $stmt->close();
-        
-        return $notification;
+        $sql = "SELECT * FROM notifications WHERE id = :id AND user_id = :userId";
+        $params = ['id' => $notificationId, 'userId' => $userId];
+        $result = $this->query($sql, $params);
+        return !empty($result) ? $result[0] : null;
     }
     
-    /**
-     * 标记通知为已读
-     */
     public function markAsRead($notificationId, $userId) {
-        $stmt = $this->db->prepare("UPDATE notifications SET status = ? WHERE id = ? AND user_id = ?");
-        $status = 'read';
-        $stmt->bindValue(1, $status, SQLITE3_TEXT);
-        $stmt->bindValue(2, $notificationId, SQLITE3_INTEGER);
-        $stmt->bindValue(3, $userId, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        $affectedRows = $result !== false ? 1 : 0;
-        $stmt->close();
-        
-        return array('success' => $result !== false, 'updated' => $affectedRows > 0);
+        $sql = "UPDATE notifications SET status = :status WHERE id = :id AND user_id = :userId";
+        $params = ['status' => 'read', 'id' => $notificationId, 'userId' => $userId];
+        $result = $this->execute($sql, $params);
+        return ['success' => $result !== false, 'updated' => $result !== false];
     }
     
-    /**
-     * 标记所有通知为已读
-     */
     public function markAllAsRead($userId) {
-        $stmt = $this->db->prepare("UPDATE notifications SET status = ? WHERE user_id = ? AND status = ?");
-        $readStatus = 'read';
-        $unreadStatus = 'unread';
-        $stmt->bindValue(1, $readStatus, SQLITE3_TEXT);
-        $stmt->bindValue(2, $userId, SQLITE3_INTEGER);
-        $stmt->bindValue(3, $unreadStatus, SQLITE3_TEXT);
-        $result = $stmt->execute();
-        $affectedRows = $this->db->changes();
-        $stmt->close();
-        
-        return array('success' => $result !== false, 'updated' => $affectedRows);
+        $sql = "UPDATE notifications SET status = :status WHERE user_id = :userId AND status = :oldStatus";
+        $params = ['status' => 'read', 'userId' => $userId, 'oldStatus' => 'unread'];
+        $result = $this->execute($sql, $params);
+        return ['success' => $result !== false, 'updated' => $result !== false];
     }
     
-    /**
-     * 删除通知
-     */
     public function deleteNotification($notificationId, $userId) {
-        $stmt = $this->db->prepare("DELETE FROM notifications WHERE id = ? AND user_id = ?");
-        $stmt->bindValue(1, $notificationId, SQLITE3_INTEGER);
-        $stmt->bindValue(2, $userId, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        $affectedRows = $result !== false ? 1 : 0;
-        $stmt->close();
-        
-        return array('success' => $result !== false, 'deleted' => $affectedRows > 0);
+        $sql = "DELETE FROM notifications WHERE id = :id AND user_id = :userId";
+        $params = ['id' => $notificationId, 'userId' => $userId];
+        $result = $this->execute($sql, $params);
+        return ['success' => $result !== false, 'deleted' => $result !== false];
     }
     
-    /**
-     * 获取未读通知数量
-     */
     public function getUnreadCount($userId) {
-        $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND status = ?");
-        $status = 'unread';
-        $stmt->bindValue(1, $userId, SQLITE3_INTEGER);
-        $stmt->bindValue(2, $status, SQLITE3_TEXT);
-        $result = $stmt->execute();
-        $count = $result->fetchArray(SQLITE3_ASSOC)['count'];
-        $stmt->close();
-        
-        return $count;
+        $sql = "SELECT COUNT(*) as count FROM notifications WHERE user_id = :userId AND status = :status";
+        $params = ['userId' => $userId, 'status' => 'unread'];
+        $result = $this->query($sql, $params);
+        if (!empty($result)) {
+            return intval($result[0]['count']);
+        }
+        return 0;
     }
     
-    /**
-     * 向所有用户发送通知
-     */
     public function sendNotificationToAll($title, $content, $type = 'system') {
         try {
-            // 获取所有用户ID
-            $stmt = $this->db->prepare("SELECT id FROM users");
-            $result = $stmt->execute();
+            $userResult = $this->query("SELECT id FROM users");
             $userIds = [];
-            while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+            foreach ($userResult as $row) {
                 $userIds[] = $row['id'];
             }
-            $stmt->close();
             
             $totalSent = 0;
             $createdAt = date('Y-m-d H:i:s');
             
-            // 向每个用户发送通知
             foreach ($userIds as $userId) {
-                $stmt = $this->db->prepare("INSERT INTO notifications (user_id, title, content, type, status, created_at) VALUES (?, ?, ?, ?, ?, ?)");
-                $status = 'unread';
-                $stmt->bindValue(1, $userId, SQLITE3_INTEGER);
-                $stmt->bindValue(2, $title, SQLITE3_TEXT);
-                $stmt->bindValue(3, $content, SQLITE3_TEXT);
-                $stmt->bindValue(4, $type, SQLITE3_TEXT);
-                $stmt->bindValue(5, $status, SQLITE3_TEXT);
-                $stmt->bindValue(6, $createdAt, SQLITE3_TEXT);
-                $result = $stmt->execute();
+                $sql = "INSERT INTO notifications (user_id, title, content, type, status, created_at) VALUES (:userId, :title, :content, :type, :status, :createdAt)";
+                $params = [
+                    'userId' => $userId,
+                    'title' => $title,
+                    'content' => $content,
+                    'type' => $type,
+                    'status' => 'unread',
+                    'createdAt' => $createdAt
+                ];
+                $result = $this->execute($sql, $params);
                 if ($result !== false) {
                     $totalSent++;
                 }
-                $stmt->close();
             }
             
-            return array('success' => $totalSent > 0, 'total_sent' => $totalSent);
+            return ['success' => $totalSent > 0, 'total_sent' => $totalSent];
         } catch (\Exception $e) {
-            return array('success' => false, 'error' => $e->getMessage());
+            return ['success' => false, 'error' => $e->getMessage()];
         }
     }
     
-    /**
-     * 获取通知总数
-     */
     public function getTotalNotifications() {
-        $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM notifications");
-        $result = $stmt->execute();
-        $count = $result->fetchArray(SQLITE3_ASSOC)['count'];
-        $stmt->close();
-        
-        return $count;
-    }
-    
-    /**
-     * 获取未读通知总数
-     */
-    public function getTotalUnreadNotifications() {
-        $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM notifications WHERE status = ?");
-        $status = 'unread';
-        $stmt->bindValue(1, $status, SQLITE3_TEXT);
-        $result = $stmt->execute();
-        $count = $result->fetchArray(SQLITE3_ASSOC)['count'];
-        $stmt->close();
-        
-        return $count;
-    }
-    
-    /**
-     * 按类型统计通知
-     */
-    public function getNotificationsByType() {
-        $stmt = $this->db->prepare("SELECT type, COUNT(*) as count FROM notifications GROUP BY type");
-        $result = $stmt->execute();
-        $types = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-            $types[$row['type']] = $row['count'];
-        }
-        $stmt->close();
-        
-        return $types;
-    }
-    
-    /**
-     * 获取用户的通知总数
-     */
-    public function getTotalNotificationsByUser($userId) {
-        $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM notifications WHERE user_id = ?");
-        $stmt->bindValue(1, $userId, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        $count = $result->fetchArray(SQLITE3_ASSOC)['count'];
-        $stmt->close();
-        
-        return $count;
-    }
-    
-    /**
-     * 获取用户的系统通知数量
-     */
-    public function getSystemNotificationsCount($userId) {
-        $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND type = ?");
-        $stmt->bindValue(1, $userId, SQLITE3_INTEGER);
-        $stmt->bindValue(2, 'system', SQLITE3_TEXT);
-        $result = $stmt->execute();
-        $count = $result->fetchArray(SQLITE3_ASSOC)['count'];
-        $stmt->close();
-        
-        return $count;
+        $result = $this->query("SELECT COUNT(*) as count FROM notifications");
+        return !empty($result) ? intval($result[0]['count']) : 0;
     }
 }
 ?>

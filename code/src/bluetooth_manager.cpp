@@ -2,6 +2,7 @@
 #include "coresystem/config.h"
 #include "application/wifi_manager.h"
 #include "coresystem/module_registry.h"
+#include <memory>
 
 // 前向声明
 class WiFiModuleWrapper {
@@ -85,16 +86,14 @@ BluetoothManager::BluetoothManager() {
   wifiSSID = "";
   wifiPassword = "";
   
-  serverCallbacks = new MyServerCallbacks(this);
-  wifiSSIDCallbacks = new MyWiFiSSIDCallbacks(this);
-  wifiPasswordCallbacks = new MyWiFiPasswordCallbacks(this);
+  // 使用智能指针管理回调对象
+  serverCallbacks = std::make_shared<MyServerCallbacks>(this);
+  wifiSSIDCallbacks = std::make_shared<MyWiFiSSIDCallbacks>(this);
+  wifiPasswordCallbacks = std::make_shared<MyWiFiPasswordCallbacks>(this);
 }
 
 BluetoothManager::~BluetoothManager() {
-  delete serverCallbacks;
-  delete wifiSSIDCallbacks;
-  delete wifiPasswordCallbacks;
-  
+  // 智能指针会自动释放，不需要手动 delete
   if (pServer != nullptr) {
     delete pServer;
   }
@@ -108,26 +107,26 @@ void BluetoothManager::init() {
   
   // 创建BLE服务器
   pServer = BLEDevice::createServer();
-  pServer->setCallbacks(serverCallbacks);
+  pServer->setCallbacks(serverCallbacks.get());  // 使用 .get() 获取裸指针
   
   // 创建BLE服务
   pService = pServer->createService(SERVICE_UUID);
   
-  // 创建WiFi SSID特征（可写）
+  // 创建 WiFi SSID 特征（可写）
   pWiFiSSIDCharacteristic = pService->createCharacteristic(
     WIFI_SSID_CHARACTERISTIC_UUID,
     BLECharacteristic::PROPERTY_WRITE |
     BLECharacteristic::PROPERTY_WRITE_NR
   );
-  pWiFiSSIDCharacteristic->setCallbacks(wifiSSIDCallbacks);
+  pWiFiSSIDCharacteristic->setCallbacks(wifiSSIDCallbacks.get());  // 使用 .get() 获取裸指针
   
-  // 创建WiFi密码特征（可写）
+  // 创建 WiFi 密码特征（可写）
   pWiFiPasswordCharacteristic = pService->createCharacteristic(
     WIFI_PASSWORD_CHARACTERISTIC_UUID,
     BLECharacteristic::PROPERTY_WRITE |
     BLECharacteristic::PROPERTY_WRITE_NR
   );
-  pWiFiPasswordCharacteristic->setCallbacks(wifiPasswordCallbacks);
+  pWiFiPasswordCharacteristic->setCallbacks(wifiPasswordCallbacks.get());  // 使用 .get() 获取裸指针
   
   // 创建WiFi状态特征（可读）
   pWiFiStatusCharacteristic = pService->createCharacteristic(

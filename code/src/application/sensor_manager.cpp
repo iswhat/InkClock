@@ -2,6 +2,8 @@
 #include "../coresystem/driver_registry.h"
 #include "../coresystem/event_bus.h"
 #include "../coresystem/data_types.h"
+#include <vector>
+#include <memory>
 
 SensorManager::SensorManager() : sensorDriver(nullptr) {
   // 初始化传感器数据
@@ -33,13 +35,13 @@ SensorManager::SensorManager() : sensorDriver(nullptr) {
   humOffset = 0.0;
   
   // 初始化报警相关变量
-  gasAlarmThreshold = 1000; // 默认气体报警阈值
-  flameAlarmThreshold = true; // 默认火焰报警阈值
-  tempMinAlarmThreshold = -10.0; // 默认温度下限报警阈值
-  tempMaxAlarmThreshold = 40.0; // 默认温度上限报警阈值
-  humidityMinAlarmThreshold = 20.0; // 默认湿度下限报警阈值
-  humidityMaxAlarmThreshold = 80.0; // 默认湿度上限报警阈值
-  lightAlarmThreshold = 500; // 默认光照强度报警阈值
+  gasAlarmThreshold = GAS_ALARM_THRESHOLD_DEFAULT;
+  flameAlarmThreshold = FLAME_ALARM_THRESHOLD_DEFAULT;
+  tempMinAlarmThreshold = TEMP_MIN_ALARM_THRESHOLD_DEFAULT;
+  tempMaxAlarmThreshold = TEMP_MAX_ALARM_THRESHOLD_DEFAULT;
+  humidityMinAlarmThreshold = HUMIDITY_MIN_ALARM_THRESHOLD_DEFAULT;
+  humidityMaxAlarmThreshold = HUMIDITY_MAX_ALARM_THRESHOLD_DEFAULT;
+  lightAlarmThreshold = LIGHT_ALARM_THRESHOLD_DEFAULT;
   gasAlarmTriggered = false;
   flameAlarmTriggered = false;
   tempAlarmTriggered = false;
@@ -59,48 +61,56 @@ SensorManager::SensorManager() : sensorDriver(nullptr) {
   // 暂时注释掉这个订阅，因为SensorConfigEventData未定义
   /*
   EVENT_SUBSCRIBE(EVENT_SENSOR_CONFIG_CHANGED, [this](EventType type, std::shared_ptr<EventData> data) {
-    auto sensorData = static_cast<SensorConfigEventData*>(data.get());
-    if (sensorData) {
-      setSensorConfig(sensorData->config);
+    if (data) {
+      auto sensorData = static_cast<SensorConfigEventData*>(data.get());
+      if (sensorData) {
+        setSensorConfig(sensorData->config);
+      }
     }
   }, "SensorManager");
   */
   
   EVENT_SUBSCRIBE(EVENT_DRIVER_REGISTERED, [this](EventType type, std::shared_ptr<EventData> data) {
-    auto driverData = static_cast<DriverEventData*>(data.get());
-    if (driverData && driverData->driverType == "sensor") {
-      // 传感器驱动注册，尝试重新检测传感器
-      DriverRegistry* registry = DriverRegistry::getInstance();
-      ISensorDriver* newDriver = registry->autoDetectSensorDriver();
-      if (newDriver != nullptr) {
-        // Security: Use reset() instead of manual delete with unique_ptr
-        sensorDriver.reset(newDriver);
-        currentConfig = sensorDriver->getConfig();
-        currentData.valid = true;
+    if (data) {
+      auto driverData = static_cast<DriverEventData*>(data.get());
+      if (driverData && driverData->driverType == "sensor") {
+        // 传感器驱动注册，尝试重新检测传感器
+        DriverRegistry* registry = DriverRegistry::getInstance();
+        ISensorDriver* newDriver = registry->autoDetectSensorDriver();
+        if (newDriver != nullptr) {
+          // Security: Use reset() instead of manual delete with unique_ptr
+          sensorDriver.reset(newDriver);
+          currentConfig = sensorDriver->getConfig();
+          currentData.valid = true;
+        }
       }
     }
   }, "SensorManager");
   
   EVENT_SUBSCRIBE(EVENT_DRIVER_UNREGISTERED, [this](EventType type, std::shared_ptr<EventData> data) {
-    auto driverData = static_cast<DriverEventData*>(data.get());
-    if (driverData && driverData->driverType == "sensor") {
-      // 传感器驱动注销，重置传感器驱动
-      // Security: Use reset() instead of manual delete with unique_ptr
-      if (sensorDriver != nullptr) {
-        sensorDriver.reset();
-        currentData.valid = false;
+    if (data) {
+      auto driverData = static_cast<DriverEventData*>(data.get());
+      if (driverData && driverData->driverType == "sensor") {
+        // 传感器驱动注销，重置传感器驱动
+        // Security: Use reset() instead of manual delete with unique_ptr
+        if (sensorDriver != nullptr) {
+          sensorDriver.reset();
+          currentData.valid = false;
+        }
       }
     }
   }, "SensorManager");
   
   EVENT_SUBSCRIBE(EVENT_POWER_STATE_CHANGED, [this](EventType type, std::shared_ptr<EventData> data) {
-    auto powerData = static_cast<PowerStateEventData*>(data.get());
-    if (powerData) {
-      // 根据电源状态调整传感器采样频率
-      if (powerData->isLowPower) {
-        setUpdateInterval(60000); // 低功耗模式下每分钟更新一次
-      } else {
-        setUpdateInterval(5000); // 使用固定值，因为SENSOR_UPDATE_INTERVAL未定义
+    if (data) {
+      auto powerData = static_cast<PowerStateEventData*>(data.get());
+      if (powerData) {
+        // 根据电源状态调整传感器采样频率
+        if (powerData->isLowPower) {
+          setUpdateInterval(SENSOR_LOW_POWER_INTERVAL); // 低功耗模式下每分钟更新一次
+        } else {
+          setUpdateInterval(SENSOR_NORMAL_INTERVAL); // 正常模式更新频率
+        }
       }
     }
   }, "SensorManager");
@@ -109,7 +119,7 @@ SensorManager::SensorManager() : sensorDriver(nullptr) {
     // 进入低功耗模式事件
     DEBUG_PRINTLN("进入低功耗模式，调整传感器采样频率");
     // 非报警传感器降低采样频率
-    setUpdateInterval(60000);
+    setUpdateInterval(SENSOR_LOW_POWER_INTERVAL);
     // 报警相关传感器保持正常采样频率（通过单独处理）
   }, "SensorManager");
 
@@ -117,7 +127,7 @@ SensorManager::SensorManager() : sensorDriver(nullptr) {
     // 退出低功耗模式事件
     DEBUG_PRINTLN("退出低功耗模式，恢复正常采样频率");
     // 恢复正常采样频率
-    setUpdateInterval(5000); // 使用固定值，因为SENSOR_UPDATE_INTERVAL未定义
+    setUpdateInterval(SENSOR_NORMAL_INTERVAL);
   }, "SensorManager");
 
   EVENT_SUBSCRIBE(EVENT_LOW_POWER_SENSOR_ADJUST, [this](EventType type, std::shared_ptr<EventData> data) {
@@ -211,25 +221,57 @@ void SensorManager::update() {
         // 使用传感器驱动读取数据
         SensorData tempData;
         if (sensorDriver->readData(tempData)) {
-          // 复制温度和湿度数据
-          currentData.temperature = tempData.temperature;
-          currentData.humidity = tempData.humidity;
+          // 验证数据范围
+          bool isValid = true;
           
-          // 合并其他传感器数据（如果传感器驱动支持）
-          if (tempData.motionDetected) {
-            currentData.motionDetected = tempData.motionDetected;
-          }
-          if (tempData.gasLevel > 0) {
-            currentData.gasLevel = tempData.gasLevel;
-          }
-          if (tempData.flameDetected) {
-            currentData.flameDetected = tempData.flameDetected;
-          }
-          if (tempData.lightLevel > 0) {
-            currentData.lightLevel = tempData.lightLevel;
+          // 温度范围验证（-40°C 到 85°C）
+          if (tempData.temperature < -40.0f || tempData.temperature > 85.0f) {
+            DEBUG_PRINT("温度数据超出范围：" + String(tempData.temperature) + "°C");
+            isValid = false;
           }
           
-          success = true;
+          // 湿度范围验证（0% 到 100%）
+          if (tempData.humidity < 0.0f || tempData.humidity > 100.0f) {
+            DEBUG_PRINT("湿度数据超出范围：" + String(tempData.humidity) + "%");
+            isValid = false;
+          }
+          
+          // 气体传感器范围验证（0 到 1000）
+          if (tempData.gasLevel < 0 || tempData.gasLevel > 1000) {
+            DEBUG_PRINT("气体数据超出范围：" + String(tempData.gasLevel));
+            isValid = false;
+          }
+          
+          // 光照强度范围验证（0 到 65535）
+          if (tempData.lightLevel < 0 || tempData.lightLevel > 65535) {
+            DEBUG_PRINT("光照数据超出范围：" + String(tempData.lightLevel));
+            isValid = false;
+          }
+          
+          // 只有数据有效时才使用
+          if (isValid) {
+            // 复制温度和湿度数据
+            currentData.temperature = tempData.temperature;
+            currentData.humidity = tempData.humidity;
+            
+            // 合并其他传感器数据（如果传感器驱动支持）
+            if (tempData.motionDetected) {
+              currentData.motionDetected = tempData.motionDetected;
+            }
+            if (tempData.gasLevel > 0) {
+              currentData.gasLevel = tempData.gasLevel;
+            }
+            if (tempData.flameDetected) {
+              currentData.flameDetected = tempData.flameDetected;
+            }
+            if (tempData.lightLevel > 0) {
+              currentData.lightLevel = tempData.lightLevel;
+            }
+            
+            success = true;
+          } else {
+            DEBUG_PRINTLN("传感器数据无效，丢弃");
+          }
         } else {
           DEBUG_PRINT("温湿度传感器读取失败，重试 (" + String(retryCount) + "/" + String(MAX_RETRIES) + ")...");
         }
@@ -443,7 +485,7 @@ void SensorManager::checkAlarmConditions() {
   }
   
   // 检查是否检测到火焰
-  if (flameSensorEnabled && currentData.flameDetected == flameAlarmThreshold) {
+  if (flameSensorEnabled && currentData.flameDetected) {
     newFlameAlarm = true;
     if (!flameAlarmTriggered) {
       triggerAlarm("flame");
@@ -538,41 +580,51 @@ bool SensorManager::readSensor() {
 }
 
 void SensorManager::filterData() {
-  // 简单的移动平均滤波
-  // 这里可以根据需要实现更复杂的滤波算法
-  static float tempHistory[10] = {0};
-  static float humHistory[10] = {0};
-  static int gasHistory[10] = {0};
-  static int lightHistory[10] = {0};
+  static float tempHistory[TEMP_HISTORY_SIZE] = {0};
+  static float humHistory[TEMP_HISTORY_SIZE] = {0};
+  static int gasHistory[TEMP_HISTORY_SIZE] = {0};
+  static int lightHistory[TEMP_HISTORY_SIZE] = {0};
   static int historyIndex = 0;
+  static bool initialized = false;
   
-  // 添加新数据到历史记录
+  static float tempSum = 0;
+  static float humSum = 0;
+  static int gasSum = 0;
+  static int lightSum = 0;
+  static int validCount = 0;
+  
+  if (!initialized) {
+    for (int i = 0; i < TEMP_HISTORY_SIZE; i++) {
+      tempHistory[i] = currentData.temperature;
+      humHistory[i] = currentData.humidity;
+      gasHistory[i] = currentData.gasLevel;
+      lightHistory[i] = currentData.lightLevel;
+    }
+    tempSum = currentData.temperature * TEMP_HISTORY_SIZE;
+    humSum = currentData.humidity * TEMP_HISTORY_SIZE;
+    gasSum = currentData.gasLevel * TEMP_HISTORY_SIZE;
+    lightSum = currentData.lightLevel * TEMP_HISTORY_SIZE;
+    validCount = TEMP_HISTORY_SIZE;
+    initialized = true;
+  }
+  
+  int oldIndex = historyIndex;
+  tempSum = tempSum - tempHistory[oldIndex] + currentData.temperature;
+  humSum = humSum - humHistory[oldIndex] + currentData.humidity;
+  gasSum = gasSum - gasHistory[oldIndex] + currentData.gasLevel;
+  lightSum = lightSum - lightHistory[oldIndex] + currentData.lightLevel;
+  
   tempHistory[historyIndex] = currentData.temperature;
   humHistory[historyIndex] = currentData.humidity;
   gasHistory[historyIndex] = currentData.gasLevel;
   lightHistory[historyIndex] = currentData.lightLevel;
   
-  // 计算移动平均值
-  float tempSum = 0;
-  float humSum = 0;
-  int gasSum = 0;
-  int lightSum = 0;
+  currentData.temperature = tempSum / TEMP_HISTORY_SIZE;
+  currentData.humidity = humSum / TEMP_HISTORY_SIZE;
+  currentData.gasLevel = gasSum / TEMP_HISTORY_SIZE;
+  currentData.lightLevel = lightSum / TEMP_HISTORY_SIZE;
   
-  for (int i = 0; i < 10; i++) {
-    tempSum += tempHistory[i];
-    humSum += humHistory[i];
-    gasSum += gasHistory[i];
-    lightSum += lightHistory[i];
-  }
-  
-  // 更新滤波后的数据
-  currentData.temperature = tempSum / 10;
-  currentData.humidity = humSum / 10;
-  currentData.gasLevel = gasSum / 10;
-  currentData.lightLevel = lightSum / 10;
-  
-  // 更新历史记录索引
-  historyIndex = (historyIndex + 1) % 10;
+  historyIndex = (historyIndex + 1) % TEMP_HISTORY_SIZE;
 }
 
 void SensorManager::setSensorConfig(SensorConfig config) {

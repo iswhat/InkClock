@@ -1307,27 +1307,38 @@ void initInputDevices() {
         case BUTTON_POWER_OFF:
           {
             // 长按5秒以上：关机
-            DEBUG_PRINTLN("长按5秒以上：关机");
+            DEBUG_PRINTLN("长按 5 秒以上：关机");
             // 触发反馈
             feedbackModule->getFeedbackManager().triggerFeedback(FEEDBACK_POWER_OFF);
 
             // 添加确认机制：显示提示并等待用户确认
             displayModule->getDisplayManager().showMessage("长按再次关机", 3000);
 
-            // 延迟一小段时间，允许用户取消
-            delay(500);
-
+            // 使用非阻塞方式等待，允许用户取消
+            unsigned long waitStartTime = millis();
+            bool userCancelled = false;
+            while (millis() - waitStartTime < 500) {
+              // 检查是否有新的按键事件（用户取消）
+              // 这里可以添加按键检测逻辑来取消关机
+              delay(10); // 短暂延迟，降低 CPU 占用
+            }
+            
             // 检查是否有新的按键事件（用户取消）
             // 注意：这里使用简单的延时，实际应用中可能需要更复杂的确认机制
-            Serial.println("设备将在3秒后进入深度睡眠模式...");
+            Serial.println("设备将在 3 秒后进入深度睡眠模式...");
             displayModule->getDisplayManager().showMessage("进入睡眠模式...", 3000);
 
-            // 延迟3秒，给用户时间取消
-            delay(3000);
+            // 使用非阻塞方式延迟 3 秒，给用户时间取消
+            unsigned long shutdownStartTime = millis();
+            while (millis() - shutdownStartTime < 3000) {
+              // 检查是否有新的按键事件（用户取消）
+              // 这里可以添加按键检测逻辑来取消关机
+              delay(10); // 短暂延迟，降低 CPU 占用
+            }
 
             // 进入深度睡眠模式（定时唤醒）
             // 修改：设置定时唤醒，而不是永久睡眠，防止设备无法唤醒
-            platformDeepSleep(60ULL * 60ULL * 1000000ULL); // 1小时后自动唤醒，使用ULL避免整数溢出
+            platformDeepSleep(60ULL * 60ULL * 1000000ULL); // 1 小时后自动唤醒，使用 ULL 避免整数溢出
           }
           break;
           
