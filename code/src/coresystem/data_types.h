@@ -31,6 +31,8 @@ typedef struct {
 typedef struct {
   String city;
   float temp;
+  float tempHigh;
+  float tempLow;
   float feelsLike;
   int humidity;
   int pressure;

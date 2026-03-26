@@ -1,5 +1,7 @@
-.pio/build/esp32-wroom-32/src/application/display_manager.cpp.o: \
- src/application/display_manager.cpp src/application/display_manager.h \
+.pio/build/esp32-wroom-32/src/application/display_manager_image.cpp.o: \
+ src/application/display_manager_image.cpp \
+ C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/SPIFFS/src/SPIFFS.h \
+ C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/FS/src/FS.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/cores/esp32/Arduino.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp_arduino_version.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/freertos/include/freertos/FreeRTOS.h \
@@ -134,16 +136,6 @@
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/esp_hw_support/include/soc/esp32/spiram.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/cores/esp32/io_pin_remap.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/cores/esp32/Arduino.h \
- src/application/../coresystem/config.h \
- src/application/../coresystem/event_bus.h \
- src/application/../coresystem/data_types.h \
- d:\inkclock\code\src\drivers\peripherals\sensor_driver.h \
- d:\inkclock\code\src\coresystem\config.h \
- d:\inkclock\code\src\coresystem\data_types.h \
- src/application/../coresystem/data_types.h \
- src/application/../drivers/peripherals/display_driver.h \
- src/application/../coresystem/gxepd_colors.h \
- src/application/lunar_manager.h src/application/wifi_manager.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFi.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/cores/esp32/Print.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/cores/esp32/IPv6Address.h \
@@ -204,9 +196,8 @@
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFiUdp.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/cores/esp32/Udp.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/cores/esp32/cbuf.h \
+ C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFiClient.h \
- C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFiUdp.h \
- src/application/web_client.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/WiFiClientSecure/src/WiFiClientSecure.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/WiFiClientSecure/src/ssl_client.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/mbedtls/mbedtls/include/mbedtls/platform.h \
@@ -245,20 +236,4 @@
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/mbedtls/port/include/aes_alt.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/mbedtls/port/include/aes/esp_aes.h \
  C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/hal/include/hal/aes_types.h \
- C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/mbedtls/mbedtls/include/mbedtls/error.h \
- C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h \
- .pio/libdeps/esp32-wroom-32/ArduinoJson/src/ArduinoJson.h \
- .pio/libdeps/esp32-wroom-32/ArduinoJson/src/ArduinoJson.hpp \
- .pio/libdeps/esp32-wroom-32/ArduinoJson/src/ArduinoJson/Configuration.hpp \
- src/application/message_manager.h src/application/api_manager.h \
- src/application/time_manager.h src/application/weather_manager.h \
- src/application/sensor_manager.h \
- src/application/../drivers/peripherals/sensor_driver.h \
- src/application/stock_manager.h src/application/power_manager.h \
- src/application/../coresystem/dependency_injection.h \
- src/application/image_decoder_config.h \
- C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src/SPI.h \
- C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-spi.h \
- C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/SPIFFS/src/SPIFFS.h \
- C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/libraries/FS/src/FS.h \
- C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/esp_rom/include/esp32/rom/tjpgd.h
+ C:/Users/iswhat/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/mbedtls/mbedtls/include/mbedtls/error.h

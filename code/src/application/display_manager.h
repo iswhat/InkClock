@@ -402,6 +402,10 @@ private:
   // 绘制右侧面板
   void drawRightPanel();
   
+  // 默认面板绘制函数
+  void drawLeftPanelDefault();
+  void drawRightPanelDefault();
+  
   // 绘制时钟（数字模式）
   void drawDigitalClock(int x, int y, String time, String date);
   
@@ -519,11 +523,63 @@ private:
   void drawRightPanel_7_5inch();
   void drawStatusBar_7_5inch();
   void drawTime_7_5inch();
-  void drawWeather_7_5inch();
-  void drawSensor_7_5inch();
+  void drawDate_7_5inch(int x, int y);
+  void drawWeather_7_5inch(int x, int y);
+  void drawSensor_7_5inch(int x, int y);
+  void drawStockInfo_7_5inch(int x, int y);
+  void drawMessageInfo_7_5inch(int x, int y);
+  void drawSystemStatus_7_5inch(int x, int y);
   void drawCalendar_7_5inch(int x, int y);
   void drawFestival_7_5inch(int x, int y);
   void drawAlmanac_7_5inch(int x, int y);
+  
+  // 7.3 寸 (1920x1080) UI 绘制
+  void drawUI_7_3inch();
+  void drawLeftPanel_7_3inch();
+  void drawRightPanel_7_3inch();
+  void drawStatusBar_7_3inch();
+  void drawTime_7_3inch();
+  void drawDate_7_3inch(int x, int y);
+  void drawWeather_7_3inch(int x, int y);
+  void drawSensor_7_3inch(int x, int y);
+  void drawStockInfo_7_3inch(int x, int y);
+  void drawMessageInfo_7_3inch(int x, int y);
+  void drawSystemStatus_7_3inch(int x, int y);
+  void drawCalendar_7_3inch(int x, int y);
+  void drawFestival_7_3inch(int x, int y);
+  void drawAlmanac_7_3inch(int x, int y);
+  
+  // 6 寸 (1448x1072) UI 绘制
+  void drawUI_6inch();
+  void drawLeftPanel_6inch();
+  void drawRightPanel_6inch();
+  void drawStatusBar_6inch();
+  void drawTime_6inch();
+  void drawDate_6inch(int x, int y);
+  void drawWeather_6inch(int x, int y);
+  void drawSensor_6inch(int x, int y);
+  void drawStockInfo_6inch(int x, int y);
+  void drawMessageInfo_6inch(int x, int y);
+  void drawSystemStatus_6inch(int x, int y);
+  void drawCalendar_6inch(int x, int y);
+  void drawFestival_6inch(int x, int y);
+  void drawAlmanac_6inch(int x, int y);
+  
+  // 5.83 寸 (1448x1072) UI 绘制
+  void drawUI_5_83inch();
+  void drawLeftPanel_5_83inch();
+  void drawRightPanel_5_83inch();
+  void drawStatusBar_5_83inch();
+  void drawTime_5_83inch();
+  void drawDate_5_83inch(int x, int y);
+  void drawWeather_5_83inch(int x, int y);
+  void drawSensor_5_83inch(int x, int y);
+  void drawStockInfo_5_83inch(int x, int y);
+  void drawMessageInfo_5_83inch(int x, int y);
+  void drawSystemStatus_5_83inch(int x, int y);
+  void drawCalendar_5_83inch(int x, int y);
+  void drawFestival_5_83inch(int x, int y);
+  void drawAlmanac_5_83inch(int x, int y);
   
   // 绘制日历页面
   void drawCalendarPage(int x, int y);
@@ -551,6 +607,9 @@ private:
   
   // 绘制消息通知内容
   void drawMessageNotificationContent(int x, int y);
+  
+  // 辅助函数
+  String getWeekString(int weekday);
   
   // 图片显示功能
   bool drawImage(String imagePath, int x, int y, int width = 0, int height = 0);
