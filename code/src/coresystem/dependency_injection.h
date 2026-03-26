@@ -85,6 +85,7 @@ public:
   ErrorHandlingManager* getErrorHandlingManager();
   ConfigManager* getConfigManager();
   NetworkManager* getNetworkManager();
+  FirmwareManager* getFirmwareManager();
   
   // 初始化所有管理器
   void initializeAll();

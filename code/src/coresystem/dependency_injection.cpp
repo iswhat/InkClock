@@ -14,6 +14,7 @@
 #include "../application/power_manager.h"
 #include "plugin_manager.h"
 #include "../application/display_manager.h"
+#include "../firmware_manager.h"
 
 // 前向声明所有管理器类
 class WiFiManager;
@@ -32,6 +33,7 @@ class BluetoothManager;
 class ErrorHandlingManager;
 class ConfigManager;
 class NetworkManager;
+class FirmwareManager;
 
 // 静态实例初始化
 DependencyInjectionContainer* DependencyInjectionContainer::instance = nullptr;
@@ -132,6 +134,11 @@ NetworkManager* DependencyInjectionContainer::getNetworkManager() {
   return getInstance<NetworkManager>("NetworkManager");
 }
 
+// 便捷方法：获取固件管理器
+FirmwareManager* DependencyInjectionContainer::getFirmwareManager() {
+  return getInstance<FirmwareManager>("FirmwareManager");
+}
+
 // 初始化所有管理器
 void DependencyInjectionContainer::initializeAll() {
   if (initialized) {
@@ -205,6 +212,11 @@ void DependencyInjectionContainer::initializeAll() {
   PowerManager* powerManager = getPowerManager();
   if (powerManager) {
     powerManager->init();
+  }
+  
+  FirmwareManager* firmwareManager = getFirmwareManager();
+  if (firmwareManager) {
+    firmwareManager->init();
   }
   
   PluginManager* pluginManager = getPluginManager();
