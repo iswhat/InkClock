@@ -25,6 +25,30 @@ public:
    * @return 传感器类型枚举值
    */
   SensorType getType() const override;
+  
+protected:
+  /**
+   * @brief 获取清洁空气中的Rs/R0比值
+   * 
+   * @return 清洁空气中的比值
+   */
+  float getCleanAirRatio() override;
+  
+  /**
+   * @brief 计算特定气体的浓度
+   * 
+   * @param ratio Rs/R0比值
+   * @return 气体浓度
+   */
+  float calculateSpecificGasConcentration(float ratio) override;
+  
+  /**
+   * @brief 根据传感器类型设置气体浓度值
+   * 
+   * @param data 传感器数据结构
+   * @param concentration 气体浓度
+   */
+  void setGasConcentration(SensorData& data, float concentration) override;
 };
 
 #endif // MQ7_DRIVER_H

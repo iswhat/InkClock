@@ -120,14 +120,34 @@ bool MessageManager::addMessage(String sender, String content, MessageType type,
   newMessage.archived = false;
   newMessage.valid = true;
   
-  // 将新消息添加到数组开头
-  for (int i = messageCount; i > 0; i--) {
-    messages[i] = messages[i - 1];
+  // 将新消息添加到数组
+  if (messageCount < MAX_MESSAGES) {
+    messages[messageCount] = newMessage;
+    messageCount++;
+  } else {
+    // 删除最旧的低优先级消息
+    int oldestLowPriorityIndex = -1;
+    int lowestPriority = MESSAGE_PRIORITY_HIGH;
+    unsigned long oldestTime = millis();
+    
+    for (int i = 0; i < MAX_MESSAGES; i++) {
+      if (messages[i].priority < lowestPriority || 
+          (messages[i].priority == lowestPriority && 
+           strtoul(messages[i].timestamp.c_str(), NULL, 10) < oldestTime)) {
+        lowestPriority = messages[i].priority;
+        oldestTime = strtoul(messages[i].timestamp.c_str(), NULL, 10);
+        oldestLowPriorityIndex = i;
+      }
+    }
+    
+    if (oldestLowPriorityIndex != -1) {
+      // 替换最旧的低优先级消息
+      messages[oldestLowPriorityIndex] = newMessage;
+    }
   }
-  messages[0] = newMessage;
   
-  // 更新消息计数
-  messageCount++;
+  // 按优先级排序消息
+  sortMessages();
   
   // 设置数据更新标志
   dataUpdated = true;
@@ -398,9 +418,27 @@ bool MessageManager::loadMessages() {
 }
 
 void MessageManager::sortMessages() {
-  // 按时间顺序排序消息（最新的在前面）
-  // 这里假设消息已经按照时间顺序添加，不需要再次排序
-  // 如果需要，可以实现冒泡排序或其他排序算法
+  // 按优先级和时间排序消息（优先级高的在前，同优先级按时间排序）
+  for (int i = 0; i < messageCount - 1; i++) {
+    for (int j = 0; j < messageCount - i - 1; j++) {
+      // 首先比较优先级
+      if (messages[j].priority < messages[j + 1].priority) {
+        // 优先级高的排在前面
+        MessageData temp = messages[j];
+        messages[j] = messages[j + 1];
+        messages[j + 1] = temp;
+      } else if (messages[j].priority == messages[j + 1].priority) {
+        // 优先级相同，比较时间戳（最新的在前）
+        unsigned long time1 = strtoul(messages[j].timestamp.c_str(), NULL, 10);
+        unsigned long time2 = strtoul(messages[j + 1].timestamp.c_str(), NULL, 10);
+        if (time1 < time2) {
+          MessageData temp = messages[j];
+          messages[j] = messages[j + 1];
+          messages[j + 1] = temp;
+        }
+      }
+    }
+  }
 }
 
 int MessageManager::findMessageIndex(String id) {
@@ -416,6 +454,92 @@ int MessageManager::findMessageIndex(String id) {
 bool MessageManager::isValidMessageId(String id) {
   // 检查消息ID是否有效
   return findMessageIndex(id) != -1;
+}
+
+// 批量删除低优先级消息
+int MessageManager::deleteLowPriorityMessages(int maxDelete) {
+  DEBUG_PRINTLN("批量删除低优先级消息...");
+  
+  // 创建新的消息数组
+  MessageData newMessages[MAX_MESSAGES];
+  int newIndex = 0;
+  int deletedCount = 0;
+  
+  // 按优先级和时间排序
+  sortMessages();
+  
+  // 先保留高优先级消息，再保留部分低优先级消息
+  for (int i = 0; i < messageCount; i++) {
+    if (messages[i].priority >= MESSAGE_PRIORITY_NORMAL || deletedCount >= maxDelete) {
+      newMessages[newIndex++] = messages[i];
+    } else {
+      deletedCount++;
+    }
+  }
+  
+  // 清空原消息数组
+  for (int i = 0; i < messageCount; i++) {
+    messages[i].id = "";
+    messages[i].content = "";
+    messages[i].sender = "";
+    messages[i].receiver = "";
+    messages[i].timestamp = "";
+    messages[i].priority = MESSAGE_PRIORITY_NORMAL;
+    messages[i].category = MESSAGE_CATEGORY_GENERAL;
+    messages[i].read = false;
+    messages[i].archived = false;
+    messages[i].valid = false;
+  }
+  
+  // 复制新消息数组到原数组
+  for (int i = 0; i < newIndex; i++) {
+    messages[i] = newMessages[i];
+  }
+  
+  // 更新消息计数
+  int oldCount = messageCount;
+  messageCount = newIndex;
+  
+  // 设置数据更新标志
+  if (deletedCount > 0) {
+    dataUpdated = true;
+    DEBUG_PRINT("已删除 " + String(deletedCount) + " 条低优先级消息");
+  }
+  
+  return deletedCount;
+}
+
+// 获取按优先级排序的消息列表
+MessageData* MessageManager::getMessagesByPriorityOrder(int& count) {
+  static MessageData sortedMessages[MAX_MESSAGES];
+  count = 0;
+  
+  // 复制消息到临时数组
+  for (int i = 0; i < messageCount; i++) {
+    sortedMessages[i] = messages[i];
+    count++;
+  }
+  
+  // 按优先级和时间排序
+  for (int i = 0; i < count - 1; i++) {
+    for (int j = 0; j < count - i - 1; j++) {
+      if (sortedMessages[j].priority < sortedMessages[j + 1].priority) {
+        MessageData temp = sortedMessages[j];
+        sortedMessages[j] = sortedMessages[j + 1];
+        sortedMessages[j + 1] = temp;
+      } else if (sortedMessages[j].priority == sortedMessages[j + 1].priority) {
+        unsigned long time1 = strtoul(sortedMessages[j].timestamp.c_str(), NULL, 10);
+        unsigned long time2 = strtoul(sortedMessages[j + 1].timestamp.c_str(), NULL, 10);
+        if (time1 < time2) {
+          MessageData temp = sortedMessages[j];
+          sortedMessages[j] = sortedMessages[j + 1];
+          sortedMessages[j + 1] = temp;
+        }
+      }
+    }
+  }
+  
+  return count > 0 ? sortedMessages : nullptr;
 }
 
 // 根据分类获取消息
@@ -481,18 +605,23 @@ MessageData* MessageManager::filterMessages(MessageCategory category, MessagePri
   return count > 0 ? filteredMessages : nullptr;
 }
 
-// 清理过期消息
+// 清理过期消息和低优先级消息
 void MessageManager::cleanExpiredMessages() {
   DEBUG_PRINTLN("清理过期消息...");
   
-  // 消息过期时间（毫秒）
-  const unsigned long MESSAGE_EXPIRY_TIME = 7 * 24 * 60 * 60 * 1000; // 7天
+  // 不同优先级消息的过期时间（毫秒）
+  const unsigned long HIGH_PRIORITY_EXPIRY = 30 * 24 * 60 * 60 * 1000; // 30天
+  const unsigned long NORMAL_PRIORITY_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7天
+  const unsigned long LOW_PRIORITY_EXPIRY = 3 * 24 * 60 * 60 * 1000; // 3天
   
   // 获取当前时间
   unsigned long currentTime = millis();
   
-  // 计算过期消息数量
-  int expiredCount = 0;
+  // 创建新的消息数组
+  MessageData newMessages[MAX_MESSAGES];
+  int newIndex = 0;
+  
+  // 复制未过期的消息，优先保留高优先级消息
   for (int i = 0; i < messageCount; i++) {
     // 尝试解析消息时间戳
     unsigned long messageTime = 0;
@@ -500,59 +629,85 @@ void MessageManager::cleanExpiredMessages() {
       messageTime = strtoul(messages[i].timestamp.c_str(), NULL, 10);
     }
     
-    // 检查消息是否过期
-    if (messageTime > 0 && (currentTime - messageTime) > MESSAGE_EXPIRY_TIME) {
-      expiredCount++;
+    // 根据优先级确定过期时间
+    unsigned long expiryTime;
+    switch (messages[i].priority) {
+      case MESSAGE_PRIORITY_HIGH:
+        expiryTime = HIGH_PRIORITY_EXPIRY;
+        break;
+      case MESSAGE_PRIORITY_NORMAL:
+        expiryTime = NORMAL_PRIORITY_EXPIRY;
+        break;
+      case MESSAGE_PRIORITY_LOW:
+        expiryTime = LOW_PRIORITY_EXPIRY;
+        break;
+      default:
+        expiryTime = NORMAL_PRIORITY_EXPIRY;
+    }
+    
+    // 检查消息是否未过期
+    bool isExpired = false;
+    if (messageTime > 0) {
+      isExpired = (currentTime - messageTime) > expiryTime;
+    }
+    
+    // 高优先级消息即使过期也保留
+    if (!isExpired || messages[i].priority == MESSAGE_PRIORITY_HIGH) {
+      newMessages[newIndex++] = messages[i];
     }
   }
   
-  // 如果有过期消息，清理它们
-  if (expiredCount > 0) {
-    // 创建新的消息数组
-    MessageData newMessages[MAX_MESSAGES];
-    int newIndex = 0;
-    
-    // 复制未过期的消息
-    for (int i = 0; i < messageCount; i++) {
-      // 尝试解析消息时间戳
-      unsigned long messageTime = 0;
-      if (messages[i].timestamp.length() > 0) {
-        messageTime = strtoul(messages[i].timestamp.c_str(), NULL, 10);
+  // 如果消息数量超过限制，进一步清理低优先级消息
+  if (newIndex > MAX_MESSAGES) {
+    // 按优先级排序新消息
+    for (int i = 0; i < newIndex - 1; i++) {
+      for (int j = 0; j < newIndex - i - 1; j++) {
+        if (newMessages[j].priority < newMessages[j + 1].priority) {
+          MessageData temp = newMessages[j];
+          newMessages[j] = newMessages[j + 1];
+          newMessages[j + 1] = temp;
+        } else if (newMessages[j].priority == newMessages[j + 1].priority) {
+          unsigned long time1 = strtoul(newMessages[j].timestamp.c_str(), NULL, 10);
+          unsigned long time2 = strtoul(newMessages[j + 1].timestamp.c_str(), NULL, 10);
+          if (time1 < time2) {
+            MessageData temp = newMessages[j];
+            newMessages[j] = newMessages[j + 1];
+            newMessages[j + 1] = temp;
+          }
+        }
       }
-      
-      // 检查消息是否未过期
-      if (messageTime == 0 || (currentTime - messageTime) <= MESSAGE_EXPIRY_TIME) {
-        newMessages[newIndex++] = messages[i];
-      }
     }
     
-    // 清空原消息数组
-    for (int i = 0; i < messageCount; i++) {
-      messages[i].id = "";
-      messages[i].content = "";
-      messages[i].sender = "";
-      messages[i].receiver = "";
-      messages[i].timestamp = "";
-      messages[i].priority = MESSAGE_PRIORITY_NORMAL;
-      messages[i].category = MESSAGE_CATEGORY_GENERAL;
-      messages[i].read = false;
-      messages[i].archived = false;
-      messages[i].valid = false;
-    }
-    
-    // 复制新消息数组到原数组
-    for (int i = 0; i < newIndex; i++) {
-      messages[i] = newMessages[i];
-    }
-    
-    // 更新消息计数
-    int oldCount = messageCount;
-    messageCount = newIndex;
-    
-    // 设置数据更新标志
-    if (oldCount != messageCount) {
-      dataUpdated = true;
-      DEBUG_PRINT("已清理 " + String(oldCount - messageCount) + " 条过期消息");
-    }
+    // 只保留前MAX_MESSAGES条消息
+    newIndex = MAX_MESSAGES;
+  }
+  
+  // 清空原消息数组
+  for (int i = 0; i < messageCount; i++) {
+    messages[i].id = "";
+    messages[i].content = "";
+    messages[i].sender = "";
+    messages[i].receiver = "";
+    messages[i].timestamp = "";
+    messages[i].priority = MESSAGE_PRIORITY_NORMAL;
+    messages[i].category = MESSAGE_CATEGORY_GENERAL;
+    messages[i].read = false;
+    messages[i].archived = false;
+    messages[i].valid = false;
+  }
+  
+  // 复制新消息数组到原数组
+  for (int i = 0; i < newIndex; i++) {
+    messages[i] = newMessages[i];
+  }
+  
+  // 更新消息计数
+  int oldCount = messageCount;
+  messageCount = newIndex;
+  
+  // 设置数据更新标志
+  if (oldCount != messageCount) {
+    dataUpdated = true;
+    DEBUG_PRINT("已清理 " + String(oldCount - messageCount) + " 条消息");
   }
 }

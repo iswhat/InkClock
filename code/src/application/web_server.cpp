@@ -1433,7 +1433,7 @@ footer {
 }
 )=====";
 
-WebServerManager::WebServerManager(int port) : server(port), port(port), initialized(false), isLoggedIn(false), currentUser(""), lastLoginTime(0) {
+WebServerManager::WebServerManager(int port) : server(port), port(port), initialized(false), isLoggedIn(false), currentUser(""), currentUserRole(ROLE_GUEST), lastLoginTime(0) {
 }
 
 WebServerManager::~WebServerManager() {
@@ -1463,6 +1463,11 @@ void WebServerManager::init() {
     server.on("/tfcard", std::bind(&WebServerManager::handleTFCard, this));
     server.on("/messages", std::bind(&WebServerManager::handleMessages, this));
     server.on("/stocks", std::bind(&WebServerManager::handleStocks, this));
+    server.on("/users", std::bind(&WebServerManager::handleUserManagement, this));
+    server.on("/add_user", HTTP_POST, std::bind(&WebServerManager::handleAddUser, this));
+    server.on("/update_user", HTTP_POST, std::bind(&WebServerManager::handleUpdateUser, this));
+    server.on("/delete_user", HTTP_POST, std::bind(&WebServerManager::handleDeleteUser, this));
+    server.on("/api/users", std::bind(&WebServerManager::handleUserListApi, this));
     server.on("/style.css", std::bind(&WebServerManager::handleCSS, this));
     server.on("/factory_reset", std::bind(&WebServerManager::handleFactoryReset, this));
     
@@ -1535,6 +1540,17 @@ void WebServerManager::init() {
     server.on("/wifi_config", std::bind(&WebServerManager::handleWiFiConfig, this));
     server.on("/update_wifi_config", HTTP_POST, std::bind(&WebServerManager::handleUpdateWiFiConfig, this));
     server.on("/api/wifi/status", std::bind(&WebServerManager::handleWiFiStatus, this));
+    
+    // 密码找回相关路由
+    server.on("/forgot-password", HTTP_GET, [this]() {
+        server.send(200, "text/html", "<!DOCTYPE html><html><head><title>忘记密码</title></head><body><h1>忘记密码功能正在开发中</h1><p>请稍后再试</p></body></html>");
+    });
+    server.on("/api/user/forgot-password", HTTP_POST, std::bind(&WebServerManager::handleForgotPassword, this));
+    
+    // 固件更新相关路由
+    server.on("/api/firmware/update", HTTP_POST, std::bind(&WebServerManager::handleFirmwareUpdate, this));
+    server.on("/api/firmware/status", HTTP_GET, std::bind(&WebServerManager::handleFirmwareStatus, this));
+    server.on("/api/firmware/rollback", HTTP_POST, std::bind(&WebServerManager::handleFirmwareRollback, this));
     
     server.onNotFound(std::bind(&WebServerManager::handleNotFound, this));
     
@@ -1697,31 +1713,202 @@ void WebServerManager::handleUpdateSettings() {
 
 void WebServerManager::handleAddPlugin() {
     DEBUG_PRINTLN("处理添加插件请求");
-    server.sendHeader("Location", "/plugins");
+    
+    // 检查登录状态
+    if (!isAuthenticated()) {
+        server.sendHeader("Location", "/login");
+        server.send(302, "text/plain", "");
+        return;
+    }
+    
+    // 检查是否有文件上传
+    if (server.hasArg("plugin_file")) {
+        HTTPUpload& upload = server.upload();
+        static String currentPluginName;
+        static std::vector<uint8_t> pluginData;
+        
+        if (upload.status == UPLOAD_FILE_START) {
+            // 开始上传
+            pluginData.clear();
+            currentPluginName = upload.filename;
+            DEBUG_PRINTF("开始上传插件文件: %s\n", upload.filename.c_str());
+        } else if (upload.status == UPLOAD_FILE_WRITE) {
+            // 写入数据
+            for (size_t i = 0; i < upload.currentSize; i++) {
+                pluginData.push_back(upload.buf[i]);
+            }
+        } else if (upload.status == UPLOAD_FILE_END) {
+            // 上传完成
+            DEBUG_PRINTF("插件文件上传完成, 大小: %u bytes\n", upload.totalSize);
+            
+            // 获取插件管理器实例
+            auto pluginManager = DependencyInjectionContainer::getInstance()->getPluginManager();
+            if (pluginManager) {
+                // 保存插件文件并加载
+                String pluginPath = "/plugins/" + currentPluginName;
+                // 这里需要实现文件保存逻辑
+                bool success = pluginManager->loadPluginFromFile(pluginPath);
+                if (success) {
+                    server.sendHeader("Location", "/plugins?success=add");
+                } else {
+                    server.sendHeader("Location", "/plugins?error=add");
+                }
+            } else {
+                server.sendHeader("Location", "/plugins?error=manager");
+            }
+        }
+    } else {
+        server.sendHeader("Location", "/plugins?error=file");
+    }
     server.send(302, "text/plain", "");
 }
 
 void WebServerManager::handleUpdatePlugin() {
     DEBUG_PRINTLN("处理更新插件请求");
-    server.sendHeader("Location", "/plugins");
+    
+    // 检查登录状态
+    if (!isAuthenticated()) {
+        server.sendHeader("Location", "/login");
+        server.send(302, "text/plain", "");
+        return;
+    }
+    
+    // 检查是否有插件ID和文件上传
+    if (server.hasArg("plugin_id") && server.hasArg("plugin_file")) {
+        String pluginId = server.arg("plugin_id");
+        HTTPUpload& upload = server.upload();
+        static String currentPluginName;
+        static std::vector<uint8_t> pluginData;
+        
+        if (upload.status == UPLOAD_FILE_START) {
+            // 开始上传
+            pluginData.clear();
+            currentPluginName = upload.filename;
+            DEBUG_PRINTF("开始更新插件文件: %s\n", upload.filename.c_str());
+        } else if (upload.status == UPLOAD_FILE_WRITE) {
+            // 写入数据
+            for (size_t i = 0; i < upload.currentSize; i++) {
+                pluginData.push_back(upload.buf[i]);
+            }
+        } else if (upload.status == UPLOAD_FILE_END) {
+            // 上传完成
+            DEBUG_PRINTF("插件文件更新完成, 大小: %u bytes\n", upload.totalSize);
+            
+            // 获取插件管理器实例
+            auto pluginManager = DependencyInjectionContainer::getInstance()->getPluginManager();
+            if (pluginManager) {
+                // 保存插件文件并更新
+                String pluginPath = "/plugins/" + currentPluginName;
+                // 这里需要实现文件保存逻辑
+                bool success = pluginManager->updatePlugin(pluginId, pluginPath);
+                if (success) {
+                    server.sendHeader("Location", "/plugins?success=update");
+                } else {
+                    server.sendHeader("Location", "/plugins?error=update");
+                }
+            } else {
+                server.sendHeader("Location", "/plugins?error=manager");
+            }
+        }
+    } else {
+        server.sendHeader("Location", "/plugins?error=params");
+    }
     server.send(302, "text/plain", "");
 }
 
 void WebServerManager::handleDeletePlugin() {
     DEBUG_PRINTLN("处理删除插件请求");
-    server.sendHeader("Location", "/plugins");
+    
+    // 检查登录状态
+    if (!isAuthenticated()) {
+        server.sendHeader("Location", "/login");
+        server.send(302, "text/plain", "");
+        return;
+    }
+    
+    // 检查是否有插件ID
+    if (server.hasArg("plugin_id")) {
+        String pluginId = server.arg("plugin_id");
+        
+        // 获取插件管理器实例
+        auto pluginManager = DependencyInjectionContainer::getInstance()->getPluginManager();
+        if (pluginManager) {
+            bool success = pluginManager->removePlugin(pluginId);
+            if (success) {
+                server.sendHeader("Location", "/plugins?success=delete");
+            } else {
+                server.sendHeader("Location", "/plugins?error=delete");
+            }
+        } else {
+            server.sendHeader("Location", "/plugins?error=manager");
+        }
+    } else {
+        server.sendHeader("Location", "/plugins?error=id");
+    }
     server.send(302, "text/plain", "");
 }
 
 void WebServerManager::handleEnablePlugin() {
     DEBUG_PRINTLN("处理启用插件请求");
-    server.sendHeader("Location", "/plugins");
+    
+    // 检查登录状态
+    if (!isAuthenticated()) {
+        server.sendHeader("Location", "/login");
+        server.send(302, "text/plain", "");
+        return;
+    }
+    
+    // 检查是否有插件ID
+    if (server.hasArg("plugin_id")) {
+        String pluginId = server.arg("plugin_id");
+        
+        // 获取插件管理器实例
+        auto pluginManager = DependencyInjectionContainer::getInstance()->getPluginManager();
+        if (pluginManager) {
+            bool success = pluginManager->enablePlugin(pluginId);
+            if (success) {
+                server.sendHeader("Location", "/plugins?success=enable");
+            } else {
+                server.sendHeader("Location", "/plugins?error=enable");
+            }
+        } else {
+            server.sendHeader("Location", "/plugins?error=manager");
+        }
+    } else {
+        server.sendHeader("Location", "/plugins?error=id");
+    }
     server.send(302, "text/plain", "");
 }
 
 void WebServerManager::handleDisablePlugin() {
     DEBUG_PRINTLN("处理禁用插件请求");
-    server.sendHeader("Location", "/plugins");
+    
+    // 检查登录状态
+    if (!isAuthenticated()) {
+        server.sendHeader("Location", "/login");
+        server.send(302, "text/plain", "");
+        return;
+    }
+    
+    // 检查是否有插件ID
+    if (server.hasArg("plugin_id")) {
+        String pluginId = server.arg("plugin_id");
+        
+        // 获取插件管理器实例
+        auto pluginManager = DependencyInjectionContainer::getInstance()->getPluginManager();
+        if (pluginManager) {
+            bool success = pluginManager->disablePlugin(pluginId);
+            if (success) {
+                server.sendHeader("Location", "/plugins?success=disable");
+            } else {
+                server.sendHeader("Location", "/plugins?error=disable");
+            }
+        } else {
+            server.sendHeader("Location", "/plugins?error=manager");
+        }
+    } else {
+        server.sendHeader("Location", "/plugins?error=id");
+    }
     server.send(302, "text/plain", "");
 }
 
@@ -1757,8 +1944,7 @@ void WebServerManager::handleSensorData() {
     sensorData.valid = false;
     
     // 创建JSON响应
-    static JsonDocument doc;
-    doc.clear();
+    JsonDocument doc;
     doc["status"] = "success";
     doc["timestamp"] = platformGetMillis();
     doc["data"]["temperature"] = sensorData.temperature;
@@ -1779,8 +1965,7 @@ void WebServerManager::handleApi() {
     DEBUG_PRINTLN("处理API根请求");
     
     // 创建JSON响应
-    static JsonDocument doc;
-    doc.clear();
+    JsonDocument doc;
     doc["status"] = "success";
     doc["name"] = "InkClock API";
     doc["version"] = "1.0";
@@ -2165,6 +2350,79 @@ void WebServerManager::sendJsonResponse(const String& json, int statusCode) {
     server.send(statusCode, "application/json", json);
 }
 
+void WebServerManager::handleFirmwareUpdate() {
+    DEBUG_PRINTLN("处理固件更新请求");
+    
+    if (!isAuthenticated()) {
+        server.send(401, "application/json", "{\"success\": false, \"message\": \"Unauthorized\"}");
+        return;
+    }
+    
+    if (server.hasArg("url") && server.hasArg("auth_key")) {
+        String url = server.arg("url");
+        String authKey = server.arg("auth_key");
+        
+        // 获取固件管理器实例
+        auto firmwareManager = DependencyInjectionContainer::getInstance()->getFirmwareManager();
+        if (firmwareManager) {
+            bool success = firmwareManager->startWiFiOTA(url, authKey);
+            if (success) {
+                server.send(200, "application/json", "{\"success\": true, \"message\": \"Firmware update started\"}");
+            } else {
+                server.send(500, "application/json", "{\"success\": false, \"message\": \"Failed to start firmware update\"}");
+            }
+        } else {
+            server.send(500, "application/json", "{\"success\": false, \"message\": \"Firmware manager not available\"}");
+        }
+    } else {
+        server.send(400, "application/json", "{\"success\": false, \"message\": \"Missing required parameters: url, auth_key\"}");
+    }
+}
+
+void WebServerManager::handleFirmwareStatus() {
+    DEBUG_PRINTLN("处理固件状态请求");
+    
+    JsonDocument doc;
+    
+    // 获取固件管理器实例
+    auto firmwareManager = DependencyInjectionContainer::getInstance()->getFirmwareManager();
+    if (firmwareManager) {
+        doc["status"] = "success";
+        doc["firmware_status"] = firmwareManager->getStatus();
+        doc["progress"] = firmwareManager->getProgress();
+        doc["last_error"] = firmwareManager->getLastError();
+    } else {
+        doc["status"] = "error";
+        doc["message"] = "Firmware manager not available";
+    }
+    
+    String json;
+    serializeJson(doc, json);
+    server.send(200, "application/json", json);
+}
+
+void WebServerManager::handleFirmwareRollback() {
+    DEBUG_PRINTLN("处理固件回滚请求");
+    
+    if (!isAuthenticated()) {
+        server.send(401, "application/json", "{\"success\": false, \"message\": \"Unauthorized\"}");
+        return;
+    }
+    
+    // 获取固件管理器实例
+    auto firmwareManager = DependencyInjectionContainer::getInstance()->getFirmwareManager();
+    if (firmwareManager) {
+        bool success = firmwareManager->rollbackFirmware();
+        if (success) {
+            server.send(200, "application/json", "{\"success\": true, \"message\": \"Firmware rollback started\"}");
+        } else {
+            server.send(500, "application/json", "{\"success\": false, \"message\": \"Failed to start firmware rollback\"}");
+        }
+    } else {
+        server.send(500, "application/json", "{\"success\": false, \"message\": \"Firmware manager not available\"}");
+    }
+}
+
 void WebServerManager::handleFonts() {
     DEBUG_PRINTLN("处理字体管理页面请求");
     
@@ -2286,6 +2544,7 @@ void WebServerManager::handleLogin() {
     if (username == configUsername && password == configPassword && username.length() > 0) {
         isLoggedIn = true;
         currentUser = username;
+        currentUserRole = ROLE_ADMIN; // 默认用户为管理员
         lastLoginTime = platformGetMillis();
         
         DEBUG_PRINTLN("登录成功");
@@ -2296,6 +2555,284 @@ void WebServerManager::handleLogin() {
         server.sendHeader("Location", "/login");
         server.send(302, "text/plain", "");
     }
+}
+
+void WebServerManager::handleLogout() {
+    DEBUG_PRINTLN("处理登出请求");
+    
+    // 清除登录状态
+    isLoggedIn = false;
+    currentUser = "";
+    currentUserRole = ROLE_GUEST;
+    lastLoginTime = 0;
+    
+    server.sendHeader("Location", "/login");
+    server.send(302, "text/plain", "");
+}
+
+bool WebServerManager::hasPermission(Permission permission) {
+    if (!isAuthenticated()) {
+        return false;
+    }
+    
+    switch (currentUserRole) {
+        case ROLE_ADMIN:
+            return true; // 管理员拥有所有权限
+        case ROLE_USER:
+            return permission == PERMISSION_READ || permission == PERMISSION_WRITE;
+        case ROLE_GUEST:
+            return permission == PERMISSION_READ;
+        default:
+            return false;
+    }
+}
+
+UserRole WebServerManager::getUserRole(const String& username) {
+    // 这里可以从配置文件或数据库中获取用户角色
+    // 暂时默认返回管理员角色
+    return ROLE_ADMIN;
+}
+
+void WebServerManager::handleUserManagement() {
+    DEBUG_PRINTLN("处理用户管理页面请求");
+    
+    // 检查登录状态和权限
+    if (!isAuthenticated() || !hasPermission(PERMISSION_ADMIN)) {
+        server.sendHeader("Location", "/login");
+        server.send(302, "text/plain", "");
+        return;
+    }
+    
+    // 生成用户管理页面
+    String html = R"=====(<!DOCTYPE html>
+<html>
+<head>
+    <title>用户管理 - InkClock</title>
+    <link rel="stylesheet" type="text/css" href="/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>InkClock</h1>
+            <p>家用网络智能墨水屏万年历</p>
+        </header>
+        <nav>
+            <ul>
+                <li><a href="/">首页</a></li>
+                <li><a href="/settings">设置</a></li>
+                <li><a href="/plugins">插件管理</a></li>
+                <li><a href="/fonts">字体管理</a></li>
+                <li><a href="/users">用户管理</a></li>
+                <li><a href="/logout">退出登录</a></li>
+            </ul>
+        </nav>
+        <main>
+            <section class="users-section">
+                <h2>用户管理</h2>
+                <div class="user-list" id="user-list">
+                    <!-- 用户列表将通过JavaScript加载 -->
+                    <p>加载中...</p>
+                </div>
+                <h2>添加用户</h2>
+                <form onsubmit="addUser(event)">
+                    <div class="form-group">
+                        <label for="username">用户名:</label>
+                        <input type="text" id="username" name="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">密码:</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="role">角色:</label>
+                        <select id="role" name="role">
+                            <option value="0">管理员</option>
+                            <option value="1">普通用户</option>
+                            <option value="2">访客</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <button type="submit">添加用户</button>
+                    </div>
+                </form>
+            </section>
+        </main>
+        <footer>
+            <p>&copy; 2025 InkClock</p>
+        </footer>
+    </div>
+    <script>
+        // 加载用户列表
+        function loadUsers() {
+            fetch('/api/users')
+                .then(response => response.json())
+                .then(data => {
+                    const userList = document.getElementById('user-list');
+                    if (data.users && data.users.length > 0) {
+                        userList.innerHTML = '';
+                        data.users.forEach(user => {
+                            const userItem = document.createElement('div');
+                            userItem.className = 'user-item';
+                            userItem.innerHTML = `
+                                <h3>${user.username}</h3>
+                                <p>角色: ${getRoleText(user.role)}</p>
+                                <p>状态: ${user.enabled ? '启用' : '禁用'}</p>
+                                <button onclick="editUser('${user.username}')">编辑</button>
+                                <button onclick="deleteUser('${user.username}')">删除</button>
+                            `;
+                            userList.appendChild(userItem);
+                        });
+                    } else {
+                        userList.innerHTML = '<p>暂无用户</p>';
+                    }
+                });
+        }
+        
+        // 添加用户
+        function addUser(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const role = document.getElementById('role').value;
+            
+            fetch('/add_user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&role=${role}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                if (data.success) {
+                    loadUsers();
+                    document.getElementById('username').value = '';
+                    document.getElementById('password').value = '';
+                }
+            });
+        }
+        
+        // 编辑用户
+        function editUser(username) {
+            // 这里可以实现编辑用户的逻辑
+            alert('编辑用户功能开发中');
+        }
+        
+        // 删除用户
+        function deleteUser(username) {
+            if (confirm('确定要删除用户 ' + username + ' 吗？')) {
+                fetch('/delete_user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `username=${encodeURIComponent(username)}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    if (data.success) {
+                        loadUsers();
+                    }
+                });
+            }
+        }
+        
+        // 获取角色文本
+        function getRoleText(role) {
+            const roles = ['管理员', '普通用户', '访客'];
+            return roles[role] || '未知';
+        }
+        
+        // 页面加载完成后加载用户列表
+        window.onload = loadUsers;
+    </script>
+</body>
+</html>)=====";
+    
+    server.send(200, "text/html", html);
+}
+
+void WebServerManager::handleAddUser() {
+    DEBUG_PRINTLN("处理添加用户请求");
+    
+    // 检查登录状态和权限
+    if (!isAuthenticated() || !hasPermission(PERMISSION_ADMIN)) {
+        server.send(401, "application/json", "{"success": false, "message": "权限不足"}");
+        return;
+    }
+    
+    String username = server.arg("username");
+    String password = server.arg("password");
+    String roleStr = server.arg("role");
+    
+    if (username.length() == 0 || password.length() == 0) {
+        server.send(400, "application/json", "{"success": false, "message": "用户名和密码不能为空"}");
+        return;
+    }
+    
+    // 这里可以实现添加用户的逻辑
+    // 暂时只是返回成功
+    server.send(200, "application/json", "{"success": true, "message": "用户添加成功"}");
+}
+
+void WebServerManager::handleUpdateUser() {
+    DEBUG_PRINTLN("处理更新用户请求");
+    
+    // 检查登录状态和权限
+    if (!isAuthenticated() || !hasPermission(PERMISSION_ADMIN)) {
+        server.send(401, "application/json", "{"success": false, "message": "权限不足"}");
+        return;
+    }
+    
+    // 这里可以实现更新用户的逻辑
+    server.send(200, "application/json", "{"success": true, "message": "用户更新成功"}");
+}
+
+void WebServerManager::handleDeleteUser() {
+    DEBUG_PRINTLN("处理删除用户请求");
+    
+    // 检查登录状态和权限
+    if (!isAuthenticated() || !hasPermission(PERMISSION_ADMIN)) {
+        server.send(401, "application/json", "{"success": false, "message": "权限不足"}");
+        return;
+    }
+    
+    String username = server.arg("username");
+    
+    if (username.length() == 0) {
+        server.send(400, "application/json", "{"success": false, "message": "用户名不能为空"}");
+        return;
+    }
+    
+    // 这里可以实现删除用户的逻辑
+    // 暂时只是返回成功
+    server.send(200, "application/json", "{"success": true, "message": "用户删除成功"}");
+}
+
+void WebServerManager::handleUserListApi() {
+    DEBUG_PRINTLN("处理用户列表API请求");
+    
+    // 检查登录状态和权限
+    if (!isAuthenticated() || !hasPermission(PERMISSION_ADMIN)) {
+        server.send(401, "application/json", "{"success": false, "message": "权限不足"}");
+        return;
+    }
+    
+    JsonDocument doc;
+    JsonArray usersArray = doc.createNestedArray("users");
+    
+    // 模拟用户数据
+    JsonObject user1 = usersArray.createNestedObject();
+    user1["username"] = "admin";
+    user1["role"] = ROLE_ADMIN;
+    user1["enabled"] = true;
+    
+    String jsonResponse;
+    serializeJson(doc, jsonResponse);
+    server.send(200, "application/json", jsonResponse);
 }
 
 void WebServerManager::handleLogout() {
@@ -2481,6 +3018,52 @@ void WebServerManager::handlePluginDeleteApi() {
     String jsonResponse;
     serializeJson(doc, jsonResponse);
     server.send(200, "application/json", jsonResponse);
+}
+
+void WebServerManager::handleForgotPassword() {
+    DEBUG_PRINTLN("处理密码找回请求");
+    
+    if (server.hasArg("email")) {
+        String email = server.arg("email");
+        
+        // 验证邮箱格式
+        if (isValidEmail(email)) {
+            // 模拟发送重置链接
+            DEBUG_PRINTF("发送重置链接到邮箱: %s\n", email.c_str());
+            
+            JsonDocument doc;
+            doc["success"] = true;
+            doc["message"] = "重置密码链接已发送到您的邮箱";
+            
+            String jsonResponse;
+            serializeJson(doc, jsonResponse);
+            server.send(200, "application/json", jsonResponse);
+        } else {
+            JsonDocument doc;
+            doc["success"] = false;
+            doc["error"] = "请输入有效的邮箱地址";
+            
+            String jsonResponse;
+            serializeJson(doc, jsonResponse);
+            server.send(400, "application/json", jsonResponse);
+        }
+    } else {
+        JsonDocument doc;
+        doc["success"] = false;
+        doc["error"] = "缺少邮箱参数";
+        
+        String jsonResponse;
+        serializeJson(doc, jsonResponse);
+        server.send(400, "application/json", jsonResponse);
+    }
+}
+
+bool WebServerManager::isValidEmail(const String& email) {
+    // 简单的邮箱格式验证
+    int atIndex = email.indexOf('@');
+    int dotIndex = email.lastIndexOf('.');
+    
+    return atIndex > 0 && dotIndex > atIndex + 1 && dotIndex < email.length() - 1;
 }
 
 

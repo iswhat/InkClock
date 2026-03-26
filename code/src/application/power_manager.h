@@ -4,7 +4,23 @@
 #include <Arduino.h>
 #include "../coresystem/config.h"
 
+// 电池历史数据大小
+#define BATTERY_HISTORY_SIZE 10
+
 class CoreSystem;
+
+// 电池状态事件数据结构
+class BatteryStatusEventData {
+public:
+  float voltage;
+  int percentage;
+  int health;
+  float temperature;
+  bool isCharging;
+  
+  BatteryStatusEventData(float v, int p, int h, float t, bool c) 
+    : voltage(v), percentage(p), health(h), temperature(t), isCharging(c) {}
+};
 
 class PowerManager {
 private:
@@ -22,6 +38,23 @@ private:
   ChargingInterfaceType chargingInterface;
   bool hasChargingProtection;
   
+  // 电池监控相关
+  int batteryHealth; // 电池健康度（0-100%）
+  float batteryTemperature; // 电池温度（°C）
+  bool lowBatteryAlarmTriggered;
+  bool criticalBatteryAlarmTriggered;
+  bool overheatAlarmTriggered;
+  
+  // 报警阈值
+  int lowBatteryThreshold;
+  int criticalBatteryThreshold;
+  float overheatThreshold;
+  
+  // 电池历史数据
+  int batteryHistory[BATTERY_HISTORY_SIZE];
+  int batteryHistoryIndex;
+  bool batteryHistoryInitialized;
+  
   // CoreSystem指针
   CoreSystem* coreSystem;
   
@@ -33,6 +66,18 @@ private:
   
   // 读取充电状态
   bool readChargingStatus();
+  
+  // 读取电池温度
+  float readBatteryTemperature();
+  
+  // 计算电池健康度
+  void calculateBatteryHealth();
+  
+  // 更新电池历史数据
+  void updateBatteryHistory();
+  
+  // 检查电池状态并触发报警
+  void checkBatteryStatus();
   
   // 检查充电接口类型
   void checkChargingInterface();
@@ -63,8 +108,23 @@ public:
   // 获取充电状态
   bool getChargingStatus() { return isCharging; }
   
-  // 检查是否需要充电
-  bool isLowBattery() { return batteryVoltage <= LOW_BATTERY_THRESHOLD; }
+  // 获取电池健康度
+  int getBatteryHealth() const;
+  
+  // 获取电池温度
+  float getBatteryTemperature() const;
+  
+  // 检查是否低电量
+  bool isBatteryLow() const;
+  
+  // 检查是否临界低电量
+  bool isBatteryCritical() const;
+  
+  // 检查是否电池过热
+  bool isBatteryOverheated() const;
+  
+  // 获取平均电池电量
+  int getAverageBatteryLevel() const;
   
   // 获取低功耗模式状态
   bool getLowPowerMode() { return isLowPowerMode; }

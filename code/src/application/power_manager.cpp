@@ -31,6 +31,25 @@ PowerManager::PowerManager() {
   chargingInterface = USB_TYPE_C; // 仅支持USB-Type-C
   hasChargingProtection = CONFIG_GET_BOOL("charging.protection_enabled", true);
   
+  // 电池监控相关初始化
+  batteryHealth = 100; // 电池健康度，初始为100%
+  batteryTemperature = 25.0; // 电池温度，初始为25°C
+  lowBatteryAlarmTriggered = false;
+  criticalBatteryAlarmTriggered = false;
+  overheatAlarmTriggered = false;
+  
+  // 报警阈值
+  lowBatteryThreshold = CONFIG_GET_INT("battery.low_threshold", 20);
+  criticalBatteryThreshold = CONFIG_GET_INT("battery.critical_threshold", 10);
+  overheatThreshold = CONFIG_GET_FLOAT("battery.overheat_threshold", 45.0);
+  
+  // 电池历史数据
+  for (int i = 0; i < BATTERY_HISTORY_SIZE; i++) {
+    batteryHistory[i] = 0;
+  }
+  batteryHistoryIndex = 0;
+  batteryHistoryInitialized = false;
+  
   // 获取CoreSystem实例
   coreSystem = CoreSystem::getInstance();
 }
@@ -164,17 +183,43 @@ void PowerManager::update() {
   // 读取充电状态
   isCharging = readChargingStatus();
   
+  // 读取电池温度（如果有温度传感器）
+  batteryTemperature = readBatteryTemperature();
+  
+  // 计算电池健康度
+  calculateBatteryHealth();
+  
+  // 更新电池历史数据
+  updateBatteryHistory();
+  
+  // 检查电池状态并触发报警
+  checkBatteryStatus();
+  
   lastUpdateTime = millis();
   
   // 发布电源状态更新事件
   auto powerData = std::make_shared<PowerStateEventData>(batteryPercentage, isCharging, isLowPowerMode);
   EVENT_PUBLISH(EVENT_POWER_STATE_CHANGED, powerData);
   
+  // 发布电池状态更新事件
+  auto batteryData = std::make_shared<BatteryStatusEventData>(
+    batteryVoltage, 
+    batteryPercentage, 
+    batteryHealth, 
+    batteryTemperature, 
+    isCharging
+  );
+  EVENT_PUBLISH(EVENT_BATTERY_STATUS_UPDATED, batteryData);
+  
   DEBUG_PRINT("Battery: ");
   DEBUG_PRINT(batteryVoltage);
   DEBUG_PRINT("V, ");
   DEBUG_PRINT(batteryPercentage);
-  DEBUG_PRINT("%, Charging: ");
+  DEBUG_PRINT("%, Health: ");
+  DEBUG_PRINT(batteryHealth);
+  DEBUG_PRINT("%, Temp: ");
+  DEBUG_PRINT(batteryTemperature);
+  DEBUG_PRINT("°C, Charging: ");
   DEBUG_PRINT(isCharging ? "Yes" : "No");
   DEBUG_PRINT(", Low Power: ");
   DEBUG_PRINTLN(isLowPowerMode ? "Yes" : "No");
@@ -416,4 +461,171 @@ bool PowerManager::readChargingStatus() {
   // 注意：根据实际硬件设计，充电状态引脚的电平可能不同
   // 这里假设高电平表示正在充电
   return digitalRead(chargeStatusPin) == HIGH;
+}
+
+float PowerManager::readBatteryTemperature() {
+  // 尝试读取电池温度传感器
+  int tempSensorPin = CONFIG_GET_INT("pins.battery_temp", -1);
+  if (tempSensorPin != -1) {
+    // 读取温度传感器值
+    int adcValue = analogRead(tempSensorPin);
+    
+    // 假设使用NTC热敏电阻，需要根据实际电路进行校准
+    // 这里使用简化的计算
+    float voltage = (adcValue / 4095.0) * 3.3;
+    float resistance = (3.3 - voltage) * 10000 / voltage; // 假设串联10k电阻
+    
+    // 简化的温度计算（实际应用中需要更复杂的公式）
+    float temperature = 25.0 + (resistance - 10000) / 38.5;
+    
+    // 确保温度在合理范围内
+    if (temperature > -20 && temperature < 80) {
+      return temperature;
+    }
+  }
+  
+  // 如果没有温度传感器或读取失败，返回默认值
+  return 25.0;
+}
+
+void PowerManager::calculateBatteryHealth() {
+  // 基于电池电压和充放电循环来估算健康度
+  // 实际应用中可能需要更复杂的算法
+  
+  // 满电电压低于4.1V时，健康度开始下降
+  if (batteryVoltage >= 4.2) {
+    batteryHealth = 100;
+  } else if (batteryVoltage >= 4.1) {
+    batteryHealth = 95;
+  } else if (batteryVoltage >= 4.0) {
+    batteryHealth = 90;
+  } else if (batteryVoltage >= 3.9) {
+    batteryHealth = 80;
+  } else if (batteryVoltage >= 3.8) {
+    batteryHealth = 70;
+  } else if (batteryVoltage >= 3.7) {
+    batteryHealth = 60;
+  } else {
+    batteryHealth = 50;
+  }
+  
+  // 考虑电池温度对健康度的影响
+  if (batteryTemperature > 40) {
+    batteryHealth -= (batteryTemperature - 40) * 0.5;
+  } else if (batteryTemperature < 0) {
+    batteryHealth -= (0 - batteryTemperature) * 0.3;
+  }
+  
+  // 确保健康度在合理范围内
+  batteryHealth = constrain(batteryHealth, 0, 100);
+}
+
+void PowerManager::updateBatteryHistory() {
+  // 更新电池历史数据
+  batteryHistory[batteryHistoryIndex] = batteryPercentage;
+  batteryHistoryIndex = (batteryHistoryIndex + 1) % BATTERY_HISTORY_SIZE;
+  
+  if (!batteryHistoryInitialized) {
+    batteryHistoryInitialized = true;
+  }
+}
+
+void PowerManager::checkBatteryStatus() {
+  // 检查低电量报警
+  if (batteryPercentage <= lowBatteryThreshold && !lowBatteryAlarmTriggered) {
+    lowBatteryAlarmTriggered = true;
+    criticalBatteryAlarmTriggered = (batteryPercentage <= criticalBatteryThreshold);
+    
+    // 发布低电量报警事件
+    auto alarmData = std::make_shared<AlarmEventData>(
+      "低电量警告", 
+      "电池电量低，请及时充电"
+    );
+    EVENT_PUBLISH(EVENT_ALARM_TRIGGERED, alarmData);
+    EVENT_PUBLISH(EVENT_BATTERY_LOW, nullptr);
+    
+    DEBUG_PRINTLN("低电量警告：" + String(batteryPercentage) + "%");
+  } else if (batteryPercentage > lowBatteryThreshold && lowBatteryAlarmTriggered) {
+    lowBatteryAlarmTriggered = false;
+    criticalBatteryAlarmTriggered = false;
+    
+    // 发布电量恢复正常事件
+    EVENT_PUBLISH(EVENT_BATTERY_OK, nullptr);
+    
+    DEBUG_PRINTLN("电量恢复正常：" + String(batteryPercentage) + "%");
+  }
+  
+  // 检查临界低电量报警
+  if (batteryPercentage <= criticalBatteryThreshold && !criticalBatteryAlarmTriggered) {
+    criticalBatteryAlarmTriggered = true;
+    
+    // 发布临界低电量报警事件
+    auto alarmData = std::make_shared<AlarmEventData>(
+      "临界低电量警告", 
+      "电池电量极低，设备即将关闭"
+    );
+    EVENT_PUBLISH(EVENT_ALARM_TRIGGERED, alarmData);
+    
+    DEBUG_PRINTLN("临界低电量警告：" + String(batteryPercentage) + "%");
+    
+    // 进入深度低功耗模式
+    enterLowPowerMode();
+  }
+  
+  // 检查电池过热报警
+  if (batteryTemperature > overheatThreshold && !overheatAlarmTriggered) {
+    overheatAlarmTriggered = true;
+    
+    // 发布电池过热报警事件
+    auto alarmData = std::make_shared<AlarmEventData>(
+      "电池过热警告", 
+      "电池温度过高，请停止使用并降温"
+    );
+    EVENT_PUBLISH(EVENT_ALARM_TRIGGERED, alarmData);
+    
+    DEBUG_PRINTLN("电池过热警告：" + String(batteryTemperature) + "°C");
+    
+    // 如果正在充电，考虑停止充电
+    if (isCharging) {
+      DEBUG_PRINTLN("检测到电池过热，建议停止充电");
+      // 实际应用中可能需要控制充电电路
+    }
+  } else if (batteryTemperature <= overheatThreshold && overheatAlarmTriggered) {
+    overheatAlarmTriggered = false;
+    
+    DEBUG_PRINTLN("电池温度恢复正常：" + String(batteryTemperature) + "°C");
+  }
+}
+
+int PowerManager::getBatteryHealth() const {
+  return batteryHealth;
+}
+
+float PowerManager::getBatteryTemperature() const {
+  return batteryTemperature;
+}
+
+bool PowerManager::isBatteryLow() const {
+  return lowBatteryAlarmTriggered;
+}
+
+bool PowerManager::isBatteryCritical() const {
+  return criticalBatteryAlarmTriggered;
+}
+
+bool PowerManager::isBatteryOverheated() const {
+  return overheatAlarmTriggered;
+}
+
+int PowerManager::getAverageBatteryLevel() const {
+  if (!batteryHistoryInitialized) {
+    return batteryPercentage;
+  }
+  
+  int sum = 0;
+  for (int i = 0; i < BATTERY_HISTORY_SIZE; i++) {
+    sum += batteryHistory[i];
+  }
+  
+  return sum / BATTERY_HISTORY_SIZE;
 }

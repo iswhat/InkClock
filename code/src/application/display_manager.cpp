@@ -2550,9 +2550,13 @@ void DisplayManager::drawSensor_2_9inch() {
   
   // 绘制传感器数据（底部横向三列）
   int y = height - 18;
-  displayDriver->drawString(5, y, "🌡️" + String(sensor.temperature, 1) + "°", GxEPD_BLACK, GxEPD_WHITE, 1);
-  displayDriver->drawString(width / 3, y, "💧" + String(sensor.humidity, 0) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
-  displayDriver->drawString(width * 2 / 3, y, "🌿优", GxEPD_BLACK, GxEPD_WHITE, 1);
+  if (sensor.valid) {
+    displayDriver->drawString(5, y, "🌡️" + String(sensor.temperature, 1) + "°", GxEPD_BLACK, GxEPD_WHITE, 1);
+    displayDriver->drawString(width / 3, y, "💧" + String(sensor.humidity, 0) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+    displayDriver->drawString(width * 2 / 3, y, "🌿优", GxEPD_BLACK, GxEPD_WHITE, 1);
+  } else {
+    displayDriver->drawString(5, y, "传感器数据无效", GxEPD_GRAY2, GxEPD_WHITE, 1);
+  }
 }
 
 // ========== 小屏幕 UI 绘制函数（2.13 寸，竖屏单栏） ==========
@@ -2685,9 +2689,13 @@ void DisplayManager::drawSensor_2_13inch() {
   displayDriver->drawLine(0, height - 18, width, height - 18, GxEPD_GRAY2);
   
   int y = height - 14;
-  displayDriver->drawString(5, y, "🌡️" + String(sensor.temperature, 1) + "°", GxEPD_BLACK, GxEPD_WHITE, 1);
-  displayDriver->drawString(width / 3, y, "💧" + String(sensor.humidity, 0) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
-  displayDriver->drawString(width * 2 / 3, y, "🌿优", GxEPD_BLACK, GxEPD_WHITE, 1);
+  if (sensor.valid) {
+    displayDriver->drawString(5, y, "🌡️" + String(sensor.temperature, 1) + "°", GxEPD_BLACK, GxEPD_WHITE, 1);
+    displayDriver->drawString(width / 3, y, "💧" + String(sensor.humidity, 0) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+    displayDriver->drawString(width * 2 / 3, y, "🌿优", GxEPD_BLACK, GxEPD_WHITE, 1);
+  } else {
+    displayDriver->drawString(5, y, "传感器数据无效", GxEPD_GRAY2, GxEPD_WHITE, 1);
+  }
 }
 
 // ========== 小屏幕 UI 绘制函数（1.54 寸，竖屏单栏，方形） ==========
@@ -2815,8 +2823,12 @@ void DisplayManager::drawSensor_1_54inch() {
   displayDriver->drawLine(0, height - 16, width, height - 16, GxEPD_GRAY2);
   
   int y = height - 12;
-  displayDriver->drawString(5, y, "🌡️" + String(sensor.temperature, 1) + "°", GxEPD_BLACK, GxEPD_WHITE, 1);
-  displayDriver->drawString(width / 2, y, "💧" + String(sensor.humidity, 0) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+  if (sensor.valid) {
+    displayDriver->drawString(5, y, "🌡️" + String(sensor.temperature, 1) + "°", GxEPD_BLACK, GxEPD_WHITE, 1);
+    displayDriver->drawString(width / 2, y, "💧" + String(sensor.humidity, 0) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+  } else {
+    displayDriver->drawString(5, y, "传感器数据无效", GxEPD_GRAY2, GxEPD_WHITE, 1);
+  }
 }
 
 // ========== 大屏幕 UI 绘制函数（3 寸以上，横屏双栏） ==========
@@ -4950,8 +4962,12 @@ void DisplayManager::drawSensor_1_02inch() {
   displayDriver->drawLine(0, height - 16, width, height - 16, GxEPD_GRAY2);
   
   int y = height - 13;
-  displayDriver->drawString(5, y, "🌡️" + String(sensor.temperature, 1) + "°", GxEPD_BLACK, GxEPD_WHITE, 1);
-  displayDriver->drawString(5, y + 10, "💧" + String(sensor.humidity, 0) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+  if (sensor.valid) {
+    displayDriver->drawString(5, y, "🌡️" + String(sensor.temperature, 1) + "°", GxEPD_BLACK, GxEPD_WHITE, 1);
+    displayDriver->drawString(5, y + 10, "💧" + String(sensor.humidity, 0) + "%", GxEPD_BLACK, GxEPD_WHITE, 1);
+  } else {
+    displayDriver->drawString(5, y, "传感器数据无效", GxEPD_GRAY2, GxEPD_WHITE, 1);
+  }
 }
 
 uint8_t DisplayManager::calculateFontSize(uint16_t screenWidth, uint16_t screenHeight, String text, float widthRatio) {

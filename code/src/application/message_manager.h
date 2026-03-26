@@ -52,6 +52,12 @@ public:
   // 消息清理功能
   void cleanExpiredMessages();
   
+  // 批量删除低优先级消息
+  int deleteLowPriorityMessages(int maxDelete);
+  
+  // 获取按优先级排序的消息列表
+  MessageData* getMessagesByPriorityOrder(int& count);
+  
 private:
   // 消息数组
   MessageData messages[MAX_MESSAGES];

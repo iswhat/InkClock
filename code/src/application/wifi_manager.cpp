@@ -48,6 +48,9 @@ void WiFiManager::init() {
   // 配置WiFi电源管理，平衡功耗和性能
   WiFi.setSleep(WIFI_PS_MIN_MODEM);
   
+  // 扫描可用的WiFi网络
+  scanNetworks();
+  
   // 如果有配置的WiFi信息，尝试连接
   if (hasConfiguredWiFi()) {
     DEBUG_PRINT("使用配置的WiFi信息连接: ");
@@ -274,6 +277,37 @@ void WiFiManager::stopAP() {
   WiFi.mode(WIFI_STA);
   
   DEBUG_PRINTLN("AP模式已停止");
+}
+
+void WiFiManager::scanNetworks() {
+  DEBUG_PRINTLN("扫描可用的WiFi网络...");
+  
+  int networkCount = WiFi.scanNetworks();
+  
+  if (networkCount == 0) {
+    DEBUG_PRINTLN("未发现可用的WiFi网络");
+  } else {
+    DEBUG_PRINT("发现 ");
+    DEBUG_PRINT(networkCount);
+    DEBUG_PRINTLN(" 个WiFi网络:");
+    
+    // 按信号强度排序
+    for (int i = 0; i < networkCount; i++) {
+      int rssi = WiFi.RSSI(i);
+      DEBUG_PRINT(i + 1);
+      DEBUG_PRINT(". ");
+      DEBUG_PRINT(WiFi.SSID(i));
+      DEBUG_PRINT(" (信号强度: ");
+      DEBUG_PRINT(rssi);
+      DEBUG_PRINT(" dBm, 质量: ");
+      DEBUG_PRINT(getSignalQuality(rssi));
+      DEBUG_PRINT(", 加密: ");
+      DEBUG_PRINTLN(WiFi.encryptionType(i));
+    }
+  }
+  
+  // 清除扫描结果，释放内存
+  WiFi.scanDelete();
 }
 
 void WiFiManager::loadConfiguredWiFi() {

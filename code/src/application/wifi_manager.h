@@ -61,6 +61,9 @@ public:
   String getConfiguredSSID() { return configuredSSID; }
   String getConfiguredPassword() { return configuredPassword; }
   
+  // 网络扫描
+  void scanNetworks();
+  
 private:
   // WiFi状态
   bool connected;

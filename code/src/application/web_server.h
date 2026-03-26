@@ -13,6 +13,20 @@
 #endif
 #include "../coresystem/config.h"
 
+// 用户角色枚举
+enum UserRole {
+    ROLE_ADMIN,    // 管理员 - 所有权限
+    ROLE_USER,     // 普通用户 - 有限权限
+    ROLE_GUEST     // 访客 - 只读权限
+};
+
+// 权限枚举
+enum Permission {
+    PERMISSION_READ,    // 读取权限
+    PERMISSION_WRITE,   // 写入权限
+    PERMISSION_ADMIN    // 管理权限
+};
+
 class WebServerManager {
 private:
     WebServer server;
@@ -22,7 +36,27 @@ private:
     // 登录状态管理
     bool isLoggedIn;
     String currentUser;
+    UserRole currentUserRole;
     unsigned long lastLoginTime;
+    
+    // 用户管理
+    struct User {
+        String username;
+        String password;
+        UserRole role;
+        bool enabled;
+    };
+    
+    // 权限检查
+    bool hasPermission(Permission permission);
+    UserRole getUserRole(const String& username);
+    
+    // 用户管理方法
+    void handleUserManagement();
+    void handleAddUser();
+    void handleUpdateUser();
+    void handleDeleteUser();
+    void handleUserListApi();
     
 public:
     static const char* index_html;
@@ -101,6 +135,19 @@ public:
   void handleWiFiConfig();
   void handleUpdateWiFiConfig();
   void handleWiFiStatus();
+  
+  // 用户管理相关方法
+  void handleUserManagement();
+  void handleAddUser();
+  void handleUpdateUser();
+  void handleDeleteUser();
+  void handleUserListApi();
+  void handleForgotPassword();
+  
+  // 固件更新相关方法
+  void handleFirmwareUpdate();
+  void handleFirmwareStatus();
+  void handleFirmwareRollback();
   
 public:
   WebServerManager(int port = 8080);
