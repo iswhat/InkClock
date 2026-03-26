@@ -28,6 +28,7 @@ class BluetoothManager;
 class ErrorHandlingManager;
 class ConfigManager;
 class NetworkManager;
+class FirmwareManager;
 
 // 依赖注入容器类
 class DependencyInjectionContainer {
