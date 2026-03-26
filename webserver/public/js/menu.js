@@ -144,3 +144,65 @@ function checkAdminMenu() {
         }
     }
 }
+
+// 全局异常捕获机制
+window.addEventListener('error', function(event) {
+    console.error('全局错误:', event.error);
+    // 可以在这里添加错误上报逻辑
+});
+
+// 全局未处理的 Promise 拒绝捕获
+window.addEventListener('unhandledrejection', function(event) {
+    console.error('未处理的 Promise 拒绝:', event.reason);
+    // 可以在这里添加错误上报逻辑
+});
+
+// 统一的 API 调用函数
+async function apiCall(url, options = {}) {
+    try {
+        const apiKey = localStorage.getItem('token');
+        if (apiKey && !url.includes('api_key=')) {
+            url += (url.includes('?') ? '&' : '?') + 'api_key=' + apiKey;
+        }
+        
+        const defaultOptions = {
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        };
+        
+        const mergedOptions = { ...defaultOptions, ...options };
+        
+        const response = await fetch(url, mergedOptions);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP 错误: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+            throw new Error(data.message || '操作失败');
+        }
+        
+        return data;
+    } catch (error) {
+        console.error('API 调用错误:', error);
+        // 检查是否是网络连接错误
+        if (!navigator.onLine) {
+            throw new Error('网络连接失败，请检查网络设置');
+        } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            throw new Error('网络连接失败，请检查网络设置');
+        }
+        throw error;
+    }
+}
+
+// 统一的错误处理函数
+function handleError(error, defaultMessage = '操作失败') {
+    if (error.message) {
+        alert(error.message);
+    } else {
+        alert(defaultMessage);
+    }
+}

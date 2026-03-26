@@ -490,101 +490,40 @@
 
         // 加载统计数据（并行请求优化）
         async function loadStats() {
-            const apiKey = localStorage.getItem('token');
-            
             try {
                 // 并行执行所有API请求
-                const [devicesResponse, firmwareResponse, notificationsResponse] = await Promise.all([
-                    fetch('/api/device', {
-                        headers: {
-                            'X-API-Key': apiKey
-                        }
-                    }),
-                    fetch('/api/firmware', {
-                        headers: {
-                            'X-API-Key': apiKey
-                        }
-                    }),
-                    fetch('/api/notification', {
-                        headers: {
-                            'X-API-Key': apiKey
-                        }
-                    })
+                const [devicesData, firmwareData, notificationsData] = await Promise.all([
+                    apiCall('/api/device'),
+                    apiCall('/api/firmware'),
+                    apiCall('/api/notification')
                 ]);
                 
                 // 处理设备数据
-                if (devicesResponse.ok) {
-                    const devicesData = await devicesResponse.json();
-                    if (devicesData.success) {
-                        document.getElementById('stat-devices').textContent = devicesData.data.length || 0;
-                    } else {
-                        document.getElementById('stat-devices').textContent = '0';
-                        showNotification('设备数据加载失败', 'error');
-                    }
-                } else {
-                    document.getElementById('stat-devices').textContent = '0';
-                    showNotification('设备API请求失败', 'error');
-                }
+                document.getElementById('stat-devices').textContent = devicesData.data.length || 0;
                 
                 // 处理固件数据
-                if (firmwareResponse.ok) {
-                    const firmwareData = await firmwareResponse.json();
-                    if (firmwareData.success) {
-                        document.getElementById('stat-firmware').textContent = firmwareData.data.length || 0;
-                    } else {
-                        document.getElementById('stat-firmware').textContent = '0';
-                        showNotification('固件数据加载失败', 'error');
-                    }
-                } else {
-                    document.getElementById('stat-firmware').textContent = '0';
-                    showNotification('固件API请求失败', 'error');
-                }
+                document.getElementById('stat-firmware').textContent = firmwareData.data.length || 0;
                 
                 // 处理通知数据
-                if (notificationsResponse.ok) {
-                    const notificationsData = await notificationsResponse.json();
-                    if (notificationsData.success) {
-                        const unreadNotifications = notificationsData.data.filter(n => !n.is_read);
-                        document.getElementById('stat-notifications').textContent = unreadNotifications.length;
-                    } else {
-                        document.getElementById('stat-notifications').textContent = '0';
-                        showNotification('通知数据加载失败', 'error');
-                    }
-                } else {
-                    document.getElementById('stat-notifications').textContent = '0';
-                    showNotification('通知API请求失败', 'error');
-                }
+                const unreadNotifications = notificationsData.data.filter(n => !n.is_read);
+                document.getElementById('stat-notifications').textContent = unreadNotifications.length;
                 
                 // 单独处理消息数据（因为需要先获取设备列表）
-                const messagesResponse = await fetch('/api/user/devices', {
-                    headers: {
-                        'X-API-Key': apiKey
-                    }
-                });
-                if (messagesResponse.ok) {
-                    const devicesData = await messagesResponse.json();
-                    if (devicesData.success && devicesData.data.length > 0) {
-                        // 并行获取所有设备的消息
-                        const messagePromises = devicesData.data.map(device => 
-                            fetch(`/api/gateway/message/list?device_id=${device.device_id}`, {
-                                headers: {
-                                    'X-API-Key': apiKey
-                                }
-                            })
-                                .then(res => res.ok ? res.json() : { success: false })
-                                .then(data => data.success ? data.data : [])
-                        );
-                        
-                        const messagesList = await Promise.all(messagePromises);
-                        const allMessages = messagesList.flat();
-                        const unreadCount = allMessages.filter(msg => !msg.is_read).length;
-                        document.getElementById('stat-messages').textContent = unreadCount;
-                    } else {
-                        document.getElementById('stat-messages').textContent = '0';
-                    }
+                const devicesList = await apiCall('/api/user/devices');
+                if (devicesList.success && devicesList.data.length > 0) {
+                    // 并行获取所有设备的消息
+                    const messagePromises = devicesList.data.map(device => 
+                        apiCall(`/api/gateway/message/list?device_id=${device.device_id}`)
+                            .then(data => data.success ? data.data : [])
+                            .catch(() => [])
+                    );
+                    
+                    const messagesList = await Promise.all(messagePromises);
+                    const allMessages = messagesList.flat();
+                    const unreadCount = allMessages.filter(msg => !msg.is_read).length;
+                    document.getElementById('stat-messages').textContent = unreadCount;
                 } else {
                     document.getElementById('stat-messages').textContent = '0';
-                    showNotification('设备列表API请求失败', 'error');
                 }
             } catch (error) {
                 console.error('加载统计数据错误:', error);
@@ -600,48 +539,32 @@
         // 加载最近设备（优化版本）
         async function loadRecentDevices() {
             showLoading('recent-devices');
-            const apiKey = localStorage.getItem('token');
             
             try {
-                const response = await fetch('/api/device', {
-                    headers: {
-                        'X-API-Key': apiKey
-                    }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.success) {
-                        const devices = data.data;
-                        // 按最后活跃时间排序
-                        devices.sort((a, b) => new Date(b.last_active) - new Date(a.last_active));
-                        // 只显示前5个
-                        const recentDevices = devices.slice(0, 5);
-                        
-                        let html = '';
-                        if (recentDevices.length > 0) {
-                            recentDevices.forEach(device => {
-                                const statusClass = device.connection_status === 'online' ? 'text-success' : 'text-danger';
-                                const statusText = device.connection_status === 'online' ? '在线' : '离线';
-                                html += `
-                                    <tr>
-                                        <td>${device.device_id}</td>
-                                        <td><span class="${statusClass}">${statusText}</span></td>
-                                        <td>${device.last_active || '从未'}</td>
-                                    </tr>
-                                `;
-                            });
-                        } else {
-                            html = '<tr><td colspan="3" class="text-center">暂无设备</td></tr>';
-                        }
-                        document.getElementById('recent-devices').innerHTML = html;
-                    } else {
-                        showError('recent-devices', '设备数据加载失败');
-                        showNotification('设备数据加载失败', 'error');
-                    }
+                const data = await apiCall('/api/device');
+                const devices = data.data;
+                // 按最后活跃时间排序
+                devices.sort((a, b) => new Date(b.last_active) - new Date(a.last_active));
+                // 只显示前5个
+                const recentDevices = devices.slice(0, 5);
+                
+                let html = '';
+                if (recentDevices.length > 0) {
+                    recentDevices.forEach(device => {
+                        const statusClass = device.connection_status === 'online' ? 'text-success' : 'text-danger';
+                        const statusText = device.connection_status === 'online' ? '在线' : '离线';
+                        html += `
+                            <tr>
+                                <td>${device.device_id}</td>
+                                <td><span class="${statusClass}">${statusText}</span></td>
+                                <td>${device.last_active || '从未'}</td>
+                            </tr>
+                        `;
+                    });
                 } else {
-                    showError('recent-devices', 'API请求失败');
-                    showNotification('设备API请求失败', 'error');
+                    html = '<tr><td colspan="3" class="text-center">暂无设备</td></tr>';
                 }
+                document.getElementById('recent-devices').innerHTML = html;
             } catch (error) {
                 console.error('加载最近设备错误:', error);
                 showError('recent-devices', '网络连接失败');
@@ -652,66 +575,51 @@
         // 加载最近消息（并行请求优化）
         async function loadRecentMessages() {
             showLoading('recent-messages');
-            const apiKey = localStorage.getItem('token');
             
             try {
                 // 获取用户设备
-                const devicesResponse = await fetch('/api/user/devices', {
-                    headers: {
-                        'X-API-Key': apiKey
-                    }
-                });
-                if (devicesResponse.ok) {
-                    const devicesData = await devicesResponse.json();
-                    if (devicesData.success && devicesData.data.length > 0) {
-                        // 并行获取所有设备的消息
-                        const messagePromises = devicesData.data.map(device => 
-                            fetch(`/api/message/${device.device_id}`, {
-                                headers: {
-                                    'X-API-Key': apiKey
+                const devicesData = await apiCall('/api/user/devices');
+                if (devicesData.success && devicesData.data.length > 0) {
+                    // 并行获取所有设备的消息
+                    const messagePromises = devicesData.data.map(device => 
+                        apiCall(`/api/message/${device.device_id}`)
+                            .then(data => {
+                                if (data.success) {
+                                    return data.data.map(msg => ({
+                                        ...msg,
+                                        device_id: device.device_id
+                                    }));
                                 }
+                                return [];
                             })
-                                .then(res => res.ok ? res.json() : { success: false })
-                                .then(data => {
-                                    if (data.success) {
-                                        return data.data.map(msg => ({
-                                            ...msg,
-                                            device_id: device.device_id
-                                        }));
-                                    }
-                                    return [];
-                                })
-                        );
-                        
-                        const messagesList = await Promise.all(messagePromises);
-                        const allMessages = messagesList.flat();
-                        
-                        // 按时间排序
-                        allMessages.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-                        // 只显示前5个
-                        const recentMessages = allMessages.slice(0, 5);
-                        
-                        let html = '';
-                        if (recentMessages.length > 0) {
-                            recentMessages.forEach(msg => {
-                                html += `
-                                    <tr>
-                                        <td>${msg.device_id}</td>
-                                        <td>${msg.content.substring(0, 30)}${msg.content.length > 30 ? '...' : ''}</td>
-                                        <td>${msg.created_at}</td>
-                                    </tr>
-                                `;
-                            });
-                        } else {
-                            html = '<tr><td colspan="3" class="text-center">暂无消息</td></tr>';
-                        }
-                        document.getElementById('recent-messages').innerHTML = html;
+                            .catch(() => [])
+                    );
+                    
+                    const messagesList = await Promise.all(messagePromises);
+                    const allMessages = messagesList.flat();
+                    
+                    // 按时间排序
+                    allMessages.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                    // 只显示前5个
+                    const recentMessages = allMessages.slice(0, 5);
+                    
+                    let html = '';
+                    if (recentMessages.length > 0) {
+                        recentMessages.forEach(msg => {
+                            html += `
+                                <tr>
+                                    <td>${msg.device_id}</td>
+                                    <td>${msg.content.substring(0, 30)}${msg.content.length > 30 ? '...' : ''}</td>
+                                    <td>${msg.created_at}</td>
+                                </tr>
+                            `;
+                        });
                     } else {
-                        showError('recent-messages', '暂无设备');
+                        html = '<tr><td colspan="3" class="text-center">暂无消息</td></tr>';
                     }
+                    document.getElementById('recent-messages').innerHTML = html;
                 } else {
-                    showError('recent-messages', '设备列表API请求失败');
-                    showNotification('设备列表API请求失败', 'error');
+                    showError('recent-messages', '暂无设备');
                 }
             } catch (error) {
                 console.error('加载最近消息错误:', error);
@@ -722,26 +630,12 @@
 
         // 加载系统状态
         async function loadSystemStatus() {
-            const apiKey = localStorage.getItem('token');
             try {
-                const response = await fetch('/api/system/info', {
-                    headers: {
-                        'X-API-Key': apiKey
-                    }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.success) {
-                        document.getElementById('system-status').textContent = data.data.status || '正常';
-                        document.getElementById('db-status').textContent = '正常';
-                        document.getElementById('network-status').textContent = '正常';
-                        document.getElementById('memory-status').textContent = '0%';
-                    } else {
-                        showNotification('系统状态加载失败', 'error');
-                    }
-                } else {
-                    showNotification('系统状态API请求失败', 'error');
-                }
+                const data = await apiCall('/api/system/info');
+                document.getElementById('system-status').textContent = data.data.status || '正常';
+                document.getElementById('db-status').textContent = '正常';
+                document.getElementById('network-status').textContent = '正常';
+                document.getElementById('memory-status').textContent = '0%';
             } catch (error) {
                 console.error('加载系统状态错误:', error);
                 showNotification('网络连接失败，请检查网络设置', 'error');

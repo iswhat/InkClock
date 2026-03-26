@@ -181,19 +181,106 @@
     <script src="adminlte/js/adminlte.min.js"></script>
     <!-- 登录脚本 -->
     <script>
+        // 表单验证函数
+        function validateForm() {
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+            
+            // 清除之前的错误提示
+            clearErrors();
+            
+            let isValid = true;
+            
+            // 验证用户名/邮箱
+            if (!username) {
+                showFieldError('login-username', '用户名/邮箱不能为空');
+                isValid = false;
+            } else if (!isValidUsernameOrEmail(username)) {
+                showFieldError('login-username', '请输入有效的用户名或邮箱地址');
+                isValid = false;
+            }
+            
+            // 验证密码
+            if (!password) {
+                showFieldError('login-password', '密码不能为空');
+                isValid = false;
+            } else if (password.length < 6) {
+                showFieldError('login-password', '密码长度至少为6位');
+                isValid = false;
+            }
+            
+            return isValid;
+        }
+        
+        // 验证用户名或邮箱格式
+        function isValidUsernameOrEmail(value) {
+            // 邮箱格式验证
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (emailRegex.test(value)) {
+                return true;
+            }
+            
+            // 用户名格式验证（字母、数字、下划线，长度3-20）
+            const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+            return usernameRegex.test(value);
+        }
+        
+        // 显示字段错误
+        function showFieldError(fieldId, message) {
+            const field = document.getElementById(fieldId);
+            const parent = field.closest('.input-group');
+            
+            // 添加错误样式
+            parent.classList.add('has-error');
+            
+            // 创建错误提示元素
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'text-danger text-sm mt-1';
+            errorDiv.textContent = message;
+            errorDiv.id = fieldId + '-error';
+            
+            parent.parentNode.appendChild(errorDiv);
+        }
+        
+        // 清除所有错误提示
+        function clearErrors() {
+            const errorElements = document.querySelectorAll('.text-danger');
+            errorElements.forEach(el => el.remove());
+            
+            const inputGroups = document.querySelectorAll('.input-group');
+            inputGroups.forEach(group => group.classList.remove('has-error'));
+        }
+        
+        // 显示加载状态
+        function showLoading() {
+            const submitButton = document.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
+        }
+        
+        // 隐藏加载状态
+        function hideLoading() {
+            const submitButton = document.querySelector('button[type="submit"]');
+            submitButton.disabled = false;
+            submitButton.innerHTML = '登录';
+        }
+        
+        // 表单提交处理
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const username = document.getElementById('login-username').value;
-            const password = document.getElementById('login-password').value;
-            
-            // 验证输入
-            if (!username || !password) {
-                showAlert('错误', '用户名和密码不能为空', 'danger');
+            // 验证表单
+            if (!validateForm()) {
                 return;
             }
             
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+            
             try {
+                // 显示加载状态
+                showLoading();
+                
                 const response = await fetch('/api/user/login', {
                     method: 'POST',
                     headers: {
@@ -219,13 +306,20 @@
                     // 跳转到仪表盘
                     window.location.href = 'dashboard.html';
                 } else {
-                    showAlert('登录失败', data.error, 'danger');
+                    showAlert('登录失败', data.error || '用户名或密码错误', 'danger');
                 }
             } catch (error) {
-                showAlert('错误', '登录失败，请稍后重试', 'danger');
+                showAlert('错误', '登录失败，请检查网络连接后重试', 'danger');
                 console.error('登录错误:', error);
+            } finally {
+                // 隐藏加载状态
+                hideLoading();
             }
         });
+        
+        // 输入框焦点事件，清除错误提示
+        document.getElementById('login-username').addEventListener('focus', clearErrors);
+        document.getElementById('login-password').addEventListener('focus', clearErrors);
         
         function showAlert(title, message, type) {
             // 移除现有的alert
