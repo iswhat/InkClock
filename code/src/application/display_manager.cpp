@@ -191,15 +191,8 @@ bool DisplayManager::init() {
   width = displayDriver->getWidth();
   height = displayDriver->getHeight();
   
-  // 初始化分屏布局参数 - 根据屏幕宽度动态调整
-  // 小屏幕（< 600像素）：左侧面板宽度约为总宽度的1/2
-  // 大屏幕（>= 600像素）：左侧面板宽度约为总宽度的1/3
-  if (width < 600) {
-    leftPanelWidth = width / 2;
-  } else {
-    leftPanelWidth = width / 3;
-  }
-  rightPanelWidth = width - leftPanelWidth;
+  // 使用布局管理器计算布局
+  layoutManager->calculateLayout(width, height, leftPanelWidth, rightPanelWidth);
   
   // 订阅报警事件
   EVENT_SUBSCRIBE(EVENT_ALARM_TRIGGERED, [this](EventType type, std::shared_ptr<EventData> data) {
