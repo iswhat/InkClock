@@ -4,6 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>InkClock 个人资料</title>
+    <!-- PWA 相关标签 -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="description" content="InkClock 智能设备管理系统">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="InkClock">
+    <!-- iOS 图标 -->
+    <link rel="apple-touch-icon" href="/adminlte/img/AdminLTELogo.png">
+    <link rel="icon" href="/adminlte/img/AdminLTELogo.png" type="image/png">
+    <!-- 预加载关键资源 -->
+    <link rel="preload" href="adminlte/css/adminlte.min.css" as="style">
+    <link rel="preload" href="adminlte/plugins/jquery/jquery.min.js" as="script">
+    <link rel="preload" href="adminlte/plugins/bootstrap/js/bootstrap.min.js" as="script">
+    <link rel="preload" href="adminlte/js/adminlte.min.js" as="script">
+    <link rel="preload" href="js/menu.js" as="script">
     <!-- AdminLTE CSS -->
     <link rel="stylesheet" href="adminlte/css/adminlte.min.css">
     <!-- Font Awesome -->
@@ -82,6 +98,12 @@
         .user-profile {
             max-width: 600px;
             margin: 0 auto;
+            padding: 0 15px;
+        }
+        @media (max-width: 768px) {
+            .user-profile {
+                max-width: 100%;
+            }
         }
         .profile-image {
             text-align: center;
@@ -525,7 +547,7 @@
                 const password = $('#edit-password').val();
                 
                 // 这里可以添加API调用保存用户信息
-                alert('个人资料已保存');
+                handleSuccess('个人资料已保存');
                 
                 // 切换回查看模式
                 $('#profile-edit').hide();
@@ -540,7 +562,9 @@
             $('#copy-api-key').click(function() {
                 const apiKey = $('#api-key').val();
                 navigator.clipboard.writeText(apiKey).then(function() {
-                    alert('API密钥已复制到剪贴板');
+                    handleSuccess('API密钥已复制到剪贴板');
+                }).catch(function(error) {
+                    handleError(error, '复制API密钥失败');
                 });
             });
 
@@ -548,7 +572,7 @@
             $('#regenerate-api-key').click(function() {
                 if (confirm('确定要重新生成API密钥吗？这会使当前密钥失效。')) {
                     // 这里可以添加API调用重新生成密钥
-                    alert('API密钥已重新生成');
+                    handleSuccess('API密钥已重新生成');
                 }
             });
 
@@ -563,6 +587,74 @@
             checkLoginStatus();
             loadUserInfo();
         });
+    </script>
+    
+    <!-- Service Worker 注册 -->
+    <script>
+        // 注册 Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then((registration) => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
+        
+        // 监听网络状态变化
+        window.addEventListener('online', () => {
+            console.log('网络已连接');
+            // 可以在这里添加同步操作
+            if ('serviceWorker' in navigator && 'SyncManager' in window) {
+                navigator.serviceWorker.ready.then((registration) => {
+                    registration.sync.register('sync-messages');
+                    registration.sync.register('sync-settings');
+                });
+            }
+        });
+        
+        window.addEventListener('offline', () => {
+            console.log('网络已断开');
+            // 显示离线提示
+            const offlineToast = document.createElement('div');
+            offlineToast.style.position = 'fixed';
+            offlineToast.style.bottom = '20px';
+            offlineToast.style.right = '20px';
+            offlineToast.style.backgroundColor = '#ff6b6b';
+            offlineToast.style.color = 'white';
+            offlineToast.style.padding = '12px 20px';
+            offlineToast.style.borderRadius = '5px';
+            offlineToast.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+            offlineToast.style.zIndex = '9999';
+            offlineToast.innerHTML = '<i class="fas fa-wifi-slash"></i> 您当前处于离线状态';
+            offlineToast.id = 'offline-toast';
+            
+            // 移除已存在的提示
+            const existingToast = document.getElementById('offline-toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+            
+            document.body.appendChild(offlineToast);
+            
+            // 3秒后自动消失
+            setTimeout(() => {
+                offlineToast.remove();
+            }, 3000);
+        });
+        
+        // 监听 Service Worker 消息
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'SYNC_COMPLETED') {
+                    console.log('数据同步完成:', event.data.data);
+                    // 可以在这里更新UI
+                }
+            });
+        }
     </script>
 </body>
 </html>

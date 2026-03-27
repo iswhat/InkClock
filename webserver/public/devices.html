@@ -4,6 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>InkClock 设备管理</title>
+    <!-- PWA 相关标签 -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="description" content="InkClock 智能设备管理系统">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="InkClock">
+    <!-- iOS 图标 -->
+    <link rel="apple-touch-icon" href="/adminlte/img/AdminLTELogo.png">
+    <link rel="icon" href="/adminlte/img/AdminLTELogo.png" type="image/png">
+    <!-- 预加载关键资源 -->
+    <link rel="preload" href="adminlte/css/adminlte.min.css" as="style">
+    <link rel="preload" href="adminlte/plugins/jquery/jquery.min.js" as="script">
+    <link rel="preload" href="adminlte/plugins/bootstrap/js/bootstrap.min.js" as="script">
+    <link rel="preload" href="adminlte/js/adminlte.min.js" as="script">
+    <link rel="preload" href="js/menu.js" as="script">
     <!-- AdminLTE CSS -->
     <link rel="stylesheet" href="adminlte/css/adminlte.min.css">
     <!-- Font Awesome -->
@@ -381,7 +397,7 @@
                             <div class="card">
                                 <div class="card-body">
                                     <div class="row">
-                                        <div class="col-md-4">
+                                        <div class="col-12 col-md-4 mb-3 mb-md-0">
                                             <div class="input-group">
                                                 <input type="text" class="form-control" placeholder="搜索设备..." id="search-input">
                                                 <div class="input-group-append">
@@ -391,7 +407,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-12 col-md-4 mb-3 mb-md-0">
                                             <div class="input-group">
                                                 <select class="form-control" id="status-filter">
                                                     <option value="all">所有状态</option>
@@ -405,21 +421,23 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-md-4 text-right">
-                                            <div class="btn-group" role="group">
-                                                <button type="button" class="btn btn-danger" id="batch-delete-btn" disabled>
+                                        <div class="col-12 col-md-4 text-center text-md-right">
+                                            <div class="btn-group w-100 w-md-auto mb-2 mb-md-0" role="group">
+                                                <button type="button" class="btn btn-danger btn-block btn-md" id="batch-delete-btn" disabled>
                                                     <i class="fas fa-trash"></i> 批量删除
                                                 </button>
-                                                <button type="button" class="btn btn-secondary" id="batch-group-btn" disabled>
+                                                <button type="button" class="btn btn-secondary btn-block btn-md" id="batch-group-btn" disabled>
                                                     <i class="fas fa-sitemap"></i> 批量分配分组
                                                 </button>
                                             </div>
-                                            <button type="button" class="btn btn-primary" id="add-device-btn">
-                                                <i class="fas fa-plus"></i> 添加设备
-                                            </button>
-                                            <button type="button" class="btn btn-secondary" id="refresh-btn">
-                                                <i class="fas fa-sync-alt"></i> 刷新
-                                            </button>
+                                            <div class="btn-group w-100 w-md-auto" role="group">
+                                                <button type="button" class="btn btn-primary btn-block btn-md mr-md-2" id="add-device-btn">
+                                                    <i class="fas fa-plus"></i> 添加设备
+                                                </button>
+                                                <button type="button" class="btn btn-secondary btn-block btn-md" id="refresh-btn">
+                                                    <i class="fas fa-sync-alt"></i> 刷新
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -710,7 +728,8 @@
                 $('#showing-count').text(devices.length);
             } catch (error) {
                 console.error('加载设备数据错误:', error);
-                $('#devices-table-body').html('<tr><td colspan="8" class="text-center">加载失败</td></tr>');
+                $('#devices-table-body').html('<tr><td colspan="8" class="text-center text-danger">网络连接失败，请检查网络设置</td></tr>');
+                alert('网络连接失败，请检查网络设置');
             }
         }
 
@@ -773,6 +792,11 @@
                 $('#update-devices').text(update);
             } catch (error) {
                 console.error('加载统计数据错误:', error);
+                // 重置统计数据
+                $('#total-devices').text('0');
+                $('#online-devices').text('0');
+                $('#offline-devices').text('0');
+                $('#update-devices').text('0');
             }
         }
 
@@ -930,7 +954,7 @@
                 alert(`成功删除 ${successCount} 个设备`);
             } catch (error) {
                 console.error('批量删除设备错误:', error);
-                alert('批量删除失败: 网络错误');
+                alert('批量删除失败: ' + error.message);
             }
         }
 
@@ -978,7 +1002,7 @@
                 alert(`成功分配 ${successCount} 个设备到分组`);
             } catch (error) {
                 console.error('批量分配分组错误:', error);
-                alert('批量分配失败: 网络错误');
+                alert('批量分配失败: ' + error.message);
             }
         }
 
@@ -998,6 +1022,8 @@
                 $('#showing-count').text(devices.length);
             } catch (error) {
                 console.error('搜索设备错误:', error);
+                $('#devices-table-body').html('<tr><td colspan="8" class="text-center text-danger">网络连接失败，请检查网络设置</td></tr>');
+                alert('网络连接失败，请检查网络设置');
             }
         }
 
@@ -1013,6 +1039,8 @@
                 $('#showing-count').text(devices.length);
             } catch (error) {
                 console.error('过滤设备错误:', error);
+                $('#devices-table-body').html('<tr><td colspan="8" class="text-center text-danger">网络连接失败，请检查网络设置</td></tr>');
+                alert('网络连接失败，请检查网络设置');
             }
         }
 
@@ -1030,6 +1058,7 @@
                 $('#batch-group-select').html(html);
             } catch (error) {
                 console.error('加载设备分组错误:', error);
+                alert('加载设备分组失败: ' + error.message);
             }
         }
 
@@ -1117,7 +1146,7 @@
                 $('#detail-device-messages').html(html);
             } catch (error) {
                 console.error('加载设备消息错误:', error);
-                $('#detail-device-messages').html('<p class="text-muted">加载消息失败</p>');
+                $('#detail-device-messages').html('<p class="text-danger">网络连接失败，请检查网络设置</p>');
             }
         }
 
@@ -1146,6 +1175,74 @@
                 console.error('删除设备错误:', error);
                 alert('设备删除失败: ' + error.message);
             }
+        }
+    </script>
+    
+    <!-- Service Worker 注册 -->
+    <script>
+        // 注册 Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then((registration) => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
+        
+        // 监听网络状态变化
+        window.addEventListener('online', () => {
+            console.log('网络已连接');
+            // 可以在这里添加同步操作
+            if ('serviceWorker' in navigator && 'SyncManager' in window) {
+                navigator.serviceWorker.ready.then((registration) => {
+                    registration.sync.register('sync-messages');
+                    registration.sync.register('sync-settings');
+                });
+            }
+        });
+        
+        window.addEventListener('offline', () => {
+            console.log('网络已断开');
+            // 显示离线提示
+            const offlineToast = document.createElement('div');
+            offlineToast.style.position = 'fixed';
+            offlineToast.style.bottom = '20px';
+            offlineToast.style.right = '20px';
+            offlineToast.style.backgroundColor = '#ff6b6b';
+            offlineToast.style.color = 'white';
+            offlineToast.style.padding = '12px 20px';
+            offlineToast.style.borderRadius = '5px';
+            offlineToast.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+            offlineToast.style.zIndex = '9999';
+            offlineToast.innerHTML = '<i class="fas fa-wifi-slash"></i> 您当前处于离线状态';
+            offlineToast.id = 'offline-toast';
+            
+            // 移除已存在的提示
+            const existingToast = document.getElementById('offline-toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+            
+            document.body.appendChild(offlineToast);
+            
+            // 3秒后自动消失
+            setTimeout(() => {
+                offlineToast.remove();
+            }, 3000);
+        });
+        
+        // 监听 Service Worker 消息
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'SYNC_COMPLETED') {
+                    console.log('数据同步完成:', event.data.data);
+                    // 可以在这里更新UI
+                }
+            });
         }
     </script>
 </body>

@@ -16,6 +16,10 @@
     <link rel="icon" href="/adminlte/img/AdminLTELogo.png" type="image/png">
     <!-- 预加载关键资源 -->
     <link rel="preload" href="dist/app.min.css" as="style">
+    <link rel="preload" href="adminlte/plugins/jquery/jquery.min.js" as="script">
+    <link rel="preload" href="adminlte/plugins/bootstrap/js/bootstrap.min.js" as="script">
+    <link rel="preload" href="adminlte/js/adminlte.min.js" as="script">
+    <link rel="preload" href="js/menu.js" as="script">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- 优化后的CSS -->
@@ -335,7 +339,7 @@
                                 <!-- /.card-header -->
                                 <div class="card-body">
                                     <div class="row">
-                                        <div class="col-md-3">
+                                        <div class="col-12 col-sm-6 col-md-3 mb-3 mb-md-0">
                                             <div class="info-box fade-in slide-up" style="animation-delay: 0.8s;">
                                                 <span class="info-box-icon bg-primary"><i class="fas fa-server"></i></span>
                                                 <div class="info-box-content">
@@ -344,7 +348,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-md-3">
+                                        <div class="col-12 col-sm-6 col-md-3 mb-3 mb-md-0">
                                             <div class="info-box fade-in slide-up" style="animation-delay: 0.9s;">
                                                 <span class="info-box-icon bg-secondary"><i class="fas fa-database"></i></span>
                                                 <div class="info-box-content">
@@ -353,7 +357,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-md-3">
+                                        <div class="col-12 col-sm-6 col-md-3 mb-3 mb-md-0">
                                             <div class="info-box fade-in slide-up" style="animation-delay: 1.0s;">
                                                 <span class="info-box-icon bg-success"><i class="fas fa-ethernet"></i></span>
                                                 <div class="info-box-content">
@@ -362,7 +366,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-md-3">
+                                        <div class="col-12 col-sm-6 col-md-3 mb-3 mb-md-0">
                                             <div class="info-box fade-in slide-up" style="animation-delay: 1.1s;">
                                                 <span class="info-box-icon bg-warning"><i class="fas fa-memory"></i></span>
                                                 <div class="info-box-content">
@@ -420,33 +424,7 @@
             }
         }
 
-        // 显示通知
-        function showNotification(message, type = 'info') {
-            const notification = document.createElement('div');
-            notification.className = `alert alert-${type} alert-dismissible fade show`;
-            notification.role = 'alert';
-            notification.innerHTML = `
-                <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i> ${message}
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            `;
-            notification.style.position = 'fixed';
-            notification.style.top = '20px';
-            notification.style.right = '20px';
-            notification.style.zIndex = '9999';
-            notification.style.minWidth = '300px';
-            
-            document.body.appendChild(notification);
-            
-            // 3秒后自动关闭
-            setTimeout(() => {
-                notification.classList.add('fade');
-                setTimeout(() => {
-                    notification.remove();
-                }, 500);
-            }, 3000);
-        }
+        // 显示通知函数已移至 menu.js
 
         // 页面加载完成后执行
         document.addEventListener('DOMContentLoaded', function() {
@@ -527,7 +505,7 @@
                 }
             } catch (error) {
                 console.error('加载统计数据错误:', error);
-                showNotification('网络连接失败，请检查网络设置', 'error');
+                handleError(error, '加载统计数据失败');
                 // 重置所有统计数据
                 document.getElementById('stat-devices').textContent = '0';
                 document.getElementById('stat-messages').textContent = '0';
@@ -568,7 +546,7 @@
             } catch (error) {
                 console.error('加载最近设备错误:', error);
                 showError('recent-devices', '网络连接失败');
-                showNotification('网络连接失败，请检查网络设置', 'error');
+                handleError(error, '加载最近设备失败');
             }
         }
 
@@ -624,7 +602,7 @@
             } catch (error) {
                 console.error('加载最近消息错误:', error);
                 showError('recent-messages', '网络连接失败');
-                showNotification('网络连接失败，请检查网络设置', 'error');
+                handleError(error, '加载最近消息失败');
             }
         }
 
@@ -638,7 +616,7 @@
                 document.getElementById('memory-status').textContent = '0%';
             } catch (error) {
                 console.error('加载系统状态错误:', error);
-                showNotification('网络连接失败，请检查网络设置', 'error');
+                handleError(error, '加载系统状态失败');
             }
         }
 

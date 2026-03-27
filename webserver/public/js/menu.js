@@ -157,9 +157,89 @@ window.addEventListener('unhandledrejection', function(event) {
     // 可以在这里添加错误上报逻辑
 });
 
+// 加载状态管理
+let loadingCount = 0;
+
+// 显示加载指示器
+function showLoading() {
+    loadingCount++;
+    if (loadingCount === 1) {
+        // 创建加载指示器
+        let loadingElement = document.getElementById('loading-indicator');
+        if (!loadingElement) {
+            loadingElement = document.createElement('div');
+            loadingElement.id = 'loading-indicator';
+            loadingElement.style.position = 'fixed';
+            loadingElement.style.top = '0';
+            loadingElement.style.left = '0';
+            loadingElement.style.width = '100%';
+            loadingElement.style.height = '100%';
+            loadingElement.style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
+            loadingElement.style.display = 'flex';
+            loadingElement.style.justifyContent = 'center';
+            loadingElement.style.alignItems = 'center';
+            loadingElement.style.zIndex = '9999';
+            loadingElement.innerHTML = `
+                <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="sr-only">加载中...</span>
+                    </div>
+                    <p style="margin-top: 10px; font-size: 16px;">加载中...</p>
+                </div>
+            `;
+            document.body.appendChild(loadingElement);
+        } else {
+            loadingElement.style.display = 'flex';
+        }
+    }
+}
+
+// 隐藏加载指示器
+function hideLoading() {
+    loadingCount--;
+    if (loadingCount <= 0) {
+        loadingCount = 0;
+        const loadingElement = document.getElementById('loading-indicator');
+        if (loadingElement) {
+            loadingElement.style.display = 'none';
+        }
+    }
+}
+
+// 显示通知
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show`;
+    notification.role = 'alert';
+    notification.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i> ${message}
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    `;
+    notification.style.position = 'fixed';
+    notification.style.top = '20px';
+    notification.style.right = '20px';
+    notification.style.zIndex = '9999';
+    notification.style.minWidth = '300px';
+    
+    document.body.appendChild(notification);
+    
+    // 3秒后自动关闭
+    setTimeout(() => {
+        notification.classList.add('fade');
+        setTimeout(() => {
+            notification.remove();
+        }, 500);
+    }, 3000);
+}
+
 // 统一的 API 调用函数
 async function apiCall(url, options = {}) {
     try {
+        // 显示加载状态
+        showLoading();
+        
         const apiKey = localStorage.getItem('token');
         if (apiKey && !url.includes('api_key=')) {
             url += (url.includes('?') ? '&' : '?') + 'api_key=' + apiKey;
@@ -195,14 +275,19 @@ async function apiCall(url, options = {}) {
             throw new Error('网络连接失败，请检查网络设置');
         }
         throw error;
+    } finally {
+        // 隐藏加载状态
+        hideLoading();
     }
 }
 
 // 统一的错误处理函数
 function handleError(error, defaultMessage = '操作失败') {
-    if (error.message) {
-        alert(error.message);
-    } else {
-        alert(defaultMessage);
-    }
+    const message = error.message || defaultMessage;
+    showNotification(message, 'error');
+}
+
+// 统一的成功处理函数
+function handleSuccess(message = '操作成功') {
+    showNotification(message, 'success');
 }

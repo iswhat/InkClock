@@ -8,50 +8,14 @@
 #include "lunar_manager.h"
 #include "../coresystem/dependency_injection.h"
 #include "image_decoder_config.h"
+#include "display/drawers/clock_drawer.h"
+#include "display/drawers/weather_drawer.h"
+#include "display/drawers/sensor_drawer.h"
+#include "display/drawers/status_drawer.h"
+#include "display/layouts/layout_manager.h"
+#include "display/utils/display_utils.h"
 #include <vector>
 #include <memory>
-
-// 自定义字符串填充函数，替代缺少的 padStart 方法
-String padStart(String str, unsigned int length, char padChar) {
-  if (str.length() >= length) {
-    return str;
-  }
-  String result = "";
-  for (unsigned int i = 0; i < length - str.length(); i++) {
-    result += padChar;
-  }
-  result += str;
-  return result;
-}
-
-// 获取指定月份的第一天是星期几（0-6，0表示星期日）
-int getFirstWeekdayOfMonth(int year, int month) {
-  struct tm timeinfo;
-  timeinfo.tm_year = year - 1900;
-  timeinfo.tm_mon = month - 1;
-  timeinfo.tm_mday = 1;
-  timeinfo.tm_hour = 0;
-  timeinfo.tm_min = 0;
-  timeinfo.tm_sec = 0;
-  mktime(&timeinfo);
-  return timeinfo.tm_wday;
-}
-
-// 获取指定月份的天数
-int getDaysInMonth(int year, int month) {
-  if (month == 2) {
-    // 闰年判断
-    if ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0) {
-      return 29;
-    } else {
-      return 28;
-    }
-  } else if (month == 4 || month == 6 || month == 9 || month == 11) {
-    return 30;
-  } else {
-    return 31;
-  }
-}
 
 DisplayManager::DisplayManager() {
   displayDriver = nullptr;
@@ -132,16 +96,8 @@ DisplayManager::DisplayManager() {
   gifBuffer = nullptr;
   gifBufferSize = 0;
   
-  // 初始化布局配置（左小右大 45:55）
-  layoutMode = LAYOUT_MODE_STANDARD;
-  currentLayout = {
-    LAYOUT_MODE_STANDARD,
-    0.45f,  // 左侧面板比例 45%（较小）
-    0.55f,  // 右侧面板比例 55%（较大）
-    12,     // 基础字体大小
-    8,      // 元素间距
-    false   // 默认不显示边框
-  };
+  // 初始化布局管理器
+  layoutManager = std::make_unique<LayoutManager>();
   
   // 订阅事件
   EVENT_SUBSCRIBE(EVENT_ALARM_TRIGGERED, [this](EventType type, std::shared_ptr<EventData> data) {
